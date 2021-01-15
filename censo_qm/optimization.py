@@ -1763,7 +1763,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 # f"{ avGcorrection['avGcorrection'][temperature]:>22.7f}"
             )
         if temperature == config.temperature:
-            print(line, "    <<====")
+            print(line, "    <<==part2==")
         else:
             print(line)
     print("".ljust(int(PLENGTH), "-"))

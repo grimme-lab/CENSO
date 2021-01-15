@@ -1,8 +1,13 @@
+[![Latest Version](https://img.shields.io/github/v/release/grimme-lab/CENSO)](https://github.com/grimme-lab/CENSO/releases/latest)
+
 CENSO - Commandline ENergetic SOrting of Conformer Rotamer Ensembles
 ====================================================================
 
 This repository hosts the `CENSO` code for the refinement of Conformer Rotamer 
 Ensembles (CRE) as obtained from `CREST`.
+
+
+CENSO ONLY WORKS WITH THE NEWEST XTB VERSION !!!! SEE REQUIREMENTS !!!
 
 
 Installation
@@ -101,7 +106,7 @@ Requirements:
 * ORCA > version 4.1
 
 
-Furter information (will be ordered later on):
+Further information (will be ordered later on):
 
 * the file .censorc can be used in the current working directory and will be preferred to 
   the global configuration file in ~/.censorc

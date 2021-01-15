@@ -488,7 +488,7 @@ def part0(config, conformers, ensembledata):
         avG += conf.bm_weight * conf.free_energy
         avE += conf.bm_weight * conf.cheap_prescreening_sp_info["energy"]
     # printout:
-    print(f"{config.temperature:^15} {avE:>14.7f}  {avG:>14.7f} " "    <<==part0==")
+    print(f"{config.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==")
     print("".ljust(int(PLENGTH), "-"))
     print("")
     ################################################################################
