@@ -411,7 +411,7 @@ def calc_boltzmannweights(confs, property, T):
     return confs
 
 
-def new_folders(cwd, conflist, foldername, save_errors, store_confs):
+def new_folders(cwd, conflist, foldername, save_errors, store_confs, silent=False):
     """ 
     create folders for all conformers in conflist
     """
@@ -425,9 +425,10 @@ def new_folders(cwd, conflist, foldername, save_errors, store_confs):
             if not os.path.isdir(tmp_dir):
                 print(f"ERROR: Could not create folder for CONF{conf.id}!")
                 print(f"CONF{conf.id} is removed, because IO failed!")
-                save_errors.append(f"CONF{conf.id} was removed, " "because IO failed!")
+                save_errors.append(f"CONF{conf.id} was removed, because IO failed!")
                 store_confs.append(conflist.pop(conflist.index(conf)))
-    print("Constructed folders!")
+    if not silent:
+        print("Constructed folders!")
     return save_errors, store_confs, conflist
 
 
@@ -3093,3 +3094,11 @@ def write_anmrrc(config):
             )
         )  # phosphorus
     return element_ref_shield
+
+def print_errors(line, save_errors):
+    """print line and append to list save_errors"""
+    print(line)
+    try:
+        save_errors.append(line)
+    except:
+        pass

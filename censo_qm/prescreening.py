@@ -23,6 +23,7 @@ from .utilities import (
     calc_std_dev,
     spearman,
     print,
+    print_errors,
     calc_boltzmannweights,
 )
 
@@ -198,6 +199,7 @@ def part1(config, conformers, store_confs, ensembledata):
                     "cosmorssetup": config.external_paths["cosmorssetup"],
                     "cosmorsparam": exc_fine.get(config.smgsolv1, "normal"),
                     "cosmothermversion": config.external_paths["cosmothermversion"],
+                    "ctd-param": config.cosmorsparam,
                 }
                 instruction.update(tmp)
                 instruction["method"], instruction["method2"] = config.get_method_name(
@@ -390,7 +392,7 @@ def part1(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         conf.reset_job_info()
     if not calculate:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -418,7 +420,7 @@ def part1(config, conformers, store_confs, ensembledata):
     try:
         maxreldft = max([i.rel_free_energy for i in calculate if i is not None])
     except ValueError:
-        print("ERROR: No conformer left or Error in maxreldft!")
+        print_errors("ERROR: No conformer left or Error in maxreldft!", save_errors)
     # print sorting
     columncall = [
         lambda conf: "CONF" + str(getattr(conf, "id")),
@@ -516,7 +518,7 @@ def part1(config, conformers, store_confs, ensembledata):
                 prev_calculated.append(conf)
 
         if not calculate and not prev_calculated:
-            print("ERROR: No conformers left!")
+            print_errors("ERROR: No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
         folderrho = "rrho_part1"
@@ -546,6 +548,9 @@ def part1(config, conformers, store_confs, ensembledata):
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
+            "imagthr": config.imagthr,
+            "sthr": config.sthr,
+            "scale":config.scale,
         }
 
         instruction_prerrho["method"], _ = config.get_method_name(
@@ -625,7 +630,7 @@ def part1(config, conformers, store_confs, ensembledata):
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
-            print("ERROR: No conformers left!")
+            print_errors("ERROR: No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
 
@@ -724,7 +729,7 @@ def part1(config, conformers, store_confs, ensembledata):
     try:
         maxreldft = max([i.rel_free_energy for i in calculate if i is not None])
     except ValueError:
-        print("ERROR: No conformer left or Error in maxreldft!")
+        print_errors("ERROR: No conformer left or Error in maxreldft!", save_errors)
     # print sorting
     calculate.sort(key=lambda x: int(x.id))
     printout(
@@ -853,7 +858,7 @@ def part1(config, conformers, store_confs, ensembledata):
             )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
-            print("Error: There are no more conformers left!")
+            print_errors("Error: There are no more conformers left!", save_errors)
     else:
         for conf in list(calculate):
             conf.part_info["part1"] = "passed"
@@ -1057,7 +1062,7 @@ def part1(config, conformers, store_confs, ensembledata):
         conf.reset_job_info()
     if save_errors:
         print(
-            "***---------------------------------------------------------***",
+            "\n***---------------------------------------------------------***",
             file=sys.stderr,
         )
         print(

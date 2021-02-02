@@ -59,7 +59,19 @@ def enso_startup(cwd, args):
         )
         config.write_rcfile(os.path.join(config.cwd, newconfigfname))
         sys.exit(0)
+
     configfname = ".censorc"
+    if args.inprcpath:
+        try:
+            tmp_path = os.path.abspath(args.inprcpath)
+            if os.path.isfile(tmp_path):
+                config.configpath = tmp_path
+            else:
+                raise FileNotFoundError
+        except FileNotFoundError:
+            print(f"ERROR: Could not find the config file: {configfname}.\n"
+                "Going to exit!")
+            sys.exit(1)
     if os.path.isfile(os.path.join(config.cwd, configfname)):
         # local configuration file before remote configuration file
         config.configpath = os.path.join(config.cwd, configfname)
@@ -70,7 +82,10 @@ def enso_startup(cwd, args):
         print(
             f"ERROR: Could not find the config file: {configfname}.\n"
             f"{'':{7}}The file has to be either in /home/$USER/ or the current "
-            "working directory!\nGoing to exit!"
+            "working directory!\n"
+            "The configurationfile can be otherwise directly referenced using: "
+            "'censo -inprc /path/to/.censorc' \n"
+            "Going to exit!"
         )
         sys.exit(1)
 
@@ -97,6 +112,9 @@ def enso_startup(cwd, args):
     else:
         with open(solvent_user_path, "w") as out:
             json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
+        config.save_infos.append(
+            "Creating file: {}\n".format(os.path.basename(solvent_user_path))
+        )
 
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
         tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)

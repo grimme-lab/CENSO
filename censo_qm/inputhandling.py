@@ -20,6 +20,7 @@ from .cfg import (
     censo_solvent_db,
     external_paths,
     __version__,
+    cosmors_param,
 )
 from .utilities import frange, format_line, print
 
@@ -170,7 +171,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Functional for geometry optimization (used in part2) and "
-             "single-points in part1",
+        "single-points in part1",
     )
     group1.add_argument(
         "-basis",
@@ -263,6 +264,17 @@ def cml(startup_description, options, argv=None):
         action="store_true",
         help="Option to turn off part1 and part2",
     )
+    group1.add_argument(
+        "-cosmorsparam",
+        "--cosmorsparam",
+        dest="cosmorsparam",
+        required=False,
+        action="store",
+        choices=options.value_options["cosmorsparam"],
+        help="Choose a COSMO-RS parametrization for possible COSMO-RS G_solv "
+        "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
+        " 'BP_TZVPD_FINE_C30_1601.ctd'.",
+    )
     group2 = parser.add_argument_group("SPECIAL RUN MODES")
     group2.add_argument(
         "-logK",
@@ -283,7 +295,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Option to turn the CHEAP prescreening evaluation (part0) which "
-             "improves description of ΔE 'on' or 'off'.",
+        "improves description of ΔE 'on' or 'off'.",
     )
     group10.add_argument(
         "-func0",
@@ -823,6 +835,32 @@ def cml(startup_description, options, argv=None):
         " threads with each (omp) 4 cores --> 20 cores need to be available on "
         "the machine.",
     )
+    group11 = parser.add_argument_group("Concerning overall mRRHO calculations")
+    group11.add_argument(
+        "-imagthr",
+        "--imagthr",
+        dest="imagthr",
+        action="store",
+        metavar="",
+        help="threshold for inverting imaginary frequencies for thermo in cm-1."
+        " (e.g. -30.0)",
+    )
+    group11.add_argument(
+        "-sthr",
+        "--sthr",
+        dest="sthr",
+        action="store",
+        metavar="",
+        help="Rotor cut-off for thermo in cm-1. (e.g. 50.0)",
+    )
+    group11.add_argument(
+        "-scale",
+        "--scale",
+        dest="scale",
+        action="store",
+        metavar="",
+        help="scaling factor for frequencies  (e.g. 1.0)",
+    )
     group8 = parser.add_argument_group("CREATION/DELETION OF FILES")
     group8.add_argument(
         "--debug",
@@ -859,16 +897,30 @@ def cml(startup_description, options, argv=None):
     )
     group8.add_argument(
         "-newconfig",
-        "-write_ensorc",
-        "--write_ensorc",
+        "-write_censorc",
+        "--write_censorc",
         dest="writeconfig",
         default=False,
         action="store_true",
         required=False,
-        help="Write new configuration file , which is placed into the current "
+        help="Write new configuration file, which is placed into the current "
         "directory.",
     )
-
+    group8.add_argument(
+        "-inprc",
+        "--inprc",
+        dest="inprcpath",
+        required=False,
+        help="Path to the destination of the configuration file .censorc",
+    )
+    group8.add_argument(
+        "-tutorial",
+        "--tutorial",
+        dest="tutorial",
+        required=False,
+        action="store_true",
+        help="Start interactive CENSO documentation.",
+    )
     args = parser.parse_args(argv)
 
     # apply logK settings but don't override user input!
@@ -989,6 +1041,10 @@ class internal_settings:
         "funcOR_SCF": "func_or_scf",
         "hlow": "hlow",
         "rmsdbias": "rmsdbias",
+        "imagthr": "imagthr",
+        "sthr": "sthr",
+        "scale": "scale",
+        "cosmorsparam": "cosmorsparam",
     }
     knownbasissets3 = [
         "SVP",
@@ -1021,23 +1077,17 @@ class internal_settings:
         "def2-QZVPP",
         "minix",
     ]
+
     # information on functionals:
     composite_method_basis = {
         "pbeh-3c": "def2-mSVP",
+        "pbeh3c": "def2-mSVP",
         "b97-3c": "def2-mTZVP",
         "b973c": "def2-mTZVP",
         "hf3c": "minix",
         "hf-3c": "minix",
         "r2scan-3c": "def2-mTZVPP",
     }
-    composite_dfa = (
-        "pbeh-3c",
-        "b97-3c",
-        "b973c",
-        "hf-3c",
-        "hf3c",
-        "r2scan-3c",
-    )  # + hf3c ; )
     gga_dfa = ("tpss", "pbe", "kt2")
     hybrid_dfa = (
         "pbe0",
@@ -1065,9 +1115,9 @@ class internal_settings:
     func_tm = ["pbeh-3c", "b97-3c", "tpss", "r2scan-3c", "b97-d", "pbe"]
     func3_orca = ["pw6b95", "pbe0", "wb97x", "dsd-blyp"]
     func3_tm = ["pw6b95", "pbe0", "b97-d3", "r2scan-3c"]
-    func_j_tm = ["tpss", "pbe0", "pbeh-3c"]
+    func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c"]
     func_j_orca = ["tpss", "pbe0", "pbeh-3c"]
-    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "kt2"]
+    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "kt2", "r2scan-3c"]
     func_s_orca = ["tpss", "pbe0", "dsd-blyp", "pbeh-3c", "kt2"]
     impgfnv = ["gfn1", "gfn2", "gfnff"]
     tmp_smd_solvents = [
@@ -1421,6 +1471,9 @@ class internal_settings:
             ("evaluate_rrho", {"default": True, "type": bool}),
             ("consider_sym", {"default": False, "type": bool}),
             ("bhess", {"default": True, "type": bool}),
+            ("imagthr", {"default": "automatic", "type": str}),
+            ("sthr", {"default": "automatic", "type": str}),
+            ("scale", {"default": "automatic", "type": str}),
             ("rmsdbias", {"default": False, "type": bool}),
             ("sm_rrho", {"default": "alpb", "type": str}),
             ("check", {"default": True, "type": bool}),
@@ -1429,6 +1482,7 @@ class internal_settings:
             ("basis", {"default": "automatic", "type": str}),
             ("maxthreads", {"default": 1, "type": int}),
             ("omp", {"default": 1, "type": int}),
+            ("cosmorsparam", {"default": "automatic", "type": str}),
         ]
         self.defaults_refine_ensemble_part0 = [
             # part0
@@ -1540,7 +1594,7 @@ class internal_settings:
             "nconf": ["all", "number e.g. 10 up to all conformers"],
             "charge": ["number e.g. 0"],
             "unpaired": ["number e.g. 0"],
-            "solvent": ["gas"] + [i for i in censo_solvent_db.keys()],
+            "solvent": ["gas"] + sorted([i for i in censo_solvent_db.keys()]),
             "prog": ["tm", "orca"],
             "part0": ["on", "off"],
             "part1": ["on", "off"],
@@ -1561,12 +1615,12 @@ class internal_settings:
             "temperature": ["temperature in K e.g. 298.15"],
             "multitemp": ["on", "off"],
             "trange": ["temperature range [start, end, step]"],
-            "func0": self.impfunc,
-            "basis0": ["automatic"] + list(self.func_basis_default.values()),
-            "func": self.impfunc,
-            "basis": ["automatic"] + list(self.func_basis_default.values()),
-            "func3": self.impfunc3,
-            "basis3": self.knownbasissets3,
+            "func0": sorted(self.impfunc),
+            "basis0": ["automatic"] + sorted(list(self.func_basis_default.values())),
+            "func": sorted(self.impfunc),
+            "basis": ["automatic"] + sorted(list(self.func_basis_default.values())),
+            "func3": sorted(self.impfunc3),
+            "basis3": sorted(self.knownbasissets3),
             "part0_threshold": ["number e.g. 4.0"],
             "part1_threshold": ["number e.g. 5.0"],
             "opt_limit": ["number e.g. 4.0"],
@@ -1576,16 +1630,16 @@ class internal_settings:
             "part3_threshold": [
                 "Boltzmann sum threshold in %. e.g. 95 (between 1 and 100)"
             ],
-            "sm2": self.impsm2,
-            "smgsolv3": self.impsmgsolv3,
-            "sm4_j": self.impsm4_j,
-            "sm4_s": self.impsm4_s,
+            "sm2": sorted(self.impsm2),
+            "smgsolv3": sorted(self.impsmgsolv3),
+            "sm4_j": sorted(self.impsm4_j),
+            "sm4_s": sorted(self.impsm4_s),
             "check": ["on", "off"],
             "crestcheck": ["on", "off"],
             "maxthreads": ["number of threads e.g. 2"],
             "omp": ["number cores per thread e.g. 4"],
-            "smgsolv1": self.impsmgsolv1,
-            "smgsolv2": self.impsmgsolv2,
+            "smgsolv1": sorted(self.impsmgsolv1),
+            "smgsolv2": sorted(self.impsmgsolv2),
             "bhess": ["on", "off"],
             "rmsdbias": ["on", "off"],
             "sm_rrho": ["alpb", "gbsa"],
@@ -1605,11 +1659,11 @@ class internal_settings:
             "couplings": ["on", "off"],
             "prog4_j": ["tm", "orca", "adf", "prog"],
             "prog4_s": ["tm", "orca", "adf", "prog"],
-            "func_j": self.impfunc_j,
-            "basis_j": self.knownbasissetsJ,
-            "func_s": self.impfunc_s,
-            "basis_s": self.knownbasissetsS,
-            "h_ref": self.imphref,
+            "func_j": sorted(self.impfunc_j),
+            "basis_j": sorted(self.knownbasissetsJ),
+            "func_s": sorted(self.impfunc_s),
+            "basis_s": sorted(self.knownbasissetsS),
+            "h_ref": sorted(self.imphref),
             "c_ref": self.impcref,
             "f_ref": self.impfref,
             "si_ref": self.impsiref,
@@ -1629,6 +1683,10 @@ class internal_settings:
             "basis_or": ["basis set for opt_rot e.g. def2-SVPD"],
             "freq_or": ["list of freq in nm to evaluate opt rot at e.g. [589, 700]"],
             "hlow": ["lowest force constant in ANC generation, e.g. 0.01"],
+            "imagthr": ["automatic or e.g., -100    # in cm-1"],
+            "sthr": ["automatic or e.g., 50     # in cm-1"],
+            "scale": ["automatic or e.g., 1.0 "],
+            "cosmorsparam": ["automatic"] + sorted(list(cosmors_param.keys())),
         }
         # must not be changed if restart(concerning optimization)
         self.restart_unchangeable = [
@@ -1646,6 +1704,7 @@ class internal_settings:
             "nat",
             "radsize",
             "consider_sym",
+            "cosmorsparam",
         ]
         # might be changed, but data may be lost/overwritten
         self.restart_changeable = {
@@ -1687,6 +1746,9 @@ class config_setup(internal_settings):
         self.evaluate_rrho = True
         self.bhess = True
         self.consider_sym = False
+        self.imagthr = -50
+        self.sthr = 50
+        self.scale = 1.0
         self.sm_rrho = "alpb"
         self.check = True
         self.crestcheck = False
@@ -1695,6 +1757,7 @@ class config_setup(internal_settings):
         self.basis = "automatic"
         self.maxthreads = 1
         self.omp = 1
+        self.cosmorsparam = "automatic"
         # part0
         self.part0 = False
         self.part0_gfnv = "gfnff"
@@ -1843,17 +1906,17 @@ class config_setup(internal_settings):
                 if basis == self.func_basis_default.get(func, None):
                     # composite method (e.g. r2scan-3c)
                     tmp_func_basis = func
-                elif disp is not None:
-                    # FUNC/BASIS
-                    tmp_func_basis = f"{func}-{disp}/{basis}"
+                # elif disp is not None:
+                #     # FUNC-DISP/BASIS
+                #     tmp_func_basis = f"{func}-{disp}/{basis}"
                 else:
-                    # FUNC-DISP/BASIS
+                    # FUNC/BASIS
                     tmp_func_basis = f"{func}/{basis}"
             elif disp is not None:
-                # FUNC/BASIS
+                # FUNC-DISP/BASIS
                 tmp_func_basis = f"{func}-{disp}/{basis}"
             else:
-                # FUNC-DISP/BASIS
+                # FUNC/BASIS
                 tmp_func_basis = f"{func}/{basis}"
         if jobtype in ("cosmors",):
             exc_name = {"cosmors": "COSMO-RS-normal", "cosmors-fine": "COSMO-RS-fine"}
@@ -2174,18 +2237,26 @@ class config_setup(internal_settings):
             self.basis = self.func_basis_default.get(self.func, default)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3
-        if self.part3 and self.func3 in (
-            "pbeh-3c",
-            "b973c",
-            "b97-3c",
-            "hf3c",
-            "hf-3c",
-            "r2scan-3c",
-        ):
-            self.save_errors.append(
-                "Basis set (basis3) is fixed to be "
-                "def2-TZVPD, keep this in mind when using composite methods!"
-            )
+        if self.part3 and self.func3 in self.composite_method_basis.keys():
+            if self.basis3 != self.composite_method_basis[self.func3]:
+                self.save_errors.append(
+                    f"WARNING: You are using a basis "
+                    f"set basis3: ({self.basis3}) different to the original composite method"
+                    f" basis set ({self.composite_method_basis[self.func3]})!"
+                )
+
+        # if self.part3 and self.func3 in (
+        #     "pbeh-3c",
+        #     "b973c",
+        #     "b97-3c",
+        #     "hf3c",
+        #     "hf-3c",
+        #     "r2scan-3c",
+        # ):
+        #     self.save_errors.append(
+        #         "Basis set (basis3) is fixed to be "
+        #         "def2-TZVPD, keep this in mind when using composite methods!"
+        #     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.part4 and (self.couplings or self.shieldings):
             self.nmrmode = True
@@ -2194,7 +2265,7 @@ class config_setup(internal_settings):
         if self.prog4_j == "orca" and self.func_j not in self.func_j_orca:
             self.save_errors.append(
                 "\nERROR: In part4 the functional (funcJ) {} "
-                "is not implemented in ENSO with the {} program package. Options "
+                "is not implemented in CENSO with the {} program package. Options "
                 "are: {}".format(self.func_j, self.prog4_j, self.func_j_orca)
             )
             if not self.part4:
@@ -2205,7 +2276,7 @@ class config_setup(internal_settings):
         if self.prog4_j == "tm" and self.func_j not in self.func_j_tm:
             self.save_errors.append(
                 "\nERROR: In part4 the functional (funcJ) {} "
-                "is not implemented in ENSO with the {} program package. Options "
+                "is not implemented in CENSO with the {} program package. Options "
                 "are: {}".format(self.func_j, self.prog4_j, self.func_j_tm)
             )
             if not self.part4:
@@ -2213,14 +2284,20 @@ class config_setup(internal_settings):
                 self.save_errors.append(tmp)
             else:
                 error_logical = True
-        if self.func_j == "pbeh-3c":
-            self.basis_j = "def2-mSVP"
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle basis_j:
+        if (
+            getattr(self, "basis_j", None) is None
+            or getattr(self, "basis_j", None) == "automatic"
+        ):
+            default_basis_j = self.composite_method_basis.get(self.func_j, "def2-TZVP")
+            setattr(self, "basis_j", default_basis_j)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_s
         if self.prog4_s == "orca" and self.func_s not in self.func_s_orca:
             self.save_errors.append(
                 "\nERROR: In part4 the functional (funcS) {}"
-                " is not implemented in ENSO with the {} program package. Options "
+                " is not implemented in CENSO with the {} program package. Options "
                 "are: {}".format(self.func_s, self.prog4_s, self.func_s_orca)
             )
             if not self.part4:
@@ -2231,7 +2308,7 @@ class config_setup(internal_settings):
         if self.prog4_s == "tm" and self.func_s not in self.func_s_tm:
             self.save_errors.append(
                 "\nERROR: In part4 the functional (funcS) {}"
-                " is not implemented in ENSO with the {} program package. Options "
+                " is not implemented in CENSO with the {} program package. Options "
                 "are: {}".format(self.func_s, self.prog4_s, self.func_s_tm)
             )
             if not self.part4:
@@ -2239,8 +2316,14 @@ class config_setup(internal_settings):
                 self.save_errors.append(tmp)
             else:
                 error_logical = True
-        if self.func_s == "pbeh-3c":
-            self.basis_s = "def2-mSVP"
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle basis_s:
+        if (
+            getattr(self, "basis_s", None) is None
+            or getattr(self, "basis_s", None) == "automatic"
+        ):
+            default_basis_s = self.composite_method_basis.get(self.func_s, "def2-TZVP")
+            setattr(self, "basis_s", default_basis_s)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # no unpaired electrons in coupling or shiedling calculations!
         if self.unpaired > 0:
@@ -2624,7 +2707,7 @@ class config_setup(internal_settings):
         info.append(["solvent", "solvent"])
         info.append(["temperature", "temperature"])
         if self.multitemp:
-            info.append(["multitemp", "evalulate at different temperatures"])
+            info.append(["multitemp", "evaluate at different temperatures"])
             info.append(
                 [
                     "printoption",
@@ -2639,88 +2722,107 @@ class config_setup(internal_settings):
         info.append(["maxthreads", "maxthreads"])
         info.append(["omp", "omp"])
 
-        # PART0:
-        info.append(["justprint", "\n" + "".ljust(int(PLENGTH / 2), "-")])
-        info.append(
-            [
-                "justprint",
-                "CRE CHEAP-PRESCREENING - PART0".center(int(PLENGTH / 2), " "),
-            ]
-        )
-        info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
-        info.append(["part0", "part0"])
-        info.append(["nconf", "starting number of considered conformers"])
-        info.append(["prog", "program for part0"])
-        info.append(["func0", "functional for fast single-point"])
-        info.append(["basis0", "basis set for fast single-point"])
-        info.append(["part0_threshold", "threshold for sorting in part0"])
-
-        tmp_func_basis, _ = self.get_method_name(
-            "sp", func=getattr(self, "func0"), basis=getattr(self, "basis0"), disp="D3"
-        )
-        info.append(
-            [
-                "justprint",
-                f"\nshort-notation:\n{tmp_func_basis} " "// GFNn-xTB (Input geometry)",
-            ]
-        )
-
-        # PART1:
-        info.append(["justprint", "\n" + "".ljust(int(PLENGTH / 2), "-")])
-        info.append(
-            ["justprint", "CRE PRESCREENING - PART1".center(int(PLENGTH / 2), " ")]
-        )
-        info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
-        info.append(["part1", "part1"])
-        info.append(["nconf", "starting number of considered conformers"])
-        info.append(["prog", "program for part1"])
-        info.append(["func", "functional for initial evaluation"])
-        info.append(["basis", "basis set for initial evaluation"])
-        info.append(["evaluate_rrho", "calculate mRRHO contribution"])
-        if self.evaluate_rrho:
-            info.append(["prog_rrho", "program for mRRHO contribution"])
-            if self.prog_rrho == "xtb" or self.smgsolv2 == "gbsa_gsolv":
-                info.append(["part1_gfnv", "GFN version for mRRHO and/or GBSA_Gsolv"])
-                info.append(
-                    [
-                        "bhess",
-                        "Apply constraint to input geometry during mRRHO calculation",
-                    ]
-                )
-        info.append(["printoption", "evalulate at different temperatures", "off"])
-        info.append(["part1_threshold", "threshold for sorting in part1"])
-        if self.solvent != "gas":
-            info.append(["smgsolv1", "solvent model for Gsolv contribution of part1"])
-        # shortnotation:
-        tmp_rrho_method, _ = self.get_method_name(
-            "rrhoxtb",
-            bhess=self.bhess,
-            gfn_version=self.part1_gfnv,
-            sm=self.sm_rrho,
-            solvent=self.solvent,
-        )
-        tmp_func_basis, _ = self.get_method_name(
-            "sp", func=getattr(self, "func"), basis=getattr(self, "basis"), disp="D3"
-        )
-        if self.solvent != "gas":
+        if self.part0:
+            # PART0:
+            info.append(["justprint", "\n" + "".ljust(int(PLENGTH / 2), "-")])
             info.append(
                 [
                     "justprint",
-                    f"\nshort-notation:\n{tmp_func_basis} + "
-                    f"{str(getattr(self, 'smgsolv1')).upper()}[{self.solvent}] "
-                    f"+ GmRRHO({tmp_rrho_method}) "
-                    f"// GFNn-xTB (Input geometry)",
+                    "CRE CHEAP-PRESCREENING - PART0".center(int(PLENGTH / 2), " "),
                 ]
             )
-        else:
+            info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
+            info.append(["part0", "part0"])
+            info.append(["nconf", "starting number of considered conformers"])
+            info.append(["prog", "program for part0"])
+            info.append(["func0", "functional for fast single-point"])
+            info.append(["basis0", "basis set for fast single-point"])
+            info.append(["part0_threshold", "threshold for sorting in part0"])
+            if self.solvent != "gas":
+                info.append(["sm_rrho", "Solvent model used with xTB"])
+
+            tmp_func_basis, _ = self.get_method_name(
+                "sp",
+                func=getattr(self, "func0"),
+                basis=getattr(self, "basis0"),
+                disp="D3",
+            )
             info.append(
                 [
                     "justprint",
                     f"\nshort-notation:\n{tmp_func_basis} "
-                    f"+ GmRRHO({str(getattr(self, 'part1_gfnv')).upper()}) "
                     "// GFNn-xTB (Input geometry)",
                 ]
             )
+        if self.part1:
+            # PART1:
+            info.append(["justprint", "\n" + "".ljust(int(PLENGTH / 2), "-")])
+            info.append(
+                ["justprint", "CRE PRESCREENING - PART1".center(int(PLENGTH / 2), " ")]
+            )
+            info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
+            info.append(["part1", "part1"])
+            info.append(["nconf", "starting number of considered conformers"])
+            info.append(["prog", "program for part1"])
+            info.append(["func", "functional for initial evaluation"])
+            info.append(["basis", "basis set for initial evaluation"])
+            info.append(["evaluate_rrho", "calculate mRRHO contribution"])
+            if self.evaluate_rrho:
+                info.append(["prog_rrho", "program for mRRHO contribution"])
+                if self.prog_rrho == "xtb" or self.smgsolv2 in (
+                    "gbsa_gsolv",
+                    "alpb_gsolv",
+                ):
+                    info.append(
+                        ["part1_gfnv", "GFN version for mRRHO and/or GBSA_Gsolv"]
+                    )
+                    info.append(
+                        [
+                            "bhess",
+                            "Apply constraint to input geometry during mRRHO calculation",
+                        ]
+                    )
+                    if self.solvent != "gas":
+                        info.append(["sm_rrho", "solvent model applied with xTB"])
+            info.append(["printoption", "evaluate at different temperatures", "off"])
+            info.append(["part1_threshold", "threshold for sorting in part1"])
+            if self.solvent != "gas":
+                info.append(
+                    ["smgsolv1", "solvent model for Gsolv contribution of part1"]
+                )
+            # shortnotation:
+            tmp_rrho_method, _ = self.get_method_name(
+                "rrhoxtb",
+                bhess=self.bhess,
+                gfn_version=self.part1_gfnv,
+                sm=self.sm_rrho,
+                solvent=self.solvent,
+            )
+            tmp_func_basis, _ = self.get_method_name(
+                "sp",
+                func=getattr(self, "func"),
+                basis=getattr(self, "basis"),
+                disp="D3",
+            )
+            if self.solvent != "gas":
+                info.append(
+                    [
+                        "justprint",
+                        f"\nshort-notation:\n{tmp_func_basis} + "
+                        f"{str(getattr(self, 'smgsolv1')).upper()}[{self.solvent}] "
+                        f"+ GmRRHO({tmp_rrho_method}) "
+                        f"// GFNn-xTB (Input geometry)",
+                    ]
+                )
+            else:
+                info.append(
+                    [
+                        "justprint",
+                        f"\nshort-notation:\n{tmp_func_basis} "
+                        f"+ GmRRHO({str(getattr(self, 'part1_gfnv')).upper()}) "
+                        "// GFNn-xTB (Input geometry)",
+                    ]
+                )
         if self.part2:
             # PART2:
             info.append(["justprint", "\n" + "".ljust(int(PLENGTH / 2), "-")])
@@ -2748,7 +2850,7 @@ class config_setup(internal_settings):
                 info.append(["sm2", "solvent model applied in the optimization"])
                 if self.smgsolv2 not in (None, "sm2"):
                     info.append(["smgsolv2", "solvent model for Gsolv contribution"])
-            info.append(["multitemp", "evalulate at different temperatures"])
+            info.append(["multitemp", "evaluate at different temperatures"])
             info.append(
                 ["part2_threshold", "Boltzmann sum threshold for sorting in part2"]
             )
@@ -2767,6 +2869,8 @@ class config_setup(internal_settings):
                                 "during mRRHO calculation",
                             ]
                         )
+                    if self.solvent != "gas":
+                        info.append(["sm_rrho", "solvent model applied with xTB"])
             # shortnotation:
             tmp_rrho_method, _ = self.get_method_name(
                 "rrhoxtb",
@@ -2812,7 +2916,7 @@ class config_setup(internal_settings):
             info.append(["basis3", "basis set for part3"])
             if self.solvent != "gas":
                 info.append(["smgsolv3", "solvent model"])
-            info.append(["multitemp", "evalulate at different temperatures"])
+            info.append(["multitemp", "evaluate at different temperatures"])
             info.append(["prog_rrho", "program for mRRHO contribution"])
             if self.prog_rrho == "xtb":
                 info.append(["part3_gfnv", "GFN version for mRRHO and/or GBSA_Gsolv"])
@@ -2823,6 +2927,8 @@ class config_setup(internal_settings):
                             "Apply constraint to input geometry during mRRHO calculation",
                         ]
                     )
+                if self.solvent != "gas":
+                    info.append(["sm_rrho", "solvent model applied with xTB"])
             # shortnotation:
             tmp_rrho_method, _ = self.get_method_name(
                 "rrhoxtb",
@@ -2840,15 +2946,23 @@ class config_setup(internal_settings):
             tmp_func_basis, _ = self.get_method_name(
                 "sp", func=getattr(self, "func"), basis=getattr(self, "basis")
             )
+            if self.part2:
+                if self.solvent != "gas":
+                    geometries = (
+                        f"{tmp_func_basis}[{str(getattr(self, 'sm2')).upper()}] "
+                    )
+                else:
+                    geometries = f"{tmp_func_basis}"
+            else:
+                # on unoptimized geometries:
+                geometries = " GFNn-xTB (Input geometry)"
             if self.solvent != "gas":
                 info.append(
                     [
                         "justprint",
                         f"\nshort-notation:\n{tmp_func3_basis3} + "
                         f"{str(getattr(self, 'smgsolv3')).upper()}[{self.solvent}] "
-                        f"+ GmRRHO({tmp_rrho_method}) // "
-                        f"{tmp_func_basis}"
-                        f"[{str(getattr(self, 'sm2')).upper()}] ",
+                        f"+ GmRRHO({tmp_rrho_method}) // {geometries}",
                     ]
                 )
             else:
@@ -2857,7 +2971,7 @@ class config_setup(internal_settings):
                         "justprint",
                         f"\nshort-notation:\n{tmp_func3_basis3}"
                         f" + GmRRHO({str(getattr(self, 'part3_gfnv')).upper()}) "
-                        f"// {tmp_func_basis}",
+                        f"// {geometries}",
                     ]
                 )
         # NMR MODE
@@ -2975,13 +3089,16 @@ class config_setup(internal_settings):
                         tmpdb = fine
                     else:
                         tmpdb = normal
-                    self.external_paths["dbpath"] = os.path.join(
-                        os.path.split(
-                            self.external_paths["cosmorssetup"].split()[5].strip('"')
-                        )[0],
-                        tmpdb,
+                    tmp_path = self.external_paths["cosmorssetup"].split()[5].strip('"')
+                    if "OLDPARAM" in tmp_path:
+                        tmp_path = os.path.split(tmp_path)[0]
+                    tmp_path = os.path.split(tmp_path)[0]
+                    self.external_paths["dbpath"] = tmp_path
+                    self.external_paths["dbpath_fine"] = os.path.join(tmp_path, fine)
+                    self.external_paths["dbpath_normal"] = os.path.join(
+                        tmp_path, normal
                     )
-                    os.path.isdir(self.external_paths["dbpath"])
+                    # os.path.isdir(self.external_paths["dbpath"])
                 except Exception as e:
                     print(e)
                     print(
@@ -2989,14 +3106,14 @@ class config_setup(internal_settings):
                         ".censorc!\nMost probably there is a user "
                         "input error."
                     )
-            if "cosmothermversion:" in line:
-                try:
-                    self.external_paths["cosmothermversion"] = int(line.split()[1])
-                except:
-                    print(
-                        "WARNING: Cosmothermversion could not be read! This "
-                        "is necessary to prepare the cosmotherm.inp! "
-                    )
+            # if "cosmors-param:" in line:
+            #     try:
+            #         self.external_paths["cosmors-param"] = line.split()[1]
+            #     except:
+            #         print(
+            #             "WARNING: COSMO-RS paramtrization could not be read! This "
+            #             "is necessary to prepare the cosmotherm.inp! "
+            #         )
             if "ORCA:" in line:
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
@@ -3080,10 +3197,20 @@ class config_setup(internal_settings):
             if config.shieldings:
                 requirements["needmpshift"] = True
         # COSMORS
-        if "cosmors" in {config.smgsolv1, config.smgsolv2, config.smgsolv3}:
+        if (
+            (config.part1 and config.smgsolv1 == "cosmors")
+            or (config.part2 and config.smgsolv2 == "cosmors")
+            or (config.part3 and config.smgsolv3 == "cosmors")
+        ):
             requirements["needcosmors"] = True
-        elif "cosmors-fine" in {config.smgsolv1, config.smgsolv2, config.smgsolv3}:
+            requirements["needcosmors-normal"] = True
+        if (
+            (config.part1 and config.smgsolv1 == "cosmors-fine")
+            or (config.part2 and config.smgsolv2 == "cosmors-fine")
+            or (config.part3 and config.smgsolv3 == "cosmors-fine")
+        ):
             requirements["needcosmors"] = True
+            requirements["needcosmors-fine"] = True
         # ORCA
         if (
             config.prog == "orca"
@@ -3140,23 +3267,44 @@ class config_setup(internal_settings):
                 tmp = self.external_paths["cosmorssetup"].split()
                 if len(tmp) == 9:
                     print("    Setup of COSMO-RS:")
-                    print("        {}".format(" ".join(tmp[0:3])))
-                    print("        {}".format(" ".join(tmp[3:6])))
-                    print("        {}".format(" ".join(tmp[6:9])))
+                    if self.cosmorsparam == "automatic":
+                        print("        {}".format(" ".join(tmp[0:3])))  # ctd
+                    else:
+                        print(
+                            "        ctd = {}".format(
+                                cosmors_param.get(self.cosmorsparam, " ".join(tmp[0:3]))
+                            )
+                        )
+                    print("        {}".format(" ".join(tmp[3:6])))  # cdir
+                    print("        {}".format(" ".join(tmp[6:9])))  # ldir
                 else:
                     print(
                         f"    Setup of COSMO-RS: {str(self.external_paths['cosmorssetup'])}"
                     )
-            except:
+            except Exception as e:
                 print(
                     "    Setup of COSMO-RS: {}".format(
                         str(self.external_paths["cosmorssetup"])
                     )
                 )
-            print(
-                f"    Using {self.external_paths['dbpath']}\n"
-                "    as path to the COSMO-RS DATABASE."
-            )
+            if requirements.get("needcosmors-fine", False):
+                # FINE
+                db_path = os.path.join(
+                    self.external_paths["dbpath"], "DATABASE-COSMO/BP-TZVPD-FINE"
+                )
+                print(
+                    f"    Using {db_path}\n"
+                    "    as path to the COSMO-RS FINE DATABASE."
+                )
+            if requirements.get("needcosmors-normal", False):
+                # NORMAL
+                db_path = os.path.join(
+                    self.external_paths["dbpath"], "DATABASE-COSMO/BP-TZVP-COSMO"
+                )
+                print(
+                    f"    Using {db_path}\n"
+                    "    as path to the COSMO-RS NORMAL DATABASE."
+                )
         print("")
         # Check if paths of needed programs exist:
         if requirements.get("needcrest", False):
@@ -3294,7 +3442,7 @@ class config_setup(internal_settings):
                 '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES" ldir = '
                 '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"\n'
             )
-            outdata.write("cosmothermversion: 16\n")
+            # outdata.write("cosmothermversion: 16\n")
             outdata.write("$ENDPROGRAMS\n\n")
             outdata.write("$CRE SORTING SETTINGS:\n")
             outdata.write("$GENERAL SETTINGS:\n")

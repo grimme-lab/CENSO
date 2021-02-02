@@ -25,6 +25,7 @@ from .refinement import part3
 from .nmrproperties import part4
 from .opticalrotation import part5
 from .utilities import print
+from .tutorial import interactiv_doc
 
 
 def main(argv=None):
@@ -35,6 +36,10 @@ def main(argv=None):
     args = cml(DESCR, internal_settings(), argv)
     if args.version:
         print(__version__)
+        sys.exit(0)
+
+    if args.tutorial:
+        interactiv_doc()
         sys.exit(0)
 
     # setup conformers and process input: cml >> conifgfile > internal defaults

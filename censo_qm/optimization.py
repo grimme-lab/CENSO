@@ -24,6 +24,7 @@ from .utilities import (
     crest_routine,
     check_tasks,
     print,
+    print_errors,
     calc_weighted_std_dev,
 )
 from .orca_job import OrcaJob
@@ -188,7 +189,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 # "not_converged" or "stopped_before_converged"
                 store_confs.append(conf)
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
     if prev_calculated:
@@ -251,6 +252,9 @@ def part2(config, conformers, store_confs, ensembledata):
         "energy": 0.0,
         "energy2": 0.0,
         "success": False,
+        "imagthr": config.imagthr,
+        "sthr": config.sthr,
+        "scale":config.scale,
     }
     instruction_rrho_crude["method"], _ = config.get_method_name(
         "rrhoxtb",
@@ -475,22 +479,17 @@ def part2(config, conformers, store_confs, ensembledata):
                             pass
                         except FileNotFoundError:
                             if not os.path.isfile(os.path.join(tmp_from, "coord")):
-                                print(
-                                    "ERROR: while copying the coord file from {}! "
-                                    "The corresponding file does not exist.".format(
-                                        tmp_from
-                                    )
+                                print_errors(
+                                    f"ERROR: while copying the coord file from {tmp_from}! "
+                                    "The corresponding file does not exist.", save_errors
                                 )
                             elif not os.path.isdir(tmp_to):
-                                print(
-                                    "ERROR: Could not create folder {}!".format(tmp_to)
+                                print_errors(
+                                    "ERROR: Could not create folder {}!".format(tmp_to), save_errors
                                 )
-                            print("ERROR: Removing conformer {}!".format(conf.name))
+                            print_errors("ERROR: Removing conformer {}!".format(conf.name), save_errors)
                             conf.lowlevel_grrho_info["info"] = "prep-failed"
                             store_confs.append(calculate.pop(calculate.index(conf)))
-                            save_errors.append(
-                                f"CONF{conf.id} was removed, because IO failed!"
-                            )
                     # parallel execution:
                     calculate = run_in_parallel(
                         config,
@@ -773,7 +772,7 @@ def part2(config, conformers, store_confs, ensembledata):
                         conf.optimization_info["decyc"] = conf.job["decyc"]
                         conf.optimization_info[
                             "convergence"
-                        ] = "converged"  #### THIS IS NOT CORRECT!
+                        ] = "converged"  #### THIS IS NOT CORRECT /or can lead to errors!
                         conf.optimization_info["method"] = instruction_opt["method"]
                         prev_calculated.append(calculate.pop(calculate.index(conf)))
                 #
@@ -876,7 +875,7 @@ def part2(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         conf.reset_job_info()
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
     # ******************************Optimization done****************************
@@ -929,6 +928,7 @@ def part2(config, conformers, store_confs, ensembledata):
                     "cosmorssetup": config.external_paths["cosmorssetup"],
                     "cosmorsparam": exc_fine.get(config.smgsolv2, "normal"),
                     "cosmothermversion": config.external_paths["cosmothermversion"],
+                    "ctd-param": config.cosmorsparam,
                     "copymos": str(instruction_gsolv["func"]),
                 }
                 instruction_gsolv.update(tmp)
@@ -1205,7 +1205,7 @@ def part2(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         conf.reset_job_info()
     if not calculate:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -1237,7 +1237,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 prev_calculated.append(conf)
 
         if not calculate and not prev_calculated:
-            print("ERROR: No conformers left!")
+            print_errors("ERROR: No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
         folderrho = "rrho_part2"
@@ -1264,6 +1264,9 @@ def part2(config, conformers, store_confs, ensembledata):
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
+            "imagthr": config.imagthr,
+            "sthr": config.sthr,
+            "scale":config.scale,
         }
         instruction_rrho["method"], _ = config.get_method_name(
             "rrhoxtb",
@@ -1300,16 +1303,16 @@ def part2(config, conformers, store_confs, ensembledata):
                     pass
                 except FileNotFoundError:
                     if not os.path.isfile(os.path.join(tmp_from, "coord")):
-                        print(
+                        print_errors(
                             "ERROR: while copying the coord file from {}! "
-                            "The corresponding file does not exist.".format(tmp_from)
+                            "The corresponding file does not exist.".format(tmp_from),
+                            save_errors
                         )
                     elif not os.path.isdir(tmp_to):
-                        print("ERROR: Could not create folder {}!".format(tmp_to))
-                    print("ERROR: Removing conformer {}!".format(conf.name))
+                        print_errors("ERROR: Could not create folder {}!".format(tmp_to), save_errors)
+                    print_errors("ERROR: Removing conformer {}!".format(conf.name), save_errors)
                     conf.lowlevel_grrho_info["info"] = "prep-failed"
                     store_confs.append(calculate.pop(calculate.index(conf)))
-                    save_errors.append(f"CONF{conf.id} was removed, because IO failed!")
             # parallel execution:
             calculate = run_in_parallel(
                 config,
@@ -1371,7 +1374,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
-            print("ERROR: No conformers left!")
+            print_errors("ERROR: No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
 
@@ -1536,8 +1539,8 @@ def part2(config, conformers, store_confs, ensembledata):
                             - conf.lowlevel_gsolv_info["gas-energy"]
                         )
                     except (TypeError, KeyError):
-                        print(
-                            "ERROR: Can't calculate DCOSMO-RS_gsolv. Skipping SD of Gsolv!"
+                        print_errors(
+                            "ERROR: Can't calculate DCOSMO-RS_gsolv. Skipping SD of Gsolv!", save_errors
                         )
                         dorun = False
                         break
@@ -1575,7 +1578,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 try:
                     shutil.copy(tmp1, tmp2)
                 except FileNotFoundError:
-                    print("ERROR can't copy optimized geometry!")
+                    print_errors("ERROR can't copy optimized geometry!", save_errors)
 
             if calculate:
                 calculate = run_in_parallel(
@@ -1791,7 +1794,7 @@ def part2(config, conformers, store_confs, ensembledata):
     ensembledata.avGcorrection = avGcorrection
 
     if not calculate:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -1863,7 +1866,7 @@ def part2(config, conformers, store_confs, ensembledata):
         )
         print_block(["CONF" + str(i.id) for i in calculate])
     else:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -1926,7 +1929,7 @@ def part2(config, conformers, store_confs, ensembledata):
 
     if save_errors:
         print(
-            "***---------------------------------------------------------***",
+            "\n***---------------------------------------------------------***",
             file=sys.stderr,
         )
         print(
