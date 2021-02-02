@@ -271,6 +271,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         action="store",
         choices=options.value_options["cosmorsparam"],
+        metavar="",
         help="Choose a COSMO-RS parametrization for possible COSMO-RS G_solv "
         "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
         " 'BP_TZVPD_FINE_C30_1601.ctd'.",

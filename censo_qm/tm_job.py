@@ -505,14 +505,11 @@ class TmJob(QmJob):
                         and "1201" not in self.job["cosmorssetup"]
                         and "1301" not in self.job["cosmorssetup"]
                     ):
-                        self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE")
-                    if "FINE" not in self.job["cosmorssetup"] and (
-                        "1201" in self.job["cosmorssetup"]
-                        or "1301" in self.job["cosmorssetup"]
-                    ):
-                        self.job["cosmorssetup"].replace(
-                            "BP_TZVP", "BP_TZVPD_FINE_HB2012"
-                        )
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE")
+                    elif "FINE" not in self.job["cosmorssetup"] and "1201" in self.job["cosmorssetup"]:
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE_HB2012")
+                    elif "FINE" not in self.job["cosmorssetup"] and "1301" in self.job["cosmorssetup"]:
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE_HB2012")
                 elif self.job["cosmorsparam"] == "normal":
                     if "FINE" in self.job["cosmorssetup"]:
                         ## normal cosmors
