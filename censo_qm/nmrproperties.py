@@ -1,5 +1,5 @@
 """
-module for the calculation of shiedling and coupling constants 
+module for the calculation of shielding and coupling constants 
 """
 
 import os
@@ -7,7 +7,12 @@ import shutil
 import sys
 from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL
+from .cfg import (
+    PLENGTH, 
+    DIGILEN, 
+    AU2KCAL,
+    NmrRef
+)
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -18,7 +23,7 @@ from .utilities import (
     new_folders,
     last_folders,
     print,
-    write_anmrrc,
+    print_errors,
     calc_std_dev,
 )
 
@@ -94,32 +99,38 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
             ) / len(chemeq[atom])
             averaged[atom] = conf.bm_weight * sigma + averaged.get(atom, 0.0)
 
-    for _ in range(1000):
-        for conf in calculate:
-            conf.calc_free_energy(e=energy, solv=solv, rrho=rrho)
-            conf.free_energy += normalvariate(
-                0.0, conf.lowlevel_gsolv_compare_info["std_dev"]
-            )
-        calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
-        for conf in calculate:
-            # get shielding constants
-            if not element:
-                element = get_atom(
-                    os.path.normpath(
-                        os.path.join(config.cwd, "CONF" + str(conf.id), "NMR")
+    if solv is not None:
+        get_std_dev = (
+            lambda conf: conf.lowlevel_gsolv_compare_info["std_dev"]
+            if (conf.lowlevel_gsolv_compare_info["std_dev"] is not None)
+            else 0.0
+        )
+        for _ in range(1000):
+            for conf in calculate:
+                conf.calc_free_energy(e=energy, solv=solv, rrho=rrho)
+                conf.free_energy += normalvariate(
+                    0.0, get_std_dev(conf)
+                )
+            calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+            for conf in calculate:
+                # get shielding constants
+                if not element:
+                    element = get_atom(
+                        os.path.normpath(
+                            os.path.join(config.cwd, "CONF" + str(conf.id), "NMR")
+                        )
                     )
-                )
-            for atom in conf.shieldings.keys():
-                sigma = sum(
-                    [conf.shieldings.get(eq_atom, 0.0) for eq_atom in chemeq[atom]]
-                ) / len(chemeq[atom])
-                sigma_std_dev[atom].append(
-                    conf.bm_weight * sigma + averaged.get(atom, 0.0)
-                )
+                for atom in conf.shieldings.keys():
+                    sigma = sum(
+                        [conf.shieldings.get(eq_atom, 0.0) for eq_atom in chemeq[atom]]
+                    ) / len(chemeq[atom])
+                    sigma_std_dev[atom].append(
+                        conf.bm_weight * sigma + averaged.get(atom, 0.0)
+                    )
 
     print("\nAveraged shielding constants:")
-    print("# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)   shift")
-    print("".ljust(int(70), "-"))
+    print("# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)   shift    σ_ref")
+    print("".ljust(int(80), "-"))
     maxsigma = max([len(str(sigma).split(".")[0]) for sigma in averaged.values()]) + 5
     make_shift = (
         lambda atom: f"{-sigma+element_ref_shield.get(element[atom], 0.0):> {maxsigma}.2f}"
@@ -130,16 +141,357 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
         try:
             std_dev = calc_std_dev(sigma_std_dev[atom])
         except Exception as e:
-            print(e)
+            #print(e)
             std_dev = 0.0
         try:
             print(
                 f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}  "
-                f"{std_dev:^ 24.6f} {make_shift(atom):>5}"
+                f"{std_dev:^ 24.6f} {make_shift(atom):>5}    {element_ref_shield.get(element[atom], 0.0)}"
             )
-        except:
+        except Exception as e:
+            #print(e)
             print(f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}")
-    print("".ljust(int(70), "-"))
+    print("".ljust(int(80), "-"))
+
+
+# def write_anmrrc(config):
+#     """ Write file .anmrrc with information processed by ANMR """
+
+#     if config.solvent != "gas":
+#         # optimization in solvent:
+#         if config.prog == "tm" and config.sm2 != "dcosmors":
+#             print(
+#                 "WARNING: The geometry optimization of the reference molecule "
+#                 "was calculated with DCOSMO-RS (sm2)!"
+#             )
+#         elif config.prog == "orca" and config.sm2 != "smd":
+#             print(
+#                 "WARNING: The geometry optimization of the reference molecule "
+#                 "was calculated with SMD (sm2)!"
+#             )
+#     if config.prog4_s == "tm":
+#         h_qm_shieldings = h_tm_shieldings
+#         c_qm_shieldings = c_tm_shieldings
+#         f_qm_shieldings = f_tm_shieldings
+#         p_qm_shieldings = p_tm_shieldings
+#         si_qm_shieldings = si_tm_shieldings
+#         lsm = "DCOSMO-RS"
+#         lsm4 = "DCOSMO-RS"
+#         lbasisS = "def2-TZVP"
+#         if config.sm4_s != "dcosmors":
+#             print(
+#                 "WARNING: The reference shielding constant was calculated with DCOSMORS "
+#                 "(sm4_s)!"
+#             )
+#     elif config.prog4_s == "orca":
+#         lsm = "SMD"
+#         lsm4 = "SMD"
+#         lbasisS = "def2-TZVP"
+#         h_qm_shieldings = h_orca_shieldings
+#         c_qm_shieldings = c_orca_shieldings
+#         f_qm_shieldings = f_orca_shieldings
+#         p_qm_shieldings = p_orca_shieldings
+#         si_qm_shieldings = si_orca_shieldings
+#         if config.sm4_s == "cpcm":
+#             print(
+#                 "WARNING: The reference shielding constant was calculated with SMD "
+#                 "(sm4_s)!"
+#             )
+#     if config.func_s == "pbeh-3c":
+#         lbasisS = "def2-mSVP"
+
+#     if config.basis_s != "def2-TZVP" and config.func_s != "pbeh-3c":
+#         print(
+#             "WARNING: The reference shielding constant was calculated with the "
+#             "basis def2-TZVP (basisS)!"
+#         )
+
+#     opt_func = config.func
+#     # get absolute shielding constant of reference
+
+#     prnterr = False
+#     try:
+#         hshielding = "{:4.3f}".format(
+#             h_qm_shieldings[config.h_ref][opt_func][config.func_s][config.solvent]
+#         )
+#     except KeyError:
+#         hshielding = 0
+#         prnterr = True
+#     try:
+#         cshielding = "{:4.3f}".format(
+#             c_qm_shieldings[config.c_ref][opt_func][config.func_s][config.solvent]
+#         )
+#     except KeyError:
+#         cshielding = 0
+#         prnterr = True
+#     try:
+#         fshielding = "{:4.3f}".format(
+#             f_qm_shieldings[config.f_ref][opt_func][config.func_s][config.solvent]
+#         )
+#     except KeyError:
+#         fshielding = 0
+#         prnterr = True
+#     try:
+#         pshielding = "{:4.3f}".format(
+#             p_qm_shieldings[config.p_ref][opt_func][config.func_s][config.solvent]
+#         )
+#     except KeyError:
+#         pshielding = 0
+#         prnterr = True
+#     try:
+#         sishielding = "{:4.3f}".format(
+#             si_qm_shieldings[config.si_ref][opt_func][config.func_s][config.solvent]
+#         )
+#     except KeyError:
+#         sishielding = 0
+#         prnterr = True
+#     if prnterr:
+#         print("ERROR!   The reference absolute shielding constant could not be found!\n"
+#               "         You have to edit the file .anmrrc by hand!"
+#         )
+#     element_ref_shield = {
+#         "h": float(hshielding),
+#         "c": float(cshielding),
+#         "f": float(fshielding),
+#         "p": float(pshielding),
+#         "si": float(sishielding),
+#     }
+
+#     # for elementactive
+#     exch = {True: 1, False: 0}
+#     exchonoff = {True: "on", False: "off"}
+#     # write .anmrrc
+#     with open(os.path.join(config.cwd, ".anmrrc"), "w", newline=None) as arc:
+#         arc.write("7 8 XH acid atoms\n")
+#         if config.resonance_frequency is not None:
+#             arc.write(
+#                 "ENSO qm= {} mf= {} lw= 1.0  J= {} S= {} T= {:6.2f} \n".format(
+#                     str(config.prog4_s).upper(),
+#                     str(config.resonance_frequency),
+#                     exchonoff[config.couplings],
+#                     exchonoff[config.shieldings],
+#                     float(config.temperature),
+#                 )
+#             )
+#         else:
+#             arc.write("ENSO qm= {} lw= 1.2\n".format(str(config.prog4_s).upper()))
+#         try:
+#             length = max(
+#                 [
+#                     len(i)
+#                     for i in [
+#                         hshielding,
+#                         cshielding,
+#                         fshielding,
+#                         pshielding,
+#                         sishielding,
+#                     ]
+#                 ]
+#             )
+#         except:
+#             length = 6
+#         # lsm4 --> localsm4 ...
+#         arc.write(
+#             "{}[{}] {}[{}]/{}//{}[{}]/{}\n".format(
+#                 config.h_ref,
+#                 config.solvent,
+#                 config.func_s,
+#                 lsm4,
+#                 lbasisS,
+#                 opt_func,
+#                 lsm,
+#                 config.basis,
+#             )
+#         )
+#         arc.write(
+#             "1  {:{digits}}    0.0    {}\n".format(
+#                 hshielding, exch[config.h_active], digits=length
+#             )
+#         )  # hydrogen
+#         arc.write(
+#             "6  {:{digits}}    0.0    {}\n".format(
+#                 cshielding, exch[config.c_active], digits=length
+#             )
+#         )  # carbon
+#         arc.write(
+#             "9  {:{digits}}    0.0    {}\n".format(
+#                 fshielding, exch[config.f_active], digits=length
+#             )
+#         )  # fluorine
+#         arc.write(
+#             "14 {:{digits}}    0.0    {}\n".format(
+#                 sishielding, exch[config.si_active], digits=length
+#             )
+#         )  # silicon
+#         arc.write(
+#             "15 {:{digits}}    0.0    {}\n".format(
+#                 pshielding, exch[config.p_active], digits=length
+#             )
+#         )  # phosphorus
+#     return element_ref_shield
+
+def write_anmrrc(config):
+    """ Write file .anmrrc with information processed by ANMR """
+
+    if config.solvent != "gas":
+        # optimization in solvent:
+        if config.prog == "tm" and config.sm2 != "dcosmors":
+            print(
+                "WARNING: The geometry optimization of the reference molecule "
+                "was calculated with DCOSMO-RS (sm2)!"
+            )
+        elif config.prog == "orca" and config.sm2 != "smd":
+            print(
+                "WARNING: The geometry optimization of the reference molecule "
+                "was calculated with SMD (sm2)!"
+            )
+    if config.prog4_s == "tm":
+        refsm2 = "DCOSMO-RS"
+        refsm4 = "DCOSMO-RS"
+        refbasisS = "def2-TZVP"
+        if config.sm4_s != "dcosmors":
+            print(
+                "WARNING: The reference shielding constant was calculated with "
+                "DCOSMORS (sm4_s)!"
+            )
+    elif config.prog4_s == "orca":
+        refsm2 = "SMD"
+        refsm4 = "SMD"
+        refbasisS = "def2-TZVP"
+        if config.sm4_s != "smd":
+            print(
+                "WARNING: The reference shielding constant was calculated with "
+                "SMD (sm4_s)!"
+            )
+
+    if config.basis_s != "def2-TZVP":
+        print(
+            "WARNING: The reference shielding constant was calculated with the "
+            f"basis def2-TZVP (basisS) instead of {config.basis_s}!"
+        )
+
+    # get absolute shielding constant of reference
+    ref_decision = {
+        "h": {
+            "atomic_number": 1,
+            "sigma": 0.0,
+            "tm": "h_tm_shieldings",
+            "orca": "h_orca_shieldings",
+            "adf": "h_adf_shieldings",
+            "active": getattr(config, "h_active", False),
+        },
+        "c": {
+            "atomic_number": 6,
+            "sigma": 0.0,
+            "tm": "c_tm_shieldings",
+            "orca": "c_orca_shieldings",
+            "adf": "c_adf_shieldings",
+            "active": getattr(config, "c_active", False),
+        },
+        "f": {
+            "atomic_number": 9,
+            "sigma": 0.0,
+            "tm": "f_tm_shieldings",
+            "orca": "f_orca_shieldings",
+            "adf": "f_adf_shieldings",
+            "active": getattr(config, "f_active", False),
+        },
+        "si": {
+            "atomic_number": 14,
+            "sigma": 0.0,
+            "tm": "si_tm_shieldings",
+            "orca": "si_orca_shieldings",
+            "adf": "si_adf_shieldings",
+            "active": getattr(config, "si_active", False),
+        },
+        "p": {
+            "atomic_number": 15,
+            "sigma": 0.0,
+            "tm": "p_tm_shieldings",
+            "orca": "p_orca_shieldings",
+            "adf": "p_adf_shieldings",
+            "active": getattr(config, "p_active", False),
+        },
+    }
+    if all(
+        [
+            not getattr(config, active)
+            for active in ("h_active", "c_active", "f_active", "si_active", "p_active")
+        ]
+    ):
+        for element in ref_decision.keys():
+            ref_decision[element]["active"] = True
+    nmrref = NmrRef()
+    for element, value in ref_decision.items():
+        if value.get("active", False):
+            try:
+                ref_decision[element]["sigma"] = "{:4.3f}".format(
+                    getattr(nmrref, ref_decision[element].get(config.prog4_s))[
+                        config.h_ref
+                    ][config.func][config.func_s][config.solvent]
+                )
+            except KeyError:
+                try:
+                    ref_decision[element]["sigma"] = "{:4.3f}".format(
+                        getattr(nmrref, ref_decision[element].get(config.prog4_s))[
+                            config.h_ref
+                        ][config.func].get("pbe0")[config.solvent]
+                    )
+                    print(
+                        f"WARNING: The reference absolute shielding constant "
+                        f"for {config.func_s} and element {element} could not be found, using {'pbe0'}"
+                        " reference instead!"
+                    )
+                except KeyError:
+                    print(
+                        f"ERROR!   The reference absolute shielding constant for "
+                        f"element {element} could not be found!\n"
+                        "         You have to edit the file .anmrrc by hand!"
+                    )
+                    ref_decision[element]["sigma"] = f"{0.0 :4.3f}"
+
+    # for elementactive
+    exch = {True: 1, False: 0}
+    exchonoff = {True: "on", False: "off"}
+    # write .anmrrc
+    with open(os.path.join(config.cwd, ".anmrrc"), "w", newline=None) as arc:
+        arc.write("7 8 XH acid atoms\n")
+        if config.resonance_frequency is not None:
+            arc.write(
+                "ENSO qm= {} mf= {} lw= 1.0  J= {} S= {} T= {:6.2f} \n".format(
+                    str(config.prog4_s).upper(),
+                    str(config.resonance_frequency),
+                    exchonoff[config.couplings],
+                    exchonoff[config.shieldings],
+                    float(config.temperature),
+                )
+            )
+        else:
+            arc.write("ENSO qm= {} lw= 1.2\n".format(str(config.prog4_s).upper()))
+        arc.write(
+            "{}[{}] {}[{}]/{}//{}[{}]/{}\n".format(
+                config.h_ref,
+                config.solvent,
+                config.func_s,
+                refsm4,
+                refbasisS,
+                config.func,
+                refsm2,
+                config.basis,
+            )
+        )
+        for element, value in ref_decision.items():
+            if value.get("active", False):
+                arc.write(
+                    f"{value.get('atomic_number')}  "
+                    f"{ref_decision[element]['sigma']}    {0.0}     "
+                    f"{exch[ref_decision[element]['active']]}\n"
+                )
+    refs = {}
+    for key in ref_decision:
+        refs[key] = float(ref_decision[key]["sigma"])
+    return refs
+
 
 
 def part4(config, conformers, store_confs, ensembledata):
@@ -152,7 +504,7 @@ def part4(config, conformers, store_confs, ensembledata):
     print("\n" + "".ljust(PLENGTH, "-"))
     print("NMR MODE - PART4".center(PLENGTH, " "))
     print("".ljust(PLENGTH, "-") + "\n")
-    # print flags for part3
+    # print flags for part4
     info = []
     info.append(["couplings", "calculate coupling constants"])
     if config.couplings:
@@ -161,6 +513,7 @@ def part4(config, conformers, store_confs, ensembledata):
         info.append(["basis_j", "basisJ - basis for coupling constant calculation"])
         if config.solvent != "gas":
             info.append(["sm4_j", "sm4J - solvent model for the coupling calculation"])
+    info.append(["justprint", ""])
     info.append(["shieldings", "calculate shielding constants σ"])
     if config.shieldings:
         info.append(["prog4_s", "prog4S - program for shielding constant calculation"])
@@ -168,8 +521,41 @@ def part4(config, conformers, store_confs, ensembledata):
         info.append(["basis_s", "basisS - basis for shielding constant calculation"])
         if config.solvent != "gas":
             info.append(["sm4_s", "sm4S - solvent model for the shielding calculation"])
+    info.append(["justprint", ""])
+    if getattr(config, "h_active"):
+        info.append(["h_active", "Calculating proton spectrum"])
+        info.append(["h_ref", "reference for 1H"])
+    if getattr(config, "c_active"):
+        info.append(["c_active", "Calculating carbon spectrum"])
+        info.append(["c_ref", "reference for 13C"])
+    if getattr(config, "f_active"):
+        info.append(["f_active", "Calculating fluorine spectrum"])
+        info.append(["f_ref", "reference for 19F"])
+    if getattr(config, "si_active"):
+        info.append(["si_active", "Calculating silicon spectrum"])
+        info.append(["si_ref", "reference for 29Si"])
+    if getattr(config, "p_active"):
+        info.append(["p_active", "Calculating phosphorus spectrum"])
+        info.append(["p_ref", "reference for 31P"])
+    if all([ not getattr(config, active) for active in ("h_active", "c_active", "f_active", "si_active", "p_active")]):
+        info.append(["printoption", "Calculating spectrum for all nuclei", "H, C, F, Si, P"])
     info.append(["resonance_frequency", "spectrometer frequency"])
     # active nuclei
+
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
 
     optionsexchange = {True: "on", False: "off"}
     for item in info:
@@ -197,7 +583,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -214,6 +600,7 @@ def part4(config, conformers, store_confs, ensembledata):
     q = Queue()
     resultq = Queue()
 
+    unoptimized_warning = False
     # sort conformers:
     for conf in list(conformers):
         if conf.removed:
@@ -221,44 +608,52 @@ def part4(config, conformers, store_confs, ensembledata):
             print(f"CONF{conf.id} is removed as requested by the user!")
             continue
         if (
-            conf.part_info["part2"] == "passed"
-            and conf.optimization_info["info"] == "calculated"
+            conf.part_info["part2"] != "passed"
+            and conf.optimization_info["info"] != "calculated"
         ):
-            if not config.part3:
-                # part3 is not calculated use boltzmann weights directly from part2
-                energy = "lowlevel_sp_info"
-                rrho = "lowlevel_grrho_info"
-                gsolv = "lowlevel_gsolv_info"
-                boltzmannthr = config.part2_threshold
-            elif config.part3:
-                # calc boltzmann weights from part3
-                energy = "highlevel_sp_info"
-                rrho = "highlevel_grrho_info"
-                gsolv = "highlevel_gsolv_info"
-                boltzmannthr = config.part3_threshold
-            else:
-                print("UNEXPECTED BEHAVIOUR")
-            mol = conformers.pop(conformers.index(conf))
-            if getattr(conf, energy)["info"] != "calculated":
-                store_confs.append(mol)
-                continue
-            elif getattr(conf, rrho)["info"] != "calculated" and config.evaluate_rrho:
-                store_confs.append(mol)
-                continue
-            elif (
-                getattr(conf, gsolv)["info"] != "calculated" and config.solvent != "gas"
-            ):
-                store_confs.append(mol)
-                continue
-            else:
-                calculate.append(mol)
+            unoptimized_warning = True
+        if config.part3:
+            # calc Boltzmann weights from part3
+            energy = "highlevel_sp_info"
+            rrho = "highlevel_grrho_info"
+            gsolv = "highlevel_gsolv_info"
+            boltzmannthr = config.part3_threshold
+        elif config.part2:
+            # part3 is not calculated use Boltzmann weights directly from part2
+            energy = "lowlevel_sp_info"
+            rrho = "lowlevel_grrho_info"
+            gsolv = "lowlevel_gsolv_info"
+            boltzmannthr = config.part2_threshold
+        elif config.part1:
+            # part2 is not calculated use Boltzmann weights directly from part1
+            #--> misappropriate config.part2_threshold
+            # This means starting from not DFT optimized geometries!
+            energy = "prescreening_sp_info"
+            rrho = "prescreening_grrho_info"
+            gsolv = "prescreening_gsolv_info"
+            boltzmannthr = config.part2_threshold
         else:
-            print(
-                f"WARNING: CONF{conf.id} has not been optimized (part2)! "
-                f"Removing CONF{conf.id}"
-            )
-            conf = conformers.pop(conformers.index(conf))
-            store_confs.append(conf)
+            print("UNEXPECTED BEHAVIOUR")
+
+        mol = conformers.pop(conformers.index(conf))
+        if getattr(conf, energy)["info"] != "calculated":
+            store_confs.append(mol)
+            continue
+        elif getattr(conf, rrho)["info"] != "calculated" and config.evaluate_rrho:
+            store_confs.append(mol)
+            continue
+        elif (
+            getattr(conf, gsolv)["info"] != "calculated" and config.solvent != "gas"
+        ):
+            store_confs.append(mol)
+            continue
+        else:
+            calculate.append(mol)
+
+    if unoptimized_warning:
+        print_errors(f"INFORMATION: Conformers have not been optimized at DFT level!!!\n"
+                     f"             Use results with care!\n", save_errors
+        )
 
     if not calculate and not prev_calculated:
         print("ERROR: No conformers left!")
@@ -269,46 +664,89 @@ def part4(config, conformers, store_confs, ensembledata):
     print("Considering the following conformers:")
     print_block(["CONF" + str(i.id) for i in calculate])
 
-    # Calculate boltzmann weight for confs:
-    if not config.part3:
+    # # Calculate boltzmann weight for confs:
+    # if not config.part3:
+    #     if not config.evaluate_rrho:
+    #         rrho = None
+    #         rrho_method = None
+    #     else:
+    #         rrho_method, _ = config.get_method_name(
+    #             "rrhoxtb",
+    #             bhess=config.bhess,
+    #             gfn_version=config.part2_gfnv,
+    #             sm=config.sm_rrho,
+    #             solvent=config.solvent,
+    #         )
+    #     if config.solvent == "gas":
+    #         gsolv = None
+    #         solv_method = None
+    #         energy_method, _ = config.get_method_name(
+    #             "xtbopt",
+    #             func=config.func,
+    #             basis=config.basis,
+    #             sm=config.smgsolv2,
+    #             gfn_version=config.part2_gfnv,
+    #             solvent=config.solvent,
+    #         )
+    #     else:
+    #         if config.smgsolv2 in ("cosmors", "cosmors-fine"):
+    #             tmp_name = "cosmors"
+    #         elif config.smgsolv2 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
+    #             tmp_name = config.smgsolv2
+    #         else:
+    #             tmp_name = "sp_implicit"
+    #         energy_method, solv_method = config.get_method_name(
+    #             tmp_name,
+    #             func=config.func,
+    #             basis=config.basis,
+    #             sm=config.smgsolv2,
+    #             gfn_version=config.part2_gfnv,
+    #             solvent=config.solvent,
+    #         )
+    # elif config.part3:
+    #     if not config.evaluate_rrho:
+    #         rrho = None
+    #         rrho_method = None
+    #     else:
+    #         rrho_method, _ = config.get_method_name(
+    #             "rrhoxtb",
+    #             bhess=config.bhess,
+    #             gfn_version=config.part3_gfnv,
+    #             sm=config.sm_rrho,
+    #             solvent=config.solvent,
+    #         )
+    #     if config.solvent == "gas":
+    #         gsolv = None
+    #         solv_method = None
+    #         energy_method, _ = config.get_method_name(
+    #             "xtbopt",
+    #             func=config.func3,
+    #             basis=config.basis3,
+    #             sm=config.smgsolv3,
+    #             gfn_version=config.part3_gfnv,
+    #             solvent=config.solvent,
+    #         )
+    #     else:
+    #         if config.smgsolv3 in ("cosmors", "cosmors-fine"):
+    #             tmp_name = "cosmors"
+    #         elif config.smgsolv3 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
+    #             tmp_name = config.smgsolv3
+    #         else:
+    #             tmp_name = "sp_implicit"
+    #         energy_method, solv_method = config.get_method_name(
+    #             tmp_name,
+    #             func=config.func3,
+    #             basis=config.basis3,
+    #             sm=config.smgsolv3,
+    #             gfn_version=config.part3_gfnv,
+    #             solvent=config.solvent,
+    #         )
+
+    # Calculate Boltzmann weight for confs:
+    if config.part3:
         if not config.evaluate_rrho:
             rrho = None
-        else:
-            rrho_method, _ = config.get_method_name(
-                "rrhoxtb",
-                bhess=config.bhess,
-                gfn_version=config.part2_gfnv,
-                sm=config.sm_rrho,
-                solvent=config.solvent,
-            )
-        if config.solvent == "gas":
-            gsolv = None
-            energy_method, _ = config.get_method_name(
-                "xtbopt",
-                func=config.func,
-                basis=config.basis,
-                sm=config.smgsolv2,
-                gfn_version=config.part2_gfnv,
-                solvent=config.solvent,
-            )
-        else:
-            if config.smgsolv2 in ("cosmors", "cosmors-fine"):
-                tmp_name = "cosmors"
-            elif config.smgsolv2 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
-                tmp_name = config.smgsolv2
-            else:
-                tmp_name = "sp_implicit"
-            energy_method, solv_method = config.get_method_name(
-                tmp_name,
-                func=config.func,
-                basis=config.basis,
-                sm=config.smgsolv2,
-                gfn_version=config.part2_gfnv,
-                solvent=config.solvent,
-            )
-    elif config.part3:
-        if not config.evaluate_rrho:
-            rrho = None
+            rrho_method = None
         else:
             rrho_method, _ = config.get_method_name(
                 "rrhoxtb",
@@ -319,7 +757,7 @@ def part4(config, conformers, store_confs, ensembledata):
             )
         if config.solvent == "gas":
             gsolv = None
-            energy_method, _ = config.get_method_name(
+            energy_method, solv_method = config.get_method_name(
                 "xtbopt",
                 func=config.func3,
                 basis=config.basis3,
@@ -342,6 +780,82 @@ def part4(config, conformers, store_confs, ensembledata):
                 gfn_version=config.part3_gfnv,
                 solvent=config.solvent,
             )
+    elif config.part2:
+        if not config.evaluate_rrho:
+            rrho = None
+            rrho_method = None
+        else:
+            rrho_method, _ = config.get_method_name(
+                "rrhoxtb",
+                bhess=config.bhess,
+                gfn_version=config.part2_gfnv,
+                sm=config.sm_rrho,
+                solvent=config.solvent,
+            )
+        if config.solvent == "gas":
+            gsolv = None
+            energy_method, solv_method = config.get_method_name(
+                "xtbopt",
+                func=config.func,
+                basis=config.basis,
+                sm=config.smgsolv2,
+                gfn_version=config.part2_gfnv,
+                solvent=config.solvent,
+            )
+        else:
+            if config.smgsolv2 in ("cosmors", "cosmors-fine"):
+                tmp_name = "cosmors"
+            elif config.smgsolv2 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
+                tmp_name = config.smgsolv2
+            else:
+                tmp_name = "sp_implicit"
+            energy_method, solv_method = config.get_method_name(
+                tmp_name,
+                func=config.func,
+                basis=config.basis,
+                sm=config.smgsolv2,
+                gfn_version=config.part2_gfnv,
+                solvent=config.solvent,
+            )
+    elif config.part1:
+        # on DFT unoptimized geometries!
+        if not config.evaluate_rrho:
+            rrho = None
+            rrho_method = None
+        else:
+            rrho_method, _ = config.get_method_name(
+                "rrhoxtb",
+                bhess=config.bhess,
+                gfn_version=config.part1_gfnv,
+                sm=config.sm_rrho,
+                solvent=config.solvent,
+            )
+        if config.solvent == "gas":
+            gsolv = None
+            energy_method, solv_method = config.get_method_name(
+                "xtbopt",
+                func=config.func,
+                basis=config.basis,
+                sm=config.smgsolv1,
+                gfn_version=config.part1_gfnv,
+                solvent=config.solvent,
+            )
+        else:
+            if config.smgsolv1 in ("cosmors", "cosmors-fine"):
+                tmp_name = "cosmors"
+            elif config.smgsolv2 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
+                tmp_name = config.smgsolv1
+            else:
+                tmp_name = "sp_implicit"
+            energy_method, solv_method = config.get_method_name(
+                tmp_name,
+                func=config.func,
+                basis=config.basis,
+                sm=config.smgsolv1,
+                gfn_version=config.part1_gfnv,
+                solvent=config.solvent,
+            )
+
 
     for conf in calculate:
         conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
@@ -721,23 +1235,34 @@ def part4(config, conformers, store_confs, ensembledata):
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         length = max([str(i.id) for i in calculate])
-        if length < 4:
+        if int(length) < 4:
             length = 4
-        fmtenergy = max([len("{:.7f}".format(i.free_energy)) for i in calculate])
-    except:
+        fmtenergy = max([len("{: .7f}".format(i.free_energy)) for i in calculate])
+        if config.solvent != 'gas':
+            fmtsolv = max([len("{: .7f}".format(getattr(i, gsolv,{'energy': 0.0})["energy"])) for i in calculate])
+        else:
+            fmtsolv = 10
+        if config.evaluate_rrho:
+            fmtrrho = max([len("{: .7f}".format(getattr(i, rrho,{'energy': 0.0})["energy"])) for i in calculate])
+        else:
+            fmtrrho = 10
+    except Exception as e:
+        print(e)
         length = 6
         fmtenergy = 10
+        fmtrrho = 10
+        fmtsolv = 10
     with open(os.path.join(config.cwd, "anmr_enso"), "w", newline=None) as out:
         out.write(
-            f"{'ONOFF':5} {'NMR':^{length}} {'CONF':^{length}} {'BW':6} "
-            f"{'Energy':{fmtenergy}} {'Gsolv':7}  {'mRRHO':7} {'gi':7}\n"
+            f"{'ONOFF':5} {'NMR':^{length}} {'CONF':^{length}} {'BW':7} "
+            f"{'Energy':{fmtenergy}} {'Gsolv':{fmtsolv}} {'mRRHO':{fmtrrho}} {'gi':7}\n"
         )
         for conf in calculate:
             out.write(
-                f"{1:<5} {conf.id:{length}} {conf.id:{length}} "
-                f"{conf.bm_weight:.4f} {getattr(conf, energy)['energy']:.5f} "
-                f"{getattr(conf, gsolv)['energy']:.5f} "
-                f"{getattr(conf, rrho)['energy']:.5f} "
+                f"{1:<5} {conf.id:^{length}} {conf.id:^{length}} "
+                f"{conf.bm_weight: {2}.4f} {getattr(conf, energy)['energy']: {fmtenergy}.{7}f} "
+                f"{getattr(conf, str(gsolv), {'energy': 0.0})['energy']: {fmtsolv-7}.{7}f} "
+                f"{getattr(conf, str(rrho), {'energy': 0.0})['energy']: {fmtrrho-7}.{7}f} "
                 f"{conf.gi:.3f}\n"
             )
 
@@ -755,11 +1280,26 @@ def part4(config, conformers, store_confs, ensembledata):
     )
 
     # printout the averaged shielding constants
-    average_shieldings(config, calculate, element_ref_shield, energy, gsolv, rrho)
+    if config.shieldings:
+        average_shieldings(config, calculate, element_ref_shield, energy, gsolv, rrho)
 
+    # reset
     for conf in calculate:
         conf.reset_job_info()
 
+    if save_errors:
+        print(
+            "\n***---------------------------------------------------------***"
+        )
+        print(
+            "Printing most relevant errors again, just for user convenience:"
+        )
+        for _ in list(save_errors):
+            print(save_errors.pop())
+        print(
+            "***---------------------------------------------------------***"
+        )
     # end printout for part4
-    print("\n\n")
+    tmp = int((PLENGTH - len("END of Part4")) / 2)
+    print("\n" + "".ljust(tmp, ">") + "END of Part4" + "".rjust(tmp, "<"))
     return config, calculate, store_confs, ensembledata

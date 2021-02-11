@@ -380,9 +380,9 @@ def cml(startup_description, options, argv=None):
         f"Allowed values are [{', '.join(options.value_options['part1_gfnv'])}]",
     )
     group3.add_argument(
+        "-part1_threshold",
         "-thrpart1",
         "--thresholdpart1",
-        "-part1_threshold",
         dest="part1_threshold",
         metavar="",
         action="store",
@@ -442,7 +442,7 @@ def cml(startup_description, options, argv=None):
     )
     group4.add_argument(
         "-ancopt",
-        choices=["on", "off"],
+        choices=["on"], # there is no other option right now!
         dest="ancopt",
         required=False,
         metavar="",
@@ -490,7 +490,7 @@ def cml(startup_description, options, argv=None):
     )
     group4.add_argument(
         "-spearmanthr",
-        "-spearmanthr",
+        "--spearmanthr",
         dest="spearmanthr",
         action="store",
         required=False,
@@ -514,6 +514,7 @@ def cml(startup_description, options, argv=None):
     group4.add_argument(
         "-thrpart2",
         "--thresholdpart2",
+        "-part2_threshold",
         dest="part2_threshold",
         action="store",
         required=False,
@@ -719,53 +720,59 @@ def cml(startup_description, options, argv=None):
     group6.add_argument(
         "-hactive",
         "--hactive",
-        # choices=options.value_options["prog"],
+        choices=["on", "off"],
         dest="h_active",
         required=False,
         metavar="",
-        help="Investigates hydrogen nuclei in coupling and shielding calculations.",
+        help="Investigates hydrogen nuclei in coupling and shielding calculations."
+            "choices=['on', 'off']",
     )
     group6.add_argument(
         "-cactive",
         "--cactive",
-        # choices=options.value_options["prog"],
+        choices=["on", "off"],
         dest="c_active",
         required=False,
         metavar="",
-        help="Investigates carbon nuclei in coupling and shielding calculations.",
+        help="Investigates carbon nuclei in coupling and shielding calculations."
+            "choices=['on', 'off']",
     )
     group6.add_argument(
         "-factive",
         "--factive",
-        # choices=options.value_options["prog"],
+        choices=["on", "off"],
         dest="f_active",
         required=False,
         metavar="",
-        help="Investigates fluorine nuclei in coupling and shielding calculations.",
+        help="Investigates fluorine nuclei in coupling and shielding calculations."
+            "choices=['on', 'off']",
     )
     group6.add_argument(
         "-siactive",
         "--siactive",
-        # choices=options.value_options["prog"],
+        choices=["on", "off"],
         dest="si_active",
         required=False,
         metavar="",
-        help="Investigates silicon nuclei in coupling and shielding calculations.",
+        help="Investigates silicon nuclei in coupling and shielding calculations."
+            "choices=['on', 'off']",
     )
     group6.add_argument(
         "-pactive",
         "--pactive",
-        # choices=options.value_options["prog"],
+        choices=["on", "off"],
         dest="p_active",
         required=False,
         metavar="",
-        help="Investigates phosophorus nuclei in coupling and shielding calculations.",
+        help="Investigates phosophorus nuclei in coupling and shielding calculations."
+            "choices=['on', 'off']",
     )
     group9 = parser.add_argument_group("OPTICAL ROTATION MODE")
     group9.add_argument(
         "-OR",
         "--OR",
         "-part5",
+        metavar="",
         choices=["on", "off"],
         action="store",
         dest="optical_rotation",
@@ -832,7 +839,8 @@ def cml(startup_description, options, argv=None):
         type=int,
         action="store",
         metavar="",
-        help="Number of threads during the ENSO calculation. E.g. (maxthreads) 5"
+        help="Number of independent calculations during the ENSO calculation. E.g."
+        " (maxthreads) 5 independent calculation-"
         " threads with each (omp) 4 cores --> 20 cores need to be available on "
         "the machine.",
     )
@@ -1118,7 +1126,7 @@ class internal_settings:
     func3_tm = ["pw6b95", "pbe0", "b97-d3", "r2scan-3c"]
     func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c"]
     func_j_orca = ["tpss", "pbe0", "pbeh-3c"]
-    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "kt2", "r2scan-3c"]
+    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "b97-3c", "kt1", "kt2", "r2scan-3c"]
     func_s_orca = ["tpss", "pbe0", "dsd-blyp", "pbeh-3c", "kt2"]
     impgfnv = ["gfn1", "gfn2", "gfnff"]
     tmp_smd_solvents = [
@@ -1604,7 +1612,7 @@ class internal_settings:
             "part4": ["on", "off"],
             "optical_rotation": ["on", "off"],
             "prog3": ["tm", "orca", "prog"],
-            "ancopt": ["on", "off"],
+            "ancopt": ["on",], #, "off"],
             "opt_spearman": ["on", "off"],
             "evaluate_rrho": ["on", "off"],
             "consider_sym": ["on", "off"],
@@ -2378,117 +2386,6 @@ class config_setup(internal_settings):
                     self.sm2 = exchange_sm[self.sm2]
                 elif self.sm2 == "default":
                     self.sm2 = self.internal_defaults_tm["sm2"]["default"]
-            # Check if solvent-information is available for solventmodel
-            ###
-            # Check which solvation models are applied:
-
-            check_for = {
-                "xtb": False,
-                "cosmors": False,
-                "dcosmors": False,
-                "cpcm": False,
-                "smd": False,
-                "DC": False,
-            }
-            applied_solventmodels = []
-            if self.evaluate_rrho:
-                applied_solventmodels.append(self.sm_rrho)
-            if self.part1:
-                applied_solventmodels.append(self.smgsolv1)
-            if self.part2:
-                applied_solventmodels.append(self.sm2)
-                applied_solventmodels.append(self.smgsolv2)
-            if self.part3:
-                applied_solventmodels.append(self.smgsolv3)
-            if self.part4:
-                applied_solventmodels.append(self.sm4_j)
-                applied_solventmodels.append(self.sm4_s)
-            if self.optical_rotation:
-                applied_solventmodels.append("cosmo")
-
-            for solventmodel in list(set(applied_solventmodels)):
-                if solventmodel in ("alpb", "gbsa", "alpb_gsolv", "gbsa_gsolv"):
-                    check_for["xtb"] = True
-                elif solventmodel in ("cosmors", "cosmors-fine"):
-                    check_for["cosmors"] = True
-                elif solventmodel in ("dcosmors",):
-                    check_for["dcosmors"] = True
-                elif solventmodel in ("cosmo",):
-                    check_for["DC"] = True
-                elif solventmodel in ("cpcm",):
-                    check_for["cpcm"] = True
-                elif solventmodel in ("smd", "smd_gsolv"):
-                    check_for["smd"] = True
-                else:
-                    print("unexpected behaviour")
-            lookup = {
-                "xtb": "solvents_xtb",
-                "cosmors": "solvents_cosmors",
-                "dcosmors": "solvents_dcosmors",
-                "cpcm": "solvents_cpcm",
-                "smd": "solvents_smd",
-                "DC": "",
-            }
-            # check if solvent in censo_solvent_db
-            if censo_solvent_db.get(self.solvent, "not_found") == "not_found":
-                self.save_errors.append(
-                    f"ERROR: The solvent {self.solvent} is not found!"
-                )
-                error_logical = True
-            for key, value in check_for.items():
-                if value:
-                    if (
-                        censo_solvent_db[self.solvent].get(key, "nothing_found")
-                        == "nothing_found"
-                    ):
-                        self.save_errors.append(
-                            f"ERROR: The solvent for solventmodel in {key} is not found!"
-                        )
-                        error_logical = True
-                    if key == "DC":
-                        try:
-                            if not (
-                                float(
-                                    censo_solvent_db[self.solvent].get(
-                                        key, "nothing_found"
-                                    )
-                                )
-                                > 0.0
-                                and float(
-                                    censo_solvent_db[self.solvent].get(
-                                        key, "nothing_found"
-                                    )
-                                )
-                                < 150.0
-                            ):
-                                self.save_errors.append(
-                                    f"ERROR: The dielectric constant can not be converted."
-                                )
-                                error_logical = True
-                        except ValueError:
-                            self.save_errors.append(
-                                f"ERROR: The dielectric constant can not be converted."
-                            )
-                            error_logical = True
-                    elif key in ("smd", "cpcm"):
-                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
-                            1
-                        ].lower() not in getattr(self, lookup[key]):
-                            self.save_errors.append(
-                                f"WARNING: The solvent "
-                                f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}"
-                                f" for solventmodel/program {key} can not be checked but is used anyway."
-                            )
-                    else:
-                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
-                            1
-                        ] not in getattr(self, lookup[key]):
-                            self.save_errors.append(
-                                f"WARNING: The solvent "
-                                f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
-                                f"for solventmodel/program {key} can not be checked but is used anyway."
-                            )
-
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Handle smgsolv1
             exchange_sm = {
@@ -2632,6 +2529,117 @@ class config_setup(internal_settings):
                     self.sm4_s = exchange_sm[self.sm4_s]
                 elif self.sm4_s == "default":
                     self.sm4_s = self.internal_defaults_tm["sm4_s"]["default"]
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Check if solvent-information is available for solventmodel
+            ###
+            # Check which solvation models are applied:
+
+            check_for = {
+                "xtb": False,
+                "cosmors": False,
+                "dcosmors": False,
+                "cpcm": False,
+                "smd": False,
+                "DC": False,
+            }
+            applied_solventmodels = []
+            if self.evaluate_rrho:
+                applied_solventmodels.append(self.sm_rrho)
+            if self.part1:
+                applied_solventmodels.append(self.smgsolv1)
+            if self.part2:
+                applied_solventmodels.append(self.sm2)
+                applied_solventmodels.append(self.smgsolv2)
+            if self.part3:
+                applied_solventmodels.append(self.smgsolv3)
+            if self.part4:
+                applied_solventmodels.append(self.sm4_j)
+                applied_solventmodels.append(self.sm4_s)
+            if self.optical_rotation:
+                applied_solventmodels.append("cosmo")
+
+            for solventmodel in list(set(applied_solventmodels)):
+                if solventmodel in ("alpb", "gbsa", "alpb_gsolv", "gbsa_gsolv"):
+                    check_for["xtb"] = True
+                elif solventmodel in ("cosmors", "cosmors-fine"):
+                    check_for["cosmors"] = True
+                elif solventmodel in ("dcosmors",):
+                    check_for["dcosmors"] = True
+                elif solventmodel in ("cosmo",):
+                    check_for["DC"] = True
+                elif solventmodel in ("cpcm",):
+                    check_for["cpcm"] = True
+                elif solventmodel in ("smd", "smd_gsolv"):
+                    check_for["smd"] = True
+                else:
+                    print("unexpected behaviour solvents")
+            lookup = {
+                "xtb": "solvents_xtb",
+                "cosmors": "solvents_cosmors",
+                "dcosmors": "solvents_dcosmors",
+                "cpcm": "solvents_cpcm",
+                "smd": "solvents_smd",
+                "DC": "",
+            }
+            # check if solvent in censo_solvent_db
+            if censo_solvent_db.get(self.solvent, "not_found") == "not_found":
+                self.save_errors.append(
+                    f"ERROR: The solvent {self.solvent} is not found!"
+                )
+                error_logical = True
+            for key, value in check_for.items():
+                if value:
+                    if (
+                        censo_solvent_db[self.solvent].get(key, "nothing_found")
+                        == "nothing_found"
+                    ):
+                        self.save_errors.append(
+                            f"ERROR: The solvent for solventmodel in {key} is not found!"
+                        )
+                        error_logical = True
+                    if key == "DC":
+                        try:
+                            if not (
+                                float(
+                                    censo_solvent_db[self.solvent].get(
+                                        key, "nothing_found"
+                                    )
+                                )
+                                > 0.0
+                                and float(
+                                    censo_solvent_db[self.solvent].get(
+                                        key, "nothing_found"
+                                    )
+                                )
+                                < 150.0
+                            ):
+                                self.save_errors.append(
+                                    f"ERROR: The dielectric constant can not be converted."
+                                )
+                                error_logical = True
+                        except ValueError:
+                            self.save_errors.append(
+                                f"ERROR: The dielectric constant can not be converted."
+                            )
+                            error_logical = True
+                    elif key in ("smd", "cpcm"):
+                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
+                            1
+                        ].lower() not in getattr(self, lookup[key]):
+                            self.save_errors.append(
+                                f"WARNING: The solvent "
+                                f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}"
+                                f" for solventmodel/program {key} can not be checked but is used anyway."
+                            )
+                    else:
+                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
+                            1
+                        ] not in getattr(self, lookup[key]):
+                            self.save_errors.append(
+                                f"WARNING: The solvent "
+                                f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
+                                f"for solventmodel/program {key} can not be checked but is used anyway."
+                            )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle optlevel2:
         # sm2 needs to be set (not default!)
@@ -2645,8 +2653,8 @@ class config_setup(internal_settings):
         if self.part4 and not self.couplings and not self.shieldings:
             self.part4 = False
             self.save_errors.append(
-                "WARNING: Neither calculating coupling nor "
-                "shielding constants is activated! Part 4 is not executed."
+                "WARNING: Neither coupling nor "
+                "shielding constants are activated! Part4 is not executed."
             )
         elif not any(
             [
@@ -2685,7 +2693,7 @@ class config_setup(internal_settings):
         print("".ljust(PLENGTH, "-") + "\n")
 
         print(
-            f"The config file {os.path.basename(self.configpath)} is read "
+            f"The configuration file {os.path.basename(self.configpath)} is read "
             f"from {self.configpath}."
         )
         print(f"Reading conformer rotamer ensemble from: {self.ensemblepath}.")
@@ -2738,7 +2746,7 @@ class config_setup(internal_settings):
             info.append(["prog", "program for part0"])
             info.append(["func0", "functional for fast single-point"])
             info.append(["basis0", "basis set for fast single-point"])
-            info.append(["part0_threshold", "threshold for sorting in part0"])
+            info.append(["part0_threshold", "threshold g_thr(0) for sorting in part0"])
             if self.solvent != "gas":
                 info.append(["sm_rrho", "Solvent model used with xTB"])
 
@@ -2786,7 +2794,7 @@ class config_setup(internal_settings):
                     if self.solvent != "gas":
                         info.append(["sm_rrho", "solvent model applied with xTB"])
             info.append(["printoption", "evaluate at different temperatures", "off"])
-            info.append(["part1_threshold", "threshold for sorting in part1"])
+            info.append(["part1_threshold", "threshold g_thr(1) and G_thr(1) for sorting in part1"])
             if self.solvent != "gas":
                 info.append(
                     ["smgsolv1", "solvent model for Gsolv contribution of part1"]
@@ -2841,7 +2849,7 @@ class config_setup(internal_settings):
                 info.append(
                     [
                         "opt_limit",
-                        "completely optimize all conformers below this threshold",
+                        "optimize all conformers below this G_thr(opt,2) threshold"
                     ]
                 )
                 info.append(["printoption", "spearmanthr", f"{self.spearmanthr:.3f}"])
@@ -2853,7 +2861,7 @@ class config_setup(internal_settings):
                     info.append(["smgsolv2", "solvent model for Gsolv contribution"])
             info.append(["multitemp", "evaluate at different temperatures"])
             info.append(
-                ["part2_threshold", "Boltzmann sum threshold for sorting in part2"]
+                ["part2_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
             )
             info.append(["evaluate_rrho", "calculate mRRHO contribution"])
             if self.evaluate_rrho:
@@ -2911,7 +2919,7 @@ class config_setup(internal_settings):
             )
             info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
             info.append(["part3", "part3"])
-            info.append(["part3_threshold", "Boltzmann sum threshold employed"])
+            info.append(["part3_threshold", "Boltzmann sum threshold G_thr(3)"])
             info.append(["prog3", "program for part3"])
             info.append(["func3", "functional for part3"])
             info.append(["basis3", "basis set for part3"])
@@ -3014,6 +3022,8 @@ class config_setup(internal_settings):
             if getattr(self, "p_active"):
                 info.append(["p_active", "Calculating phosphorus spectrum"])
                 info.append(["p_ref", "reference for 31P"])
+            if all([ not getattr(self, active) for active in ("h_active", "c_active", "f_active", "si_active", "p_active")]):
+                info.append(["printoption", "Calculating spectrum for all nuclei", "H, C, F, Si, P"])
             info.append(["resonance_frequency", "resonance frequency"])
             # short notation:
 
@@ -3035,6 +3045,21 @@ class config_setup(internal_settings):
                 info.append(["part2_threshold", "Boltzmann sum threshold employed"])
             elif self.part3:
                 info.append(["part3_threshold", "Boltzmann sum threshold employed"])
+
+        max_len_digilen = 0
+        for item in info:
+            if item[0] == 'justprint':
+                if "short-notation" in item[1]:
+                    tmp = len(item[1]) -len('short-notation:')
+                else:
+                    tmp = len(item[1])
+            else:
+                tmp = len(item[1])
+            if tmp > max_len_digilen:
+                max_len_digilen = tmp
+        max_len_digilen +=1
+        if max_len_digilen < DIGILEN:
+            max_len_digilen = DIGILEN
 
         optionsexchange = {True: "on", False: "off"}
         for item in info:
@@ -3063,7 +3088,7 @@ class config_setup(internal_settings):
                     option = ", ".join(option)
                 print(
                     "{}: {:{digits}} {}".format(
-                        item[1], "", option, digits=DIGILEN - len(item[1])
+                        item[1], "", option, digits=max_len_digilen - len(item[1])
                     )
                 )
         print("END of parameters\n")
@@ -3086,10 +3111,6 @@ class config_setup(internal_settings):
                 try:
                     normal = "DATABASE-COSMO/BP-TZVP-COSMO"
                     fine = "DATABASE-COSMO/BP-TZVPD-FINE"
-                    if "fine" in self.external_paths["cosmorssetup"].lower():
-                        tmpdb = fine
-                    else:
-                        tmpdb = normal
                     tmp_path = self.external_paths["cosmorssetup"].split()[5].strip('"')
                     if "OLDPARAM" in tmp_path:
                         tmp_path = os.path.split(tmp_path)[0]
@@ -3099,7 +3120,6 @@ class config_setup(internal_settings):
                     self.external_paths["dbpath_normal"] = os.path.join(
                         tmp_path, normal
                     )
-                    # os.path.isdir(self.external_paths["dbpath"])
                 except Exception as e:
                     print(e)
                     print(
@@ -3107,14 +3127,6 @@ class config_setup(internal_settings):
                         ".censorc!\nMost probably there is a user "
                         "input error."
                     )
-            # if "cosmors-param:" in line:
-            #     try:
-            #         self.external_paths["cosmors-param"] = line.split()[1]
-            #     except:
-            #         print(
-            #             "WARNING: COSMO-RS paramtrization could not be read! This "
-            #             "is necessary to prepare the cosmotherm.inp! "
-            #         )
             if "ORCA:" in line:
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
@@ -3282,7 +3294,7 @@ class config_setup(internal_settings):
                     print(
                         f"    Setup of COSMO-RS: {str(self.external_paths['cosmorssetup'])}"
                     )
-            except Exception as e:
+            except Exception:
                 print(
                     "    Setup of COSMO-RS: {}".format(
                         str(self.external_paths["cosmorssetup"])

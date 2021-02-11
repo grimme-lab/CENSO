@@ -33,7 +33,7 @@ def part0(config, conformers, ensembledata):
     Cheap prescreening of the ensemble, with single-points on combined ensemble
     geometries.
     Input:
-    - config [conifg_setup object] contains all settings
+    - config [config_setup object] contains all settings
     - conformers [list of molecule_data objects] each conformer is represented
     - ensembledata -> instance for saving ensemble (not conf) related data
     Return:
@@ -50,8 +50,23 @@ def part0(config, conformers, ensembledata):
     info.append(["prog", "program"])
     info.append(["func0", "functional for part0"])
     info.append(["basis0", "basis set for part0"])
-    info.append(["part0_threshold", "threshold"])
+    info.append(["part0_threshold", "threshold g_thr(0)"])
     info.append(["nconf", "starting number of considered conformers"])
+
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
 
     optionsexchange = {True: "on", False: "off"}
     for item in info:
@@ -68,7 +83,7 @@ def part0(config, conformers, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -460,7 +475,7 @@ def part0(config, conformers, ensembledata):
         if calculate:
             print(
                 f"These conformers are below the {config.part0_threshold:.3f} "
-                f"kcal/mol threshold.\n"
+                f"kcal/mol g_thr(0) threshold.\n"
             )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
@@ -469,7 +484,7 @@ def part0(config, conformers, ensembledata):
         for conf in list(calculate):
             conf.part_info["part0"] = "passed"
         print(
-            "\nAll relative (free) energies are below the initial threshold "
+            "\nAll relative (free) energies are below the initial g_thr(0) threshold "
             f"of {config.part0_threshold} kcal/mol.\nAll conformers are "
             "considered further."
         )
@@ -519,18 +534,15 @@ def part0(config, conformers, ensembledata):
 
     if save_errors:
         print(
-            "\n***---------------------------------------------------------***",
-            file=sys.stderr,
+            "\n***---------------------------------------------------------***"
         )
         print(
-            "Printing most relevant errors again, just for user convenience:",
-            file=sys.stderr,
+            "Printing most relevant errors again, just for user convenience:"
         )
         for _ in list(save_errors):
-            print(save_errors.pop(), file=sys.stderr)
+            print(save_errors.pop())
         print(
-            "***---------------------------------------------------------***",
-            file=sys.stderr,
+            "***---------------------------------------------------------***"
         )
 
     tmp = int((PLENGTH - len("END of Part0")) / 2)

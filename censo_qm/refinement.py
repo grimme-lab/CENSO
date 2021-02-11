@@ -46,7 +46,7 @@ def part3(config, conformers, store_confs, ensembledata):
     # print flags for part3
     info = []
     info.append(["prog3", "program for part3"])
-    info.append(["part3_threshold", "Boltzmann sum threshold employed"])
+    info.append(["part3_threshold", "Boltzmann sum threshold G_thr(3)"])
     info.append(["func3", "functional for part3"])
     info.append(["basis3", "basis set for part3"])
     if config.solvent != "gas":
@@ -74,6 +74,22 @@ def part3(config, conformers, store_confs, ensembledata):
             info.append(
                 ["bhess", "Apply constraint to input geometry during mRRHO calculation"]
             )
+    
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
+
     optionsexchange = {True: "on", False: "off"}
     for item in info:
         if item[0] == "justprint":
@@ -100,7 +116,7 @@ def part3(config, conformers, store_confs, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -997,7 +1013,7 @@ def part3(config, conformers, store_confs, ensembledata):
 
     if calculate:
         print(
-            f"\nConformers that are below the Boltzmann-thr of {config.part3_threshold}%:"
+            f"\nConformers that are below the Boltzmann threshold G_thr(3) of {config.part3_threshold}%:"
         )
         print_block(["CONF" + str(i.id) for i in calculate])
 
@@ -1063,18 +1079,16 @@ def part3(config, conformers, store_confs, ensembledata):
 
     if save_errors:
         print(
-            "\n***---------------------------------------------------------***",
-            file=sys.stderr,
+            "\n***---------------------------------------------------------***"
         )
         print(
-            "Printing most relevant errors again, just for user convenience:",
-            file=sys.stderr,
+            "Printing most relevant errors again, just for user convenience:"
         )
         for _ in list(save_errors):
-            print(save_errors.pop(), file=sys.stderr)
+            print(save_errors.pop())
         print(
-            "***---------------------------------------------------------***",
-            file=sys.stderr,
+            "***---------------------------------------------------------***"
+
         )
     tmp = int((PLENGTH - len("END of Part3")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part3" + "".rjust(tmp, "<"))

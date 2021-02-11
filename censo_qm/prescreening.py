@@ -35,7 +35,7 @@ def part1(config, conformers, store_confs, ensembledata):
     Calculate low level free energies with COSMO-RS single-point and gsolv
     contribution and GFNFF-bhess thermostatistical contribution.
     Input:
-    - config [conifg_setup object] contains all settings
+    - config [config_setup object] contains all settings
     - conformers [list of molecule_data objects] each conformer is represented
     - ensembledata -> instance for saving ensemble (not conf) related data
     Return:
@@ -55,7 +55,7 @@ def part1(config, conformers, store_confs, ensembledata):
     if config.solvent != "gas":
         info.append(["solvent", "Solvent"])
         info.append(["smgsolv1", "solvent model for Gsolv contribution"])
-    info.append(["part1_threshold", "threshold"])
+    info.append(["part1_threshold", "threshold g_thr(1) and G_thr(1)"])
     info.append(
         ["printoption", "starting number of considered conformers", len(conformers)]
     )
@@ -72,6 +72,23 @@ def part1(config, conformers, store_confs, ensembledata):
                     ]
                 )
     info.append(["temperature", "temperature"])
+
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
+
+
     optionsexchange = {True: "on", False: "off"}
     for item in info:
         if item[0] == "justprint":
@@ -87,7 +104,7 @@ def part1(config, conformers, store_confs, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -398,7 +415,7 @@ def part1(config, conformers, store_confs, ensembledata):
 
     # ***************************************************************************
     # first sorting by E or Gsolv
-    # (remove high lying conformers above part1_threshold + 1.5 kcal/mol)
+    # (remove high lying conformers above part1_threshold)
     print("\n" + "".ljust(int(PLENGTH / 2), "-"))
     print("Removing high lying conformers".center(int(PLENGTH / 2), " "))
     print("".ljust(int(PLENGTH / 2), "-") + "\n")
@@ -479,13 +496,13 @@ def part1(config, conformers, store_confs, ensembledata):
             if conf.rel_free_energy > (config.part1_threshold):
                 store_confs.append(calculate.pop(calculate.index(conf)))
         if calculate:
-            print(f"Below the threshold of {config.part1_threshold} kcal/mol.\n")
+            print(f"Below the g_thr(1) threshold of {config.part1_threshold} kcal/mol.\n")
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
             print("Error: There are no more conformers left!")
     else:
         print(
-            "\nAll relative (free) energies are below the threshold "
+            "\nAll relative (free) energies are below the g_thr(1) threshold "
             f"of ({config.part1_threshold} kcal/mol.\nAll conformers are "
             "considered further."
         )
@@ -779,7 +796,7 @@ def part1(config, conformers, store_confs, ensembledata):
     print(f"Std_dev(G_mRRHO) = {std_dev:.3f} kcal/mol")
     print(f"Fuzzythreshold   = {fuzzythr:.3f} kcal/mol")
     print(
-        f"Final sorting threshold = {config.part1_threshold:.3f} + "
+        f"Final sorting threshold G_thr(1) = {config.part1_threshold:.3f} + "
         f"{fuzzythr:.3f} = {config.part1_threshold + fuzzythr:.3f} kcal/mol"
     )
     for conf in calculate:
@@ -854,7 +871,7 @@ def part1(config, conformers, store_confs, ensembledata):
         if calculate:
             print(
                 f"These conformers are below the {config.part1_threshold+fuzzythr:.3f} "
-                f"kcal/mol threshold.\n"
+                f"kcal/mol G_thr(1) threshold.\n"
             )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
@@ -863,7 +880,7 @@ def part1(config, conformers, store_confs, ensembledata):
         for conf in list(calculate):
             conf.part_info["part1"] = "passed"
         print(
-            "\nAll relative (free) energies are below the initial threshold "
+            "\nAll relative (free) energies are below the initial G_thr(1) threshold "
             f"of {config.part1_threshold} kcal/mol.\nAll conformers are "
             "considered further."
         )
@@ -1062,18 +1079,15 @@ def part1(config, conformers, store_confs, ensembledata):
         conf.reset_job_info()
     if save_errors:
         print(
-            "\n***---------------------------------------------------------***",
-            file=sys.stderr,
+            "\n***---------------------------------------------------------***"
         )
         print(
-            "Printing most relevant errors again, just for user convenience:",
-            file=sys.stderr,
+            "Printing most relevant errors again, just for user convenience:"
         )
         for _ in list(save_errors):
-            print(save_errors.pop(), file=sys.stderr)
+            print(save_errors.pop())
         print(
-            "***---------------------------------------------------------***",
-            file=sys.stderr,
+            "***---------------------------------------------------------***"
         )
 
     tmp = int((PLENGTH - len("END of Part1")) / 2)

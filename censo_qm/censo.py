@@ -42,7 +42,7 @@ def main(argv=None):
         interactiv_doc()
         sys.exit(0)
 
-    # setup conformers and process input: cml >> conifgfile > internal defaults
+    # setup conformers and process input: cml >> configfile > internal defaults
     args, config, conformers, ensembledata = enso_startup(getcwd(), args)
 
     # RUNNING PART0

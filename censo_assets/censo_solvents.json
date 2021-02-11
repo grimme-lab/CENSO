@@ -138,7 +138,7 @@
     "ethanol":{
         "cosmors": ["ethanol_c0", "ethanol_c0"],
         "dcosmors": ["ethanol", "ethanol"],
-        "xtb": [null, "methanol"],
+        "xtb": ["ethanol", "ethanol"],
         "cpcm": [null, "Methanol"],
         "smd": ["ETHANOL", "ETHANOL"],
         "DC": 24.6

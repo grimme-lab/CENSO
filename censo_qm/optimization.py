@@ -58,7 +58,7 @@ def part2(config, conformers, store_confs, ensembledata):
     if config.opt_spearman:
         info.append(["opt_spearman", "using the new ensemble optimizer"])
         info.append(
-            ["opt_limit", "completely optimize all conformers below this threshold"]
+            ["opt_limit", "optimize all conformers below this G_thr(opt,2) threshold"]
         )
         info.append(["printoption", "Spearman threshold", f"{config.spearmanthr:.3f}"])
         info.append(["optcycles", "number of optimization iterations"])
@@ -86,7 +86,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 ],
             ]
         )
-    info.append(["part2_threshold", "Boltzmann sum threshold for sorting in part2"])
+    info.append(["part2_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"])
     info.append(["evaluate_rrho", "calculate mRRHO contribution"])
     if config.evaluate_rrho:
         info.append(["prog_rrho", "program for mRRHO contribution"])
@@ -99,6 +99,21 @@ def part2(config, conformers, store_confs, ensembledata):
                         "Apply constraint to input geometry during mRRHO calculation",
                     ]
                 )
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
+
     optionsexchange = {True: "on", False: "off"}
     for item in info:
         if item[0] == "justprint":
@@ -125,7 +140,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -379,7 +394,7 @@ def part2(config, conformers, store_confs, ensembledata):
         ewin_initial = config.opt_limit + ewin_increase
         ewin = config.opt_limit + ewin_increase
 
-        print(f"Lower limit is set to {config.opt_limit} kcal/mol\n")
+        print(f"Lower limit is set to G_thr(opt,2) = {config.opt_limit} kcal/mol\n")
         lower_limit = config.opt_limit
         maxecyc_prev = 1
         maxecyc = 0
@@ -1862,7 +1877,7 @@ def part2(config, conformers, store_confs, ensembledata):
     ensembledata.nconfs_per_part["part2"] = len(calculate)
     if calculate:
         print(
-            f"\nConformers that are below the Boltzmann-thr of {config.part2_threshold}%:"
+            f"\nConformers that are below the Boltzmann threshold G_thr(2) of {config.part2_threshold}%:"
         )
         print_block(["CONF" + str(i.id) for i in calculate])
     else:
@@ -1929,18 +1944,15 @@ def part2(config, conformers, store_confs, ensembledata):
 
     if save_errors:
         print(
-            "\n***---------------------------------------------------------***",
-            file=sys.stderr,
+            "\n***---------------------------------------------------------***"
         )
         print(
-            "Printing most relevant errors again, just for user convenience:",
-            file=sys.stderr,
+            "Printing most relevant errors again, just for user convenience:"
         )
         for _ in list(save_errors):
-            print(save_errors.pop(), file=sys.stderr)
+            print(save_errors.pop())
         print(
-            "***---------------------------------------------------------***",
-            file=sys.stderr,
+            "***---------------------------------------------------------***"
         )
 
     tmp = int((PLENGTH - len("END of Part2")) / 2)

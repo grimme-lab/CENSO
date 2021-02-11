@@ -69,10 +69,10 @@ def enso_startup(cwd, args):
             else:
                 raise FileNotFoundError
         except FileNotFoundError:
-            print(f"ERROR: Could not find the config file: {configfname}.\n"
+            print(f"ERROR: Could not find the configuration file: {configfname}.\n"
                 "Going to exit!")
             sys.exit(1)
-    if os.path.isfile(os.path.join(config.cwd, configfname)):
+    elif os.path.isfile(os.path.join(config.cwd, configfname)):
         # local configuration file before remote configuration file
         config.configpath = os.path.join(config.cwd, configfname)
     elif os.path.isfile(os.path.join(os.path.expanduser("~"), configfname)):
@@ -80,7 +80,7 @@ def enso_startup(cwd, args):
         config.configpath = os.path.join(os.path.expanduser("~"), configfname)
     else:
         print(
-            f"ERROR: Could not find the config file: {configfname}.\n"
+            f"ERROR: Could not find the configuration file: {configfname}.\n"
             f"{'':{7}}The file has to be either in /home/$USER/ or the current "
             "working directory!\n"
             "The configurationfile can be otherwise directly referenced using: "
@@ -192,8 +192,13 @@ def enso_startup(cwd, args):
                 try:
                     config.nat = int(infile.readline().strip().split()[0])
                     filelen = 1
-                except (ValueError, TypeError):
-                    raise
+                except (ValueError, TypeError, IndexError) as e:
+                    print(
+                        "ERROR: Could not get the number of atoms or the "
+                        "number of conformers from the inputfile "
+                        f"{os.path.basename(args.inp)}"
+                    )
+                    sys.exit(1)
                 for line in infile:
                     filelen += 1
                 try:
