@@ -11,7 +11,14 @@ except ImportError:
 import time
 import subprocess
 import shutil
-from .cfg import CODING, ENVIRON, AU2KCAL, censo_solvent_db, external_paths
+from .cfg import (
+    CODING,
+    ENVIRON,
+    AU2KCAL,
+    censo_solvent_db,
+    external_paths,
+    cosmors_param,
+)
 from .utilities import last_folders, print
 from .qm_job import QmJob
 
@@ -40,7 +47,11 @@ class TmJob(QmJob):
             removegf = True
         else:
             removegf = False
-
+        if self.job["basis"] == "def2-TZVPD(-f)":
+            self.job["basis"] = "def2-TZVPD"
+            remove_f = True
+        else:
+            remove_f = False
         # build cefine call:
         minimal_call = [
             external_paths["cefinepath"],
@@ -52,6 +63,8 @@ class TmJob(QmJob):
             "c1",
             "-noopt",
         ]
+        if remove_f:
+            minimal_call.extend(["-fpol"])
         extension = {
             "clear": [],
             "low": ["-grid", "m3", "-scfconv", "6"],
@@ -474,6 +487,9 @@ class TmJob(QmJob):
         beforehand.
         energy --> gas phase scf energy
         energy2 --> gsolv contribution
+
+        cosmorsparam = fine or normal
+        ctd-param  = which parametrization version e.g. BP_TZVP_19.ctd
         """
         if not self.job["onlyread"]:
             print(
@@ -481,14 +497,39 @@ class TmJob(QmJob):
                 f"{last_folders(self.job['workdir'], 3):18}"
             )
             # parametrisation
-            if self.job["cosmorsparam"] == "fine":
-                pass
-            elif self.job["cosmorsparam"] == "normal":
-                if "FINE" in self.job["cosmorssetup"]:
-                    ## normal cosmors
-                    tmp = self.job["cosmorssetup"]
-                    tmp = tmp.replace("_FINE", "")
-                    self.job["cosmorssetup"] = tmp.replace("BP_TZVPD", "BP_TZVP")
+            # ctd and database have to match fine -> fine  or non-fine -> nofine
+            if self.job["ctd-param"] == "automatic":
+                if self.job["cosmorsparam"] == "fine":
+                    if (
+                        "FINE" not in self.job["cosmorssetup"]
+                        and "1201" not in self.job["cosmorssetup"]
+                        and "1301" not in self.job["cosmorssetup"]
+                    ):
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE")
+                    elif "FINE" not in self.job["cosmorssetup"] and "1201" in self.job["cosmorssetup"]:
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE_HB2012")
+                    elif "FINE" not in self.job["cosmorssetup"] and "1301" in self.job["cosmorssetup"]:
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE_HB2012")
+                elif self.job["cosmorsparam"] == "normal":
+                    if "FINE" in self.job["cosmorssetup"]:
+                        ## normal cosmors
+                        tmp = self.job["cosmorssetup"]
+                        tmp = tmp.replace("_FINE", "")
+                        self.job["cosmorssetup"] = tmp.replace("BP_TZVPD", "BP_TZVP")
+            else:
+                if self.job["cosmorsparam"] == "fine":
+                    find = "normal"
+                    replacewith = "fine"
+                else:
+                    find = "fine"
+                    replacewith = "normal"
+                self.job["ctd-param"] = self.job["ctd-param"].replace(find, replacewith)
+                tmp_dat = self.job["cosmorssetup"].split()
+                tmp_new = f"ctd = {cosmors_param[self.job['ctd-param']]} "
+                for item in tmp_dat:
+                    if ".ctd" in item:
+                        tmp_new = tmp_new + " ".join(tmp_dat[tmp_dat.index(item) + 1 :])
+                self.job["cosmorssetup"] = tmp_new
             # run two single-points:
             if self.job["copymos"]:
                 if self.job["unpaired"] > 0:
@@ -607,16 +648,29 @@ class TmJob(QmJob):
                     cosmors_solv = {f"{self.job['solvent']}": [f"f = {filename} "]}
 
             mixture = {"woctanol": ["0.27 0.73"]}
-            if self.job["cosmorsparam"] == "fine":
-                solv_data = os.path.join(
-                    os.path.split(self.job["cosmorssetup"].split()[5].strip('"'))[0],
-                    "DATABASE-COSMO/BP-TZVPD-FINE",
-                )
+
+            if external_paths.get("dbpath", None) is not None:
+                if self.job["cosmorsparam"] == "fine":
+                    solv_data = external_paths.get("dbpath_fine")
+
+                else:
+                    solv_data = external_paths.get("dbpath_normal")
             else:
-                solv_data = os.path.join(
-                    os.path.split(self.job["cosmorssetup"].split()[5].strip('"'))[0],
-                    "DATABASE-COSMO/BP-TZVP-COSMO",
-                )
+                # old behaviour
+                if self.job["cosmorsparam"] == "fine":
+                    solv_data = os.path.join(
+                        os.path.split(self.job["cosmorssetup"].split()[5].strip('"'))[
+                            0
+                        ],
+                        "DATABASE-COSMO/BP-TZVPD-FINE",
+                    )
+                else:
+                    solv_data = os.path.join(
+                        os.path.split(self.job["cosmorssetup"].split()[5].strip('"'))[
+                            0
+                        ],
+                        "DATABASE-COSMO/BP-TZVP-COSMO",
+                    )
             # test = ['ctd = BP_TZVP_C30_1601.ctd cdir = "/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"']
             with open(
                 os.path.join(self.job["workdir"], "cosmotherm.inp"), "w", newline=None

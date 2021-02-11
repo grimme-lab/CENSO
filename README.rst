@@ -1,8 +1,11 @@
+[![Latest Version](https://img.shields.io/github/v/release/grimme-lab/CENSO)](https://github.com/grimme-lab/CENSO/releases/latest)
+
 CENSO - Commandline ENergetic SOrting of Conformer Rotamer Ensembles
 ====================================================================
 
 This repository hosts the `CENSO` code for the refinement of Conformer Rotamer 
 Ensembles (CRE) as obtained from `CREST`.
+
 
 
 Installation
@@ -55,7 +58,14 @@ settings and provide paths to the external programs e.g. `xtb`, `crest`, `orca` 
     vi /home/$USER/.ensorc
 
 
-First explainations on the commandline arguments can be printed by:
+Interactive Documentation can be accessed:
+
+.. code::
+
+    $ censo -tutorial
+
+
+Explainations on the commandline arguments can be printed by:
 
 .. code::
 
@@ -76,6 +86,7 @@ ensemble:
     free energy calculation on DFT optimized geometries.
 
 3) Refinement (part3): Optional free energy refinement (on DFT optimized geometries).
+    E.g. using hybrid DFA with large basis set.
 
 4) NMR properties (part4): Optional calculation of shielding and coupling constants on 
     populated conformers.
@@ -88,7 +99,7 @@ Usage:
 
 .. code::
 
-    # check if settings combinations match:
+    # check if setting-combinations match:
     $ censo -inp structure_ensemble.xyz -part2 on -solvent h2o --checkinput
     # start the calculation:
     $ censo -inp structure_ensemble.xyz -part2 on -solvent h2o > censo.out 2> error.censo &
@@ -96,12 +107,12 @@ Usage:
 Requirements:
 -------------
 
-* newest xtb (currently: https://github.com/grimme-lab/xtb/releases/tag/bleed )
+* newest xtb (currently: https://github.com/grimme-lab/xtb/releases/tag/v6.4.0 )
 * newest cefine https://github.com/grimme-lab/cefine/releases
 * ORCA > version 4.1
 
 
-Furter information (will be ordered later on):
+Further information (will be ordered later on):
 
 * the file .censorc can be used in the current working directory and will be preferred to 
   the global configuration file in ~/.censorc

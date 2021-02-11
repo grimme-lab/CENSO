@@ -412,11 +412,23 @@ class QmJob(MoleculeData):
                     )
                 else:
                     xcout.write("    temp={}\n".format(self.job["temperature"]))
-                xcout.write("    sthr=50.0\n")
-                if self.job["bhess"]:
-                    xcout.write("    imagthr={}\n".format("-100"))
+                if self.job.get("sthr", "automatic") == 'automatic':
+                    xcout.write("    sthr=50.0\n")
                 else:
-                    xcout.write("    imagthr={}\n".format("-50"))
+                    xcout.write("    sthr={}\n".format(self.job['sthr']))
+                if self.job.get("imagthr", "automatic") == 'automatic':
+                    if self.job["bhess"]:
+                        xcout.write("    imagthr={}\n".format("-100"))
+                    else:
+                        xcout.write("    imagthr={}\n".format("-50"))
+                else:
+                    xcout.write("    imagthr={}\n".format(self.job["imagthr"]))
+                if self.job.get("scale", "automatic") == 'automatic':
+                    #xcout.write("    scale={}\n".format("1.0"))
+                    pass # is method dependant leave it to xTB e.g. GFNFF has a 
+                    # different scaling factor than GFN2
+                else:
+                    xcout.write("    scale={}\n".format(self.job['scale']))
                 xcout.write("$symmetry\n")
                 if self.job["consider_sym"]:
                     # xcout.write("    desy=0.1\n") # taken from xtb defaults

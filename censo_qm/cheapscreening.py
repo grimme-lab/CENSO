@@ -23,6 +23,7 @@ from .utilities import (
     calc_std_dev,
     spearman,
     print,
+    print_errors,
     calc_boltzmannweights,
 )
 
@@ -32,7 +33,7 @@ def part0(config, conformers, ensembledata):
     Cheap prescreening of the ensemble, with single-points on combined ensemble
     geometries.
     Input:
-    - config [conifg_setup object] contains all settings
+    - config [config_setup object] contains all settings
     - conformers [list of molecule_data objects] each conformer is represented
     - ensembledata -> instance for saving ensemble (not conf) related data
     Return:
@@ -49,8 +50,23 @@ def part0(config, conformers, ensembledata):
     info.append(["prog", "program"])
     info.append(["func0", "functional for part0"])
     info.append(["basis0", "basis set for part0"])
-    info.append(["part0_threshold", "threshold"])
+    info.append(["part0_threshold", "threshold g_thr(0)"])
     info.append(["nconf", "starting number of considered conformers"])
+
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
 
     optionsexchange = {True: "on", False: "off"}
     for item in info:
@@ -67,7 +83,7 @@ def part0(config, conformers, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -82,6 +98,8 @@ def part0(config, conformers, ensembledata):
     # setup queues
     q = Queue()
     resultq = Queue()
+
+    folder = "part0_sp"
 
     if config.prog == "tm":
         job = TmJob
@@ -108,12 +126,12 @@ def part0(config, conformers, ensembledata):
         else:
             print("ERROR: UNEXPECTED BEHAVIOUR")
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
     if prev_calculated:
-        check_for_folder(config.cwd, [i.id for i in prev_calculated], config.func)
+        check_for_folder(config.cwd, [i.id for i in prev_calculated], folder)
         print("The efficient gas-phase single-point was calculated before for:")
         print_block(["CONF" + str(i.id) for i in prev_calculated])
-    pl = config.lenconfx + 4 + len(str("/" + config.func))
+    pl = config.lenconfx + 4 + len(str("/" + folder))
 
     if config.solvent != "gas":
         instruction = {
@@ -198,7 +216,7 @@ def part0(config, conformers, ensembledata):
         )
 
     name = "efficient gas-phase single-point"
-    folder = "part0_sp"
+    # folder = "part0_sp"
     check = {True: "was successful", False: "FAILED"}
     if calculate:
         print(f"The {name} is calculated for:")
@@ -263,8 +281,9 @@ def part0(config, conformers, ensembledata):
                     conf.cheap_prescreening_sp_info["info"] = "calculated"
                     conf.cheap_prescreening_sp_info["method"] = conf.job["method"]
             else:
-                print(
-                    f'UNEXPECTED BEHAVIOUR: {conf.job["success"]} {conf.job["jobtype"]}'
+                print_errors(
+                    f'UNEXPECTED BEHAVIOUR: {conf.job["success"]} {conf.job["jobtype"]}',
+                    save_errors,
                 )
         # save current data to jsonfile
         config.write_json(
@@ -301,7 +320,7 @@ def part0(config, conformers, ensembledata):
     for conf in calculate:
         conf.reset_job_info()
     if not calculate:
-        print("ERROR: No conformers left!")
+        print_errors("ERROR: No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -360,7 +379,7 @@ def part0(config, conformers, ensembledata):
     try:
         maxreldft = max([i.rel_free_energy for i in calculate if i is not None])
     except ValueError:
-        print("ERROR: No conformer left or Error in maxreldft!")
+        print_errors("ERROR: No conformer left or error in maxreldft!", save_errors)
     # print sorting
     columncall = [
         lambda conf: "CONF" + str(getattr(conf, "id")),
@@ -456,16 +475,16 @@ def part0(config, conformers, ensembledata):
         if calculate:
             print(
                 f"These conformers are below the {config.part0_threshold:.3f} "
-                f"kcal/mol threshold.\n"
+                f"kcal/mol g_thr(0) threshold.\n"
             )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
-            print("Error: There are no more conformers left!")
+            print_errors("Error: There are no more conformers left!", save_errors)
     else:
         for conf in list(calculate):
             conf.part_info["part0"] = "passed"
         print(
-            "\nAll relative (free) energies are below the initial threshold "
+            "\nAll relative (free) energies are below the initial g_thr(0) threshold "
             f"of {config.part0_threshold} kcal/mol.\nAll conformers are "
             "considered further."
         )
@@ -488,7 +507,7 @@ def part0(config, conformers, ensembledata):
         avG += conf.bm_weight * conf.free_energy
         avE += conf.bm_weight * conf.cheap_prescreening_sp_info["energy"]
     # printout:
-    print(f"{config.temperature:^15} {avE:>14.7f}  {avG:>14.7f} " "    <<==part0==")
+    print(f"{config.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==")
     print("".ljust(int(PLENGTH), "-"))
     print("")
     ################################################################################
@@ -515,18 +534,15 @@ def part0(config, conformers, ensembledata):
 
     if save_errors:
         print(
-            "***---------------------------------------------------------***",
-            file=sys.stderr,
+            "\n***---------------------------------------------------------***"
         )
         print(
-            "Printing most relevant errors again, just for user convenience:",
-            file=sys.stderr,
+            "Printing most relevant errors again, just for user convenience:"
         )
         for _ in list(save_errors):
-            print(save_errors.pop(), file=sys.stderr)
+            print(save_errors.pop())
         print(
-            "***---------------------------------------------------------***",
-            file=sys.stderr,
+            "***---------------------------------------------------------***"
         )
 
     tmp = int((PLENGTH - len("END of Part0")) / 2)

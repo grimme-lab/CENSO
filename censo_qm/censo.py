@@ -25,6 +25,7 @@ from .refinement import part3
 from .nmrproperties import part4
 from .opticalrotation import part5
 from .utilities import print
+from .tutorial import interactiv_doc
 
 
 def main(argv=None):
@@ -37,7 +38,11 @@ def main(argv=None):
         print(__version__)
         sys.exit(0)
 
-    # setup conformers and process input: cml >> conifgfile > internal defaults
+    if args.tutorial:
+        interactiv_doc()
+        sys.exit(0)
+
+    # setup conformers and process input: cml >> configfile > internal defaults
     args, config, conformers, ensembledata = enso_startup(getcwd(), args)
 
     # RUNNING PART0

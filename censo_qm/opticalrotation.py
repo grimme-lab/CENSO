@@ -18,6 +18,7 @@ from .utilities import (
     new_folders,
     last_folders,
     print,
+    print_errors,
     calc_std_dev,
     ensemble2coord,
 )
@@ -50,6 +51,23 @@ def part5(config, conformers, store_confs, ensembledata):
         info.append(["solvent", "solvent"])
         if config.prog == "tm":
             info.append(["printoption", "solvation model", "cosmo"])
+
+    max_len_digilen = 0
+    for item in info:
+        if item[0] == 'justprint':
+            if "short-notation" in item[1]:
+                tmp = len(item[1]) -len('short-notation:')
+            else:
+                tmp = len(item[1])
+        else:
+            tmp = len(item[1])
+        if tmp > max_len_digilen:
+            max_len_digilen = tmp
+    max_len_digilen +=1
+    if max_len_digilen < DIGILEN:
+        max_len_digilen = DIGILEN
+
+
     optionsexchange = {True: "on", False: "off"}
     for item in info:
         if item[0] == "justprint":
@@ -76,7 +94,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 option = ", ".join(option)
             print(
                 "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=DIGILEN - len(item[1])
+                    item[1], "", option, digits=max_len_digilen - len(item[1])
                 )
             )
     print("")
@@ -144,8 +162,8 @@ def part5(config, conformers, store_confs, ensembledata):
             calculate.append(mol)
 
     if unoptimized_warning:
-        print(f"WARNING: Conformers have not been optimized at DFT level!!!\n"
-              f"         Use results with care!\n"
+        print_errors(f"INFORMATION: Conformers have not been optimized at DFT level!!!\n"
+                     f"             Use results with care!\n", save_errors
         )
 
     if not calculate and not prev_calculated:
@@ -157,10 +175,11 @@ def part5(config, conformers, store_confs, ensembledata):
     print("Considering the following conformers:")
     print_block(["CONF" + str(i.id) for i in calculate])
 
-    # Calculate boltzmann weight for confs:
+    # Calculate Boltzmann weight for confs:
     if config.part3:
         if not config.evaluate_rrho:
             rrho = None
+            rrho_method = None
         else:
             rrho_method, _ = config.get_method_name(
                 "rrhoxtb",
@@ -197,6 +216,7 @@ def part5(config, conformers, store_confs, ensembledata):
     elif config.part2:
         if not config.evaluate_rrho:
             rrho = None
+            rrho_method = None
         else:
             rrho_method, _ = config.get_method_name(
                 "rrhoxtb",
@@ -234,6 +254,7 @@ def part5(config, conformers, store_confs, ensembledata):
         # on DFT unoptimized geometries!
         if not config.evaluate_rrho:
             rrho = None
+            rrho_method = None
         else:
             rrho_method, _ = config.get_method_name(
                 "rrhoxtb",
@@ -569,10 +590,17 @@ def part5(config, conformers, store_confs, ensembledata):
         config.provide_runinfo(),
     )
 
-    if unoptimized_warning:
-        # Repeat for user to see!
-        print(f"\nWARNING: Conformers have not been optimized at DFT level!!!\n"
-              f"         Use results with care!\n"
+    if save_errors:
+        print(
+            "\n***---------------------------------------------------------***"
+        )
+        print(
+            "Printing most relevant errors again, just for user convenience:"
+        )
+        for _ in list(save_errors):
+            print(save_errors.pop())
+        print(
+            "***---------------------------------------------------------***"
         )
     if not calculate:
         print("ERROR: No conformers left!")
