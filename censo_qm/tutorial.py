@@ -49,18 +49,18 @@ def interactiv_doc():
     e.g., without thermostatistical contribution (G_mRRRHO) are denoted by lower case
     g_thr and full free energies by upper case G_thr.
 
-    Parts 0-3 are concerned with efficent SE sorting, optimization and calculation
+    Parts 0-3 are concerned with efficient SE sorting, optimization and calculation
     of Boltzmann weigths for populated structures. The parts are described in the 
     following:
 
     Part0 - Cheap prescreening:
 
     Flexible and/or large molecules can have many conformers (i.e., several hundred)
-    and sorting out truely high lying conformers fast is crucial for efficiency. 
+    and sorting out truly high lying conformers fast is crucial for efficiency. 
     This is the goal of part0. Here the electronic energy description is improved upon
     the initial SQM/FF energy by performing very fast B97-D3(0)/def2-SV(P)+gcp 
     single-point calculations. If the molecule is in solution phase, solvation is treated
-    at GFN2-xTB[ALPB] level. Sorting is based on g_thr(0) wich has to be rather large, 
+    at GFN2-xTB[ALPB] level. Sorting is based on g_thr(0) which has to be rather large, 
     e.g. 4 kcal/mol or above. 
 
     Part1 - Prescreening:
@@ -83,7 +83,7 @@ def interactiv_doc():
     in implicit solvation (DCOSMO-RS). An efficient ensemble optimizer has been 
     implemented, where all conformers are optimized for 8 iterations. Then a spearman 
     correlation coefficient is calculated to check for parallel potential energy surfaces.
-    If paralellity can be assumed, the soring threshold G_thr(2) is decreased
+    If parallellity can be assumed, the sorting threshold G_thr(2) is decreased
     and conformers above the threshold are discarded, if their gradient norm is below
     a predefined threshold. For large ensembles, this decreases the number of high 
     lying conformers fast. The batch wise optimization is repeated until all confomers 
@@ -120,7 +120,7 @@ def interactiv_doc():
     Part5 - OR-Mode:
 
     In part5 optical rotatory (OR) dispersion of the populated structure ensemble
-    can be calculated. Boltzmann weights kann be taken from part1, part2 or part3.
+    can be calculated. Boltzmann weights can be taken from part1, part2 or part3.
 
     """
 
@@ -142,158 +142,109 @@ def interactiv_doc():
 
     nconf           = how many conformers should be considered. Either a number  
                       or the flag 'all'.
-
     charge          = molecular charge of the molecule under investigation.
-
     unpaired        = number of unpaired electrons in the molecule under 
                       investigation.
-
     solvent         = Solvent if the molecule is in solution phase, else 'gas'.
-
     prog_rrho       = QM-code used for the calculation of thermostatistical 
                       contributions. This is only feasible with xtb, since normally 
                       a large number of hessian calculations have to be performed.
-
     temperature     = Temperature (in Kelvin) used for the Boltzmann evaluations.
-
     trange          = temperature range which is used to calculate free energies 
                       at different temperatures (considered in G_mRRHO and 
-                      dG_solv[only COSMO-RS]).The temperature range will only be
+                      dG_solv[only COSMO-RS]). The temperature range will only be
                       evaluated if multitemp is set to 'on'.
-
     multitemp       = Evaluate free energies at different temperatures defined 
                       in trange.
-
     evaluate_rrho   = Option to consider /not consider thermostatistical contributions.
-
     consider_sym    = Option to consider symmetry in the thermostatistical contribution
                       (only xtb).
-    
     bhess           = Calculate single point hessians on the input geometry,
                       instead of "ohess" (optimization + hessian calculation).
-    
     imagthr         = threshold for inverting imaginary frequencies for thermostatistical
                       contributions (in cm-1). Internal defaults are applied if set to 
                       'automatic'.
-    
     sthr            = rotor cut-off (cm-1) used for the thermostatical contributions.
                       Internal defaults are applied if set to 'automatic'.
-
     scale:          = scaling factor for frequencies in vibrational partition function.
                       Internal defaults are applied if set to 'automatic'.
-
     rmsdbias        = gESC related, using rmsdpot.xyz to be consistent to CREST
-
     sm_rrho         = solvent model applied in the GFNn-xTB thermostatistical 
                       contribution calculation.
-
     check           = Terminate the CENSO run if too many calculations crash.
-
     prog            = QM code used for part0, part1 and part2, this can be 
                       TURBOMOLE or ORCA.
-
     func            = functional used in part1 (prescreening) and part2 (optimization)
-
     basis           = basis set used in combination with func in part1 
                       (prescreening) and part2 (optimization). If basis is set to
-                      'automatic' the basis set is choosen internally.
-    
+                      'automatic' the basis set is chosen internally.
     maxthreads      = Used for parallel calculation. Maxthreads determines the 
                       number of independent calculations running in parallel.
                       E.g. resulting in 4 independent single-point /optimization
                       calculations.
-
     omp             = Used for parallel calculation. Omp determines the number of 
                       cores each independent calculation can use. Eg. maxthreads = 4
                       and omp = 5 resulting in 4 independent calculations and each
                       independent calculation uses 5 cores.
-
-    cosmorsparam    = Flag for choosing COSMO-RS parametrizations. If set to
+    cosmorsparam    = Flag for choosing COSMO-RS parameterizations. If set to
                       'automatic' the input from the COSMO-RS input line is choosen.
 
     $PART0 - CHEAP-PRESCREENING - SETTINGS:  
 
     part0           = Option to turn the "cheap prescreening part" on or off.
-
     func0           = functional used in part0
-
     basis0          = Basis set used in combination with func0. If basis0 is set to
                       'automatic' the basis set is choosen internally.
-
     part0_gfnv      = GFN version employed in the thermostatistical contribution 
                       in part0. 
-
     part0_threshold = Threshold/Energy-window (kcal/mol) within which all conformers
                       are considered.
 
     $PART1 - PRESCREENING - SETTINGS:
 
     part1:          = Option to turn the "prescreening part" on or off.
-
-    smgsolv1:       = Additive solvation contribution employed in part1.
-    
+    smgsolv1:       = Additive solvation contribution employed in part1. 
     part1_gfnv:     = GFN version employed in the thermostatistical contribution 
                       in part1.
-    
     part1_threshold = Threshold/Energy-window (kcal/mol) within which all conformers
                       are considered further.
 
     $PART2 - OPTIMIZATION - SETTINGS:
 
     part2           = Option to turn the "optimization part" on or off.
-
     opt_limit       = Threshold/Energy-window (kcal/mol) within which all conformers
                       are fully optimized.
-
     sm2             = Implicit solvation model used in the optimization.
-
     smgsolv2        = Additive solvation model used for calculation of dG_solv
                       in part2.
-
     part2_gfnv      = GFN version employed in the thermostatistical contribution 
                       in part2.
-
     ancopt          = Using ANCoptimizer implemented in xTB for geometry optimization.
-
     hlow            = Lowest force constant in ANC generation, used with ancopt.
-
     opt_spearman    = Using the new "ensemble-optimizer".
-
     part2_threshold = Boltzmann threshold in '%' within which all conformers
                       are considered further. E.g. 90 --> all conformers up to 
                       a sum of 90 '%' are considered.
-
     optlevel2       = Optimization threshold in the geometry optimization. If set to
                       "automatic", internal default will be used.
-
     optcycles       = Number of optimization iterations performed in the ensemble
                       optimizer.
-
     spearmanthr     = Spearman rank correlation coeff. used to determine if PES 
                       during geometry optimization can be assumed parallel. 
-
     radsize         = Setting of the radial grid size for func used in part2.
-
     crestcheck      = Automatically sort out conformers which might have become
                       identical or rotamers during geometry optimization, using 
                       CREST (this is threshold based, so use with care).
 
     $PART3 - REFINEMENT - SETTINGS:
-
     part3           = Option to turn the "refinement part" on or off.
-
     prog3           = QM code used for part3 this can be TURBOMOLE or ORCA.
-
     func3           = functional used in part3 (refinement)
-
     basis3          = basis set employed in combination with func3.
-
     smgsolv3        = Additive solvation model used for calculation of dG_solv in 
                       part3.
-
     part3_gfnv      = GFN version employed in the thermostatistical contribution 
                       in part3.
-
     part3_threshold = Boltzmann threshold in '%' within which all conformers
                       are considered further. E.g. 90 --> all conformers up to 
                       a sum of 90 '%' are considered.
@@ -317,17 +268,17 @@ def interactiv_doc():
     reference_19F   = Reference molecule to convert 19F shieldings to shifts e.g. CFCl3.
     reference_29Si  = Reference molecule to convert 29Si shieldings to shifts e.g. TMS.
     reference_31P   = Reference molecule to convert 31P shieldings to shifts e.g. TMP.
-    1H_active       = Calculate 1H shielding constants [options are on or off].
-    13C_active      = Calculate 13C shielding constants [options are on or off].
-    19F_active      = Calculate 19F shielding constants [options are on or off].
-    29Si_active     = Calculate 29Si shielding constants [options are on or off].
-    31P_active      = Calculate 31P shielding constants [options are on or off].
+    1H_active       = Calculate 1H NMR properties [options are on or off].
+    13C_active      = Calculate 13C NMR properties [options are on or off].
+    19F_active      = Calculate 19F NMR properties [options are on or off].
+    29Si_active     = Calculate 29Si NMR properties [options are on or off].
+    31P_active      = Calculate 31P NMR properties [options are on or off].
     resonance_frequency = Resonance frequency of the experimental spectrometer.
 
     $OPTICAL ROTATION PROPERTY SETTINGS:
     $PART5 SETTINGS:
     optical_rotation        = Option to turn the "OR property part" on or off.
-    funcOR:                 = Functional employed to calculate the optical roatory (OR) dispersion.
+    funcOR:                 = Functional employed to calculate the optical rotatory (OR) dispersion.
     funcOR_SCF: r2scan-3c   = Functional to generate converged MOs.
     basisOR: def2-SVPD      = Basis set employed for the OR calculation.
     frequency_optical_rotv  = List of frequencies in nm to evaluate OR at e.g. [589.0].
@@ -516,7 +467,7 @@ def interactiv_doc():
             
             part0_threshold = g_thr(0)
             cml:      -part0_threshold
-            cefinerc:  part0_threshold
+            censorc:  part0_threshold
 
             part0_threshold g_thr(0) is an energy window /threshold in kcal/mol 
             within which all conformers are considered. The CENSO internal default 
@@ -533,7 +484,7 @@ def interactiv_doc():
 
             part1_threshold = g_thr(1) and G_thr(1)
             cml:      -part1_threshold 
-            cefinerc:  part1_threshold
+            censorc:  part1_threshold
 
             part1_threshold g_thr(1) is an energy window /threshold in kcal/mol 
             within which all conformers are considered. The CENSO internal default 
@@ -554,15 +505,15 @@ def interactiv_doc():
 
             threshold applied during optimization G_thr(opt,2):
             cml:      -opt_limit
-            cefinerc:  opt_limit
+            censorc:  opt_limit
 
             Spearman-threshold for testing for parallel PES:
             cml:      -spearmanthr
-            cefinerc:  spearmanthr
+            censorc:  spearmanthr
 
             Boltzmann sum threshold G_thr(2):
             cml:      -thrpart2
-            cefinerc:  part2_threshold
+            censorc:  part2_threshold
 
             The internal default for G_thr(opt,2) is set to {default_settings.internal_defaults.get("opt_limit",{})["default"]} kcal/mol. During 
             the geometry optimization the initial threshold G_thr(opt,2) is
@@ -581,7 +532,7 @@ def interactiv_doc():
             
             Boltzmann sum threshold G_thr(3):
             cml:      -thrpart2
-            cefinerc:  part2_threshold
+            censorc:  part2_threshold
             
             Based on high level free energies Boltzmann weights are calculated 
             and all conformers up to the Boltzmann sum threshold (in %) are 
@@ -697,6 +648,18 @@ def interactiv_doc():
 
     """
 
+
+# CONFORMER numbering kept from crest input
+
+# folders which are created
+    #part0_sp
+    #GFN_unbiased/
+    #rrho_part1/
+    #b97-3c/ folder of func name
+
+
+
+    # which functionals are available
 
 
 

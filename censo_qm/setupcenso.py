@@ -6,7 +6,7 @@ import os
 import sys
 import json
 from collections import OrderedDict
-from .cfg import CODING, PLENGTH, DESCR, censo_solvent_db, __version__
+from .cfg import CODING, PLENGTH, DESCR, WARNLEN, censo_solvent_db, __version__
 from .inputhandling import config_setup, internal_settings
 from .datastructure import MoleculeData
 from .qm_job import QmJob
@@ -55,7 +55,7 @@ def enso_startup(cwd, args):
             " and it is mandatory to correctly set the program paths!\n"
             "Additionally move the file to the correct filename: '.censorc'\n"
             "and place it either in your /home/$USER/ or current directory.\n"
-            "All done!"
+            "\nAll done!"
         )
         config.write_rcfile(os.path.join(config.cwd, newconfigfname))
         sys.exit(0)
@@ -63,14 +63,14 @@ def enso_startup(cwd, args):
     configfname = ".censorc"
     if args.inprcpath:
         try:
-            tmp_path = os.path.abspath(args.inprcpath)
+            tmp_path = os.path.abspath(os.path.expanduser(args.inprcpath))
             if os.path.isfile(tmp_path):
                 config.configpath = tmp_path
             else:
                 raise FileNotFoundError
         except FileNotFoundError:
-            print(f"ERROR: Could not find the configuration file: {configfname}.\n"
-                "Going to exit!")
+            print(f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {configfname}.")
+            print("\nGoing to exit!")
             sys.exit(1)
     elif os.path.isfile(os.path.join(config.cwd, configfname)):
         # local configuration file before remote configuration file
@@ -80,13 +80,13 @@ def enso_startup(cwd, args):
         config.configpath = os.path.join(os.path.expanduser("~"), configfname)
     else:
         print(
-            f"ERROR: Could not find the configuration file: {configfname}.\n"
-            f"{'':{7}}The file has to be either in /home/$USER/ or the current "
+            f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {configfname}.\n"
+            f"{'':{WARNLEN}}The file has to be either in /home/$USER/ or the current "
             "working directory!\n"
             "The configurationfile can be otherwise directly referenced using: "
-            "'censo -inprc /path/to/.censorc' \n"
-            "Going to exit!"
+            "'censo -inprc /path/to/.censorc'"
         )
+        print("\nGoing to exit!")
         sys.exit(1)
 
     ### solvent database adjustable by user
@@ -105,7 +105,7 @@ def enso_startup(cwd, args):
                 censo_solvent_db.update(json.load(inp, object_pairs_hook=OrderedDict))
         except (ValueError, TypeError, FileNotFoundError):
             print(
-                f"Your censo_solvents.json file in {solvent_user_path} is corrupted!\n"
+                f"{'ERROR:':{WARNLEN}}Your censo_solvents.json file in {solvent_user_path} is corrupted!\n"
             )
             raise
 
@@ -143,17 +143,17 @@ def enso_startup(cwd, args):
                         censorc_version = line.split(":")[1]
                 if int(censorc_version.split(".")[0]) < int(__version__.split(".")[0]):
                     print(
-                        f"ERROR: There has been an API break and you have to "
-                        "create a new .censorc.\n       E.g. 'censo -newconfig'"
+                        f"{'ERROR:':{WARNLEN}}There has been an API break and you have to "
+                        "create a new .censorc.\n{'':{WARNLEN}}E.g. 'censo -newconfig'"
                     )
                     sys.exit(1)
                 myfile.seek(0)  # reset reader
             except (ValueError, KeyError, AttributeError) as e:
                 print(e)
-                print(f"ERROR: Please create a new .censorc --> 'censo -newconfig'")
+                print(f"{'ERROR:':{WARNLEN}}Please create a new .censorc --> 'censo -newconfig'")
                 sys.exit(1)
             if not startread in myfile.read():
-                print(f"ERROR: You are using a corrupted .censorc. Create a new one!")
+                print(f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!")
                 sys.exit(1)
         config.read_config(config.configpath, startread, args)
 
@@ -194,7 +194,7 @@ def enso_startup(cwd, args):
                     filelen = 1
                 except (ValueError, TypeError, IndexError) as e:
                     print(
-                        "ERROR: Could not get the number of atoms or the "
+                        f"{'ERROR:':{WARNLEN}}Could not get the number of atoms or the "
                         "number of conformers from the inputfile "
                         f"{os.path.basename(args.inp)}"
                     )
@@ -207,13 +207,13 @@ def enso_startup(cwd, args):
                         raise ValueError
                 except ValueError:
                     print(
-                        "ERROR: Could not get the number of atoms or the "
+                        f"{'ERROR:':{WARNLEN}}Could not get the number of atoms or the "
                         "number of conformers from the inputfile "
                         f"{os.path.basename(args.inp)}"
                     )
                     sys.exit(1)
     else:
-        print("ERROR: The input file can not be found!")
+        print(f"{'ERROR:':{WARNLEN}}The input file can not be found!")
         sys.exit(1)
 
     # determine number of conformers:
@@ -236,13 +236,15 @@ def enso_startup(cwd, args):
 
     if error_logical and not args.debug and args.checkinput:
         print(
-            "\nERROR: ENSO can not continue due to input errors!\n"
-            "       Fix errors and run enso -checkinput again!"
-            "\nGoing to exit!"
+            f"\n{'ERROR:':{WARNLEN}}CENSO can not continue due to input errors!\n"
+            f"{'':{WARNLEN}}Fix errors and run censo -checkinput again!"
         )
+        print("\nGoing to exit!")
         sys.exit(1)
     elif error_logical and not args.debug:
-        print("\nERROR: ENSO can not continue due to input errors!" "\nGoing to exit!")
+        print(f"\n{'ERROR:':{WARNLEN}}CENSO can not continue due to input errors!"
+        )
+        print("\nGoing to exit!")
         sys.exit(1)
 
     if not error_logical or args.debug:
@@ -256,23 +258,23 @@ def enso_startup(cwd, args):
             # Check if settings and "ensemble_info" are present else end!
             if "settings" not in save_data or "ensemble_info" not in save_data:
                 print(
-                    f"ERROR: important information for restarting missing from "
+                    f"{'ERROR:':{WARNLEN}}important information for restarting missing from "
                     f"{config.jsonpath}!"
                 )
-                print("Going to exit!")
+                print("\nGoing to exit!")
                 sys.exit(1)
             previousrun = config_setup(internal_settings)
             for item in save_data["settings"].keys():
                 setattr(previousrun, item, save_data["settings"].get(item))
             if config.md5 != previousrun.md5:
                 print(
-                    "WARNING: The inputfile containing all conformers was "
+                    f"{'WARNING:':{WARNLEN}}The inputfile containing all conformers was "
                     "changed, compared to the previous run!"
                 )
             for flag in config.restart_unchangeable:
                 if getattr(config, flag, "None") != getattr(previousrun, flag, "None2"):
                     print(
-                        f"ERROR: setting {flag} was changed from "
+                        f"{'ERROR:':{WARNLEN}}setting {flag} was changed from "
                         f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
                     )
                     error_logical = True
@@ -281,19 +283,19 @@ def enso_startup(cwd, args):
                 != getattr(previousrun, "evaluate_rrho", "None2")
             ) and getattr(config, "part2", "None"):
                 print(
-                    f"ERROR: setting {'evaluate_rrho'} can not be changed "
+                    f"{'ERROR:':{WARNLEN}}setting {'evaluate_rrho'} can not be changed "
                     f"in geometry optimization!\n"
                 )
                 error_logical = True
             if error_logical and not args.debug:
                 print(
-                    "ERROR: All flags which are concerned with geometry "
-                    f"optimization \n{'':{7}}(func, prog, ancopt, sm, solv, chrg, "
+                    f"{'ERROR:':{WARNLEN}}All flags which are concerned with geometry "
+                    f"optimization \n{'':{WARNLEN}}(func, prog, ancopt, sm, solv, chrg, "
                     "unpaired) are not allowed to be changed!\n"
-                    f"{'':{7}}If you want to change these settings, "
+                    f"{'':{WARNLEN}}If you want to change these settings, "
                     "start from scratch in a new folder!"
                 )
-                print("Going to exit!")
+                print("\nGoing to exit!")
                 sys.exit(1)
             if not args.checkinput:
                 move_recursively(config.cwd, os.path.basename(config.jsonpath))
@@ -303,7 +305,7 @@ def enso_startup(cwd, args):
             for flag in config.restart_changeable.keys():
                 if getattr(config, flag, "None") != getattr(previousrun, flag, "None2"):
                     print(
-                        f"WARNING: setting {flag} was changed from "
+                        f"{'WARNING:':{WARNLEN}}setting {flag} was changed from "
                         f"{getattr(previousrun, flag, 'None')} to "
                         f"{getattr(config, flag, 'None')}!"
                     )
@@ -316,9 +318,9 @@ def enso_startup(cwd, args):
                         # multitemp only reset if not calculated before!
                         #  --> off --> on
                         print(
-                            f"WARNING: {flag} is requested and the different "
+                            f"{'WARNING:':{WARNLEN}}{flag} is requested and the different "
                             "temperatures have not been evaluated in the\n"
-                            f"{'':9}previous run! Resetting calculations concerning trange!"
+                            f"{'':WARNLEN}previous run! Resetting calculations concerning trange!"
                         )
                     elif (
                         flag == "multitemp"
@@ -362,7 +364,7 @@ def enso_startup(cwd, args):
                     for info in vars(MoleculeData(0)).keys():
                         if save_data[conf].get(info, "xXx") == "xXx":
                             print(
-                                f"WARNING: Missing data {info} from enso.json! "
+                                f"{'WARNING:':{WARNLEN}}Missing data {info} from enso.json! "
                                 "Default is added."
                             )
                     molecule = QmJob(
@@ -579,7 +581,7 @@ def enso_startup(cwd, args):
                                     "dcosmors",
                                 ):
                                     # Gsolv for implicit solvation included in E
-                                    # need to reset gsolv (--> gsolv_method2 has to be nonsense)
+                                    # need to reset gsolv (--> gsolv_method2 has to be "incl. in E")
                                     e_method, gsolv_method = config.get_method_name(
                                         "sp_implicit",
                                         func=func,
@@ -614,6 +616,27 @@ def enso_startup(cwd, args):
                                 func2=config.func_or_scf,
                             )
                             molecule.load_prev("optical_rotation_info", method)
+                        elif value and key in ("func3", "basis3"):
+                            # save calculated to
+                            molecule.save_prev(
+                                "highlevel_sp_info",
+                                getattr(molecule, "highlevel_sp_info").get(
+                                    "method"
+                                ),
+                            )
+                            # load new if available
+                            if config.smgsolv3 in ('cpcm', 'smd', 'cosmo', 'dcosmors'):
+                                expected = "sp_implicit"
+                            else:
+                                expected = "sp"
+                            method, _ = config.get_method_name(
+                                expected,
+                                prog=config.prog3,
+                                basis=config.basis3,
+                                func=config.func3,
+                                sm=config.smgsolv3
+                            )
+                            molecule.load_prev("highlevel_sp_info", method)
                     # finally add molecule to list
                     conformers.append(molecule)
             # if nconf is increased add new conformers!
@@ -633,7 +656,7 @@ def enso_startup(cwd, args):
         elif not args.checkinput:
             # don't create enso.json on checkinput
             #  enso.json does not exist, create new conformers
-            print("No restart information exists and is created during this run!\n")
+            print(f"{'INFORMATION:':{WARNLEN}}No restart information exists and is created during this run!\n")
             conformers = []
             for i in range(1, config.nconf + 1):
                 conformers.append(QmJob(i))
@@ -652,7 +675,8 @@ def enso_startup(cwd, args):
         print("\nInput check is finished. The ENSO program can be executed.\n")
         sys.exit(0)
     if not conformers:
-        print("Error: No conformers are considered!\nGoing to exit!")
+        print(f"{'ERROR:':{WARNLEN}}No conformers are considered!")
+        print("\nGoing to exit!")
         sys.exit(1)
     # formatting information:
     config.lenconfx = max([len(str(i.id)) for i in conformers])

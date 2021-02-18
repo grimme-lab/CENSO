@@ -8,7 +8,7 @@ import time
 import os
 import sys
 from copy import deepcopy
-from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN
+from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN
 from .utilities import (
     check_for_folder,
     print_block,
@@ -204,7 +204,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 # "not_converged" or "stopped_before_converged"
                 store_confs.append(conf)
     if not calculate and not prev_calculated:
-        print_errors("ERROR: No conformers left!", save_errors)
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
     if prev_calculated:
@@ -495,14 +495,14 @@ def part2(config, conformers, store_confs, ensembledata):
                         except FileNotFoundError:
                             if not os.path.isfile(os.path.join(tmp_from, "coord")):
                                 print_errors(
-                                    f"ERROR: while copying the coord file from {tmp_from}! "
+                                    f"{'ERROR:':{WARNLEN}}while copying the coord file from {tmp_from}! "
                                     "The corresponding file does not exist.", save_errors
                                 )
                             elif not os.path.isdir(tmp_to):
                                 print_errors(
-                                    "ERROR: Could not create folder {}!".format(tmp_to), save_errors
+                                    f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!", save_errors
                                 )
-                            print_errors("ERROR: Removing conformer {}!".format(conf.name), save_errors)
+                            print_errors(f"{'ERROR:':{WARNLEN}}Removing conformer {conf.name}!", save_errors)
                             conf.lowlevel_grrho_info["info"] = "prep-failed"
                             store_confs.append(calculate.pop(calculate.index(conf)))
                     # parallel execution:
@@ -831,7 +831,7 @@ def part2(config, conformers, store_confs, ensembledata):
                         # prev_calculated to keep it consistent with new ensemble optimizer
                         prev_calculated.append(calculate.pop(calculate.index(conf)))
                     else:
-                        print(f"ERROR! CONF{conf.id} fell through sorting")
+                        print(f"{'ERROR:':{WARNLEN}}CONF{conf.id} fell through sorting")
             toc = time.perf_counter()
             timings.append(toc - tic)
             # ********************end standard optimization *********************
@@ -890,7 +890,7 @@ def part2(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         conf.reset_job_info()
     if not calculate and not prev_calculated:
-        print_errors("ERROR: No conformers left!", save_errors)
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
     # ******************************Optimization done****************************
@@ -919,7 +919,6 @@ def part2(config, conformers, store_confs, ensembledata):
     if config.solvent == "gas":
         print("\nCalculating single-point energies!")
         instruction_gsolv["jobtype"] = "sp"
-        # instruction_gsolv["prepinfo"] = ["low+"]
         instruction_gsolv["method"], _ = config.get_method_name(
             instruction_gsolv["jobtype"],
             func=instruction_gsolv["func"],
@@ -980,14 +979,12 @@ def part2(config, conformers, store_confs, ensembledata):
                     instruction_gsolv["energy"] = conf.lowlevel_sp_info["energy"]
                     instruction_gsolv["prepinfo"] = []
                 # else:
-                #     instruction_gsolv["prepinfo"] = ["low+"]
                 name = "lowlevel additive solvation"
                 folder = str(instruction_gsolv["func"]) + "/Gsolv2"
             # SMD_Gsolv
             elif config.smgsolv2 == "smd_gsolv":
                 job = OrcaJob
                 instruction_gsolv["jobtype"] = "smd_gsolv"
-                # instruction_gsolv["prepinfo"] = ["low+"]
                 instruction_gsolv["progpath"] = config.external_paths["orcapath"]
                 instruction_gsolv["method"], instruction_gsolv[
                     "method2"
@@ -1002,7 +999,6 @@ def part2(config, conformers, store_confs, ensembledata):
         else:
             # with implicit solvation
             instruction_gsolv["jobtype"] = "sp_implicit"
-            # instruction_gsolv["prepinfo"] = ["low+"]
             if config.prog == "orca":
                 instruction_gsolv["progpath"] = config.external_paths["orcapath"]
             instruction_gsolv["method"], instruction_gsolv[
@@ -1067,13 +1063,13 @@ def part2(config, conformers, store_confs, ensembledata):
             print("\nMISSING STUFF!\n")
 
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
         sys.exit(1)
     if prev_calculated:
         check_for_folder(config.cwd, [i.id for i in prev_calculated], folder)
         if config.solvent == "gas":
-            print("The low level_single-point was calculated before for:")
+            print("The low level single-point was calculated before for:")
         else:
             print("The low level gsolv calculation was calculated before for:")
         print_block(["CONF" + str(i.id) for i in prev_calculated])
@@ -1082,7 +1078,7 @@ def part2(config, conformers, store_confs, ensembledata):
     check = {True: "was successful", False: "FAILED"}
     if calculate:
         if config.solvent == "gas":
-            print("The low level_single-point is now calculated for:")
+            print("The low level single-point is now calculated for:")
         if config.solvent != "gas" and config.smgsolv2 in config.smgsolv_2:
             print("The low level gsolv calculation is now calculated for:")
             # need to create folders
@@ -1101,7 +1097,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 try:
                     shutil.copy(tmp1, tmp2)
                 except FileNotFoundError:
-                    print("ERROR can't copy optimized geometry!")
+                    print(f"{'ERROR:':{WARNLEN}}can't copy optimized geometry!")
         print_block(["CONF" + str(i.id) for i in calculate])
         # parallel execution:
         calculate = run_in_parallel(
@@ -1116,7 +1112,7 @@ def part2(config, conformers, store_confs, ensembledata):
         )
 
         for conf in list(calculate):
-            if instruction_gsolv["jobtype"] == "sp":
+            if instruction_gsolv["jobtype"] in("sp", "sp_implicit"):
                 line = (
                     f"{name} calculation {check[conf.job['success']]}"
                     f" for {last_folders(conf.job['workdir'], 2):>{pl}}: "
@@ -1125,22 +1121,6 @@ def part2(config, conformers, store_confs, ensembledata):
                 print(line)
                 if not conf.job["success"]:
                     save_errors.append(line)
-                    conf.lowlevel_sp_info["method"] = instruction_gsolv["method"]
-                    conf.lowlevel_sp_info["info"] = "failed"
-                    store_confs.append(calculate.pop(calculate.index(conf)))
-                else:
-                    conf.lowlevel_sp_info["energy"] = conf.job["energy"]
-                    conf.lowlevel_sp_info["info"] = "calculated"
-                    conf.lowlevel_sp_info["method"] = instruction_gsolv["method"]
-            elif instruction_gsolv["jobtype"] == "sp_implicit":
-                line = (
-                    f"{name} calculation {check[conf.job['success']]} for "
-                    f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.job['energy']:>.8f}"
-                )
-                print(line)
-                if not conf.job["success"]:
-                    save_errors.append(line)
                     conf.lowlevel_sp_info["info"] = "failed"
                     conf.lowlevel_sp_info["method"] = conf.job["method"]
                     store_confs.append(calculate.pop(calculate.index(conf)))
@@ -1148,6 +1128,10 @@ def part2(config, conformers, store_confs, ensembledata):
                     conf.lowlevel_sp_info["energy"] = conf.job["energy"]
                     conf.lowlevel_sp_info["info"] = "calculated"
                     conf.lowlevel_sp_info["method"] = conf.job["method"]
+                    if instruction_gsolv["jobtype"] == "sp_implicit":
+                        conf.lowlevel_gsolv_info["energy"] = 0.0
+                        conf.lowlevel_gsolv_info["info"] = "calculated"
+                        conf.lowlevel_gsolv_info["method"] = conf.job["method2"]
             elif instruction_gsolv["jobtype"] in (
                 "cosmors",
                 "smd_gsolv",
@@ -1220,7 +1204,7 @@ def part2(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         conf.reset_job_info()
     if not calculate:
-        print_errors("ERROR: No conformers left!", save_errors)
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -1252,7 +1236,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 prev_calculated.append(conf)
 
         if not calculate and not prev_calculated:
-            print_errors("ERROR: No conformers left!", save_errors)
+            print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
         folderrho = "rrho_part2"
@@ -1319,13 +1303,13 @@ def part2(config, conformers, store_confs, ensembledata):
                 except FileNotFoundError:
                     if not os.path.isfile(os.path.join(tmp_from, "coord")):
                         print_errors(
-                            "ERROR: while copying the coord file from {}! "
-                            "The corresponding file does not exist.".format(tmp_from),
+                            f"{'ERROR:':{WARNLEN}}while copying the coord file from {tmp_from}! "
+                            "The corresponding file does not exist.",
                             save_errors
                         )
                     elif not os.path.isdir(tmp_to):
-                        print_errors("ERROR: Could not create folder {}!".format(tmp_to), save_errors)
-                    print_errors("ERROR: Removing conformer {}!".format(conf.name), save_errors)
+                        print_errors(f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!", save_errors)
+                    print_errors(f"{'ERROR:':{WARNLEN}}Removing conformer {conf.name}!", save_errors)
                     conf.lowlevel_grrho_info["info"] = "prep-failed"
                     store_confs.append(calculate.pop(calculate.index(conf)))
             # parallel execution:
@@ -1389,7 +1373,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
-            print_errors("ERROR: No conformers left!", save_errors)
+            print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
 
@@ -1555,7 +1539,7 @@ def part2(config, conformers, store_confs, ensembledata):
                         )
                     except (TypeError, KeyError):
                         print_errors(
-                            "ERROR: Can't calculate DCOSMO-RS_gsolv. Skipping SD of Gsolv!", save_errors
+                            f"{'ERROR:':{WARNLEN}}Can't calculate DCOSMO-RS_gsolv. Skipping SD of Gsolv!", save_errors
                         )
                         dorun = False
                         break
@@ -1593,7 +1577,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 try:
                     shutil.copy(tmp1, tmp2)
                 except FileNotFoundError:
-                    print_errors("ERROR can't copy optimized geometry!", save_errors)
+                    print_errors(f"{'ERROR:':{WARNLEN}}can't copy optimized geometry!", save_errors)
 
             if calculate:
                 calculate = run_in_parallel(
@@ -1809,7 +1793,7 @@ def part2(config, conformers, store_confs, ensembledata):
     ensembledata.avGcorrection = avGcorrection
 
     if not calculate:
-        print_errors("ERROR: No conformers left!", save_errors)
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 
@@ -1881,7 +1865,7 @@ def part2(config, conformers, store_confs, ensembledata):
         )
         print_block(["CONF" + str(i.id) for i in calculate])
     else:
-        print_errors("ERROR: No conformers left!", save_errors)
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
 

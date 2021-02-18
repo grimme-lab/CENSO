@@ -515,7 +515,7 @@ class MoleculeData:
                 else:
                     return f
             except Exception as error:
-                print("ERROR", error)
+                print("ERROR in _calc_free_energy: ", error)
                 if not out:
                     self.free_energy = None
                 else:

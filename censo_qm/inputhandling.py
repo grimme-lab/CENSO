@@ -17,6 +17,7 @@ from .cfg import (
     DIGILEN,
     ENVIRON,
     CODING,
+    WARNLEN,
     censo_solvent_db,
     external_paths,
     __version__,
@@ -1122,8 +1123,8 @@ class internal_settings:
     ]
     func_orca = ["pbeh-3c", "b97-3c", "tpss", "b97-d3", "pbe"]
     func_tm = ["pbeh-3c", "b97-3c", "tpss", "r2scan-3c", "b97-d", "pbe"]
-    func3_orca = ["pw6b95", "pbe0", "wb97x", "dsd-blyp"]
-    func3_tm = ["pw6b95", "pbe0", "b97-d3", "r2scan-3c"]
+    func3_orca = ["pw6b95", "pbe0","b97-d3", "wb97x", "dsd-blyp", "b97-3c"]
+    func3_tm = ["pw6b95", "pbe0", "b97-d", "r2scan-3c", "b97-3c"]
     func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c"]
     func_j_orca = ["tpss", "pbe0", "pbeh-3c"]
     func_s_tm = ["tpss", "pbe0", "pbeh-3c", "b97-3c", "kt1", "kt2", "r2scan-3c"]
@@ -1731,6 +1732,8 @@ class internal_settings:
             "basis_or": False,
             "func_or_scf": False,
             "freq_or": False,
+            "func3":False,
+            "basis3":False,
             # "consider_sym": False, # --> reset all rrho values!
         }
 
@@ -2083,7 +2086,7 @@ class config_setup(internal_settings):
         for item in list(rcdata.keys()):
             if item not in self.internal_defaults.keys():
                 self.save_errors.append(
-                    f"WARNING: {item} is not a known "
+                    f"{'WARNING:':{WARNLEN}}{item} is not a known "
                     f"keyword in {os.path.basename(path)}."
                 )
                 del rcdata[item]
@@ -2092,12 +2095,12 @@ class config_setup(internal_settings):
         diff = list(set(self.internal_defaults.keys()) - set(readinkeys))
         if diff:
             self.save_errors.append(
-                "WARNING: These keywords were not found in the configuration "
-                "file {}\n         and therefore default "
-                "values are taken for:".format(os.path.basename(path))
+                f"{'WARNING:':{WARNLEN}}These keywords were not found in the configuration "
+                f"file {os.path.basename(path)}\n{'':{WARNLEN}}and therefore default "
+                f"values are taken for:"
             )
             for item in diff:
-                self.save_errors.append("         {}".format(item))
+                self.save_errors.append(f"{'':{WARNLEN}}{item}")
                 rcdata[item] = self.internal_defaults[item]["default"]
 
         for key in rcdata:
@@ -2124,7 +2127,7 @@ class config_setup(internal_settings):
                             )
                     except (ValueError, TypeError):
                         self.save_errors.append(
-                            f"WARNING: {key}= {rcdata[key]}"
+                            f"{'WARNING:':{WARNLEN}}{key}= {rcdata[key]}"
                             " could not be"
                             " converted and default values are set to "
                             f"{self.internal_defaults[key]['default']}"
@@ -2136,7 +2139,7 @@ class config_setup(internal_settings):
             if key in vars(self).keys():
                 setattr(self, key, value)
             else:
-                print("ERROR", key)
+                print(f"{'ERROR:':{WARNLEN}}", key)
                 self.save_errors.append(f"{key} not known in config!")
 
     def check_logic(self, error_logical=False, silent=False):
@@ -2146,10 +2149,6 @@ class config_setup(internal_settings):
         """
         if silent:
             store_errors = self.save_errors
-        # if only one conformer!
-        # if self.nconf == 1 and self.maxconf == 1:
-        #     self.part1 = False
-        #     self.part2 = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle prog3:
         if self.prog3 == "prog" and self.prog in self.value_options["prog"]:
@@ -2177,70 +2176,69 @@ class config_setup(internal_settings):
                 else:
                     self.prog_rrho = "xtb"
                     self.save_errors.append(
-                        "WARNING: Currently are only GFNn-xTB "
+                        f"{'WARNING:':{WARNLEN}}Currently are only GFNn-xTB "
                         "hessians possible and no TM hessians"
                     )
         elif not self.prog_rrho:
             self.save_errors.append(
-                "WARNING: Thermostatistical contribution to "
+                f"{'WARNING:':{WARNLEN}}Thermostatistical contribution to "
                 "free energy will not be calculated, since prog_rrho ist set to 'off'!"
             )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3 dsd-blyp with basis
         if self.part3 and self.func3 == "dsd-blyp" and self.basis3 != "def2-TZVPP":
             self.save_errors.append(
-                "WARNING: DSD-BLYP is only available with the " "basis set def2-TZVPP!"
+                f"{'WARNING:':{WARNLEN}}DSD-BLYP is only available with the basis set def2-TZVPP!"
             )
             self.basis3 = "def2-TZVPP"
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func0
         if self.prog == "orca" and self.func0 not in self.func_orca:
             self.save_errors.append(
-                "\nERROR: The functional "
-                "(func0) {} is not implemented with the {} program package."
-                " Options are: {}".format(self.func0, self.prog, self.func_orca)
+                f"{'ERROR:':{WARNLEN}}The functional "
+                f"(func0) {self.func0} is not implemented with the {self.prog} program package.\n"
+                f"{'':{WARNLEN}}Options are: {self.func_orca}"
             )
             error_logical = True
         if self.prog == "tm" and self.func0 not in self.func_tm:
             self.save_errors.append(
-                "\nERROR: The functional "
-                "(func0) {} is not implemented with the {} program package. "
-                "Options are: {}".format(self.func0, self.prog, self.func_tm)
+                f"{'ERROR:':{WARNLEN}}The functional "
+                f"(func0) {self.func0} is not implemented with the {self.prog} program package. "
+                f"{'':{WARNLEN}}Options are: {self.func_tm}"
             )
             error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis0 for func0:
         if self.basis0 == "None" or self.basis0 is None or self.basis0 == "automatic":
             if self.prog == "tm":
-                default = self.internal_defaults_tm.get("basis0", "def2-SV(P)")
+                default = self.internal_defaults_tm.get("basis0", {'default':"def2-SV(P)"})['default']
             elif self.prog == "orca":
-                default = self.internal_defaults_orca.get("basis0", "def2-SV(P)")
+                default = self.internal_defaults_orca.get("basis0",{'default':"def2-SV(P)"})['default']
             else:
                 default = "def2-SV(P)"
-            self.basis0 = default
+            self.basis0 = self.func_basis_default.get(self.func0, default)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func
         if self.prog == "orca" and self.func not in self.func_orca:
             self.save_errors.append(
-                "\nERROR: The functional "
-                "(func) {} is not implemented with the {} program package."
-                " Options are: {}".format(self.func, self.prog, self.func_orca)
+                f"{'ERROR:':{WARNLEN}}The functional "
+                f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
+                f"{'':{WARNLEN}}Options are: {self.func_orca}"
             )
             error_logical = True
         if self.prog == "tm" and self.func not in self.func_tm:
             self.save_errors.append(
-                "\nERROR: The functional "
-                "(func) {} is not implemented with the {} program package. "
-                "Options are: {}".format(self.func, self.prog, self.func_tm)
+                f"{'ERROR:':{WARNLEN}}The functional (func) {self.func} is not implemented with the {self.prog} program package.\n"
+                f"{'':{WARNLEN}}Options are: {self.func_tm}"
             )
             error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis for func:
         if self.basis == "None" or self.basis is None or self.basis == "automatic":
             if self.prog == "tm":
-                default = self.internal_defaults_tm.get("basis", "def2-TZVP")
+                default = self.internal_defaults_tm.get("basis", {'default':"def2-TZVP"})['default']
             elif self.prog == "orca":
-                default = self.internal_defaults_orca.get("basis", "def2-TZVP")
+                default = self.internal_defaults_orca.get("basis", {'default':"def2-TZVP"})['default']
             else:
                 default = "def2-TZVP"
             self.basis = self.func_basis_default.get(self.func, default)
@@ -2249,49 +2247,53 @@ class config_setup(internal_settings):
         if self.part3 and self.func3 in self.composite_method_basis.keys():
             if self.basis3 != self.composite_method_basis[self.func3]:
                 self.save_errors.append(
-                    f"WARNING: You are using a basis "
-                    f"set basis3: ({self.basis3}) different to the original composite method"
+                    f"{'INFORMATION:':{WARNLEN}}You are using a basis "
+                    f"set (basis3) {self.basis3} different to the original composite method"
                     f" basis set ({self.composite_method_basis[self.func3]})!"
                 )
-
-        # if self.part3 and self.func3 in (
-        #     "pbeh-3c",
-        #     "b973c",
-        #     "b97-3c",
-        #     "hf3c",
-        #     "hf-3c",
-        #     "r2scan-3c",
-        # ):
-        #     self.save_errors.append(
-        #         "Basis set (basis3) is fixed to be "
-        #         "def2-TZVPD, keep this in mind when using composite methods!"
-        #     )
+        if self.part3 and self.prog3 == 'orca' and self.func3 not in self.func3_orca:
+            self.save_errors.append(
+                f"{'ERROR:':{WARNLEN}}The functional "
+                f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
+                f"{'':{WARNLEN}}Options are: {self.func3_orca}"
+            )
+            error_logical = True
+        elif self.part3 and self.prog3 == 'tm' and self.func3 not in self.func3_tm:
+            self.save_errors.append(
+                f"{'ERROR:':{WARNLEN}}The functional "
+                f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
+                f"{'':{WARNLEN}}Options are: {self.func3_tm}"
+            )
+            error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle basis3:
+        if self.basis3 == "None" or self.basis3 is None or self.basis3 == "automatic":
+            if self.prog3 == "tm":
+                default = self.internal_defaults_tm.get("basis3", {'default':"def2-TZVP"})['default']
+            elif self.prog3 == "orca":
+                default = self.internal_defaults_orca.get("basis3", {'default':"def2-TZVP"})['default']
+            else:
+                default = "def2-TZVP"
+            self.basis3 = self.func_basis_default.get(self.func3, default)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.part4 and (self.couplings or self.shieldings):
             self.nmrmode = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_j
-        if self.prog4_j == "orca" and self.func_j not in self.func_j_orca:
-            self.save_errors.append(
-                "\nERROR: In part4 the functional (funcJ) {} "
-                "is not implemented in CENSO with the {} program package. Options "
-                "are: {}".format(self.func_j, self.prog4_j, self.func_j_orca)
-            )
-            if not self.part4:
-                tmp = self.save_errors.pop().replace("\nERROR", "WARNING", 1)
-                self.save_errors.append(tmp)
-            else:
+        if self.part4:
+            if self.prog4_j == "orca" and self.func_j not in self.func_j_orca:
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcJ) {self.func_j} "
+                    f"is not implemented in CENSO with the {self.prog4_j} program package.\n"
+                    f"{'':{WARNLEN}}Options are: {self.func_j_orca}"
+                )
                 error_logical = True
-        if self.prog4_j == "tm" and self.func_j not in self.func_j_tm:
-            self.save_errors.append(
-                "\nERROR: In part4 the functional (funcJ) {} "
-                "is not implemented in CENSO with the {} program package. Options "
-                "are: {}".format(self.func_j, self.prog4_j, self.func_j_tm)
-            )
-            if not self.part4:
-                tmp = self.save_errors.pop().replace("\nERROR", "WARNING", 1)
-                self.save_errors.append(tmp)
-            else:
+            if self.prog4_j == "tm" and self.func_j not in self.func_j_tm:
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcJ) {self.func_j} "
+                    f"is not implemented in CENSO with the {self.prog4_j} program package.\n"
+                    f"{'':{WARNLEN}}Options are: {self.func_j_tm}"
+                )
                 error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis_j:
@@ -2303,27 +2305,20 @@ class config_setup(internal_settings):
             setattr(self, "basis_j", default_basis_j)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_s
-        if self.prog4_s == "orca" and self.func_s not in self.func_s_orca:
-            self.save_errors.append(
-                "\nERROR: In part4 the functional (funcS) {}"
-                " is not implemented in CENSO with the {} program package. Options "
-                "are: {}".format(self.func_s, self.prog4_s, self.func_s_orca)
-            )
-            if not self.part4:
-                tmp = self.save_errors.pop().replace("\nERROR", "WARNING", 1)
-                self.save_errors.append(tmp)
-            else:
+        if self.part4:
+            if self.prog4_s == "orca" and self.func_s not in self.func_s_orca:
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcS) {self.func_s}"
+                    f" is not implemented in CENSO with the {self.prog4_s} program package.\n"
+                    f"{'':{WARNLEN}}Options are: {self.func_s_orca}"
+                )
                 error_logical = True
-        if self.prog4_s == "tm" and self.func_s not in self.func_s_tm:
-            self.save_errors.append(
-                "\nERROR: In part4 the functional (funcS) {}"
-                " is not implemented in CENSO with the {} program package. Options "
-                "are: {}".format(self.func_s, self.prog4_s, self.func_s_tm)
-            )
-            if not self.part4:
-                tmp = self.save_errors.pop().replace("\nERROR", "WARNING", 1)
-                self.save_errors.append(tmp)
-            else:
+            if self.prog4_s == "tm" and self.func_s not in self.func_s_tm:
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcS) {self.func_s}"
+                    f" is not implemented in CENSO with the {self.prog4_s} program package.\n"
+                    f"{'':{WARNLEN}}Options are: {self.func_s_tm}"
+                )
                 error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis_s:
@@ -2334,11 +2329,11 @@ class config_setup(internal_settings):
             default_basis_s = self.composite_method_basis.get(self.func_s, "def2-TZVP")
             setattr(self, "basis_s", default_basis_s)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # no unpaired electrons in coupling or shiedling calculations!
+        # no unpaired electrons in coupling or shielding calculations!
         if self.unpaired > 0:
             if self.part4 and (self.couplings or self.shieldings):
                 self.save_errors.append(
-                    "ERROR: Coupling and shift calculations "
+                    f"{'ERROR:':{WARNLEN}}Coupling and shift calculations "
                     "(part4) are only available for closed-shell systems!"
                 )
                 error_logical = True
@@ -2361,16 +2356,14 @@ class config_setup(internal_settings):
             }
             if self.sm2 not in self.impsm2:
                 self.save_errors.append(
-                    f"ERROR: The solvent model {self.sm2}" " is not implemented!"
+                    f"{'ERROR:':{WARNLEN}}The solvent model {self.sm2} is not implemented!"
                 )
                 error_logical = True
             if self.prog == "orca":
                 if self.sm2 in self.sm2_tm:
                     self.save_errors.append(
-                        "WARNING: {} is not available with "
-                        "{}! Therefore {} is used!".format(
-                            self.sm2, self.prog, exchange_sm[self.sm2]
-                        )
+                        f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
+                        f"{self.prog}! Therefore {exchange_sm[self.sm2]} is used!"
                     )
                     self.sm2 = exchange_sm[self.sm2]
                 elif self.sm2 == "default":
@@ -2378,10 +2371,8 @@ class config_setup(internal_settings):
             if self.prog == "tm":
                 if self.sm2 in self.sm2_orca:
                     self.save_errors.append(
-                        "WARNING: {} is not available with "
-                        "{}! Therefore {} is used!".format(
-                            self.sm2, self.prog, exchange_sm[self.sm2]
-                        )
+                        f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
+                        f"{self.prog}! Therefore { exchange_sm[self.sm2]} is used!"
                     )
                     self.sm2 = exchange_sm[self.sm2]
                 elif self.sm2 == "default":
@@ -2396,7 +2387,7 @@ class config_setup(internal_settings):
             }
             if self.smgsolv1 not in self.impsmgsolv1:
                 self.save_errors.append(
-                    f"ERROR: The solvent model {self.smgsolv1}"
+                    f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv1}"
                     " is not implemented for smgsolv1 !"
                 )
                 error_logical = True
@@ -2404,18 +2395,14 @@ class config_setup(internal_settings):
                 self.smgsolv1 = self.sm2
             if self.prog == "tm" and self.smgsolv1 in self.sm2_orca:
                 self.save_errors.append(
-                    "WARNING: {} is not available with "
-                    "{}! Therefore {} is used!".format(
-                        self.smgsolv1, self.prog, exchange_sm[self.smgsolv1]
-                    )
+                    f"{'WARNING:':{WARNLEN}}{self.smgsolv1} is not available with "
+                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv1]} is used!"
                 )
                 self.smgsolv1 = exchange_sm[self.smgsolv1]
             if self.prog == "orca" and self.smgsolv1 in self.sm2_tm:
                 self.save_errors.append(
-                    "WARNING: {} is not available with "
-                    "{}! Therefore {} is used!".format(
-                        self.smgsolv1, self.prog, exchange_sm[self.smgsolv1]
-                    )
+                    f"{'WARNING:':{WARNLEN}}{self.smgsolv1} is not available with "
+                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv1]} is used!"
                 )
                 self.smgsolv1 = exchange_sm[self.smgsolv1]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2428,7 +2415,7 @@ class config_setup(internal_settings):
             }
             if self.smgsolv2 not in self.impsmgsolv2:
                 self.save_errors.append(
-                    f"ERROR: The solvent model {self.smgsolv2}"
+                    f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv2}"
                     " is not implemented for smgsolv2 !"
                 )
                 error_logical = True
@@ -2436,18 +2423,14 @@ class config_setup(internal_settings):
                 self.smgsolv2 = self.sm2
             if self.prog == "tm" and self.smgsolv2 in self.sm2_orca:
                 self.save_errors.append(
-                    "WARNING: {} is not available with "
-                    "{}! Therefore {} is used!".format(
-                        self.smgsolv2, self.prog, exchange_sm[self.smgsolv2]
-                    )
+                    f"{'WARNING:':{WARNLEN}}{self.smgsolv2} is not available with "
+                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv2]} is used!"
                 )
                 self.smgsolv2 = exchange_sm[self.smgsolv2]
             if self.prog == "orca" and self.smgsolv2 in self.sm2_tm:
                 self.save_errors.append(
-                    "WARNING: {} is not available with "
-                    "{}! Therefore {} is used!".format(
-                        self.smgsolv2, self.prog, exchange_sm[self.smgsolv2]
-                    )
+                    f"{'ERROR:':{WARNLEN}}{self.smgsolv2} is not available with "
+                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv2]} is used!"
                 )
                 self.smgsolv2 = exchange_sm[self.smgsolv2]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2460,7 +2443,7 @@ class config_setup(internal_settings):
             }
             if self.smgsolv3 not in self.impsmgsolv3:
                 self.save_errors.append(
-                    f"ERROR: The solvent model {self.smgsolv3}"
+                    f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv3}"
                     " is not implemented for smgsolv3 !"
                 )
                 error_logical = True
@@ -2468,18 +2451,14 @@ class config_setup(internal_settings):
                 self.smgsolv3 = self.sm2
             if self.prog == "tm" and self.smgsolv3 in self.sm2_orca:
                 self.save_errors.append(
-                    "WARNING: {} is not available with "
-                    "{}! Therefore {} is used!".format(
-                        self.smgsolv3, self.prog, exchange_sm[self.smgsolv3]
-                    )
+                    f"{'WARNING:':{WARNLEN}}{self.smgsolv3} is not available with "
+                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv3]} is used!"
                 )
                 self.smgsolv3 = exchange_sm[self.smgsolv3]
             if self.prog == "orca" and self.smgsolv3 in self.sm2_tm:
                 self.save_errors.append(
-                    "WARNING: {} is not available with "
-                    "{}! Therefore {} is used!".format(
-                        self.smgsolv3, self.prog, exchange_sm[self.smgsolv3]
-                    )
+                    f"{'WARNING:':{WARNLEN}}{self.smgsolv3} is not available with "
+                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv3]} is used!"
                 )
                 self.smgsolv3 = exchange_sm[self.smgsolv3]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2487,10 +2466,8 @@ class config_setup(internal_settings):
             if self.prog4_j == "orca":
                 if self.sm4_j in self.sm4_j_tm:
                     self.save_errors.append(
-                        "WARNING: {} is not available with {}!"
-                        " Therefore {} is used!".format(
-                            self.sm4_j, self.prog4_j, exchange_sm[self.sm4_j]
-                        )
+                        f"{'WARNING:':{WARNLEN}}{self.sm4_j} is not available with {self.prog4_j}!"
+                        f" Therefore {exchange_sm[self.sm4_j]} is used!"
                     )
                     self.sm4_j = exchange_sm[self.sm4_j]
                 elif self.sm4_j == "default":
@@ -2498,10 +2475,8 @@ class config_setup(internal_settings):
             if self.prog4_j == "tm":
                 if self.sm4_j in self.sm4_j_orca:
                     self.save_errors.append(
-                        "WARNING: {} is not available with {}!"
-                        " Therefore {} is used!".format(
-                            self.sm4_j, self.prog4_j, exchange_sm[self.sm4_j]
-                        )
+                        f"{'WARNING:':{WARNLEN}}{self.sm4_j} is not available with {self.prog4_j}!"
+                        f" Therefore {exchange_sm[self.sm4_j]} is used!"
                     )
                     self.sm4_j = exchange_sm[self.sm4_j]
                 elif self.sm4_j == "default":
@@ -2510,10 +2485,8 @@ class config_setup(internal_settings):
             if self.prog4_s == "orca":
                 if self.sm4_s in self.sm4_s_tm:
                     self.save_errors.append(
-                        "WARNING: {} is not available with {}!"
-                        " Therefore {} is used!".format(
-                            self.sm4_s, self.prog4_s, exchange_sm[self.sm4_s]
-                        )
+                        f"{'WARNING:':{WARNLEN}}{self.sm4_s} is not available with {self.prog4_s}!"
+                        f" Therefore { exchange_sm[self.sm4_s]} is used!"
                     )
                     self.sm4_s = exchange_sm[self.sm4_s]
                 elif self.sm4_s == "default":
@@ -2521,19 +2494,15 @@ class config_setup(internal_settings):
             if self.prog4_s == "tm":
                 if self.sm4_s in self.sm4_s_orca:
                     self.save_errors.append(
-                        "WARNING: {} is not available with {}!"
-                        " Therefore {} is used!".format(
-                            self.sm4_s, self.prog4_s, exchange_sm[self.sm4_s]
-                        )
+                        f"{'WARNING:':{WARNLEN}}{self.sm4_s} is not available with {self.prog4_s}!"
+                        f" Therefore {exchange_sm[self.sm4_s]} is used!"
                     )
                     self.sm4_s = exchange_sm[self.sm4_s]
                 elif self.sm4_s == "default":
                     self.sm4_s = self.internal_defaults_tm["sm4_s"]["default"]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Check if solvent-information is available for solventmodel
-            ###
             # Check which solvation models are applied:
-
             check_for = {
                 "xtb": False,
                 "cosmors": False,
@@ -2584,7 +2553,7 @@ class config_setup(internal_settings):
             # check if solvent in censo_solvent_db
             if censo_solvent_db.get(self.solvent, "not_found") == "not_found":
                 self.save_errors.append(
-                    f"ERROR: The solvent {self.solvent} is not found!"
+                    f"{'ERROR:':{WARNLEN}}The solvent {self.solvent} is not found!"
                 )
                 error_logical = True
             for key, value in check_for.items():
@@ -2594,7 +2563,7 @@ class config_setup(internal_settings):
                         == "nothing_found"
                     ):
                         self.save_errors.append(
-                            f"ERROR: The solvent for solventmodel in {key} is not found!"
+                            f"{'ERROR:':{WARNLEN}}The solvent for solventmodel in {key} is not found!"
                         )
                         error_logical = True
                     if key == "DC":
@@ -2614,12 +2583,12 @@ class config_setup(internal_settings):
                                 < 150.0
                             ):
                                 self.save_errors.append(
-                                    f"ERROR: The dielectric constant can not be converted."
+                                    f"{'ERROR:':{WARNLEN}}The dielectric constant can not be converted."
                                 )
                                 error_logical = True
                         except ValueError:
                             self.save_errors.append(
-                                f"ERROR: The dielectric constant can not be converted."
+                                f"{'ERROR:':{WARNLEN}}The dielectric constant can not be converted."
                             )
                             error_logical = True
                     elif key in ("smd", "cpcm"):
@@ -2627,16 +2596,14 @@ class config_setup(internal_settings):
                             1
                         ].lower() not in getattr(self, lookup[key]):
                             self.save_errors.append(
-                                f"WARNING: The solvent "
+                                f"{'WARNING:':{WARNLEN}}The solvent "
                                 f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}"
                                 f" for solventmodel/program {key} can not be checked but is used anyway."
                             )
                     else:
-                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
-                            1
-                        ] not in getattr(self, lookup[key]):
+                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[1] not in getattr(self, lookup[key]):
                             self.save_errors.append(
-                                f"WARNING: The solvent "
+                                f"{'WARNING:':{WARNLEN}}The solvent "
                                 f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
                                 f"for solventmodel/program {key} can not be checked but is used anyway."
                             )
@@ -2649,11 +2616,11 @@ class config_setup(internal_settings):
             else:
                 # gas phase
                 self.optlevel2 = "normal"
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.part4 and not self.couplings and not self.shieldings:
             self.part4 = False
             self.save_errors.append(
-                "WARNING: Neither coupling nor "
+                f"{'INFORMATION:':{WARNLEN}}Neither coupling nor "
                 "shielding constants are activated! Part4 is not executed."
             )
         elif not any(
@@ -2670,14 +2637,20 @@ class config_setup(internal_settings):
         ):
             if self.part4:
                 self.save_errors.append(
-                    "WARNING: No type of NMR spectrum is "
+                    f"{'INFORMATION:':{WARNLEN}}No type of NMR spectrum is "
                     "activated in the .censorc! Therefore all nuclei are calculated!"
                 )
-                self.part4 = True
             else:
                 self.save_errors.append(
-                    "WARNING: No type of NMR spectrum is activated in the .censorc!"
+                    f"{'WARNING:':{WARNLEN}}No type of NMR spectrum is activated in the .censorc!"
                 )
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # optical rotation
+        if self.optical_rotation and self.prog == 'orca':
+            self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}Optical rotation calculations are only possible with TM."
+                )
+            error_logical = True
         if silent:
             self.save_errors = store_errors
         return error_logical
@@ -3050,7 +3023,8 @@ class config_setup(internal_settings):
         for item in info:
             if item[0] == 'justprint':
                 if "short-notation" in item[1]:
-                    tmp = len(item[1]) -len('short-notation:')
+                    continue
+                    #tmp = len(item[1]) -len('short-notation:')
                 else:
                     tmp = len(item[1])
             else:
@@ -3106,7 +3080,7 @@ class config_setup(internal_settings):
                     self.external_paths["cosmorssetup"] = str(line.rstrip(os.linesep))
                 except:
                     print(
-                        "WARNING: Could not read settings for COSMO-RS from .censorc!"
+                        f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from .censorc!"
                     )
                 try:
                     normal = "DATABASE-COSMO/BP-TZVP-COSMO"
@@ -3123,15 +3097,15 @@ class config_setup(internal_settings):
                 except Exception as e:
                     print(e)
                     print(
-                        "WARNING: Could not read settings for COSMO-RS from "
-                        ".censorc!\nMost probably there is a user "
+                        f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from "
+                        f".censorc!\n{'':{WARNLEN}}Most probably there is a user "
                         "input error."
                     )
             if "ORCA:" in line:
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
                 except:
-                    print("WARNING: Could not read path for ORCA from .censorc!.")
+                    print(f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!.")
             if "ORCA version:" in line:
                 try:
                     tmp = line.split()[2]
@@ -3140,41 +3114,37 @@ class config_setup(internal_settings):
                     tmp = "".join(tmp)
                     self.external_paths["orcaversion"] = tmp
                 except:
-                    print("WARNING: Could not read ORCA version from .censorc!")
+                    print(f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!")
             if "GFN-xTB:" in line:
                 try:
                     self.external_paths["xtbpath"] = str(line.split()[1])
                 except:
-                    print("WARNING: Could not read path for GFNn-xTB from .censorc!")
+                    print(f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!")
                     if shutil.which("xtb") is not None:
                         self.external_paths["xtbpath"] = shutil.which("xtb")
                         print(
-                            "Going to use {} instead.".format(
-                                self.external_paths["xtbpath"]
-                            )
+                            f"{'':{WARNLEN}}Going to use {self.external_paths['xtbpath']} instead."
                         )
             if "CREST:" in line:
                 try:
                     self.external_paths["crestpath"] = str(line.split()[1])
                 except:
-                    print("WARNING: Could not read path for CREST from .censorc!")
+                    print(f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!")
                     if shutil.which("crest") is not None:
                         self.external_paths["crestpath"] = shutil.which("crest")
                         print(
-                            "Going to use {} instead.".format(
-                                self.external_paths["crestpath"]
-                            )
+                            f"{'':{WARNLEN}}Going to use {self.external_paths['crestpath']} instead."
                         )
             if "mpshift:" in line:
                 try:
                     self.external_paths["mpshiftpath"] = str(line.split()[1])
                 except:
-                    print("ẂARNING: Could not read path for mpshift from .censorc!")
+                    print(f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!")
             if "escf:" in line:
                 try:
                     self.external_paths["escfpath"] = str(line.split()[1])
                 except:
-                    print("WARNING: Could not read path for escf from .censorc!")
+                    print(f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!")
             if "$ENDPROGRAMS" in line:
                 break
 
@@ -3325,7 +3295,7 @@ class config_setup(internal_settings):
                 self.external_paths["crestpath"] is None
                 or shutil.which(self.external_paths["crestpath"]) is None
             ):
-                print("ERROR: path for CREST is not correct!")
+                print(f"{'ERROR:':{WARNLEN}}path for CREST is not correct!")
                 error_logical = True
         # xTB
         if requirements.get("needxtb", False):
@@ -3333,12 +3303,12 @@ class config_setup(internal_settings):
                 self.external_paths["xtbpath"] is None
                 or shutil.which(self.external_paths["xtbpath"]) is None
             ):
-                print("ERROR: path for xTB is not correct!")
+                print(f"{'ERROR:':{WARNLEN}}path for xTB is not correct!")
                 error_logical = True
             try:
                 ENVIRON["OMP_NUM_THREADS"] = "{:d}".format(self.omp)
             except:
-                print("ERROR: can not set omp for xTB calculation!")
+                print(f"{'ERROR:':{WARNLEN}}can not set omp for xTB calculation!")
         # ORCA
         if requirements.get("needorca", False):
             if (
@@ -3346,7 +3316,7 @@ class config_setup(internal_settings):
                 or shutil.which(os.path.join(self.external_paths["orcapath"], "orca"))
                 is None
             ):
-                print("ERROR: path for ORCA is not correct!")
+                print(f"{'ERROR:':{WARNLEN}}path for ORCA is not correct!")
                 error_logical = True
         # cefine
         if requirements.get("needcefine", False):
@@ -3367,9 +3337,9 @@ class config_setup(internal_settings):
                 self.external_paths["cefinepath"] = path_to_cefine
             else:
                 print(
-                    "ERROR: cefine (the commandline program for define) has not been found!"
+                    f"{'ERROR:':{WARNLEN}}cefine (the commandline program for define) has not been found!"
                 )
-                print(f"{'':{7}}all programs needing TM can not start!")
+                print(f"{'':{WARNLEN}}all programs needing TM can not start!")
                 error_logical = True
         # TM
         if requirements.get("needtm", False):
@@ -3384,20 +3354,20 @@ class config_setup(internal_settings):
                             "to {}".format(ENVIRON["PARNODES"])
                         )
                     except:
-                        print("ERROR: PARNODES can not be changed!")
+                        print(f"{'ERROR:':{WARNLEN}}PARNODES can not be changed!")
                         error_logical = True
                         raise
                 else:
                     print(
-                        "ERROR: PARA_ARCH has to be set to SMP for parallel TM "
+                        f"{'ERROR:':{WARNLEN}}PARA_ARCH has to be set to SMP for parallel TM "
                         "calculations!"
                     )
                     if self.run:
                         error_logical = True
             except:
                 print(
-                    "ERROR: PARA_ARCH has to be set to SMP and PARNODES have to "
-                    "be set\n       for parallel TM calculations!."
+                    f"{'ERROR:':{WARNLEN}}PARA_ARCH has to be set to SMP and PARNODES have to "
+                    f"be set\n{'':{WARNLEN}}for parallel TM calculations!."
                 )
                 if requirements.get("startenso", False):
                     error_logical = True
@@ -3407,27 +3377,27 @@ class config_setup(internal_settings):
                 self.external_paths["escfpath"] is None
                 or shutil.which(self.external_paths["escfpath"]) is None
             ):
-                print("ERROR: path for escf is not correct!")
+                print(f"{'ERROR:':{WARNLEN}}path for escf is not correct!")
                 error_logical = True
         if requirements.get("needmpshift", False):
             if (
                 self.external_paths["mpshiftpath"] is None
                 or shutil.which(self.external_paths["mpshiftpath"]) is None
             ):
-                print("ERROR: path for mpshift is not correct!")
+                print(f"{'ERROR:':{WARNLEN}}path for mpshift is not correct!")
                 error_logical = True
         # COSMORS
         if requirements.get("needcosmors", False):
             if self.external_paths["cosmorssetup"] is None:
-                print("ERROR: Set up for COSMO-RS has to be written to .censorc!")
+                print(f"{'ERROR:':{WARNLEN}}Set up for COSMO-RS has to be written to .censorc!")
                 error_logical = True
             if self.external_paths["cosmothermversion"] is None:
-                print("ERROR: Version of COSMO-RS has to be written to .censorc!")
+                print(f"{'ERROR:':{WARNLEN}}Version of COSMO-RS has to be written to .censorc!")
                 error_logical = True
             if shutil.which("cosmotherm") is not None:
                 print("    Using COSMOtherm from {}".format(shutil.which("cosmotherm")))
             else:
-                print("ERROR: COSMOtherm has not been found!")
+                print(f"{'ERROR:':{WARNLEN}}COSMOtherm has not been found!")
                 error_logical = True
         # update cfg.external paths
         external_paths.update(self.external_paths)
@@ -3574,7 +3544,7 @@ class config_setup(internal_settings):
                 with open(path, "r", encoding=CODING, newline=None) as inp:
                     save_data = json.load(inp, object_pairs_hook=OrderedDict)
             except (ValueError, TypeError, FileNotFoundError):
-                print("Your Jsonfile (enso.json) is corrupted!\n")
+                print(f"{'ERROR:':{WARNLEN}}Your Jsonfile (enso.json) is corrupted!\n")
                 time.sleep(0.02)
                 raise
         return save_data

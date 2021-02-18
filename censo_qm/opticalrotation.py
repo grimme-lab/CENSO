@@ -7,7 +7,7 @@ import shutil
 import sys
 from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -162,12 +162,12 @@ def part5(config, conformers, store_confs, ensembledata):
             calculate.append(mol)
 
     if unoptimized_warning:
-        print_errors(f"INFORMATION: Conformers have not been optimized at DFT level!!!\n"
-                     f"             Use results with care!\n", save_errors
+        print_errors(f"{'INFORMATION:':{WARNLEN}}Conformers have not been optimized at DFT level!!!\n"
+                     f"{'':{WARNLEN}}Use results with care!\n", save_errors
         )
 
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
         sys.exit(1)
 
@@ -369,12 +369,12 @@ def part5(config, conformers, store_confs, ensembledata):
     print(f"\nConformers that are below the Boltzmann-thr of {boltzmannthr}:")
     print_block(["CONF" + str(i.id) for i in calculate])
 
-    # create NMR folder
+    # create folder
     folder = "OR"
     save_errors, store_confs, calculate = new_folders(
         config.cwd, calculate, folder, save_errors, store_confs
     )
-    if config.part3 or config.part2:
+    if config.part3 and config.part2 or config.part2:
         # need to copy optimized coord to folder
         for conf in list(calculate):
             tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
@@ -382,7 +382,17 @@ def part5(config, conformers, store_confs, ensembledata):
             try:
                 shutil.copy(tmp1, tmp2)
             except FileNotFoundError:
-                print("ERROR can't copy optimized geometry!")
+                print(f"{'ERROR:':{WARNLEN}}can't copy optimized geometry!")
+                store_confs.append(calculate.pop(calculate.index(conf)))
+    elif config.part3:
+        # structures can be DFT optimized or not (part2 might not have been run)
+        for conf in list(calculate):
+            tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), "gsolv", "coord")
+            tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
+            try:
+                shutil.copy(tmp1, tmp2)
+            except FileNotFoundError:
+                print(f"{'ERROR:':{WARNLEN}}can't copy geometry!")
                 store_confs.append(calculate.pop(calculate.index(conf)))
     elif config.part1:
         # do not use coord from folder config.func it could be optimized if 
@@ -393,7 +403,7 @@ def part5(config, conformers, store_confs, ensembledata):
         )
 
     if not calculate:
-        print("ERROR: No conformers left!")
+        print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
         sys.exit(1)
 
@@ -402,6 +412,7 @@ def part5(config, conformers, store_confs, ensembledata):
         if getattr(conf, "optical_rotation_info")["info"] == "calculated":
             prev_calculated.append(calculate.pop(calculate.index(conf)))
         elif getattr(conf, "optical_rotation_info")["info"] == "failed":
+            print(f"{'INFORMATION:':{WARNLEN}}The calculation failed for CONF{conf.id} in the previous run.")
             store_confs.append(calculate.pop(calculate.index(conf)))
 
     instruction_or = {
@@ -422,7 +433,9 @@ def part5(config, conformers, store_confs, ensembledata):
         "freq_or": config.freq_or,
     }
     if config.prog == "orca":
-        print("Can't calculate OR with ORCA! Use TM instead.")
+        print(f"{'ERROR:':{WARNLEN}}Can't calculate OR with ORCA! You can use TM instead.")
+        print("Going to exit!")
+        sys.exit(1)
         # ORCA can't calculate optical rotation!!! -->
         job = OrcaJob
         instruction_or["progpath"] = config.external_paths["orcapath"]
@@ -535,9 +548,10 @@ def part5(config, conformers, store_confs, ensembledata):
             f"{averaged_or: .3f}   in deg*[dm(g/cc)]^(-1)"
         )
 
+
     if all(
         [conf.lowlevel_gsolv_compare_info["std_dev"] is not None for conf in calculate]
-    ):
+    ) and calculate:
         for freq in config.freq_or:
             all_or = []
             for _ in range(1000):
