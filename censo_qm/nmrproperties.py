@@ -11,6 +11,7 @@ from .cfg import (
     PLENGTH, 
     DIGILEN, 
     AU2KCAL,
+    WARNLEN,
     NmrRef
 )
 from .parallel import run_in_parallel
@@ -25,6 +26,7 @@ from .utilities import (
     print,
     print_errors,
     calc_std_dev,
+    ensemble2coord,
 )
 
 
@@ -154,182 +156,6 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
     print("".ljust(int(80), "-"))
 
 
-# def write_anmrrc(config):
-#     """ Write file .anmrrc with information processed by ANMR """
-
-#     if config.solvent != "gas":
-#         # optimization in solvent:
-#         if config.prog == "tm" and config.sm2 != "dcosmors":
-#             print(
-#                 "WARNING: The geometry optimization of the reference molecule "
-#                 "was calculated with DCOSMO-RS (sm2)!"
-#             )
-#         elif config.prog == "orca" and config.sm2 != "smd":
-#             print(
-#                 "WARNING: The geometry optimization of the reference molecule "
-#                 "was calculated with SMD (sm2)!"
-#             )
-#     if config.prog4_s == "tm":
-#         h_qm_shieldings = h_tm_shieldings
-#         c_qm_shieldings = c_tm_shieldings
-#         f_qm_shieldings = f_tm_shieldings
-#         p_qm_shieldings = p_tm_shieldings
-#         si_qm_shieldings = si_tm_shieldings
-#         lsm = "DCOSMO-RS"
-#         lsm4 = "DCOSMO-RS"
-#         lbasisS = "def2-TZVP"
-#         if config.sm4_s != "dcosmors":
-#             print(
-#                 "WARNING: The reference shielding constant was calculated with DCOSMORS "
-#                 "(sm4_s)!"
-#             )
-#     elif config.prog4_s == "orca":
-#         lsm = "SMD"
-#         lsm4 = "SMD"
-#         lbasisS = "def2-TZVP"
-#         h_qm_shieldings = h_orca_shieldings
-#         c_qm_shieldings = c_orca_shieldings
-#         f_qm_shieldings = f_orca_shieldings
-#         p_qm_shieldings = p_orca_shieldings
-#         si_qm_shieldings = si_orca_shieldings
-#         if config.sm4_s == "cpcm":
-#             print(
-#                 "WARNING: The reference shielding constant was calculated with SMD "
-#                 "(sm4_s)!"
-#             )
-#     if config.func_s == "pbeh-3c":
-#         lbasisS = "def2-mSVP"
-
-#     if config.basis_s != "def2-TZVP" and config.func_s != "pbeh-3c":
-#         print(
-#             "WARNING: The reference shielding constant was calculated with the "
-#             "basis def2-TZVP (basisS)!"
-#         )
-
-#     opt_func = config.func
-#     # get absolute shielding constant of reference
-
-#     prnterr = False
-#     try:
-#         hshielding = "{:4.3f}".format(
-#             h_qm_shieldings[config.h_ref][opt_func][config.func_s][config.solvent]
-#         )
-#     except KeyError:
-#         hshielding = 0
-#         prnterr = True
-#     try:
-#         cshielding = "{:4.3f}".format(
-#             c_qm_shieldings[config.c_ref][opt_func][config.func_s][config.solvent]
-#         )
-#     except KeyError:
-#         cshielding = 0
-#         prnterr = True
-#     try:
-#         fshielding = "{:4.3f}".format(
-#             f_qm_shieldings[config.f_ref][opt_func][config.func_s][config.solvent]
-#         )
-#     except KeyError:
-#         fshielding = 0
-#         prnterr = True
-#     try:
-#         pshielding = "{:4.3f}".format(
-#             p_qm_shieldings[config.p_ref][opt_func][config.func_s][config.solvent]
-#         )
-#     except KeyError:
-#         pshielding = 0
-#         prnterr = True
-#     try:
-#         sishielding = "{:4.3f}".format(
-#             si_qm_shieldings[config.si_ref][opt_func][config.func_s][config.solvent]
-#         )
-#     except KeyError:
-#         sishielding = 0
-#         prnterr = True
-#     if prnterr:
-#         print("ERROR!   The reference absolute shielding constant could not be found!\n"
-#               "         You have to edit the file .anmrrc by hand!"
-#         )
-#     element_ref_shield = {
-#         "h": float(hshielding),
-#         "c": float(cshielding),
-#         "f": float(fshielding),
-#         "p": float(pshielding),
-#         "si": float(sishielding),
-#     }
-
-#     # for elementactive
-#     exch = {True: 1, False: 0}
-#     exchonoff = {True: "on", False: "off"}
-#     # write .anmrrc
-#     with open(os.path.join(config.cwd, ".anmrrc"), "w", newline=None) as arc:
-#         arc.write("7 8 XH acid atoms\n")
-#         if config.resonance_frequency is not None:
-#             arc.write(
-#                 "ENSO qm= {} mf= {} lw= 1.0  J= {} S= {} T= {:6.2f} \n".format(
-#                     str(config.prog4_s).upper(),
-#                     str(config.resonance_frequency),
-#                     exchonoff[config.couplings],
-#                     exchonoff[config.shieldings],
-#                     float(config.temperature),
-#                 )
-#             )
-#         else:
-#             arc.write("ENSO qm= {} lw= 1.2\n".format(str(config.prog4_s).upper()))
-#         try:
-#             length = max(
-#                 [
-#                     len(i)
-#                     for i in [
-#                         hshielding,
-#                         cshielding,
-#                         fshielding,
-#                         pshielding,
-#                         sishielding,
-#                     ]
-#                 ]
-#             )
-#         except:
-#             length = 6
-#         # lsm4 --> localsm4 ...
-#         arc.write(
-#             "{}[{}] {}[{}]/{}//{}[{}]/{}\n".format(
-#                 config.h_ref,
-#                 config.solvent,
-#                 config.func_s,
-#                 lsm4,
-#                 lbasisS,
-#                 opt_func,
-#                 lsm,
-#                 config.basis,
-#             )
-#         )
-#         arc.write(
-#             "1  {:{digits}}    0.0    {}\n".format(
-#                 hshielding, exch[config.h_active], digits=length
-#             )
-#         )  # hydrogen
-#         arc.write(
-#             "6  {:{digits}}    0.0    {}\n".format(
-#                 cshielding, exch[config.c_active], digits=length
-#             )
-#         )  # carbon
-#         arc.write(
-#             "9  {:{digits}}    0.0    {}\n".format(
-#                 fshielding, exch[config.f_active], digits=length
-#             )
-#         )  # fluorine
-#         arc.write(
-#             "14 {:{digits}}    0.0    {}\n".format(
-#                 sishielding, exch[config.si_active], digits=length
-#             )
-#         )  # silicon
-#         arc.write(
-#             "15 {:{digits}}    0.0    {}\n".format(
-#                 pshielding, exch[config.p_active], digits=length
-#             )
-#         )  # phosphorus
-#     return element_ref_shield
-
 def write_anmrrc(config):
     """ Write file .anmrrc with information processed by ANMR """
 
@@ -337,12 +163,12 @@ def write_anmrrc(config):
         # optimization in solvent:
         if config.prog == "tm" and config.sm2 != "dcosmors":
             print(
-                "WARNING: The geometry optimization of the reference molecule "
+                f"{'WARNING:':{WARNLEN}}The geometry optimization of the reference molecule "
                 "was calculated with DCOSMO-RS (sm2)!"
             )
         elif config.prog == "orca" and config.sm2 != "smd":
             print(
-                "WARNING: The geometry optimization of the reference molecule "
+                f"{'WARNING:':{WARNLEN}}The geometry optimization of the reference molecule "
                 "was calculated with SMD (sm2)!"
             )
     if config.prog4_s == "tm":
@@ -351,7 +177,7 @@ def write_anmrrc(config):
         refbasisS = "def2-TZVP"
         if config.sm4_s != "dcosmors":
             print(
-                "WARNING: The reference shielding constant was calculated with "
+                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
                 "DCOSMORS (sm4_s)!"
             )
     elif config.prog4_s == "orca":
@@ -360,13 +186,13 @@ def write_anmrrc(config):
         refbasisS = "def2-TZVP"
         if config.sm4_s != "smd":
             print(
-                "WARNING: The reference shielding constant was calculated with "
+                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
                 "SMD (sm4_s)!"
             )
 
     if config.basis_s != "def2-TZVP":
         print(
-            "WARNING: The reference shielding constant was calculated with the "
+            f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with the "
             f"basis def2-TZVP (basisS) instead of {config.basis_s}!"
         )
 
@@ -438,15 +264,15 @@ def write_anmrrc(config):
                         ][config.func].get("pbe0")[config.solvent]
                     )
                     print(
-                        f"WARNING: The reference absolute shielding constant "
+                        f"{'WARNING:':{WARNLEN}}The reference absolute shielding constant "
                         f"for {config.func_s} and element {element} could not be found, using {'pbe0'}"
                         " reference instead!"
                     )
                 except KeyError:
                     print(
-                        f"ERROR!   The reference absolute shielding constant for "
+                        f"{'ERROR:':{WARNLEN}}The reference absolute shielding constant for "
                         f"element {element} could not be found!\n"
-                        "         You have to edit the file .anmrrc by hand!"
+                        f"{'':{WARNLEN}}You have to edit the file .anmrrc by hand!"
                     )
                     ref_decision[element]["sigma"] = f"{0.0 :4.3f}"
 
@@ -651,96 +477,18 @@ def part4(config, conformers, store_confs, ensembledata):
             calculate.append(mol)
 
     if unoptimized_warning:
-        print_errors(f"INFORMATION: Conformers have not been optimized at DFT level!!!\n"
-                     f"             Use results with care!\n", save_errors
+        print_errors(f"{'INFORMATION:':{WARNLEN}} Conformers have not been optimized at DFT level!!!\n"
+                     f"{'':{WARNLEN}}Use results with care!\n", save_errors
         )
 
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
         sys.exit(1)
 
     calculate.sort(key=lambda x: int(x.id))
     print("Considering the following conformers:")
     print_block(["CONF" + str(i.id) for i in calculate])
-
-    # # Calculate boltzmann weight for confs:
-    # if not config.part3:
-    #     if not config.evaluate_rrho:
-    #         rrho = None
-    #         rrho_method = None
-    #     else:
-    #         rrho_method, _ = config.get_method_name(
-    #             "rrhoxtb",
-    #             bhess=config.bhess,
-    #             gfn_version=config.part2_gfnv,
-    #             sm=config.sm_rrho,
-    #             solvent=config.solvent,
-    #         )
-    #     if config.solvent == "gas":
-    #         gsolv = None
-    #         solv_method = None
-    #         energy_method, _ = config.get_method_name(
-    #             "xtbopt",
-    #             func=config.func,
-    #             basis=config.basis,
-    #             sm=config.smgsolv2,
-    #             gfn_version=config.part2_gfnv,
-    #             solvent=config.solvent,
-    #         )
-    #     else:
-    #         if config.smgsolv2 in ("cosmors", "cosmors-fine"):
-    #             tmp_name = "cosmors"
-    #         elif config.smgsolv2 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
-    #             tmp_name = config.smgsolv2
-    #         else:
-    #             tmp_name = "sp_implicit"
-    #         energy_method, solv_method = config.get_method_name(
-    #             tmp_name,
-    #             func=config.func,
-    #             basis=config.basis,
-    #             sm=config.smgsolv2,
-    #             gfn_version=config.part2_gfnv,
-    #             solvent=config.solvent,
-    #         )
-    # elif config.part3:
-    #     if not config.evaluate_rrho:
-    #         rrho = None
-    #         rrho_method = None
-    #     else:
-    #         rrho_method, _ = config.get_method_name(
-    #             "rrhoxtb",
-    #             bhess=config.bhess,
-    #             gfn_version=config.part3_gfnv,
-    #             sm=config.sm_rrho,
-    #             solvent=config.solvent,
-    #         )
-    #     if config.solvent == "gas":
-    #         gsolv = None
-    #         solv_method = None
-    #         energy_method, _ = config.get_method_name(
-    #             "xtbopt",
-    #             func=config.func3,
-    #             basis=config.basis3,
-    #             sm=config.smgsolv3,
-    #             gfn_version=config.part3_gfnv,
-    #             solvent=config.solvent,
-    #         )
-    #     else:
-    #         if config.smgsolv3 in ("cosmors", "cosmors-fine"):
-    #             tmp_name = "cosmors"
-    #         elif config.smgsolv3 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv"):
-    #             tmp_name = config.smgsolv3
-    #         else:
-    #             tmp_name = "sp_implicit"
-    #         energy_method, solv_method = config.get_method_name(
-    #             tmp_name,
-    #             func=config.func3,
-    #             basis=config.basis3,
-    #             sm=config.smgsolv3,
-    #             gfn_version=config.part3_gfnv,
-    #             solvent=config.solvent,
-    #         )
 
     # Calculate Boltzmann weight for confs:
     if config.part3:
@@ -941,14 +689,33 @@ def part4(config, conformers, store_confs, ensembledata):
         config.cwd, calculate, folder, save_errors, store_confs
     )
     # need to copy optimized coord to folder
-    for conf in list(calculate):
-        tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
-        tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
-        try:
-            shutil.copy(tmp1, tmp2)
-        except FileNotFoundError:
-            print("ERROR can't copy optimized geometry!")
-            store_confs.append(calculate.pop(calculate.index(conf)))
+    if config.part3 and config.part2 or config.part2:
+        # need to copy optimized coord to folder
+        for conf in list(calculate):
+            tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
+            tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
+            try:
+                shutil.copy(tmp1, tmp2)
+            except FileNotFoundError:
+                print(f"{'ERROR:':{WARNLEN}}can't copy optimized geometry!")
+                store_confs.append(calculate.pop(calculate.index(conf)))
+    elif config.part3:
+        # structures can be DFT optimized or not (part2 might not have been run)
+        for conf in list(calculate):
+            tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), "gsolv", "coord")
+            tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
+            try:
+                shutil.copy(tmp1, tmp2)
+            except FileNotFoundError:
+                print(f"{'ERROR:':{WARNLEN}}can't copy geometry!")
+                store_confs.append(calculate.pop(calculate.index(conf)))
+    elif config.part1:
+        # do not use coord from folder config.func it could be optimized if 
+        # part2 has ever been run, take coord from ensemble file
+        # write coord to folder
+        calculate, store_confs, save_errors = ensemble2coord(
+            config, folder, calculate, store_confs, save_errors
+        )
     if config.couplings:
         print("\nPerforming coupling constant calculations:")
         # check if J calculated before!
@@ -956,13 +723,14 @@ def part4(config, conformers, store_confs, ensembledata):
             if getattr(conf, "nmr_coupling_info")["info"] == "calculated":
                 prev_calculated.append(calculate.pop(calculate.index(conf)))
             elif getattr(conf, "nmr_coupling_info")["info"] == "failed":
+                print(f"{'INFORMATION:':{WARNLEN}}The calculation failed for CONF{conf.id} in the previous run.")
                 store_confs.append(calculate.pop(calculate.index(conf)))
             else:
                 # still in calculate
                 pass
 
         if not calculate + prev_calculated:
-            print("ERROR: No conformers left!")
+            print(f"{'ERROR:':{WARNLEN}}No conformers left!")
             print("Going to exit!")
             sys.exit(1)
 
@@ -987,6 +755,7 @@ def part4(config, conformers, store_confs, ensembledata):
         if config.prog4_j == "orca":
             job = OrcaJob
             instruction_j["progpath"] = config.external_paths["orcapath"]
+            instruction_j["prepinfo"].extend(['nmrJ',])
             instruction_j["method"], _ = config.get_method_name(
                 instruction_j["jobtype"],
                 func=instruction_j["func"],
@@ -1079,7 +848,7 @@ def part4(config, conformers, store_confs, ensembledata):
         for conf in calculate:
             conf.reset_job_info()
         if not calculate:
-            print("ERROR: No conformers left!")
+            print(f"{'ERROR:':{WARNLEN}}No conformers left!")
             print("Going to exit!")
             sys.exit(1)
 
@@ -1095,7 +864,7 @@ def part4(config, conformers, store_confs, ensembledata):
         for conf in calculate:
             conf.reset_job_info()
         if not calculate + prev_calculated:
-            print("ERROR: No conformers left!")
+            print(f"{'ERROR:':{WARNLEN}}No conformers left!")
             print("Going to exit!")
             sys.exit(1)
 
@@ -1140,6 +909,7 @@ def part4(config, conformers, store_confs, ensembledata):
 
         if config.prog4_s == "orca":
             job = OrcaJob
+            instruction_s["prepinfo"].extend(['nmrS',])
             instruction_s["progpath"] = config.external_paths["orcapath"]
             instruction_s["method"], _ = config.get_method_name(
                 instruction_s["jobtype"],
@@ -1228,6 +998,11 @@ def part4(config, conformers, store_confs, ensembledata):
                 print(line)
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
 
+    if not calculate:
+        print(f"{'ERROR:':{WARNLEN}}No conformers left!")
+        print("Going to exit!")
+        sys.exit(1)
+        
     # write anmr_enso output!
     print("\nGenerating file anmr_enso for processing with the ANMR program.")
     for conf in calculate:

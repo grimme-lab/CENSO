@@ -5,7 +5,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 DESCR = f"""
          ______________________________________________________________
         |                                                              |
@@ -14,7 +14,7 @@ DESCR = f"""
         |                           v {__version__:<{19}}              |
         |    energetic sorting of CREST Conformer Rotamer Ensembles    |
         |                    University of Bonn, MCTC                  |
-        |                          June 2020                           |
+        |                           Feb 2020                           |
         |                 based on ENSO version 2.0.1                  |
         |                     F. Bohle and S. Grimme                   |
         |                                                              |
@@ -33,6 +33,33 @@ AU2J = 4.3597482e-18  # a.u.(hartree/mol) to J
 KB = 1.3806485279e-23  # J/K
 AU2KCAL = 627.50947428
 BOHR2ANG = 0.52917721067
+WARNLEN = max([len(i) for i in ['WARNING:', 'ERROR:', 'INFORMATION:']])+1
+
+# definitions:
+composite_method_basis = {
+    "pbeh-3c": "def2-mSVP",
+    "pbeh3c": "def2-mSVP",
+    "b97-3c": "def2-mTZVP",
+    "b973c": "def2-mTZVP",
+    "hf3c": "minix",
+    "hf-3c": "minix",
+    "r2scan-3c": "def2-mTZVPP",
+}
+composite_dfa = tuple(composite_method_basis.keys())
+gga_dfa = ("tpss", "pbe", "kt2", "b97-d3")
+hybrid_dfa = (
+    "pbe0",
+    "pw6b95",
+    "wb97x-d3",
+    "cam-b3lyp",
+    "b3-lyp",
+    "pbeh-3c",
+    "m06x",
+    "bh-lyp",
+    "tpssh",
+)
+dh_dfa = ("dsd-blyp",)
+disp_already_included_in_func = composite_dfa + ('b97-d3', 'wb97x-d3')
 
 # program paths:
 external_paths = {}

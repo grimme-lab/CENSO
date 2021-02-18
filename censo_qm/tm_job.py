@@ -15,9 +15,12 @@ from .cfg import (
     CODING,
     ENVIRON,
     AU2KCAL,
+    WARNLEN,
     censo_solvent_db,
     external_paths,
     cosmors_param,
+    composite_dfa,
+    composite_method_basis
 )
 from .utilities import last_folders, print
 from .qm_job import QmJob
@@ -133,7 +136,7 @@ class TmJob(QmJob):
                     self.job["success"] = False
                     return
                 elif "define_huge" in line:
-                    print("ERROR: define_huge: not found!")
+                    print(f"{'ERROR:':{WARNLEN}}define_huge: not found!")
                     self.job["success"] = False
                     return
             # check if wrong functional was written by cefine
@@ -229,14 +232,14 @@ class TmJob(QmJob):
                     solvent_dcosmors[self.job["solvent"]] = tmp
                 else:
                     line = (
-                        "WARNING: DCOSMO-RS potential file not found!"
+                        f"{'WARNING:':{WARNLEN}}DCOSMO-RS potential file not found!"
                         " Trying file without verification!"
                     )
                     # print(line)
                     self.job["internal_error"].append(line)
         if self.job["solvent"] != "gas" and self.job["sm"] in ("cosmo", "dcosmors"):
             if solvent_dcosmors.get(self.job["solvent"], "not found!") == "not found!":
-                print(f"ERROR: Solvent {self.job['solvent']} is not known for cefine!")
+                print(f"{'ERROR:':{WARNLEN}} Solvent {self.job['solvent']} is not known for cefine!")
                 self.job["success"] = False
                 self.job["internal_error"].append("prep-failed")
                 return
@@ -263,12 +266,15 @@ class TmJob(QmJob):
             controlappend.append("$rpaconv 4")
 
         if dogcp:
-            if self.job["basis"] == "def2-SV(P)":
-                controlappend.append("$gcp dft/sv(p)")
+            if self.job['func'] in composite_dfa and self.job['basis'] == composite_method_basis.get(self.job["func"],'NONE'):
+                pass
             else:
-                controlappend.append(
-                    f"$gcp dft/{self.job['basis'].lower().replace('-', '')}"
-                )
+                if self.job["basis"] == "def2-SV(P)":
+                    controlappend.append("$gcp dft/sv(p)")
+                else:
+                    controlappend.append(
+                        f"$gcp dft/{self.job['basis'].lower().replace('-', '')}"
+                    )
 
         # write to control file:
         with open(
@@ -327,7 +333,7 @@ class TmJob(QmJob):
                     not os.path.isfile(os.path.join(self.job["workdir"], item))
                     or os.stat(os.path.join(self.job["workdir"], item)).st_size == 0
                 ):
-                    print(f"Error: {item} is missing!")
+                    print(f"{'ERROR:':{WARNLEN}} {item} is missing!")
         # NMR part
         if self.job["jobtype"] in (
             "couplings",
@@ -437,9 +443,8 @@ class TmJob(QmJob):
                 stor = inp.readlines()
                 if " ENERGY CONVERGED !\n" not in stor:
                     print(
-                        "ERROR: scf in {:18} not converged!".format(
-                            last_folders(self.job["workdir"], 2)
-                        )
+                        f"{'ERROR:':{WARNLEN}}scf in "
+                        f"{last_folders(self.job['workdir'], 2):18} not converged!"
                     )
                     self.job["success"] = False
                     self.job["energy"] = 0.0
@@ -447,9 +452,8 @@ class TmJob(QmJob):
                     return
         else:
             print(
-                "WARNING: {} doesn't exist!".format(
-                    os.path.join(self.job["workdir"], "ridft.out")
-                )
+                f"{'WARNING:':{WARNLEN}}"
+                f"{os.path.join(self.job['workdir'], 'ridft.out')} doesn't exist!"
             )
             self.job["success"] = False
             self.job["energy"] = 0.0
@@ -468,9 +472,8 @@ class TmJob(QmJob):
                 self.job["success"] = True
             except ValueError:
                 print(
-                    "ERROR while converting energy in: {:18}".format(
-                        last_folders(self.job["workdir"], 2)
-                    )
+                    f"{'ERROR:':{WARNLEN}}while converting energy "
+                    f"in: {last_folders(self.job['workdir'], 2):18}"
                 )
             if self.job["jobtype"] == "sp_implicit":
                 self.job["energy2"] = 0.0
@@ -550,7 +553,7 @@ class TmJob(QmJob):
                         not os.path.isfile(os.path.join(self.job["workdir"], item))
                         or os.stat(os.path.join(self.job["workdir"], item)).st_size == 0
                     ):
-                        print(f"Error: {item} is missing!")
+                        print(f"{'ERROR:':{WARNLEN}}{item} is missing!")
             # first single-point in gas phase!
             tmp_solvent = self.job["solvent"]
             tmp_sm = self.job["solvent"]
@@ -565,7 +568,7 @@ class TmJob(QmJob):
             self.job["sm"] = tmp_sm
             if not self.job["success"]:
                 print(
-                    "ERROR: gas-phase single-point calculation failed in: "
+                    f"{'ERROR:':{WARNLEN}}gas-phase single-point calculation failed in: "
                     f"{last_folders(self.job['workdir'], 3):18}"
                 )
                 return
@@ -614,7 +617,7 @@ class TmJob(QmJob):
             self._sp(silent=True)
             if not self.job["success"]:
                 print(
-                    "ERROR:  single-point in ideal conductor calculation failed in: "
+                    f"{'ERROR:':{WARNLEN}}single-point in ideal conductor calculation failed in: "
                     f"{last_folders(self.job['workdir'], 3):18}"
                 )
                 return
@@ -749,7 +752,7 @@ class TmJob(QmJob):
                 self.job["erange1"] = gsolvt
             except (FileNotFoundError, ValueError):
                 print(
-                    "ERROR: cosmotherm.tab was not written, this error can be "
+                    f"{'ERROR:':{WARNLEN}}cosmotherm.tab was not written, this error can be "
                     "due to a missing licensefile information, or wrong path "
                     "to the COSMO-RS Database."
                 )
@@ -759,7 +762,7 @@ class TmJob(QmJob):
                 self.job["success"] = False
                 return
             except IndexError:
-                print("ERROR: IndexERROR in cosmotherm.tab!")
+                print(f"{'ERROR:':{WARNLEN}}IndexERROR in cosmotherm.tab!")
                 self.job["energy"] = 0.0
                 self.job["energy2"] = 0.0
                 self.job["erange1"] = {}
@@ -771,7 +774,7 @@ class TmJob(QmJob):
                 == 0
             ):
                 print(
-                    "ERROR: cosmotherm.tab was not written, this error can be "
+                    f"{'ERROR:':{WARNLEN}}cosmotherm.tab was not written, this error can be "
                     "due to a missing licensefile information, or wrong path "
                     "to the COSMO-RS Database."
                 )
@@ -886,9 +889,8 @@ class TmJob(QmJob):
             if returncode != 0:
                 error_logical = True
                 print(
-                    "ERROR: optimization in {:18} not converged".format(
-                        last_folders(self.job["workdir"], 2)
-                    )
+                    f"{'ERROR:':{WARNLEN}}optimization in "
+                    f"{last_folders(self.job['workdir'], 2):18} not converged"
                 )
             time.sleep(0.02)
         # check if converged:
@@ -933,9 +935,8 @@ class TmJob(QmJob):
                         self.job["grad_norm"] = float(line.split()[3])
         else:
             print(
-                "WARNING: {} doesn't exist!".format(
-                    os.path.join(self.job["workdir"], output)
-                )
+                f"{'WARNING:':{WARNLEN}}"
+                f"{os.path.join(self.job['workdir'], output)} doesn't exist!"
             )
             error_logical = True
         if not error_logical:
@@ -1145,9 +1146,8 @@ class TmJob(QmJob):
                 self.job["success"] = True
             else:
                 print(
-                    "ERROR: coupling calculation failed in {:18}".format(
-                        last_folders(self.job["workdir"], 1)
-                    )
+                    f"{'ERROR:':{WARNLEN}}coupling calculation failed in "
+                    f"{last_folders(self.job['workdir'], 1):18}"
                 )
                 self.job["success"] = False
 
@@ -1206,9 +1206,8 @@ class TmJob(QmJob):
                         found = True
                 if not found:
                     print(
-                        "ERROR: shielding calculation failed in {:18}".format(
-                            last_folders(self.job["workdir"], 2)
-                        )
+                        f"{'ERROR:':{WARNLEN}}shielding calculation failed in "
+                        f"{last_folders(self.job['workdir'], 2):18}"
                     )
                     self.job["success"] = False
 
@@ -1243,7 +1242,7 @@ class TmJob(QmJob):
             )
             self.job["success"] = False
         except ValueError:
-            print("ERROR: ValueError in generic_output, nmrprop.dat can be flawed !")
+            print(f"{'ERROR:':{WARNLEN}}ValueError in generic_output, nmrprop.dat can be flawed !")
             self.job["success"] = False
         self.job["success"] = True
         fnamecoupl = "escf.out"
@@ -1277,7 +1276,7 @@ class TmJob(QmJob):
             )
             self.job["success"] = False
         except ValueError:
-            print("ERROR: ValueError in generic_output, nmrprop.dat can be flawed")
+            print(f"{'ERROR:':{WARNLEN}}ValueError in generic_output, nmrprop.dat can be flawed")
             self.job["success"] = False
         self.job["success"] = True
         with open(
@@ -1404,9 +1403,8 @@ class TmJob(QmJob):
                         escf_ok = False
                 if not escf_ok:
                     print(
-                        "ERROR: in escf.out {:18} not converged!".format(
-                            last_folders(self.job["workdir"], 2)
-                        )
+                        f"{'ERROR:':{WARNLEN}}in escf.out "
+                        f"{last_folders(self.job['workdir'], 2):18} not converged!"
                     )
                     self.job["success"] = False
                     self.job["energy"] = 0.0
@@ -1414,9 +1412,8 @@ class TmJob(QmJob):
                     self.job["erange1"] = {}
         else:
             print(
-                "WARNING: {} doesn't exist!".format(
-                    os.path.join(self.job["workdir"], "escf.out")
-                )
+                f"{'WARNING:':{WARNLEN}}"
+                f"{os.path.join(self.job['workdir'], 'escf.out')} doesn't exist!"
             )
             self.job["success"] = False
             self.job["energy"] = 0.0

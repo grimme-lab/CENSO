@@ -13,7 +13,7 @@ except ImportError:
 import time
 import subprocess
 import json
-from .cfg import ENVIRON, CODING, censo_solvent_db
+from .cfg import ENVIRON, CODING, WARNLEN, censo_solvent_db
 from .utilities import last_folders, print
 from .datastructure import MoleculeData
 
@@ -163,7 +163,7 @@ class QmJob(MoleculeData):
             self.job["energy"] = 0.0
             self.job["success"] = False
             print(
-                f"ERROR: {self.job['gfn_version']}-xTB error in "
+                f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
                 f"{last_folders(self.job['workdir'], 2)}"
             )
             return
@@ -183,10 +183,8 @@ class QmJob(MoleculeData):
                             self.job["success"] = True
                         except:
                             print(
-                                "Error while converting "
-                                "single-point in: {}".format(
-                                    last_folders(self.job["workdir"], 2)
-                                )
+                                f"{'ERROR:':{WARNLEN}}while converting "
+                                f"single-point in: {last_folders(self.job['workdir'], 2)}"
                             )
                             self.job["energy"] = 0.0
                             self.job["success"] = False
@@ -195,7 +193,7 @@ class QmJob(MoleculeData):
             self.job["energy"] = 0.0
             self.job["success"] = False
             print(
-                f"ERROR: {self.job['gfn_version']}-xTB error in "
+                f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
                 f"{last_folders(self.job['workdir'], 2)}"
             )
             return
@@ -260,7 +258,7 @@ class QmJob(MoleculeData):
             self.job["energy2"] = 0.0
             self.job["success"] = False
             print(
-                f"ERROR: Gas phase {self.job['gfn_version']}-xTB error in "
+                f"{'ERROR:':{WARNLEN}}Gas phase {self.job['gfn_version']}-xTB error in "
                 f"{last_folders(self.job['workdir'], 3)}"
             )
             return
@@ -280,10 +278,8 @@ class QmJob(MoleculeData):
                             self.job["success"] = True
                         except:
                             print(
-                                "Error while converting gas phase "
-                                "single-point in: {}".format(
-                                    last_folders(self.job["workdir"], 3)
-                                )
+                                f"{'ERROR:':{WARNLEN}}while converting gas phase "
+                                f"single-point in: {last_folders(self.job['workdir'], 3)}"
                             )
                             tmp_gas = None
                             self.job["energy2"] = 0.0
@@ -293,7 +289,7 @@ class QmJob(MoleculeData):
             self.job["energy2"] = 0.0
             self.job["success"] = False
             print(
-                f"ERROR: Gas phase {self.job['gfn_version']}-xTB error in "
+                f"{'ERROR:':{WARNLEN}}Gas phase {self.job['gfn_version']}-xTB error in "
                 f"{last_folders(self.job['workdir'], 3)}"
             )
             return
@@ -328,7 +324,7 @@ class QmJob(MoleculeData):
                 self.job["energy2"] = 0.0
                 self.job["success"] = False
                 print(
-                    f"ERROR: Solution phase {self.job['gfn_version']}-xTB error in "
+                    f"{'ERROR:':{WARNLEN}}Solution phase {self.job['gfn_version']}-xTB error in "
                     f"{last_folders(self.job['workdir'], 3)}"
                 )
                 return
@@ -349,10 +345,8 @@ class QmJob(MoleculeData):
                             self.job["success"] = True
                         except:
                             print(
-                                "Error while converting solution phase "
-                                "single-point in: {}".format(
-                                    last_folders(self.job["workdir"], 3)
-                                )
+                                f"{'ERROR:':{WARNLEN}}while converting solution phase "
+                                f"single-point in: {last_folders(self.job['workdir'], 3)}"
                             )
                             tmp_solv = None
                             self.job["energy2"] = 0.0
@@ -362,7 +356,7 @@ class QmJob(MoleculeData):
             self.job["energy2"] = 0.0
             self.job["success"] = False
             print(
-                f"ERROR: Solution phase {self.job['gfn_version']}-xTB error in "
+                f"{'ERROR:':{WARNLEN}}Solution phase {self.job['gfn_version']}-xTB error in "
                 f"{last_folders(self.job['workdir'], 3)}"
             )
             return
@@ -372,6 +366,7 @@ class QmJob(MoleculeData):
                 self.job["success"] = False
             else:
                 self.job["energy2"] = tmp_solv - tmp_gas
+                self.job["erange1"] = {self.job["temperature"] :tmp_solv - tmp_gas}
                 self.job["success"] = True
                 self.job["energy_xtb_gas"] = tmp_gas
                 self.job["energy_xtb_solv"] = tmp_solv
@@ -500,7 +495,7 @@ class QmJob(MoleculeData):
                 self.job["energy"] = 0.0
                 self.job["success"] = False
                 self.job["errormessage"].append(
-                    f"ERROR: {str(self.job['gfn_version']).upper()}-xTB ohess error in "
+                    f"{'ERROR:':{WARNLEN}}{str(self.job['gfn_version']).upper()}-xTB ohess error in "
                     f"{last_folders(self.job['workdir'], 2):18}"
                 )
                 print(self.job["errormessage"][-1])
@@ -511,7 +506,7 @@ class QmJob(MoleculeData):
                 self.job["energy"] = 0.0
                 self.job["success"] = False
                 self.job["errormessage"].append(
-                    f"ERROR: file {self.job['workdir']}/ohess.out could not be found!"
+                    f"{'ERROR:':{WARNLEN}}file {self.job['workdir']}/ohess.out could not be found!"
                 )
                 print(self.job["errormessage"][-1])
                 return
@@ -546,7 +541,7 @@ class QmJob(MoleculeData):
                             gt[T] = float(line.split()[4])
                             ht[T] = float(line.split()[2])
                         except (ValueError, KeyError):
-                            print("ERROR: can not convert G(T)")
+                            print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
             if len(self.job["trange"]) == len(gt):
                 self.job["success"] = True
                 self.job["erange1"] = gt
@@ -582,7 +577,7 @@ class QmJob(MoleculeData):
             if "number of imags" in data:
                 if data["number of imags"] > 0:
                     print(
-                        f"WARNING: found {data['number of imags']} significant"
+                        f"{'WARNING:':{WARNLEN}}found {data['number of imags']} significant"
                         f" imaginary frequencies in "
                         f"{last_folders(self.job['workdir'], 2)}"
                     )
@@ -601,17 +596,14 @@ class QmJob(MoleculeData):
                     self.job["symmetry"] = data["point group"]
             else:
                 print(
-                    "Error while converting mRRHO in: {}".format(
-                        last_folders(self.job["workdir"], 2)
-                    )
+                    f"{'ERROR:':{WARNLEN}}while converting mRRHO in: {last_folders(self.job['workdir'], 2)}"
                 )
                 self.job["energy"] = 0.0
                 self.job["success"] = False
         else:
             print(
-                "WARNING: File {} doesn't exist!".format(
-                    os.path.join(self.job["workdir"], "xtb_enso.json")
-                )
+                f"{'WARNING:':{WARNLEN}}File "
+                f"{os.path.join(self.job['workdir'], 'xtb_enso.json')} doesn't exist!"
             )
             self.job["energy"] = 0.0
             self.job["success"] = False

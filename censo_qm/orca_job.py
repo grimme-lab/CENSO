@@ -6,7 +6,7 @@ import os
 import time
 import subprocess
 import shutil
-from .cfg import CODING, ENVIRON, censo_solvent_db, external_paths
+from .cfg import CODING, ENVIRON, WARNLEN, censo_solvent_db, external_paths, composite_method_basis
 from .utilities import last_folders, t2x, x2t, print
 from .qm_job import QmJob
 
@@ -36,16 +36,9 @@ class OrcaJob(QmJob):
         call --> list with settings
         """
 
-        # low => grid3 loosescf
-        # low+ >> grid3 scfconv6
-        # high -->
-        # input generation
-        #         if optlevel == 'crude':
-        #             inp.write("! grid3 loosescf \n")
-        #         elif optlevel == 'lax':
-        #             inp.write("! grid4 scfconv6 \n")
-        #         else:
-        #             inp.write("! grid4 \n")
+        # understood commands in prepinfo:
+        # DOGCP = uses gcp if basis known for gcp
+        # 
 
         orcainput_start = OrderedDict(
             [
@@ -58,7 +51,17 @@ class OrcaJob(QmJob):
                 ("scfconv", None),
                 ("frozencore", None),
                 ("mp2", None),
-                ("default", None),
+                ("default", [
+                            "! smallprint printgap noloewdin",
+                            "! NOSOSCF",
+                            "%MaxCore 8000",
+                            "%output",
+                            "       print[P_BondOrder_M] 1",
+                            "       print[P_Mayer] 1",
+                            "       print[P_basis] 2",
+                            "end",
+                        ]
+                ),
                 ("job", None),
                 ("optthreshold", None),
                 ("parallel", None),
@@ -68,7 +71,7 @@ class OrcaJob(QmJob):
                 ("shieldings", None),
             ]
         )
-        if "nmr" in self.job["prepinfo"]:
+        if "nmrJ" or "nmrS" in self.job["prepinfo"]:
             nmrprop = True
         else:
             nmrprop = False
@@ -76,28 +79,15 @@ class OrcaJob(QmJob):
         # definitions:
         composite_dfa = ("pbeh-3c", "b97-3c", "b973c", "hf-3c", "hf3c", "r2scan-3c")
         ggadfa = ("tpss", "pbe", "kt2", "b97-d3")
-        # B97-D3 Grimme’s GGA including D3 dispersion correction
         hybriddfa = ("pbe0", "pw6b95", "wb97x-d3")
         dhdfa = ("dsd-blyp",)
-
-        disp_already_included_in_func = ()
+        disp_already_included_in_func = composite_dfa + ('b97-d3', 'wb97x-d3')
 
         # build up call:
-        default_call = [
-            "! smallprint printgap noloewdin",
-            "! NOSOSCF",
-            "%MaxCore 8000",
-            "%output",
-            "       print[P_BondOrder_M] 1",
-            "       print[P_Mayer] 1",
-            "       print[P_basis] 2",
-            "end",
-        ]
-
         orcainput = orcainput_start.copy()
-        orcainput["default"] = default_call
         # set functional
-        if self.job["func"] in composite_dfa:
+        if (self.job["func"] in composite_dfa and 
+            self.job['basis'] == composite_method_basis.get(self.job["func"],'NONE')):
             orcainput["functional"] = [f"! {self.job['func']}"]
         else:
             if self.job["func"] == "kt2":
@@ -124,7 +114,10 @@ class OrcaJob(QmJob):
                         'def2-tzvp': "TZ",
                 }
                 if self.job['basis'].lower() in gcp_keywords.keys():
-                    orcainput["gcp"] = [f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"]
+                    if self.job['func'] in composite_dfa and self.job['basis'] == composite_method_basis.get(self.job["func"],'NONE'):
+                        pass
+                    else:
+                        orcainput["gcp"] = [f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"]
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
             if self.job["func"] in dhdfa:
                 if nmrprop:
@@ -182,7 +175,7 @@ class OrcaJob(QmJob):
                 pass
 
         # add dispersion
-        if self.job["func"] not in composite_dfa:
+        if self.job["func"] not in disp_already_included_in_func:
             orcainput["disp"] = ["! d3bj"]
         # optimization ancopt or pure orca
         if self.job["jobtype"] == "xtbopt":
@@ -263,19 +256,22 @@ class OrcaJob(QmJob):
             orcainput["geom"] = [f"*xyz {self.job['charge']} {self.job['unpaired']+1}"]
             orcainput["geom"].extend(geom)
             orcainput["geom"].append("*")
+        #nmr kt2 disp
+        if self.job["func"] == "kt2" and ("nmrJ" or "nmrS" in self.job["prepinfo"]):
+            orcainput["disp"] = []
         # couplings
         if nmrprop and "nmrJ" in self.job["prepinfo"]:
             tmp = []
             tmp.append("%eprnmr")
-            if self.job["hactive"]:
+            if self.job["h_active"]:
                 tmp.append(" Nuclei = all H { ssfc }")
-            if self.job["cactive"]:
+            if self.job["c_active"]:
                 tmp.append(" Nuclei = all C { ssfc }")
-            if self.job["factive"]:
+            if self.job["f_active"]:
                 tmp.append(" Nuclei = all F { ssfc }")
-            if self.job["siactive"]:
+            if self.job["si_active"]:
                 tmp.append(" Nuclei = all Si { ssfc }")
-            if self.job["pactive"]:
+            if self.job["p_active"]:
                 tmp.append(" Nuclei = all P { ssfc }")
             tmp.append(" SpinSpinRThresh 8.0")
             tmp.append("end")
@@ -284,15 +280,15 @@ class OrcaJob(QmJob):
         if nmrprop and "nmrS" in self.job["prepinfo"]:
             tmp = []
             tmp.append("%eprnmr")
-            if self.job["hactive"]:
+            if self.job["h_active"]:
                 tmp.append(" Nuclei = all H { shift }")
-            if self.job["cactive"]:
+            if self.job["c_active"]:
                 tmp.append(" Nuclei = all C { shift }")
-            if self.job["factive"]:
+            if self.job["f_active"]:
                 tmp.append(" Nuclei = all F { shift }")
-            if self.job["siactive"]:
+            if self.job["si_active"]:
                 tmp.append(" Nuclei = all Si { shift }")
-            if self.job["pactive"]:
+            if self.job["p_active"]:
                 tmp.append(" Nuclei = all P { shift }")
             tmp.append(" origin giao")
             tmp.append(" giao_2el giao_2el_same_as_scf")
@@ -367,14 +363,14 @@ class OrcaJob(QmJob):
                 self.job["energy"] = 0.0
                 self.job["success"] = False
                 print(
-                    f"ERROR: scf in {last_folders(self.job['workdir'], 2)} "
+                    f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.job['workdir'], 2)} "
                     "not converged!"
                 )
         else:
             self.job["energy"] = 0.0
             self.job["success"] = False
             print(
-                f"WARNING: {os.path.join(self.job['workdir'], 'sp.out')} "
+                f"{'WARNING:':{WARNLEN}}{os.path.join(self.job['workdir'], 'sp.out')} "
                 "doesn't exist!"
             )
         return
@@ -407,7 +403,7 @@ class OrcaJob(QmJob):
             self.job["energy"] = 0.0
             self.job["energy2"] = 0.0
             print(
-                f"ERROR: in gas phase single-point "
+                f"{'ERROR:':{WARNLEN}}in gas phase single-point "
                 f"of {last_folders(self.job['workdir'], 2):18}"
             )
             return
@@ -435,7 +431,7 @@ class OrcaJob(QmJob):
             self.job["energy"] = 0.0
             self.job["energy2"] = 0.0
             print(
-                f"ERROR: in gas solution phase single-point "
+               f"{'ERROR:':{WARNLEN}}in gas solution phase single-point "
                 f"of {last_folders(self.job['workdir'], 2):18}"
             )
             return
@@ -460,12 +456,13 @@ class OrcaJob(QmJob):
                 self.job["energy"] = 0.0
                 self.job["success"] = False
                 print(
-                    f"ERROR: in SMD_Gsolv calculation "
+                    f"{'ERROR:':{WARNLEN}}in SMD_Gsolv calculation "
                     f"{last_folders(self.job['workdir'], 2):18}"
                 )
             else:
                 self.job["energy"] = energy_gas
                 self.job["energy2"] = energy_solv - energy_gas
+                self.job["erange1"] = {self.job["temperature"] :energy_solv - energy_gas}
                 self.job["success"] = True
         return
 
@@ -520,9 +517,7 @@ class OrcaJob(QmJob):
                     newcoord.write(line)
                 newcoord.write("$external\n")
                 newcoord.write("   orca input file= inp\n")
-                newcoord.write(
-                    f"   orca bin= {os.path.join(self.job['progpath'], 'orca')}"
-                )
+                newcoord.write(f"   orca bin= {os.path.join(self.job['progpath'], 'orca')}")
                 newcoord.write("$end")
 
             with open(
@@ -537,6 +532,8 @@ class OrcaJob(QmJob):
                 "--opt",
                 self.job["optlevel"],
                 "--orca",
+                "-I",
+                "opt.inp"
             ]
             with open(
                 os.path.join(self.job["workdir"], "opt.inp"), "w", newline=None
@@ -553,9 +550,10 @@ class OrcaJob(QmJob):
                 out.write("s6=30.00 \n")
                 # remove unnecessary sp/gradient call in xTB
                 out.write("engine=lbfgs\n")
+                out.write("$external\n")
+                out.write("   orca input file= inp\n")
+                out.write(f"   orca bin= {os.path.join(self.job['progpath'], 'orca')}")
                 out.write("$end \n")
-                callargs.append("-I")
-                callargs.append("opt.inp")
             time.sleep(0.02)
             with open(
                 os.path.join(self.job["workdir"], output), "w", newline=None
@@ -573,9 +571,8 @@ class OrcaJob(QmJob):
             if returncode != 0:
                 error_logical = True
                 print(
-                    "ERROR: optimization in {:18} not converged".format(
-                        last_folders(self.job["workdir"], 2)
-                    )
+                    f"{'ERROR:':{WARNLEN}}optimization "
+                    f"in {last_folders(self.job['workdir'], 2):18} not converged"
                 )
             time.sleep(0.02)
             # check if optimization finished correctly:
@@ -594,9 +591,8 @@ class OrcaJob(QmJob):
                         or "abnormal termination of xtb" in line
                     ):
                         print(
-                            "ERROR: optimization in {:18} not converged".format(
-                                last_folders(self.job["workdir"], 2)
-                            )
+                            f"{'ERROR:':{WARNLEN}}optimization in "
+                            f"{last_folders(self.job['workdir'], 2):18} not converged"
                         )
                         error_logical = True
                         break
@@ -620,9 +616,8 @@ class OrcaJob(QmJob):
                         self.job["grad_norm"] = float(line.split()[3])
         else:
             print(
-                "WARNING: {} doesn't exist!".format(
-                    os.path.join(self.job["workdir"], output)
-                )
+                f"{'WARNING:':{WARNLEN}}"
+                f"{os.path.join(self.job['workdir'], output)} doesn't exist!"
             )
             error_logical = True
         if not error_logical:
@@ -684,9 +679,8 @@ class OrcaJob(QmJob):
                     self.job["success"] = True
         if not self.job["success"]:
             print(
-                "ERROR: shielding calculation in {:18} failed!".format(
-                    last_folders(self.job["workdir"], 1)
-                )
+                f"{'ERROR:':{WARNLEN}}shielding calculation in "
+                f"{last_folders(self.job['workdir'], 1):18} failed!"
             )
         return
 
@@ -739,9 +733,8 @@ class OrcaJob(QmJob):
                     self.job["success"] = True
         if not self.job["success"]:
             print(
-                "ERROR: coupling calculation in {:18} failed!".format(
-                    last_folders(self.job["workdir"], 1)
-                )
+                f"{'ERROR:':{WARNLEN}}coupling calculation "
+                f"in {last_folders(self.job['workdir'], 1):18} failed!"
             )
         return
 
@@ -772,9 +765,8 @@ class OrcaJob(QmJob):
                     break
         except FileNotFoundError:
             print(
-                "Missing file: {} in {}".format(
-                    fnameshield, last_folders(self.job["workdir"], 2)
-                )
+                f"{'INFORMATION:':{WARNLEN}}Missing file "
+                f"{fnameshield} in {last_folders(self.job['workdir'], 2)}"
             )
             self.job["success"] = False
         self.job["success"] = True
@@ -808,9 +800,8 @@ class OrcaJob(QmJob):
                     pass
         except FileNotFoundError:
             print(
-                "Missing file: {} in {}".format(
-                    fnamecoupl, last_folders(self.job["workdir"], 2)
-                )
+                f"{'INFORMATION:':{WARNLEN}}Missing file "
+                f"{fnamecoupl} in {last_folders(self.job['workdir'], 2)}"
             )
             self.job["success"] = False
         self.job["success"] = True
@@ -862,9 +853,9 @@ class OrcaJob(QmJob):
         #     self._rrho()
         elif self.job["jobtype"] == "smd_gsolv":
             self._smd_gsolv()
-        elif self.job["jobtype"] == "nmrJ":
+        elif self.job["jobtype"] == "couplings_sp":
             self._nmrJ()
-        elif self.job["jobtype"] == "nmrS":
+        elif self.job["jobtype"] == "shieldings_sp":
             self._nmrS()
         elif self.job["jobtype"] == "genericout":
             self._genericoutput()

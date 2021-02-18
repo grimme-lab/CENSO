@@ -6,7 +6,7 @@ from multiprocessing import JoinableQueue as Queue
 import shutil
 import os
 import sys
-from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN
+from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN
 from .utilities import (
     check_for_folder,
     print_block,
@@ -179,7 +179,7 @@ def part3(config, conformers, store_confs, ensembledata):
                 conf.job["success"] = True
                 prev_calculated.append(conf)
     if not calculate and not prev_calculated:
-        print("ERROR: No conformers left!")
+        print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
         sys.exit(1)
 
@@ -187,14 +187,14 @@ def part3(config, conformers, store_confs, ensembledata):
     # check if calculated on unoptimized geometries:
     if any([conf.optimization_info["info"] == "not_calculated" for conf in calculate+prev_calculated]):
         if config.part2:
-            print_errors("ERROR: Calculating (free) energies on DFT unoptimized geometries!\n"
-                         "Even though part2 is calculated!\n"
-                         "Calculation on mixture of optimized and unoptimized geometries is not advised!",
+            print_errors(f"{'ERROR:':{WARNLEN}}Calculating (free) energies on DFT unoptimized geometries!\n"
+                         f"{'':{WARNLEN}}Even though part2 is calculated!\n"
+                         f"{'':{WARNLEN}}Calculation on mixture of optimized and unoptimized geometries is not advised!",
                          save_errors)
             print("Going to exit!")
             sys.exit(1)
         else:
-            print_errors("WARNING: Calculating (free) energies on DFT unoptimized geometries!", save_errors)
+            print_errors(f"{'WARNING:':{WARNLEN}} Calculating (free) energies on DFT unoptimized geometries!", save_errors)
             geometries_from_input = True
 
 
@@ -329,21 +329,26 @@ def part3(config, conformers, store_confs, ensembledata):
             config.cwd, calculate, folder, save_errors, store_confs
         )
         # write coord to folder
-        if geometries_from_input:
-            # working on DFT unoptimized geometries
-            calculate, store_confs, save_errors = ensemble2coord(
-                config, folder, calculate, store_confs, save_errors
-            )
+        if config.smgsolv3 in ('cosmors', 'cosmors-fine'):
+            cp_to = ['gsolv', folder]
         else:
-            # need to copy optimized coord to folder
-            for conf in list(calculate):
-                tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
-                tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
-                try:
-                    shutil.copy(tmp1, tmp2)
-                except FileNotFoundError:
-                    print_errors(f"ERROR: can't copy optimized geometry of CONF{conf.id}!", save_errors)
-                    store_confs.append(calculate.pop(calculate.index(conf)))
+            cp_to = [folder,]
+        for folder in cp_to:
+            if geometries_from_input:
+                # working on DFT unoptimized geometries
+                calculate, store_confs, save_errors = ensemble2coord(
+                    config, folder, calculate, store_confs, save_errors
+                )
+            else:
+                # need to copy optimized coord to folder
+                for conf in list(calculate):
+                    tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
+                    tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
+                    try:
+                        shutil.copy(tmp1, tmp2)
+                    except FileNotFoundError:
+                        print_errors(f"{'ERROR:':{WARNLEN}}can't copy optimized geometry of CONF{conf.id}!", save_errors)
+                        store_confs.append(calculate.pop(calculate.index(conf)))
 
         if config.solvent == "gas":
             print("The high level single-point is now calculated for:")
@@ -374,6 +379,10 @@ def part3(config, conformers, store_confs, ensembledata):
                     conf.highlevel_sp_info["energy"] = conf.job["energy"]
                     conf.highlevel_sp_info["info"] = "calculated"
                     conf.highlevel_sp_info["method"] = instruction["method"]
+                    if instruction["jobtype"] == "sp_implicit":
+                        conf.highlevel_gsolv_info["energy"] = 0.0
+                        conf.highlevel_gsolv_info["info"] = "calculated"
+                        conf.highlevel_gsolv_info["method"] = instruction["method2"]
             elif instruction["jobtype"] in (
                 "cosmors",
                 "smd_gsolv",
@@ -448,7 +457,7 @@ def part3(config, conformers, store_confs, ensembledata):
         conf.reset_job_info()
 
     if not calculate:
-        print_errors("ERROR: No conformers left!", save_errors)
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
         print("Going to exit!")
         sys.exit(1)
     # ***************************************************************************
@@ -548,7 +557,7 @@ def part3(config, conformers, store_confs, ensembledata):
             else:
                 print("UNEXPECTED BEHAVIOUR")
         if not calculate and not prev_calculated:
-            print_errors("ERROR: No conformers left!", save_errors)
+            print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
         # do the rrho stuff:
@@ -605,12 +614,12 @@ def part3(config, conformers, store_confs, ensembledata):
                     except FileNotFoundError:
                         if not os.path.isfile(os.path.join(tmp_from, "coord")):
                             print(
-                                "ERROR: while copying the coord file from {}! "
-                                "The corresponding file does not exist.".format(tmp_from)
+                                f"{'ERROR:':{WARNLEN}}while copying the coord file from {tmp_from}! "
+                                "The corresponding file does not exist."
                             )
                         elif not os.path.isdir(tmp_to):
-                            print("ERROR: Could not create folder {}!".format(tmp_to))
-                        print("ERROR: Removing conformer {}!".format(conf.name))
+                            print(f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!")
+                        print(f"{'ERROR:':{WARNLEN}}Removing conformer {conf.name}!")
                         conf.highlevel_grrho_info["info"] = "prep-failed"
                         store_confs.append(calculate.pop(calculate.index(conf)))
                         save_errors.append(f"CONF{conf.id} was removed, because IO failed!")
@@ -677,7 +686,7 @@ def part3(config, conformers, store_confs, ensembledata):
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
-            print_errors("ERROR: No conformers left!", save_errors)
+            print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
             print("Going to exit!")
             sys.exit(1)
         # save current data to jsonfile
