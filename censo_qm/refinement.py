@@ -133,15 +133,18 @@ def part3(config, conformers, store_confs, ensembledata):
     q = Queue()
     resultq = Queue()
 
-    if config.prog == "tm":
+    if config.prog3 == "tm":
         job = TmJob
-    elif config.prog == "orca":
+    elif config.prog3 == "orca":
         job = OrcaJob
 
     for conf in list(conformers):
         if conf.removed:
             store_confs.append(conformers.pop(conformers.index(conf)))
             print(f"CONF{conf.id} is removed as requested by the user!")
+            continue
+        if conf.id > config.nconf:
+            store_confs.append(conformers.pop(conformers.index(conf)))
             continue
         if conf.highlevel_sp_info["info"] == "failed":
             conf = conformers.pop(conformers.index(conf))
@@ -234,7 +237,7 @@ def part3(config, conformers, store_confs, ensembledata):
         )
         if config.prog3 == "orca":
             instruction["progpath"] = config.external_paths["orcapath"]
-        folder = "gsolv"
+        folder = "part3"
         name = "highlevel single-point"
     else:
         if config.smgsolv3 in config.smgsolv_3:
@@ -257,7 +260,7 @@ def part3(config, conformers, store_confs, ensembledata):
                     basis=instruction["basis"],
                     sm=instruction["sm"],
                 )
-                folder = "gsolv/COSMO"
+                folder = "part3/COSMO"
                 name = "highlevel COSMO-RS"
             # GBSA-Gsolv / ALPB-Gsolv
             elif instruction["sm"] in ("gbsa_gsolv", "alpb_gsolv"):
@@ -283,7 +286,7 @@ def part3(config, conformers, store_confs, ensembledata):
                 else:
                     instruction["prepinfo"] = ["high"]
                 name = "highlevel " + str(instruction["sm"]).upper()
-                folder = "gsolv"
+                folder = "part3"
             # SMD-Gsolv
             elif instruction["sm"] == "smd_gsolv":
                 job = OrcaJob
@@ -297,7 +300,7 @@ def part3(config, conformers, store_confs, ensembledata):
                     sm=instruction["sm"],
                 )
                 name = "highlevel" + str(instruction["sm"]).upper()
-                folder = "gsolv"
+                folder = "part3"
         else:
             # with implicit solvation
             instruction["jobtype"] = "sp_implicit"
@@ -311,7 +314,7 @@ def part3(config, conformers, store_confs, ensembledata):
                 sm=instruction["sm"],
             )
             name = "high level single-point"
-            folder = "gsolv"
+            folder = "part3"
     
     if prev_calculated:
         check_for_folder(config.cwd, [i.id for i in prev_calculated], folder)
@@ -330,7 +333,7 @@ def part3(config, conformers, store_confs, ensembledata):
         )
         # write coord to folder
         if config.smgsolv3 in ('cosmors', 'cosmors-fine'):
-            cp_to = ['gsolv', folder]
+            cp_to = ["part3", folder]
         else:
             cp_to = [folder,]
         for folder in cp_to:
@@ -782,85 +785,6 @@ def part3(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         if conf.free_energy == minfree:
             ensembledata.bestconf["part3"] = conf.id
-    # -----------------------------Trange Ouput----------------------------------
-    # if config.multitemp:
-    #     trange = [
-    #         t for t in frange(config.trange[0], config.trange[1], config.trange[2])
-    #     ]
-    # else:
-    #     trange = [config.temperature]
-    # for conf in calculate:
-    #     if conf.free_energy == minfree:
-    #         # output of temperaturdependence --> trange.dat
-    #         try:
-    #             l1 = max([len(str(i)) for i in trange])
-    #             l2 = max([len(str(i - 273.15)) for i in trange])
-    #             l3 = 12
-    #             l4 = 12
-    #             l5 = 14
-    #             l6 = 16
-    #             l7 = 12
-    #             with open(
-    #                 os.path.join(config.cwd, "trange.dat"), "w", newline=None
-    #             ) as out:
-    #                 print(
-    #                     f"\nTemperature range for lowest lying conformer: CONF{conf.id}"
-    #                 )
-    #                 try:
-    #                     if getattr(ensembledata, "comment")[0] != conf.id:
-    #                         # ensemble correction has been calculated for confx
-    #                         print(
-    #                             f"The avGcorrection was calculated in part2 for "
-    #                             f"CONF{getattr(ensembledata, 'comment')[0]}"
-    #                         )
-    #                 except (IndexError): 
-    #                     # part2 might not have been calculated
-    #                     pass
-    #                 line = f"\n{'T/K':>{l1}} {'T/°C':>{l2}} "
-    #                 if config.solvent != "gas":
-    #                     line = line + f"{'δGsolv/au':>{l3}} "
-    #                 if config.evaluate_rrho:
-    #                     line = line + f"{'GmRRHO/au':>{l4}} "
-    #                 line = line + (
-    #                     f"{'E/au':>{l5}} "
-    #                     f"{'avGcorrection/au':>{l6}}   {'Gtot/au':>{l7}}"
-    #                 )
-    #                 print(line)
-    #                 out.write(line + "\n")
-    #                 line = "".ljust(int(PLENGTH), "-")
-    #                 print(line)
-    #                 out.write(line + "\n")
-    #                 for t in trange:
-    #                     tmp = 0.0
-    #                     line = f"{t:{l1}.2f} {t-273.15:>{l2}.1f} "
-    #                     if config.solvent != "gas":
-    #                         tmp += conf.highlevel_gsolv_info["range"].get(t, 0.0)
-    #                         line = (
-    #                             line
-    #                             + f"{conf.highlevel_gsolv_info['range'].get(t, 0.0):>{l3}.7f} "
-    #                         )
-    #                     if config.evaluate_rrho:
-    #                         tmp += conf.highlevel_grrho_info["range"].get(t, 0.0)
-    #                         line = (
-    #                             line
-    #                             + f"{conf.highlevel_grrho_info['range'].get(t, 0.0):>{l4}.7f} "
-    #                         )
-    #                     line = line + (
-    #                         f"{conf.highlevel_sp_info['energy']:>{l5}.7f} "
-    #                         f"{ensembledata.avGcorrection.get('avGcorrection', {}).get(t, 0.0):>{l6}.7f} "
-    #                         #f"{ensembledata.avGcorrection['avGcorrection'].get(t, 0.0):>{l6}.7f} "
-    #                     )
-    #                     tmp += conf.highlevel_sp_info["energy"]
-    #                     #tmp += ensembledata.avGcorrection["avGcorrection"].get(t, 0.0)
-    #                     tmp += ensembledata.avGcorrection.get("avGcorrection",{}).get(t, 0.0)
-    #                     line = line + f"  {tmp:>{l7}.7f}"
-    #                     print(line)
-    #                     out.write(line + "\n")
-    #                 print("".ljust(int(PLENGTH), "-"))
-    #                 print("")
-    #         except (ValueError, KeyError) as e:
-    #             print(f"ERROR: {e}")
-
 
 ################################################################################
     # calculate average G correction

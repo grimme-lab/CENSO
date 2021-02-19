@@ -6,7 +6,19 @@ import os
 import time
 import subprocess
 import shutil
-from .cfg import CODING, ENVIRON, WARNLEN, censo_solvent_db, external_paths, composite_method_basis
+from .cfg import (
+    CODING,
+    ENVIRON,
+    WARNLEN,
+    censo_solvent_db,
+    external_paths,
+    composite_method_basis,
+    composite_dfa,
+    gga_dfa,
+    hybrid_dfa,
+    dh_dfa,
+    disp_already_included_in_func,
+)
 from .utilities import last_folders, t2x, x2t, print
 from .qm_job import QmJob
 
@@ -76,12 +88,13 @@ class OrcaJob(QmJob):
         else:
             nmrprop = False
 
-        # definitions:
-        composite_dfa = ("pbeh-3c", "b97-3c", "b973c", "hf-3c", "hf3c", "r2scan-3c")
-        ggadfa = ("tpss", "pbe", "kt2", "b97-d3")
-        hybriddfa = ("pbe0", "pw6b95", "wb97x-d3")
-        dhdfa = ("dsd-blyp",)
-        disp_already_included_in_func = composite_dfa + ('b97-d3', 'wb97x-d3')
+        # definitions taken from .cfg:
+        # composite_dfa
+        # gga_dfa
+        # hybrid_dfa
+        # dh_dfa
+        # disp_already_included_in_func
+
 
         # build up call:
         orcainput = orcainput_start.copy()
@@ -119,7 +132,7 @@ class OrcaJob(QmJob):
                     else:
                         orcainput["gcp"] = [f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"]
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
-            if self.job["func"] in dhdfa:
+            if self.job["func"] in dh_dfa:
                 if nmrprop:
                     orcainput["frozencore"] = ["!NOFROZENCORE"]
                 else:
@@ -145,14 +158,14 @@ class OrcaJob(QmJob):
                     ]
                 else:
                     orcainput["mp2"] = ["%mp2", "    RI true", "end"]
-            elif self.job["func"] in hybriddfa:
+            elif self.job["func"] in hybrid_dfa:
                 orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
             elif self.job["func"] in composite_dfa:
                 pass
             else:  # essentially gga
                 orcainput["RI-approx"] = ["! RI def2/J"]
         # set grid
-        if self.job["func"] in dhdfa or self.job["func"] in hybriddfa:
+        if self.job["func"] in dh_dfa or self.job["func"] in hybrid_dfa:
             orcainput["grid"] = ["! grid5 nofinalgrid"]
         else:
             orcainput["grid"] = ["! grid4 nofinalgrid"]

@@ -103,9 +103,12 @@ class TmJob(QmJob):
             if "m3" in call:
                 call[call.index("m3")] = "m4"
         # settings which request no dispersion:
+
         if "-novdw" in call:
             requestnovdw = True
             # print("FOUND NOVDW")
+        elif self.job["func"] in ("wb97x-v",):
+            requestnovdw = True
         else:
             requestnovdw = False
 

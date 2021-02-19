@@ -1123,8 +1123,8 @@ class internal_settings:
     ]
     func_orca = ["pbeh-3c", "b97-3c", "tpss", "b97-d3", "pbe"]
     func_tm = ["pbeh-3c", "b97-3c", "tpss", "r2scan-3c", "b97-d", "pbe"]
-    func3_orca = ["pw6b95", "pbe0","b97-d3", "wb97x", "dsd-blyp", "b97-3c"]
-    func3_tm = ["pw6b95", "pbe0", "b97-d", "r2scan-3c", "b97-3c"]
+    func3_orca = ["pw6b95", "pbe0","b97-d3", "wb97x-d3", "wb97x-d3bj", "wb97x-v", "dsd-blyp", "b97-3c"]
+    func3_tm = ["pw6b95", "pbe0", "b97-d", "r2scan-3c", "b97-3c", "wb97x-v"]
     func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c"]
     func_j_orca = ["tpss", "pbe0", "pbeh-3c"]
     func_s_tm = ["tpss", "pbe0", "pbeh-3c", "b97-3c", "kt1", "kt2", "r2scan-3c"]
@@ -2243,6 +2243,16 @@ class config_setup(internal_settings):
                 default = "def2-TZVP"
             self.basis = self.func_basis_default.get(self.func, default)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle basis3:
+        if self.basis3 == "None" or self.basis3 is None or self.basis3 == "automatic":
+            if self.prog3 == "tm":
+                default = self.internal_defaults_tm.get("basis3", {'default':"def2-TZVP"})['default']
+            elif self.prog3 == "orca":
+                default = self.internal_defaults_orca.get("basis3", {'default':"def2-TZVP"})['default']
+            else:
+                default = "def2-TZVP"
+            self.basis3 = self.func_basis_default.get(self.func3, default)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3
         if self.part3 and self.func3 in self.composite_method_basis.keys():
             if self.basis3 != self.composite_method_basis[self.func3]:
@@ -2265,16 +2275,6 @@ class config_setup(internal_settings):
                 f"{'':{WARNLEN}}Options are: {self.func3_tm}"
             )
             error_logical = True
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle basis3:
-        if self.basis3 == "None" or self.basis3 is None or self.basis3 == "automatic":
-            if self.prog3 == "tm":
-                default = self.internal_defaults_tm.get("basis3", {'default':"def2-TZVP"})['default']
-            elif self.prog3 == "orca":
-                default = self.internal_defaults_orca.get("basis3", {'default':"def2-TZVP"})['default']
-            else:
-                default = "def2-TZVP"
-            self.basis3 = self.func_basis_default.get(self.func3, default)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.part4 and (self.couplings or self.shieldings):
             self.nmrmode = True
@@ -2607,6 +2607,15 @@ class config_setup(internal_settings):
                                 f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
                                 f"for solventmodel/program {key} can not be checked but is used anyway."
                             )
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # prog3 if smgsolv3 cosmors
+        if self.part3 and self.solvent != 'gas' and self.smgsolv3 in ('cosmors', 'cosmors-fine'):
+            if self.prog3 == 'orca':
+                self.save_errors.append(
+                                f"{'ERROR:':{WARNLEN}}Part3 when used with COSMO-RS can only be prog3 = TM!\n"
+                                f"{'':{WARNLEN}}Set prog3 to tm !"
+                            )
+                error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle optlevel2:
         # sm2 needs to be set (not default!)
