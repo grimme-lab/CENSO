@@ -542,7 +542,7 @@ def interactiv_doc():
 
             In part4 only Boltzmann sum thresholds of part2 G_thr(2) or part3 G_thr(3) 
             are applied. It is possible to calculate part4 using Boltzmann weights
-            from part1, but since there is no Boltzmann sum thresold in part1, in this 
+            from part1, but since there is no Boltzmann sum threshold in part1, in this 
             case, the threshold G_thr(2) is used. The NMR properties are calculated 
             on populated conformers up to the Boltzmann threshold in %. 
 
@@ -550,10 +550,10 @@ def interactiv_doc():
 
             In part4 only Boltzmann sum thresholds of part2 G_thr(2) or part3 G_thr(3) 
             are applied. It is possible to calculate part5 using Boltzmann weights
-            from part1, but since there is no Boltzmann sum thresold in part1, in this 
+            from part1, but since there is no Boltzmann sum threshold in part1, in this 
             case, the threshold G_thr(2) is used. The OR property is calculated 
             on populated conformers up to the Boltzmann threshold in %. For optical
-            rotation it is necessary to inclued almost the entire ensemble e.g. 99 %
+            rotation it is necessary to include almost the entire ensemble e.g. 99 %
     """
 
     solvation = """

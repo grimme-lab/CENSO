@@ -5,7 +5,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 DESCR = f"""
          ______________________________________________________________
         |                                                              |
@@ -14,7 +14,7 @@ DESCR = f"""
         |                           v {__version__:<{19}}              |
         |    energetic sorting of CREST Conformer Rotamer Ensembles    |
         |                    University of Bonn, MCTC                  |
-        |                           Feb 2020                           |
+        |                           Feb 2021                           |
         |                 based on ENSO version 2.0.1                  |
         |                     F. Bohle and S. Grimme                   |
         |                                                              |
@@ -51,6 +51,8 @@ hybrid_dfa = (
     "pbe0",
     "pw6b95",
     "wb97x-d3",
+    'wb97x-d3bj',
+    "wb97x-v",
     "cam-b3lyp",
     "b3-lyp",
     "pbeh-3c",
@@ -59,7 +61,12 @@ hybrid_dfa = (
     "tpssh",
 )
 dh_dfa = ("dsd-blyp",)
-disp_already_included_in_func = composite_dfa + ('b97-d3', 'wb97x-d3')
+disp_already_included_in_func = composite_dfa + (
+    'b97-d3',
+    'wb97x-d3',
+    'wb97x-d3bj',
+    "wb97x-v",
+    )
 
 # program paths:
 external_paths = {}

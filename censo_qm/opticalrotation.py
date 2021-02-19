@@ -387,7 +387,7 @@ def part5(config, conformers, store_confs, ensembledata):
     elif config.part3:
         # structures can be DFT optimized or not (part2 might not have been run)
         for conf in list(calculate):
-            tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), "gsolv", "coord")
+            tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), "part3", "coord")
             tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
             try:
                 shutil.copy(tmp1, tmp2)
