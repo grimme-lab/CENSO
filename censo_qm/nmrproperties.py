@@ -327,6 +327,8 @@ def part4(config, conformers, store_confs, ensembledata):
     (part3))
     """
     save_errors = []
+    if config.progress:
+        print("#>>># CENSO: Starting part4", file=sys.stderr)
     print("\n" + "".ljust(PLENGTH, "-"))
     print("NMR MODE - PART4".center(PLENGTH, " "))
     print("".ljust(PLENGTH, "-") + "\n")
@@ -1077,4 +1079,6 @@ def part4(config, conformers, store_confs, ensembledata):
     # end printout for part4
     tmp = int((PLENGTH - len("END of Part4")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part4" + "".rjust(tmp, "<"))
+    if config.progress:
+        print("#>>># CENSO: Finished part4", file=sys.stderr)
     return config, calculate, store_confs, ensembledata

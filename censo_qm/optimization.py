@@ -46,6 +46,8 @@ def part2(config, conformers, store_confs, ensembledata):
     -> conformers
     """
     save_errors = []
+    if config.progress:
+        print("#>>># CENSO: Starting part2", file=sys.stderr)
     print("\n" + "".ljust(PLENGTH, "-"))
     print("CRE OPTIMIZATION - PART2".center(PLENGTH, " "))
     print("".ljust(PLENGTH, "-") + "\n")
@@ -1941,4 +1943,6 @@ def part2(config, conformers, store_confs, ensembledata):
 
     tmp = int((PLENGTH - len("END of Part2")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part2" + "".rjust(tmp, "<"))
+    if config.progress:
+        print("#>>># CENSO: Finished part2", file=sys.stderr)
     return config, calculate, store_confs, ensembledata
