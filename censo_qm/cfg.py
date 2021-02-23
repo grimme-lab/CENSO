@@ -5,7 +5,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 DESCR = f"""
          ______________________________________________________________
         |                                                              |

@@ -917,6 +917,16 @@ def cml(startup_description, options, argv=None):
         "directory.",
     )
     group8.add_argument(
+        "-progress",
+        "--progress",
+        dest="progress",
+        required=False,
+        choices=["on", "off"],
+        default="off",
+        help="Print progress to stderr when starting and finishing a sorting Part."
+             "Choices are 'on' or 'off'.",
+    )
+    group8.add_argument(
         "-inprc",
         "--inprc",
         dest="inprcpath",
@@ -1055,6 +1065,7 @@ class internal_settings:
         "sthr": "sthr",
         "scale": "scale",
         "cosmorsparam": "cosmorsparam",
+        "progress": "progress",
     }
     knownbasissets3 = [
         "SVP",
@@ -1486,6 +1497,7 @@ class internal_settings:
             ("scale", {"default": "automatic", "type": str}),
             ("rmsdbias", {"default": False, "type": bool}),
             ("sm_rrho", {"default": "alpb", "type": str}),
+            ("progress", {"default": False, "type": bool}),
             ("check", {"default": True, "type": bool}),
             ("prog", {"default": "tm", "type": str}),
             ("func", {"default": "r2scan-3c", "type": str}),
@@ -1493,6 +1505,7 @@ class internal_settings:
             ("maxthreads", {"default": 1, "type": int}),
             ("omp", {"default": 1, "type": int}),
             ("cosmorsparam", {"default": "automatic", "type": str}),
+
         ]
         self.defaults_refine_ensemble_part0 = [
             # part0

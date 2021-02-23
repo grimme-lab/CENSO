@@ -42,6 +42,8 @@ def part0(config, conformers, ensembledata):
     -> store_confs
     """
     save_errors = []
+    if config.progress:
+        print("#>>># CENSO: Starting part0", file=sys.stderr)
     print("\n" + "".ljust(PLENGTH, "-"))
     print("CRE CHEAP-PRESCREENING - PART0".center(PLENGTH, " "))
     print("".ljust(PLENGTH, "-") + "\n")
@@ -547,4 +549,6 @@ def part0(config, conformers, ensembledata):
 
     tmp = int((PLENGTH - len("END of Part0")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part0" + "".rjust(tmp, "<"))
+    if config.progress:
+        print("#>>># CENSO: Finished part0", file=sys.stderr)
     return config, calculate, store_confs, ensembledata

@@ -33,6 +33,8 @@ def part5(config, conformers, store_confs, ensembledata):
     save_errors = []
     print("\n" + "".ljust(PLENGTH, "-"))
     print("OPTICAL ROTATION MODE - PART5".center(PLENGTH, " "))
+    if config.progress:
+        print("#>>># CENSO: Starting part5", file=sys.stderr)
     print("".ljust(PLENGTH, "-") + "\n")
     # print flags for part5
     info = []
@@ -624,4 +626,6 @@ def part5(config, conformers, store_confs, ensembledata):
     # end printout for part5
     tmp = int((PLENGTH - len("END of Part5")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part5" + "".rjust(tmp, "<"))
+    if config.progress:
+        print("#>>># CENSO: Finished part5", file=sys.stderr)
     return config, calculate, store_confs, ensembledata

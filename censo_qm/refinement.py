@@ -40,6 +40,8 @@ def part3(config, conformers, store_confs, ensembledata):
     -> conformers
     """
     save_errors = []
+    if config.progress:
+        print("#>>># CENSO: Starting part3", file=sys.stderr)
     print("\n" + "".ljust(PLENGTH, "-"))
     print("CRE REFINEMENT - PART3".center(PLENGTH, " "))
     print("".ljust(PLENGTH, "-") + "\n")
@@ -1025,4 +1027,6 @@ def part3(config, conformers, store_confs, ensembledata):
         )
     tmp = int((PLENGTH - len("END of Part3")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part3" + "".rjust(tmp, "<"))
+    if config.progress:
+        print("#>>># CENSO: Finished part3", file=sys.stderr)
     return config, calculate, store_confs, ensembledata
