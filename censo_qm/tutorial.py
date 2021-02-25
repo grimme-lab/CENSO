@@ -648,6 +648,31 @@ def interactiv_doc():
 
     """
 
+    functionals = f"""
+    Functionals that can be employed by TM for func:
+    {', '.join(internal_settings.func_tm)}
+
+    Functionals that can be employed by TM for func3
+    {', '.join(internal_settings.func3_tm)}
+
+    Functionals that can be employed by TM for funcJ
+    {', '.join(internal_settings.func_j_tm)}
+
+    Functionals that can be employed by TM for funcS
+    {', '.join(internal_settings.func_s_tm)}
+
+    Functionals that can be employed by ORCA for func:
+    {', '.join(internal_settings.func_orca)}
+
+    Functionals that can be employed by ORCA for func3
+    {', '.join(internal_settings.func3_orca)}
+
+    Functionals that can be employed by ORCA for funcJ
+    {', '.join(internal_settings.func_j_orca)}
+
+    Functionals that can be employed by ORCA for funcS
+    {', '.join(internal_settings.func_s_orca)}
+    """
 
 # CONFORMER numbering kept from crest input
 
@@ -671,6 +696,7 @@ def interactiv_doc():
         "solvation": solvation,
         "examples": example_applications,
         "files": files,
+        "functionals": functionals,
         "jobscript": jobscript,
     }
     tutorial_data['everything'] = '\n\n'.join(tutorial_data.values())

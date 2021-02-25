@@ -116,6 +116,34 @@ def enso_startup(cwd, args):
             "Creating file: {}\n".format(os.path.basename(solvent_user_path))
         )
 
+    # ### NMR reference shielding constant database adjustable by user
+    # censo_assets_path = os.path.expanduser("~/.censo_assets")
+    # if not os.path.isdir(censo_assets_path):
+    #     mkdir_p(censo_assets_path)
+    # nmr_ref_user_path = os.path.expanduser(
+    #     os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
+    # )
+    # if os.path.isfile(nmr_ref_user_path):
+    #     config.save_infos.append(
+    #         "Reading file: {}\n".format(os.path.basename(nmr_ref_user_path))
+    #     )
+    #     try:
+    #         with open(nmr_ref_user_path, "r", encoding=CODING, newline=None) as inp:
+    #             censo_nmr_ref_db.update(json.load(inp, object_pairs_hook=OrderedDict))
+    #     except (ValueError, TypeError, FileNotFoundError):
+    #         print(
+    #             f"{'ERROR:':{WARNLEN}}Your censo_nmr_ref.json file in {nmr_ref_user_path} is corrupted!\n"
+    #         )
+    #         raise
+
+    # else:
+    #     with open(nmr_ref_user_path, "w") as out:
+    #         json.dump(censo_nmr_ref_db, out, indent=4, sort_keys=True)
+    #     config.save_infos.append(
+    #         "Creating file: {}\n".format(os.path.basename(nmr_ref_user_path))
+    #     )
+
+
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
         tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
         previous_settings = tmp.get("settings")

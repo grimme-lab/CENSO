@@ -10,6 +10,31 @@ from .tm_job import TmJob
 from .orca_job import OrcaJob
 from .utilities import print
 
+def balance_load(P,O,nconf):
+    """Balance calculation load between threads (P) and number of cores per 
+    thread (O)
+    """
+    max_cores = P*O
+    print("start O=",O, "P =", P, "max_cores=", max_cores)
+    if nconf < P:
+        try:
+            P_old = P
+            P = nconf
+            O_old = O
+            O=1
+            while True:
+                if P*O <= max_cores:
+                    if P*(O+1) <=max_cores:
+                        O+=1
+                    else:
+                        break
+                else:
+                    break
+            print("final O=",O, "P =", P, "max_cores=", P*O)
+        except:
+            pass
+    print("Using O=",O, "P =", P, "max_cores=", P*O)
+    return P, O
 
 def execute_data(q, resultq):
     """
