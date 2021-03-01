@@ -5,6 +5,7 @@ module for the calculation of shielding and coupling constants
 import os
 import shutil
 import sys
+import json
 from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
 from .cfg import (
@@ -12,6 +13,7 @@ from .cfg import (
     DIGILEN, 
     AU2KCAL,
     WARNLEN,
+    CODING,
     NmrRef
 )
 from .parallel import run_in_parallel
@@ -90,7 +92,7 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
         sigma_std_dev[i] = []
 
     for conf in calculate:
-        # get shielding constants
+        # get averaged shielding constants
         if not element:
             element = get_atom(
                 os.path.normpath(os.path.join(config.cwd, "CONF" + str(conf.id), "NMR"))
@@ -100,7 +102,7 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
                 [conf.shieldings.get(eq_atom, 0.0) for eq_atom in chemeq[atom]]
             ) / len(chemeq[atom])
             averaged[atom] = conf.bm_weight * sigma + averaged.get(atom, 0.0)
-
+    # get SD on shieldings based on SD Gsolv
     if solv is not None:
         get_std_dev = (
             lambda conf: conf.lowlevel_gsolv_compare_info["std_dev"]
@@ -114,21 +116,18 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
                     0.0, get_std_dev(conf)
                 )
             calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+            tmp_sigma = {}
+            for i in range(1, config.nat + 1):
+                tmp_sigma[i] = 0
             for conf in calculate:
-                # get shielding constants
-                if not element:
-                    element = get_atom(
-                        os.path.normpath(
-                            os.path.join(config.cwd, "CONF" + str(conf.id), "NMR")
-                        )
-                    )
                 for atom in conf.shieldings.keys():
                     sigma = sum(
                         [conf.shieldings.get(eq_atom, 0.0) for eq_atom in chemeq[atom]]
                     ) / len(chemeq[atom])
-                    sigma_std_dev[atom].append(
-                        conf.bm_weight * sigma + averaged.get(atom, 0.0)
-                    )
+                    tmp_sigma[atom] += conf.bm_weight * sigma
+            for atom in conf.shieldings.keys():
+                sigma_std_dev[atom].append(tmp_sigma[atom])
+
 
     print("\nAveraged shielding constants:")
     print("# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)   shift    σ_ref")
@@ -151,7 +150,6 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
                 f"{std_dev:^ 24.6f} {make_shift(atom):>5}    {element_ref_shield.get(element[atom], 0.0)}"
             )
         except Exception as e:
-            #print(e)
             print(f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}")
     print("".ljust(int(80), "-"))
 
@@ -247,7 +245,22 @@ def write_anmrrc(config):
     ):
         for element in ref_decision.keys():
             ref_decision[element]["active"] = True
-    nmrref = NmrRef()
+
+    # read NMR_references
+    nmr_ref_user_path = os.path.expanduser(
+        os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
+    )
+    if os.path.isfile(nmr_ref_user_path):
+        try:
+            with open(nmr_ref_user_path, "r", encoding=CODING, newline=None) as inp:
+                tmp_ref = json.load(inp)
+        except (ValueError, TypeError, FileNotFoundError):
+            print(
+                f"{'ERROR:':{WARNLEN}}Your censo_nmr_ref.json file in {nmr_ref_user_path} is corrupted!\n"
+            )
+            tmp_ref = {}
+    nmrref = NmrRef().dict_to_NMRRef(tmp_ref)
+    # end reading NMR_references
     for element, value in ref_decision.items():
         if value.get("active", False):
             try:
@@ -746,7 +759,6 @@ def part4(config, conformers, store_confs, ensembledata):
             "solvent": config.solvent,
             "sm": config.sm4_j,
             "success": False,
-            "omp": config.omp,
             # nmractive nuclei
             "h_active": config.h_active,
             "c_active": config.c_active,
@@ -796,8 +808,10 @@ def part4(config, conformers, store_confs, ensembledata):
                 resultq,
                 job,
                 config.maxthreads,
+                config.omp,
                 calculate,
                 instruction_j,
+                config.balance,
                 folder,
             )
             for conf in list(calculate):
@@ -880,7 +894,6 @@ def part4(config, conformers, store_confs, ensembledata):
             "solvent": config.solvent,
             "sm": config.sm4_s,
             "success": False,
-            "omp": config.omp,
             # nmractive nuclei
             "h_active": config.h_active,
             "c_active": config.c_active,
@@ -950,8 +963,10 @@ def part4(config, conformers, store_confs, ensembledata):
                 resultq,
                 job,
                 config.maxthreads,
+                config.omp,
                 calculate,
                 instruction_s,
+                config.balance,
                 folder,
             )
             for conf in list(calculate):
@@ -1053,7 +1068,16 @@ def part4(config, conformers, store_confs, ensembledata):
     # write generic:
     instructgeneric = {"jobtype": "genericout", "nat": int(config.nat)}
     calculate = run_in_parallel(
-        config, q, resultq, job, config.maxthreads, calculate, instructgeneric, folder
+        config,
+        q,
+        resultq,
+        job,
+        config.maxthreads,
+        config.omp,
+        calculate, 
+        instructgeneric,
+        False,
+        folder
     )
 
     # printout the averaged shielding constants

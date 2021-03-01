@@ -148,7 +148,6 @@ def part0(config, conformers, ensembledata):
             "unpaired": config.unpaired,
             "solvent": config.solvent,
             "sm": config.sm_rrho,
-            "omp": config.omp,
             "gfn_version": config.part0_gfnv,
             "energy": 0.0,
             "energy2": 0.0,
@@ -190,7 +189,6 @@ def part0(config, conformers, ensembledata):
             "unpaired": config.unpaired,
             "solvent": "gas",
             "sm": "gas-phase",
-            "omp": config.omp,
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
@@ -231,10 +229,18 @@ def part0(config, conformers, ensembledata):
         calculate, store_confs, save_errors = ensemble2coord(
             config, folder, calculate, store_confs, save_errors
         )
-
         # parallel calculation:
         calculate = run_in_parallel(
-            config, q, resultq, job, config.maxthreads, calculate, instruction, folder
+            config,
+            q,
+            resultq,
+            job,
+            config.maxthreads,
+            config.omp,
+            calculate,
+            instruction,
+            config.balance,
+            folder
         )
 
         for conf in list(calculate):

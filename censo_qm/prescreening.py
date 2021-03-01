@@ -189,7 +189,6 @@ def part1(config, conformers, store_confs, ensembledata):
         "unpaired": config.unpaired,
         "solvent": config.solvent,
         "sm": config.smgsolv1,
-        "omp": config.omp,
         "temperature": config.temperature,
         "gfn_version": config.part1_gfnv,
         "energy": 0.0,
@@ -305,7 +304,16 @@ def part1(config, conformers, store_confs, ensembledata):
 
         # parallel calculation:
         calculate = run_in_parallel(
-            config, q, resultq, job, config.maxthreads, calculate, instruction, folder
+            config,
+            q,
+            resultq,
+            job,
+            config.maxthreads,
+            config.omp,
+            calculate,
+            instruction,
+            config.balance,
+            folder
         )
 
         for conf in list(calculate):
@@ -542,7 +550,6 @@ def part1(config, conformers, store_confs, ensembledata):
             "charge": config.charge,
             "unpaired": config.unpaired,
             "solvent": config.solvent,
-            "omp": config.omp,
             "progpath": config.external_paths["xtbpath"],
             "bhess": config.bhess,
             "consider_sym": config.consider_sym,
@@ -584,8 +591,10 @@ def part1(config, conformers, store_confs, ensembledata):
                 resultq,
                 job,
                 config.maxthreads,
+                config.omp,
                 calculate,
                 instruction_prerrho,
+                config.balance,
                 folderrho,
             )
             check = {True: "was successful", False: "FAILED"}
@@ -1014,7 +1023,6 @@ def part1(config, conformers, store_confs, ensembledata):
         "progpath": config.external_paths["xtbpath"],
         "sm": config.sm_rrho,
         "rmsdbias": config.rmsdbias,
-        "omp": config.omp,
         "temperature": config.temperature,
         "gfn_version": config.part1_gfnv,
         "energy": 0.0,
@@ -1036,8 +1044,10 @@ def part1(config, conformers, store_confs, ensembledata):
             resultq,
             job,
             config.maxthreads,
+            config.omp,
             calculate,
             instruction_gfn,
+            config.balance,
             folder_gfn,
         )
         for conf in list(calculate):

@@ -9,32 +9,35 @@ from .qm_job import QmJob
 from .tm_job import TmJob
 from .orca_job import OrcaJob
 from .utilities import print
+from .cfg import ENVIRON
 
-def balance_load(P,O,nconf):
+def balance_load(P,O,nconf, do_change):
     """Balance calculation load between threads (P) and number of cores per 
     thread (O)
     """
+    changed = False
     max_cores = P*O
-    print("start O=",O, "P =", P, "max_cores=", max_cores)
-    if nconf < P:
-        try:
-            P_old = P
-            P = nconf
-            O_old = O
-            O=1
-            while True:
-                if P*O <= max_cores:
-                    if P*(O+1) <=max_cores:
-                        O+=1
+    if do_change:
+        if nconf < P:
+            try:
+                P_old = P
+                P = nconf
+                O_old = O
+                O=1
+                while True:
+                    if P*O <= max_cores:
+                        if P*(O+1) <=max_cores:
+                            O+=1
+                        else:
+                            break
                     else:
                         break
-                else:
-                    break
-            print("final O=",O, "P =", P, "max_cores=", P*O)
-        except:
-            pass
-    print("Using O=",O, "P =", P, "max_cores=", P*O)
-    return P, O
+                changed = True
+            except:
+                pass
+        if changed:
+            print(f"Adjusting the number of threads (P) = {P} and number of cores per thread (O) = {O}")
+    return P, O, changed
 
 def execute_data(q, resultq):
     """
@@ -65,19 +68,25 @@ def execute_data(q, resultq):
 
 
 def run_in_parallel(
-    config, q, resultq, job, maxthreads, loopover, instructdict, foldername=""
+    config, q, resultq, job, maxthreads, omp, loopover, instructdict, balance=False,foldername=""
 ):
     """Run jobs in parallel
     q = queue to put assemble tasks
     resultq = queue to retrieve results
     job = information which kind of job is to be performed tm_job , orca_job
     loopover is list of qm_class objects
-    instrucdict example : {'jobtype': 'prep', 'chrg': args.chrg}
+    instructdict example : {'jobtype': 'prep', 'chrg': args.chrg}
     foldername is for existing objects to change the workdir
     results = list of qm_class objects with results from calculations
     """
+    omp_initial = omp
     if instructdict.get("jobtype", None) is None:
         raise KeyError("jobtype is missing in instructdict!")
+    if len(loopover) != 0:
+        nconf = len(loopover)
+    else:
+        balance = False
+    maxthreads, omp, changed = balance_load(maxthreads, omp, nconf, balance)
     if all(isinstance(x, QmJob) for x in loopover):
         for item in loopover:
             if isinstance(item, TmJob) and job == OrcaJob:
@@ -91,13 +100,16 @@ def run_in_parallel(
             )
             # update instructions
             item.job.update(instructdict)
+            item.job["omp"] = omp
             # put item on queue
             q.put(item)
             time.sleep(0.02)
     time.sleep(0.02)
+    if changed:
+        ENVIRON['PARNODES'] = str(omp)
     njobs = q.qsize()
     if instructdict.get("onlyread", False):
-        print(f"\nReading data from {njobs} conformers calculated in " "previous run.")
+        print(f"\nReading data from {njobs} conformers calculated in previous run.")
     else:
         response = {
             "prep": f"\nPreparing {q.qsize()} calculations.",
@@ -153,4 +165,7 @@ def run_in_parallel(
     results.sort(key=lambda x: int(x.id))
     if njobs != len(results):
         print(f"ERROR some conformers were lost!")
+
+    if changed:
+        ENVIRON['PARNODES'] = str(omp_initial)
     return results

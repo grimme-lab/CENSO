@@ -431,7 +431,6 @@ def part5(config, conformers, store_confs, ensembledata):
         "solvent": "gas",
         "sm": "cosmo",
         "success": False,
-        "omp": config.omp,
         "freq_or": config.freq_or,
     }
     if config.prog == "orca":
@@ -476,8 +475,10 @@ def part5(config, conformers, store_confs, ensembledata):
             resultq,
             job,
             config.maxthreads,
+            config.omp,
             calculate,
             instruction_or,
+            config.balance,
             folder,
         )
         calculate.sort(key=lambda x: int(x.id))

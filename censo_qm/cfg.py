@@ -2648,7 +2648,3 @@ class NmrRef():
         NmrRef_object.si_orca_shieldings = dictionary.get('si_orca_shieldings', NmrRef_object.si_orca_shieldings)
         NmrRef_object.p_orca_shieldings = dictionary.get('p_orca_shieldings', NmrRef_object.p_orca_shieldings)
         return NmrRef_object
-
-    #stringstuff = json.dumps(nmr_data, default=NmrRef.NMRRef_to_dict, indent=4)
-    #json.dump if save to file
-    #new = NmrRef().dict_to_NMRRef(dictionary)
