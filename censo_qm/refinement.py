@@ -1,6 +1,7 @@
 """
 REFINEMENT == Part3
-designed to yield high level free energies on dft optimized conformers.
+designed to yield high level free energies on any conformers (DFT or non-DFT 
+optimized).
 """
 from multiprocessing import JoinableQueue as Queue
 import shutil
@@ -192,14 +193,17 @@ def part3(config, conformers, store_confs, ensembledata):
     # check if calculated on unoptimized geometries:
     if any([conf.optimization_info["info"] == "not_calculated" for conf in calculate+prev_calculated]):
         if config.part2:
-            print_errors(f"{'ERROR:':{WARNLEN}}Calculating (free) energies on DFT unoptimized geometries!\n"
+            print_errors(f"{'ERROR:':{WARNLEN}}Calculating (free) energies on "
+                         f"DFT unoptimized geometries!\n"
                          f"{'':{WARNLEN}}Even though part2 is calculated!\n"
-                         f"{'':{WARNLEN}}Calculation on mixture of optimized and unoptimized geometries is not advised!",
+                         f"{'':{WARNLEN}}Calculation on mixture of optimized "
+                         f"and unoptimized geometries is not advised!",
                          save_errors)
             print("Going to exit!")
             sys.exit(1)
         else:
-            print_errors(f"{'WARNING:':{WARNLEN}} Calculating (free) energies on DFT unoptimized geometries!", save_errors)
+            print_errors(f"{'WARNING:':{WARNLEN}} Calculating (free) energies "
+                         f"on DFT unoptimized geometries!", save_errors)
             geometries_from_input = True
 
 
@@ -217,7 +221,6 @@ def part3(config, conformers, store_confs, ensembledata):
         "unpaired": config.unpaired,
         "solvent": config.solvent,
         "sm": config.smgsolv3,
-        "omp": config.omp,
         "temperature": config.temperature,
         "gfn_version": config.part3_gfnv,
         "copymos": "",
@@ -352,7 +355,8 @@ def part3(config, conformers, store_confs, ensembledata):
                     try:
                         shutil.copy(tmp1, tmp2)
                     except FileNotFoundError:
-                        print_errors(f"{'ERROR:':{WARNLEN}}can't copy optimized geometry of CONF{conf.id}!", save_errors)
+                        print_errors(f"{'ERROR:':{WARNLEN}}can't copy optimized "
+                                     f"geometry of CONF{conf.id}!", save_errors)
                         store_confs.append(calculate.pop(calculate.index(conf)))
 
         if config.solvent == "gas":
@@ -362,7 +366,16 @@ def part3(config, conformers, store_confs, ensembledata):
         print_block(["CONF" + str(i.id) for i in calculate])
         # parallel calculation:
         calculate = run_in_parallel(
-            config, q, resultq, job, config.maxthreads, calculate, instruction, folder
+            config,
+            q,
+            resultq,
+            job,
+            config.maxthreads,
+            config.omp,
+            calculate,
+            instruction,
+            config.balance,
+            folder
         )
         # check if too many calculations failed
 
@@ -475,7 +488,6 @@ def part3(config, conformers, store_confs, ensembledata):
             "charge": config.charge,
             "unpaired": config.unpaired,
             "solvent": config.solvent,
-            "omp": config.omp,
             "bhess": config.bhess,
             "sm_rrho": config.sm_rrho,
             "rmsdbias": config.rmsdbias,
@@ -635,8 +647,10 @@ def part3(config, conformers, store_confs, ensembledata):
                 resultq,
                 job,
                 config.maxthreads,
+                config.omp,
                 calculate,
                 instruction_rrho,
+                config.balance,
                 folder_rrho,
             )
             check = {True: "was successful", False: "FAILED"}

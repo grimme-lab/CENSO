@@ -5,7 +5,8 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
+
 DESCR = f"""
          ______________________________________________________________
         |                                                              |
@@ -325,6 +326,16 @@ censo_solvent_db = {
 
 class NmrRef():
     """nmrreference data in the format: [reference-molecule][func-geometry][funcS][solvent]
+    h_tm_shieldings
+    c_tm_shieldings
+    f_tm_shieldings
+    si_tm_shieldings
+    p_tm_shieldings
+    h_orca_shieldings
+    c_orca_shieldings
+    f_orca_shieldings
+    si_orca_shieldings
+    p_orca_shieldings
     """
     h_tm_shieldings = {
         "TMS": {
@@ -388,6 +399,18 @@ class NmrRef():
                     "methanol": 31.644428750000003,
                     "thf": 31.633562058333336,
                     "toluene": 31.6153103
+                },
+                "kt2": {
+                    "gas": 31.667160058333337,
+                    "acetone": 31.629431858333334,
+                    "chcl3": 31.634026916666674,
+                    "acetonitrile": 31.627110300000002,
+                    "ch2cl2": 31.645328925,
+                    "dmso": 31.629352433333338,
+                    "h2o": 31.635154825,
+                    "methanol": 31.642592158333333,
+                    "thf": 31.631994574999997,
+                    "toluene": 31.612610516666663
                 }
             },
             "pbeh-3c": {
@@ -794,6 +817,18 @@ class NmrRef():
                     "methanol": 188.355007975,
                     "thf": 188.4689729,
                     "toluene": 188.594034275
+                },
+                "kt2": {
+                   "gas": 189.78494644999998,
+                   "acetone": 190.329502875,
+                   "chcl3": 190.204013175,
+                   "acetonitrile": 190.397052075,
+                   "ch2cl2": 190.06665505,
+                   "dmso": 190.4107424,
+                   "h2o": 190.40970589999998,
+                   "methanol": 190.188391875,
+                   "thf": 190.2872299,
+                   "toluene": 190.41299607500002
                 }
             },
             "pbeh-3c": {
@@ -2228,6 +2263,18 @@ class NmrRef():
                     "methanol": 331.3449225,
                     "thf": 331.3305993,
                     "toluene": 331.3160006
+                },
+                "kt2": {
+                    "gas": 340.923509,
+                    "acetone": 340.3208483,
+                    "chcl3": 340.3430966,
+                    "acetonitrile": 340.3155874,
+                    "ch2cl2": 340.3599861,
+                    "dmso": 340.3553012,
+                    "h2o": 340.4180652,
+                    "methanol": 340.3808603,
+                    "thf": 340.348664,
+                    "toluene": 340.3406705
                 }
             },
             "pbeh-3c": {
@@ -2572,4 +2619,33 @@ class NmrRef():
             },
         }
     }
-    
+    def NMRRef_to_dict(self):
+        """Convert NMRRef data to a dict object"""
+        dict_ret = dict(
+            h_tm_shieldings=self.h_tm_shieldings,
+            c_tm_shieldings=self.c_tm_shieldings,
+            f_tm_shieldings=self.f_tm_shieldings,
+            si_tm_shieldings=self.si_tm_shieldings,
+            p_tm_shieldings=self.p_tm_shieldings,
+            h_orca_shieldings=self.h_orca_shieldings,
+            c_orca_shieldings=self.c_orca_shieldings,
+            f_orca_shieldings=self.f_orca_shieldings,
+            si_orca_shieldings=self.si_orca_shieldings,
+            p_orca_shieldings=self.p_orca_shieldings,
+            )
+        return dict_ret
+
+    def dict_to_NMRRef(self, dictionary):
+        """Convert dict object to NMRRef data """
+        NmrRef_object = NmrRef()
+        NmrRef_object.h_tm_shieldings = dictionary.get('h_tm_shieldings', NmrRef_object.h_tm_shieldings)
+        NmrRef_object.c_tm_shieldings = dictionary.get('c_tm_shieldings', NmrRef_object.c_tm_shieldings)
+        NmrRef_object.f_tm_shieldings = dictionary.get('f_tm_shieldings', NmrRef_object.f_tm_shieldings)
+        NmrRef_object.si_tm_shieldings = dictionary.get('si_tm_shieldings', NmrRef_object.si_tm_shieldings)
+        NmrRef_object.p_tm_shieldings = dictionary.get('p_tm_shieldings', NmrRef_object.p_tm_shieldings)
+        NmrRef_object.h_orca_shieldings = dictionary.get('h_orca_shieldings', NmrRef_object.h_orca_shieldings)
+        NmrRef_object.c_orca_shieldings = dictionary.get('c_orca_shieldings', NmrRef_object.c_orca_shieldings)
+        NmrRef_object.f_orca_shieldings = dictionary.get('f_orca_shieldings', NmrRef_object.f_orca_shieldings)
+        NmrRef_object.si_orca_shieldings = dictionary.get('si_orca_shieldings', NmrRef_object.si_orca_shieldings)
+        NmrRef_object.p_orca_shieldings = dictionary.get('p_orca_shieldings', NmrRef_object.p_orca_shieldings)
+        return NmrRef_object

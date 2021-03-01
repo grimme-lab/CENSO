@@ -97,6 +97,8 @@ class TmJob(QmJob):
         if self.job["func"] in ("kt2", "kt1"):
             # used only for shielding or coupling calcs!
             call.extend(["-novdw"])
+        elif self.job["func"] in ("wb97x-v",):
+            call.extend(["-novdw"])
 
         # r2scan-3c hack
         if self.job["func"] == "r2scan-3c":
@@ -107,8 +109,6 @@ class TmJob(QmJob):
         if "-novdw" in call:
             requestnovdw = True
             # print("FOUND NOVDW")
-        elif self.job["func"] in ("wb97x-v",):
-            requestnovdw = True
         else:
             requestnovdw = False
 

@@ -845,6 +845,16 @@ def cml(startup_description, options, argv=None):
         " threads with each (omp) 4 cores --> 20 cores need to be available on "
         "the machine.",
     )
+    group7.add_argument(
+        "-balance",
+        "--balance",
+        dest="balance",
+        choices=["on", "off"],
+        action="store",
+        metavar="",
+        help="Automatically balance the number of threads and cores when a low number"
+            "of conformers is left. (never exceed O*P cores).",
+    )
     group11 = parser.add_argument_group("Concerning overall mRRHO calculations")
     group11.add_argument(
         "-imagthr",
@@ -1066,6 +1076,7 @@ class internal_settings:
         "scale": "scale",
         "cosmorsparam": "cosmorsparam",
         "progress": "progress",
+        "balance": "balance",
     }
     knownbasissets3 = [
         "SVP",
@@ -1504,6 +1515,7 @@ class internal_settings:
             ("basis", {"default": "automatic", "type": str}),
             ("maxthreads", {"default": 1, "type": int}),
             ("omp", {"default": 1, "type": int}),
+            ("balance", {"default": False, "type": bool}),
             ("cosmorsparam", {"default": "automatic", "type": str}),
 
         ]
@@ -1782,6 +1794,7 @@ class config_setup(internal_settings):
         self.basis = "automatic"
         self.maxthreads = 1
         self.omp = 1
+        self.balance=False
         self.cosmorsparam = "automatic"
         # part0
         self.part0 = False
@@ -2725,6 +2738,7 @@ class config_setup(internal_settings):
         info.append(["crestcheck", "checking the DFT-ensemble using CREST"])
         info.append(["maxthreads", "maxthreads"])
         info.append(["omp", "omp"])
+        info.append(["balance", "automatically balance maxthreads and omp"])
 
         if self.part0:
             # PART0:

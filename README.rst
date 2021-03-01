@@ -58,18 +58,23 @@ settings and provide paths to the external programs e.g. `xtb`, `crest`, `orca` 
     vi /home/$USER/.ensorc
 
 
-Interactive Documentation can be accessed:
+**Interactive Documentation can be accessed:**
 
 .. code::
 
     $ censo -tutorial
-
 
 Explainations on the commandline arguments can be printed by:
 
 .. code::
 
     $ censo --help
+
+Online Documentation:
+---------------------
+
+Can be found following: https://fbohle.gitbook.io/censo/
+
 
 The molecule numbering from the input structure ensemble is kept throughout the 
 entire program. There are several program parts which can be used to filter a structure 
@@ -96,6 +101,7 @@ ensemble:
 
 
 Usage:
+------
 
 .. code::
 

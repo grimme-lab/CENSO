@@ -830,9 +830,12 @@ def calc_std_dev(data):
     Calculate standard deviation
     """
     n = len(data)
-    mean = sum(data) / n
-    variance = sum([(x - mean) ** 2 for x in data]) / (n - 1)
-    std_dev = math.sqrt(variance)
+    if len(data) != 0:
+        mean = sum(data) / n
+        variance = sum([(x - mean) ** 2 for x in data]) / (n - 1)
+        std_dev = math.sqrt(variance)
+    else:
+        std_dev = 0.0
     return std_dev
 
 

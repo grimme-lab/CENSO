@@ -6,7 +6,15 @@ import os
 import sys
 import json
 from collections import OrderedDict
-from .cfg import CODING, PLENGTH, DESCR, WARNLEN, censo_solvent_db, __version__
+from .cfg import (
+    CODING,
+    PLENGTH,
+    DESCR,
+    WARNLEN,
+    censo_solvent_db,
+    __version__,
+    NmrRef,
+)
 from .inputhandling import config_setup, internal_settings
 from .datastructure import MoleculeData
 from .qm_job import QmJob
@@ -113,9 +121,23 @@ def enso_startup(cwd, args):
         with open(solvent_user_path, "w") as out:
             json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
         config.save_infos.append(
-            "Creating file: {}\n".format(os.path.basename(solvent_user_path))
+            "Creating file: {}".format(os.path.basename(solvent_user_path))
         )
-
+    ### END solvent database adjustable by user
+    ### NMR reference shielding constant database adjustable by user
+    if not os.path.isdir(censo_assets_path):
+        mkdir_p(censo_assets_path)
+    nmr_ref_user_path = os.path.expanduser(
+        os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
+    )
+    if not os.path.isfile(nmr_ref_user_path):
+        with open(nmr_ref_user_path, "w") as out:
+            tmp = NmrRef()
+            json.dump(tmp, out, default=NmrRef.NMRRef_to_dict, indent=4, sort_keys=True)
+        config.save_infos.append(
+            "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
+        )
+    ### END NMR reference shielding constant database adjustable by user
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
         tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
         previous_settings = tmp.get("settings")

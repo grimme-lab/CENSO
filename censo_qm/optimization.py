@@ -224,7 +224,6 @@ def part2(config, conformers, store_confs, ensembledata):
         "solvent": config.solvent,
         "sm": config.sm2,
         "optlevel": config.optlevel2,
-        "omp": config.omp,
         "copymos": "",
         "energy": 0.0,
         "energy2": 0.0,
@@ -242,7 +241,6 @@ def part2(config, conformers, store_confs, ensembledata):
         "converged": False,
         "hlow": config.hlow,
         "sm": config.sm2,
-        "omp": config.omp,
         "optcycles": config.optcycles,
         "optlevel": config.optlevel2,
         "multiTemp": False,
@@ -259,7 +257,6 @@ def part2(config, conformers, store_confs, ensembledata):
         "charge": config.charge,
         "unpaired": config.unpaired,
         "solvent": config.solvent,
-        "omp": config.omp,
         "progpath": config.external_paths["xtbpath"],
         "bhess": config.bhess,
         "sm_rrho": config.sm_rrho,
@@ -336,8 +333,10 @@ def part2(config, conformers, store_confs, ensembledata):
             resultq,
             job,
             config.maxthreads,
+            config.omp,
             calculate,
             instruction_prep,
+            config.balance,
             config.func,
         )
         # check if too many calculations failed
@@ -425,8 +424,10 @@ def part2(config, conformers, store_confs, ensembledata):
                     resultq,
                     job,
                     config.maxthreads,
+                    config.omp,
                     calculate,
                     instruction_opt,
+                    config.balance,
                     config.func,
                 )
 
@@ -514,8 +515,10 @@ def part2(config, conformers, store_confs, ensembledata):
                         resultq,
                         job,
                         config.maxthreads,
+                        config.omp,
                         calculate,
                         instruction_rrho_crude,
+                        config.balance,
                         folder_rrho_crude,
                     )
                     check = {True: "was successful", False: "FAILED"}
@@ -808,8 +811,10 @@ def part2(config, conformers, store_confs, ensembledata):
                 resultq,
                 job,
                 config.maxthreads,
+                config.omp,
                 calculate,
                 instruction_opt,
+                config.balance,
                 config.func,
             )
             # check if optimization crashed
@@ -905,7 +910,6 @@ def part2(config, conformers, store_confs, ensembledata):
         "unpaired": config.unpaired,
         "solvent": config.solvent,
         "sm": config.smgsolv2,
-        "omp": config.omp,
         "temperature": config.temperature,
         "energy": 0.0,
         "energy2": 0.0,
@@ -1108,8 +1112,10 @@ def part2(config, conformers, store_confs, ensembledata):
             resultq,
             job,
             config.maxthreads,
+            config.omp,
             calculate,
             instruction_gsolv,
+            config.balance,
             folder,
         )
 
@@ -1255,7 +1261,6 @@ def part2(config, conformers, store_confs, ensembledata):
             "charge": config.charge,
             "unpaired": config.unpaired,
             "solvent": config.solvent,
-            "omp": config.omp,
             "progpath": config.external_paths["xtbpath"],
             "bhess": config.bhess,
             "sm_rrho": config.sm_rrho,
@@ -1321,8 +1326,10 @@ def part2(config, conformers, store_confs, ensembledata):
                 resultq,
                 job,
                 config.maxthreads,
+                config.omp,
                 calculate,
                 instruction_rrho,
+                config.balance,
                 folderrho,
             )
             check = {True: "was successful", False: "FAILED"}
@@ -1499,7 +1506,6 @@ def part2(config, conformers, store_confs, ensembledata):
         "unpaired": config.unpaired,
         "solvent": config.solvent,
         "sm": "alpb_gsolv",
-        "omp": config.omp,
         "temperature": config.temperature,
         "energy": 0.0,
         "energy2": 0.0,
@@ -1588,8 +1594,10 @@ def part2(config, conformers, store_confs, ensembledata):
                     resultq,
                     job,
                     config.maxthreads,
+                    config.omp,
                     calculate,
                     instruction_gsolv_compare,
+                    config.balance,
                     folder_compare,
                 )
                 for conf in calculate:
@@ -1863,7 +1871,8 @@ def part2(config, conformers, store_confs, ensembledata):
     ensembledata.nconfs_per_part["part2"] = len(calculate)
     if calculate:
         print(
-            f"\nConformers that are below the Boltzmann threshold G_thr(2) of {config.part2_threshold}%:"
+            f"\nConformers that are below the Boltzmann threshold G_thr(2) "
+            f"of {config.part2_threshold}%:"
         )
         print_block(["CONF" + str(i.id) for i in calculate])
     else:
