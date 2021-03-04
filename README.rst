@@ -195,11 +195,12 @@ which contains a dictionary of all available solvent models and solvents.
 If a solvent is not available with a certain solvent model, the user can then choose
 a replacement solvent. E.g. if CCl4 is not available choose CHCl3. 
 
-.. figure:: docs/src/solvents.png
-	:scale: 25%
-	:align: center
-	:alt: censo_solvents.json
 
+.. raw:: html
+
+    <p align="center">
+    <img src="docs/src/solvents.png" alt="censo_solvents.json" width="800">
+    </p>
 
 The solvent file is directly used in `CENSO` and typos will cause calculations to crash!
 Adding a new solvent is as easy as adding a new dictionary to the file.
