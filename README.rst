@@ -3,16 +3,15 @@
 .. |GitHub release| image:: https://img.shields.io/github/v/release/grimme-lab/CENSO
    :target: https://github.com/grimme-lab/CENSO/releases/latest
 
-
-
 ====================================================================
 CENSO - Commandline ENergetic SOrting of Conformer Rotamer Ensembles
 ====================================================================
 
-.. figure:: docs/src/censo_logo_300dpi.png
-	:scale: 100%
-	:align: center
-	:alt: CENSO logo
+.. raw:: html
+
+    <p align="center">
+    <img src="docs/src/censo_logo_300dpi.png" alt="CENSO logo" width="500">
+    </p>
 
 This repository hosts the ``CENSO`` code for the refinement of Conformer Rotamer 
 Ensembles (CRE) as obtained from ``CREST``.
