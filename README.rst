@@ -1,22 +1,35 @@
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/CENSO)](https://github.com/grimme-lab/CENSO/releases/latest)
 
+====================================================================
 CENSO - Commandline ENergetic SOrting of Conformer Rotamer Ensembles
 ====================================================================
 
-This repository hosts the `CENSO` code for the refinement of Conformer Rotamer 
-Ensembles (CRE) as obtained from `CREST`.
+.. figure:: docs/src/censo_logo_300dpi.png
+	:scale: 100%
+	:align: center
+	:alt: CENSO logo
 
+This repository hosts the ``CENSO`` code for the refinement of Conformer Rotamer 
+Ensembles (CRE) as obtained from ``CREST``.
 
 
 Installation
-------------
+============
 
 There are several options possible. The easiest is to use the packaged censo programs
 (by use of Pyinstaller) which can be found at the release section. The packaged 
 censo is linked against GLIBC version 2.19 and will work for GLIBC version 2.19 and above.
 
-Other options to use censo are shown below:
+For the packaged "binary" of CENSO, download it from the 
+`release <https://github.com/grimme-lab/CENSO/releases/>`_ site, 
+copy to your bin and make executable:
 
+.. code::
+
+    $ cp censo ~/bin/censo
+    $ chmod u+x ~/bin/censo
+
+Other options to use censo are shown below:
 
 Download the git repository and run:
 
@@ -45,7 +58,7 @@ Flexible Invocation
 
 
 Getting started:
-----------------
+================
 
 Create the remote configuration file .censorc where the user can adjust default
 settings and provide paths to the external programs e.g. `xtb`, `crest`, `orca` ...
@@ -57,6 +70,11 @@ settings and provide paths to the external programs e.g. `xtb`, `crest`, `orca` 
     # edit .censorc
     vi /home/$USER/.ensorc
 
+
+Documentation:
+==============
+
+Can be found following: https://fbohle.gitbook.io/censo/
 
 **Interactive Documentation can be accessed:**
 
@@ -70,11 +88,39 @@ Explainations on the commandline arguments can be printed by:
 
     $ censo --help
 
-Online Documentation:
----------------------
 
-Can be found following: https://fbohle.gitbook.io/censo/
+Requirements:
+-------------
 
+* newest xtb (currently: https://github.com/grimme-lab/xtb/releases/tag/v6.4.0 )
+* newest cefine https://github.com/grimme-lab/cefine/releases
+* ORCA > version 4.1
+
+
+Further information (will be ordered later on):
+
+* the file .censorc can be used in the current working directory and will be preferred to 
+  the global configuration file in ~/.censorc
+* a folder ~/.censo_assets/ will be created upon usage of censo
+* ORCA has not been tested extensively so please be careful, test calculations
+  and report possible "bad" settings
+* To be efficient COSMO-RS calculations are not performed with BP86 but whith the functionals
+  for energy evaluation.
+
+
+Usage:
+------
+
+.. code::
+
+    # check if setting-combinations match:
+    $ censo -inp structure_ensemble.xyz -part2 on -solvent h2o --checkinput
+    # start the calculation:
+    $ censo -inp structure_ensemble.xyz -part2 on -solvent h2o > censo.out 2> error.censo &
+
+
+Short overview:
+---------------
 
 The molecule numbering from the input structure ensemble is kept throughout the 
 entire program. There are several program parts which can be used to filter a structure 
@@ -100,42 +146,17 @@ ensemble:
     for the populated ensemble.
 
 
-Usage:
-------
+For Turbomole user:
+-------------------
+
+The amount of *ricore* for each calculation can be set in your `.cefinerc`. The same
+holds for *maxcor* and/or *rpacor*.
 
 .. code::
 
-    # check if setting-combinations match:
-    $ censo -inp structure_ensemble.xyz -part2 on -solvent h2o --checkinput
-    # start the calculation:
-    $ censo -inp structure_ensemble.xyz -part2 on -solvent h2o > censo.out 2> error.censo &
-
-Requirements:
--------------
-
-* newest xtb (currently: https://github.com/grimme-lab/xtb/releases/tag/v6.4.0 )
-* newest cefine https://github.com/grimme-lab/cefine/releases
-* ORCA > version 4.1
-
-
-Further information (will be ordered later on):
-
-* the file .censorc can be used in the current working directory and will be preferred to 
-  the global configuration file in ~/.censorc
-* a folder ~/.censo_assets/ will be created upon usage of censo
-* ORCA has not been used extensively so please be careful, test calculations
-  and report possible "bad" settings
-* To be efficient COSMO-RS calculations are not performed with BP86 but whith the functionals
-  for energy evaluation.
-
-
-
-
-License
--------
-
-LGPL3
-
+    $ echo "ricore  4000" > .cefinerc
+    $ echo "maxcor  4000" >> .cefinerc
+    $ echo "rpacor  4000" >> .cefinerc
 
 Available solvation models:
 ---------------------------
@@ -155,20 +176,6 @@ to free energy (Gibbs energy) of the choosen geometry (SMGSOLV).
     "","SMD_GSOLV", "(SMGSOLV)"
     "xTB","GBSA_Gsolv","(SMGSOLV)"
     "","ALPB_Gsolv","(SMGSOLV)"
-
-
-
-For Turbomole user:
--------------------
-
-The amount of *ricore* for each calculation can be set in your `.cefinerc`. The same
-holds for *maxcor* and/or *rpacor*.
-
-.. code::
-
-    $ echo "ricore  4000" > .cefinerc
-    $ echo "maxcor  4000" >> .cefinerc
-    $ echo "rpacor  4000" >> .cefinerc
 
 
 Solvents:
@@ -192,3 +199,16 @@ a replacement solvent. E.g. if CCl4 is not available choose CHCl3.
 
 The solvent file is directly used in `CENSO` and typos will cause calculations to crash!
 Adding a new solvent is as easy as adding a new dictionary to the file.
+
+License
+-------
+
+``CENSO`` is free software: you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+``CENSO`` is distributed in the hope that it will be useful,
+but without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose. See the
+GNU Lesser General Public License for more details.

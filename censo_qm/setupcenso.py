@@ -166,7 +166,7 @@ def enso_startup(cwd, args):
                 if int(censorc_version.split(".")[0]) < int(__version__.split(".")[0]):
                     print(
                         f"{'ERROR:':{WARNLEN}}There has been an API break and you have to "
-                        "create a new .censorc.\n{'':{WARNLEN}}E.g. 'censo -newconfig'"
+                        f"create a new .censorc.\n{'':{WARNLEN}}E.g. 'censo -newconfig'"
                     )
                     sys.exit(1)
                 myfile.seek(0)  # reset reader

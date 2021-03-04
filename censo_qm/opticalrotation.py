@@ -594,6 +594,47 @@ def part5(config, conformers, store_confs, ensembledata):
                 f": {calc_std_dev(all_or):> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
             )
 
+    if calculate:
+        for freq in config.freq_or:
+            all_or = []
+            for _ in range(1000):
+                averaged_or = 0.0
+                for conf in calculate:
+                    conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
+                    conf.free_energy += normalvariate(
+                        0.0, (0.4/AU2KCAL)
+                    )
+                calculate = calc_boltzmannweights(
+                    calculate, "free_energy", config.temperature
+                )
+                for conf in calculate:
+                    averaged_or += conf.bm_weight * conf.optical_rotation_info[
+                        "range"
+                    ].get(freq)
+                all_or.append(averaged_or)
+            try:
+                max_fmt = max(
+                    [
+                        len(
+                            str(
+                                item.optical_rotation_info["range"].get(
+                                    config.freq_or[0]
+                                )
+                            ).split(".")[0]
+                        )
+                        for item in calculate
+                    ]
+                )
+                max_fmt += 9
+            except Exception as e:
+                print(e)
+                max_fmt = 16
+            print(
+                f"    SD based on SD in G of 0.4 kcal/mol     "
+                f": {calc_std_dev(all_or):> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
+            )
+
+
     for conf in calculate:
         conf.reset_job_info()
 
