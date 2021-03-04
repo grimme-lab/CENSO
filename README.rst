@@ -1,4 +1,9 @@
-[![Latest Version](https://img.shields.io/github/v/release/grimme-lab/CENSO)](https://github.com/grimme-lab/CENSO/releases/latest)
+|GitHub release|
+
+.. |GitHub release| image:: https://img.shields.io/github/v/release/grimme-lab/CENSO
+   :target: https://github.com/grimme-lab/CENSO/releases/latest
+
+
 
 ====================================================================
 CENSO - Commandline ENergetic SOrting of Conformer Rotamer Ensembles
