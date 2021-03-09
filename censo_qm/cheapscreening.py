@@ -4,9 +4,8 @@ The idea is to improve on the description of E with a very fast DFT method.
 """
 import os
 import sys
-import math
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -17,11 +16,7 @@ from .utilities import (
     last_folders,
     ensemble2coord,
     printout,
-    move_recursively,
-    write_trj,
     check_tasks,
-    calc_std_dev,
-    spearman,
     print,
     print_errors,
     calc_boltzmannweights,

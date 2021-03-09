@@ -490,7 +490,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 ]
             )
             max_fmt += 9
-        except:
+        except Exception:
             max_fmt = 16
         for conf in list(calculate):
             line = (

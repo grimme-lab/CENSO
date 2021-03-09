@@ -25,7 +25,7 @@ DESCR = f"""
         but WITHOUT ANY WARRANTY; without even the implied warranty of
         MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 """
-global ENVIRON
+
 ENVIRON = os.environ.copy()
 CODING = "ISO-8859-1"
 DIGILEN = 60

@@ -580,18 +580,17 @@ def part2(config, conformers, store_confs, ensembledata):
                     print("Spearman rank evaluation is performed in the next cycle.")
                     cycle_spearman.append("")
                     run_spearman = False
-
-                elif run == 1 and not gesc:
-                    # only evaluate spearman starting from second cycle
-                    print("Spearman rank evaluation is performed in the next cycle.")
-                    cycle_spearman.append("")
-                    run_spearman = False
-                    run += 1
-                    toc = time.perf_counter()
-                    timings.append(toc - tic)
-                    nconf_cycle.append(len(calculate) + len(prev_calculated))
-                    print(f"CYCLE {run} performed in {toc -tic:0.4f} seconds")
-                    continue
+                # if run == 1 and not gesc:
+                #     # only evaluate spearman starting from second cycle
+                #     print("Spearman rank evaluation is performed in the next cycle.")
+                #     cycle_spearman.append("")
+                #     run_spearman = False
+                #     run += 1
+                #     toc = time.perf_counter()
+                #     timings.append(toc - tic)
+                #     nconf_cycle.append(len(calculate) + len(prev_calculated))
+                #     print(f"CYCLE {run} performed in {toc -tic:0.4f} seconds")
+                #     continue
 
                 # lists of equal lenght:
                 for conf in sorted(
@@ -1658,7 +1657,6 @@ def part2(config, conformers, store_confs, ensembledata):
                     f" {conf.lowlevel_gsolv_compare_info['std_dev']*AU2KCAL:^ 41.2f}"
                 )
             print("".ljust(PLENGTH, "-"))
-            dorun = False
             break
     # END SD Gsolv
 

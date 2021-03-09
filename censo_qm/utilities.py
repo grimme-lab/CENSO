@@ -30,7 +30,7 @@ def print(*args, **kwargs):
         elif key == "file":
             file = value
         elif key == "flush":
-            key = value
+            flush = value
     print_orig(*args, sep=sep, end=end, file=file, flush=flush)
 
 
@@ -542,11 +542,13 @@ def printout(
     columnformat,
     calculate,
     minfree,
-    columndescription2=[],
+    columndescription2=None,
 ):
     """
     Create printout which is printed to stdout and file.
     """
+    if columndescription2 is None:
+        columndescription2 = []
     calculate.sort(key=lambda x: int(x.id))
     if not any(
         [
@@ -643,7 +645,7 @@ def printout(
                 out.write(line + "\n")
 
 
-def crest_routine(config, conformers, func, store_confs, prev_calculated=[]):
+def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
     """
     check if two conformers are rotamers of each other,
     this check is always performed, but removing conformers depends on crestcheck
@@ -651,6 +653,8 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=[]):
     returns store_confs
     returns prev_calculated
     """
+    if prev_calculated is None:
+        prev_calculated = []
     dirn = "conformer_rotamer_check"  ### directory name
     fn = "conformers.xyz"  ### file name
 
@@ -786,7 +790,6 @@ def format_line(key, value, options, optionlength=70, dist_to_options=30):
                 reduced.append(item)
         reduced.append("...")
         options = reduced
-        length = 0
     line = "{}: {:{digits}} # {} \n".format(
         key, str(value), options, digits=dist_to_options - len(key)
     )
@@ -839,10 +842,12 @@ def calc_std_dev(data):
     return std_dev
 
 
-def calc_weighted_std_dev(data, weights=[]):
+def calc_weighted_std_dev(data, weights=None):
     """
     Calculate standard deviation
     """
+    if weights is None:
+        weights = []
     n = len(data)
     if n == 0:
         return 0.0
@@ -864,5 +869,5 @@ def print_errors(line, save_errors):
     print(line)
     try:
         save_errors.append(line)
-    except:
+    except Exception:
         pass

@@ -4,8 +4,6 @@ Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
 import os
-import math
-
 try:
     from math import isclose
 except ImportError:
@@ -181,7 +179,7 @@ class QmJob(MoleculeData):
                         try:
                             self.job["energy"] = float(line.split()[3])
                             self.job["success"] = True
-                        except:
+                        except Exception:
                             print(
                                 f"{'ERROR:':{WARNLEN}}while converting "
                                 f"single-point in: {last_folders(self.job['workdir'], 2)}"
@@ -276,12 +274,11 @@ class QmJob(MoleculeData):
                         try:
                             tmp_gas = float(line.split()[3])
                             self.job["success"] = True
-                        except:
+                        except Exception:
                             print(
                                 f"{'ERROR:':{WARNLEN}}while converting gas phase "
                                 f"single-point in: {last_folders(self.job['workdir'], 3)}"
                             )
-                            tmp_gas = None
                             self.job["energy2"] = 0.0
                             self.job["success"] = False
                             return
@@ -343,12 +340,11 @@ class QmJob(MoleculeData):
                         try:
                             tmp_solv = float(line.split()[3])
                             self.job["success"] = True
-                        except:
+                        except Exception:
                             print(
                                 f"{'ERROR:':{WARNLEN}}while converting solution phase "
                                 f"single-point in: {last_folders(self.job['workdir'], 3)}"
                             )
-                            tmp_solv = None
                             self.job["energy2"] = 0.0
                             self.job["success"] = False
                             return

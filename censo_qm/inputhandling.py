@@ -2883,7 +2883,7 @@ class config_setup(internal_settings):
                         info.append(
                             [
                                 "bhess",
-                                "Apply constraint to input geometry "
+                                "Apply constraint to input geometry "+
                                 "during mRRHO calculation",
                             ]
                         )
@@ -3114,7 +3114,7 @@ class config_setup(internal_settings):
             if "ctd =" in line:
                 try:
                     self.external_paths["cosmorssetup"] = str(line.rstrip(os.linesep))
-                except:
+                except Exception:
                     print(
                         f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from .censorc!"
                     )
@@ -3140,7 +3140,7 @@ class config_setup(internal_settings):
             if "ORCA:" in line:
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
-                except:
+                except Exception:
                     print(f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!.")
             if "ORCA version:" in line:
                 try:
@@ -3149,12 +3149,12 @@ class config_setup(internal_settings):
                     tmp.insert(1, ".")
                     tmp = "".join(tmp)
                     self.external_paths["orcaversion"] = tmp
-                except:
+                except Exception:
                     print(f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!")
             if "GFN-xTB:" in line:
                 try:
                     self.external_paths["xtbpath"] = str(line.split()[1])
-                except:
+                except Exception:
                     print(f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!")
                     if shutil.which("xtb") is not None:
                         self.external_paths["xtbpath"] = shutil.which("xtb")
@@ -3164,7 +3164,7 @@ class config_setup(internal_settings):
             if "CREST:" in line:
                 try:
                     self.external_paths["crestpath"] = str(line.split()[1])
-                except:
+                except Exception:
                     print(f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!")
                     if shutil.which("crest") is not None:
                         self.external_paths["crestpath"] = shutil.which("crest")
@@ -3174,12 +3174,12 @@ class config_setup(internal_settings):
             if "mpshift:" in line:
                 try:
                     self.external_paths["mpshiftpath"] = str(line.split()[1])
-                except:
+                except Exception:
                     print(f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!")
             if "escf:" in line:
                 try:
                     self.external_paths["escfpath"] = str(line.split()[1])
-                except:
+                except Exception:
                     print(f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!")
             if "$ENDPROGRAMS" in line:
                 break
@@ -3343,7 +3343,7 @@ class config_setup(internal_settings):
                 error_logical = True
             try:
                 ENVIRON["OMP_NUM_THREADS"] = "{:d}".format(self.omp)
-            except:
+            except Exception:
                 print(f"{'ERROR:':{WARNLEN}}can not set omp for xTB calculation!")
         # ORCA
         if requirements.get("needorca", False):
@@ -3389,7 +3389,7 @@ class config_setup(internal_settings):
                             "    PARNODES for TM or COSMO-RS calculation was set "
                             "to {}".format(ENVIRON["PARNODES"])
                         )
-                    except:
+                    except Exception:
                         print(f"{'ERROR:':{WARNLEN}}PARNODES can not be changed!")
                         error_logical = True
                         raise
@@ -3400,7 +3400,7 @@ class config_setup(internal_settings):
                     )
                     if self.run:
                         error_logical = True
-            except:
+            except Exception:
                 print(
                     f"{'ERROR:':{WARNLEN}}PARA_ARCH has to be set to SMP and PARNODES have to "
                     f"be set\n{'':{WARNLEN}}for parallel TM calculations!."
@@ -3596,7 +3596,7 @@ class config_setup(internal_settings):
             data["settings"] = settings
         try:
             conformers.sort(key=lambda x: int(x["id"]))
-        except:
+        except Exception:
             pass
         for conf in conformers:
             if not isinstance(conf, OrderedDict):
