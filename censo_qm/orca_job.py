@@ -14,7 +14,7 @@ from .cfg import (
     external_paths,
     composite_method_basis,
     composite_dfa,
-    gga_dfa,
+    #gga_dfa,
     hybrid_dfa,
     dh_dfa,
     disp_already_included_in_func,
@@ -637,7 +637,7 @@ class OrcaJob(QmJob):
             try:
                 self.job["energy"] = self.job["ecyc"][-1]
                 self.job["success"] = True
-            except:
+            except Exception:
                 error_logical = True
         if error_logical:
             self.job["energy"] = 0.0
@@ -849,7 +849,6 @@ class OrcaJob(QmJob):
         """
         if self.job["jobtype"] == "prep":
             self.job["success"] = True
-            pass
         elif self.job["jobtype"] == "xtb_sp":
             self._xtb_sp()
         elif self.job["jobtype"] in ("sp", "sp_implicit"):

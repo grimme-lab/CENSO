@@ -20,9 +20,7 @@ def balance_load(P,O,nconf, do_change):
     if do_change:
         if nconf < P:
             try:
-                P_old = P
                 P = nconf
-                O_old = O
                 O=1
                 while True:
                     if P*O <= max_cores:
@@ -33,7 +31,7 @@ def balance_load(P,O,nconf, do_change):
                     else:
                         break
                 changed = True
-            except:
+            except Exception:
                 pass
         if changed:
             print(f"Adjusting the number of threads (P) = {P} and number of cores per thread (O) = {O}")

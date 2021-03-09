@@ -746,7 +746,7 @@ class TmJob(QmJob):
                 ) as inp:
                     stor = inp.readlines()
                 for line in stor:
-                    vwork = 0
+                    #vwork = 0
                     if "T=" in line:
                         T = float(line.split()[5])
                         vwork = R * T * math.log(videal * T)
@@ -946,7 +946,7 @@ class TmJob(QmJob):
             try:
                 self.job["energy"] = self.job["ecyc"][-1]
                 self.job["success"] = True
-            except:
+            except Exception:
                 error_logical = True
         if error_logical:
             self.job["energy"] = 0.0

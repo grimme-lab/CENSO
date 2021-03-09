@@ -237,3 +237,4 @@ def main(argv=None):
     print("".ljust(int(PLENGTH / 2), "-"))
     print(f"{'All parts':20}: {'':{conflength}}    {timings:.2f}s")
     print("\nCENSO all done!")
+    return 0

@@ -6,7 +6,7 @@ import os
 import sys
 import math
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN, censo_solvent_db
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
