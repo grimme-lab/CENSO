@@ -102,10 +102,11 @@ def run_in_parallel(
             # put item on queue
             q.put(item)
             time.sleep(0.02)
+    njobs = q.qsize()
     time.sleep(0.02)
     if changed:
         ENVIRON['PARNODES'] = str(omp)
-    njobs = q.qsize()
+
     if instructdict.get("onlyread", False):
         print(f"\nReading data from {njobs} conformers calculated in previous run.")
     else:

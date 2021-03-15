@@ -200,7 +200,7 @@ def main(argv=None):
     print(f"{'Input':20}: {ensembledata.nconfs_per_part['starting']:{conflength}}    -")
     if config.part0:
         print(
-            f"{'Part0_all':20}: {ensembledata.nconfs_per_part['part0']:{conflength}}    {ensembledata.part_info['part0']:.2f}s"
+            f"{'Part0_all':20}: {ensembledata.nconfs_per_part['part0']:{conflength}}    {ensembledata.part_info['part0']:.2f} s"
         )
         timings += ensembledata.part_info["part0"]
     if config.part1:
@@ -208,7 +208,7 @@ def main(argv=None):
             f"{'Part1_initial_sort':20}: {ensembledata.nconfs_per_part['part1_firstsort']:{conflength}}    -"
         )
         print(
-            f"{'Part1_all':20}: {ensembledata.nconfs_per_part['part1_firstsort']:{conflength}}    {ensembledata.part_info['part1']:.2f}s"
+            f"{'Part1_all':20}: {ensembledata.nconfs_per_part['part1_firstsort']:{conflength}}    {ensembledata.part_info['part1']:.2f} s"
         )
         timings += ensembledata.part_info["part1"]
     if config.part2:
@@ -216,25 +216,25 @@ def main(argv=None):
             f"{'Part2_opt':20}: {ensembledata.nconfs_per_part['part2_opt']:{conflength}}    -"
         )
         print(
-            f"{'Part2_all':20}: {ensembledata.nconfs_per_part['part2']:{conflength}}    {ensembledata.part_info['part2']:.2f}s"
+            f"{'Part2_all':20}: {ensembledata.nconfs_per_part['part2']:{conflength}}    {ensembledata.part_info['part2']:.2f} s"
         )
         timings += ensembledata.part_info["part2"]
     if config.part3:
         print(
-            f"{'Part3_all':20}: {ensembledata.nconfs_per_part['part3']:{conflength}}    {ensembledata.part_info['part3']:.2f}s"
+            f"{'Part3_all':20}: {ensembledata.nconfs_per_part['part3']:{conflength}}    {ensembledata.part_info['part3']:.2f} s"
         )
         timings += ensembledata.part_info["part3"]
     if config.part4:
         print(
-            f"{'Part4':20}: {'':{conflength}}    {ensembledata.part_info['part4']:.2f}s"
+            f"{'Part4':20}: {'':{conflength}}    {ensembledata.part_info['part4']:.2f} s"
         )
         timings += ensembledata.part_info["part4"]
     if config.optical_rotation:
         print(
-            f"{'Part5':20}: {'':{conflength}}    {ensembledata.part_info['part5']:.2f}s"
+            f"{'Part5':20}: {'':{conflength}}    {ensembledata.part_info['part5']:.2f} s"
         )
         timings += ensembledata.part_info["part5"]
     print("".ljust(int(PLENGTH / 2), "-"))
-    print(f"{'All parts':20}: {'':{conflength}}    {timings:.2f}s")
+    print(f"{'All parts':20}: {'':{conflength}}    {timings:.2f} s")
     print("\nCENSO all done!")
     return 0
