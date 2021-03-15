@@ -10,6 +10,7 @@ import csv
 import time
 import math
 import sys
+import glob
 from copy import deepcopy
 from collections import OrderedDict
 from .cfg import (
@@ -1760,6 +1761,11 @@ class internal_settings:
             "func3":False,
             "basis3":False,
             # "consider_sym": False, # --> reset all rrho values!
+            # funcJ
+            # basisJ
+            # funcS
+            # basisS
+            # sm4_ j s
         }
 
 
@@ -1914,11 +1920,16 @@ class config_setup(internal_settings):
             if os.path.isdir(os.path.join(self.cwd, "conformer_rotamer_check")):
                 print("Removing conformer_rotamer_check")
                 shutil.rmtree(os.path.join(self.cwd, "conformer_rotamer_check"))
-            # for file in files_in_cwd:
-            #     if 'mat.tmp' in file:
-            #             print(f"Removing: {file}")
-            #             os.remove(os.path.join(self.cwd,file))
-            # remove *mat.tmp files
+            # get files like amat.tmp from COSMO calculation (can be several Mb)
+            files_in_sub_cwd = glob.glob(self.cwd + '/**/**/**/*mat.tmp', recursive=True)
+            size = 0
+            for tmpfile in files_in_sub_cwd:
+                if any(x in tmpfile for x in ['a3mat.tmp', 'a2mat.tmp', 'amat.tmp']):
+                    if os.path.isfile(tmpfile):
+                        size += os.path.getsize(tmpfile)
+                        #print(f"Removing {tmpfile} {os.path.getsize(tmpfile)} byte")
+                        os.remove(tmpfile)
+            print(f"Removed {size/1024} Mb")
             # ask if CONF folders should be removed
 
     def get_method_name(

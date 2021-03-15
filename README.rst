@@ -1,7 +1,11 @@
-|GitHub release|
+|GitHub release| |DOI|
 
 .. |GitHub release| image:: https://img.shields.io/github/v/release/grimme-lab/CENSO
    :target: https://github.com/grimme-lab/CENSO/releases/latest
+
+.. |DOI| image:: https://img.shields.io/badge/DOI-10.1021/acs.jpca.1c00971-blue
+    :target: https://doi.org/10.1021/acs.jpca.1c00971
+
 
 ====================================================================
 CENSO - Commandline ENergetic SOrting of Conformer Rotamer Ensembles
@@ -78,7 +82,7 @@ settings and provide paths to the external programs e.g. `xtb`, `crest`, `orca` 
 Documentation:
 ==============
 
-Can be found following: https://fbohle.gitbook.io/censo/
+Can be found following: https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html
 
 **Interactive Documentation can be accessed:**
 
@@ -204,6 +208,19 @@ a replacement solvent. E.g. if CCl4 is not available choose CHCl3.
 
 The solvent file is directly used in `CENSO` and typos will cause calculations to crash!
 Adding a new solvent is as easy as adding a new dictionary to the file.
+
+Cite
+----
+
+General reference:
+
+S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn 
+*J. Phys. Chem. A* **2021**, XXXX, XXX, XXX-XXX.
+
+DOI: `10.1021/acs.jpca.1c00971 <https://doi.org/10.1021/acs.jpca.1c00971>`_. 
+
+Reference is available in `bibtex format <./docs/reference.bib>`_.
+
 
 License
 -------

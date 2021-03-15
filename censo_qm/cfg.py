@@ -5,7 +5,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 DESCR = f"""
          ______________________________________________________________
@@ -20,6 +20,11 @@ DESCR = f"""
         |                     F. Bohle and S. Grimme                   |
         |                                                              |
         |______________________________________________________________|
+
+        Please cite: 
+        S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn 
+        J. Phys. Chem. A 2021, XXXX, XXX, XXX-XXX.
+        DOI: https://doi.org/10.1021/acs.jpca.1c00971
         
         This program is distributed in the hope that it will be useful,
         but WITHOUT ANY WARRANTY; without even the implied warranty of
