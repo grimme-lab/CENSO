@@ -5,7 +5,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 DESCR = f"""
          ______________________________________________________________
@@ -37,6 +37,7 @@ DIGILEN = 60
 PLENGTH = 100
 AU2J = 4.3597482e-18  # a.u.(hartree/mol) to J
 KB = 1.3806485279e-23  # J/K
+R = 1.987203585e-03  # kcal/(mol*K)
 AU2KCAL = 627.50947428
 BOHR2ANG = 0.52917721067
 WARNLEN = max([len(i) for i in ['WARNING:', 'ERROR:', 'INFORMATION:']])+1
@@ -2654,3 +2655,39 @@ class NmrRef():
         NmrRef_object.si_orca_shieldings = dictionary.get('si_orca_shieldings', NmrRef_object.si_orca_shieldings)
         NmrRef_object.p_orca_shieldings = dictionary.get('p_orca_shieldings', NmrRef_object.p_orca_shieldings)
         return NmrRef_object
+
+# rotational entropy from symmetry
+#https://cccbdb.nist.gov/thermo.asp
+rot_sym_num = {
+    'c1':1,
+    'ci':1,
+    'cs':1,
+    'c2':2,
+    'c3':3,
+    'c4':4,
+    'c5':5,
+    'c6':6,
+    'c7':7,
+    'c8':8,
+    'c9':9,
+    'c10':10,
+    'c11':11,
+    's4':2,
+    's6':3,
+    's8':4,
+    'd2':4,
+    'd3':6,
+    'd4':8,
+    'd5':10,
+    'd6':12,
+    'd7':14,
+    'd8':16,
+    'd9':18,
+    'd10':20,
+    't':12,
+    'th': 12,
+    'td': 12,
+    'o': 24,
+    'oh':24,
+    'ih':60
+}

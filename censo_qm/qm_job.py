@@ -11,7 +11,7 @@ except ImportError:
 import time
 import subprocess
 import json
-from .cfg import ENVIRON, CODING, WARNLEN, censo_solvent_db
+from .cfg import ENVIRON, CODING, WARNLEN, censo_solvent_db, rot_sym_num
 from .utilities import last_folders, print
 from .datastructure import MoleculeData
 
@@ -87,6 +87,7 @@ class QmJob(MoleculeData):
             "internal_error": [],
             #
             "cosmorsparam": "",  # normal/fine
+            "symnum":1,
         }
 
     def _sp(self, silent=False):
@@ -108,6 +109,25 @@ class QmJob(MoleculeData):
         line natom +1 the coupling constants are written.
         """
         pass
+
+    def _get_sym_num(self, sym=None, linear=None):
+        """Get rotational symmetry number from Schoenfließ symbol"""
+        if sym is None:
+            sym = 'c1'
+        if linear is None:
+            linear = False
+        symnum = 1
+        if linear and "c" in sym.lower()[0]:
+            symnum = 1
+            return symnum
+        elif linear and "d" in sym.lower()[0]:
+            symnum = 2
+            return symnum
+        for key in rot_sym_num.keys():
+            if key in sym.lower():
+                symnum = rot_sym_num.get(key, 1)
+                break
+        return symnum
 
     def _xtb_sp(self):
         """
@@ -141,9 +161,16 @@ class QmJob(MoleculeData):
                 [
                     "--" + str(self.job["sm"]),
                     censo_solvent_db[self.job["solvent"]]["xtb"][1],
+                    "-I",
+                    "xcontrol-inp",
                 ]
             )
-
+            with open(
+                    os.path.join(self.job["workdir"], "xcontrol-inp"), "w", newline=None
+                ) as xcout:
+                xcout.write("$gbsa\n")
+                xcout.write("  gbsagrid=tight\n")
+                xcout.write("$end\n")
         with open(
             os.path.join(self.job["workdir"], "sp.out"), "w", newline=None
         ) as outputfile:
@@ -294,6 +321,12 @@ class QmJob(MoleculeData):
         # ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
         with open(
+                os.path.join(self.job["workdir"], "xcontrol-inp"), "w", newline=None
+            ) as xcout:
+            xcout.write("$gbsa\n")
+            xcout.write("  gbsagrid=tight\n")
+            xcout.write("$end\n")
+        with open(
             os.path.join(self.job["workdir"], "solv.out"), "w", newline=None
         ) as outputfile:
             returncode = subprocess.call(
@@ -308,6 +341,8 @@ class QmJob(MoleculeData):
                     "--chrg",
                     str(self.job["charge"]),
                     "--norestart",
+                    "-I",
+                    "xcontrol-inp",
                 ],
                 shell=False,
                 stdin=None,
@@ -424,8 +459,12 @@ class QmJob(MoleculeData):
                 if self.job["consider_sym"]:
                     # xcout.write("    desy=0.1\n") # taken from xtb defaults
                     xcout.write("     maxat=1000\n")
-                else:
-                    xcout.write("    desy=0.0\n")
+                # always consider symmetry!
+                #else:
+                #    xcout.write("    desy=0.0\n")
+                if self.job["solvent"] != "gas":
+                    xcout.write("$gbsa\n")
+                    xcout.write("  gbsagrid=tight\n")         
                 xcout.write("$end\n")
             if self.job["bhess"]:
                 # set ohess or bhess
@@ -497,47 +536,49 @@ class QmJob(MoleculeData):
                 print(self.job["errormessage"][-1])
                 return
         # start reading output!
-        if self.job["trange"]:
-            if not os.path.isfile(os.path.join(self.job["workdir"], "ohess.out")):
-                self.job["energy"] = 0.0
-                self.job["success"] = False
-                self.job["errormessage"].append(
-                    f"{'ERROR:':{WARNLEN}}file {self.job['workdir']}/ohess.out could not be found!"
-                )
-                print(self.job["errormessage"][-1])
-                return
-            gt = {}
-            ht = {}
-            rotS = {}
-            with open(
+        if not os.path.isfile(os.path.join(self.job["workdir"], "ohess.out")):
+            self.job["energy"] = 0.0
+            self.job["success"] = False
+            self.job["errormessage"].append(
+                f"{'ERROR:':{WARNLEN}}file {self.job['workdir']}/ohess.out could not be found!"
+            )
+            print(self.job["errormessage"][-1])
+            return
+        # start reading file:
+        with open(
                 os.path.join(self.job["workdir"], "ohess.out"),
                 "r",
                 encoding=CODING,
                 newline=None,
             ) as inp:
                 store = inp.readlines()
-                # rotational entropy:
-                for line in store:
-                    if "VIB" in line:
-                        try:
-                            realline = store.index(line) + 1
-                            T = float(line.split()[0])
-                            rotS[T] = float(store[realline].split()[4])
-                        except (KeyError, ValueError):
-                            pass
-                for line in store:
-                    if "T/K" in line:
-                        start = store.index(line)
-                for line in store[start + 2 :]:
-                    if "----------------------------------" in line:
-                        break
-                    else:
-                        try:
-                            T = float(line.split()[0])
-                            gt[T] = float(line.split()[4])
-                            ht[T] = float(line.split()[2])
-                        except (ValueError, KeyError):
-                            print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
+
+        if self.job["trange"]:
+            gt = {}
+            ht = {}
+            rotS = {}
+            # rotational entropy:
+            for line in store:
+                if "VIB" in line:
+                    try:
+                        realline = store.index(line) + 1
+                        T = float(line.split()[0])
+                        rotS[T] = float(store[realline].split()[4])
+                    except (KeyError, ValueError):
+                        pass
+            for line in store:
+                if "T/K" in line:
+                    start = store.index(line)
+            for line in store[start + 2 :]:
+                if "----------------------------------" in line:
+                    break
+                else:
+                    try:
+                        T = float(line.split()[0])
+                        gt[T] = float(line.split()[4])
+                        ht[T] = float(line.split()[2])
+                    except (ValueError, KeyError):
+                        print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
             if len(self.job["trange"]) == len(gt):
                 self.job["success"] = True
                 self.job["erange1"] = gt
@@ -547,21 +588,22 @@ class QmJob(MoleculeData):
                 self.job["success"] = False
                 return
         # end self.trange
-        if self.job["bhess"]:
-            # read rmsd_info
-            with open(
-                os.path.join(self.job["workdir"], "ohess.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
-                store = inp.readlines()
-                for line in store:
-                    if "final rmsd / " in line:
-                        try:
-                            self.job["rmsd"] = float(line.split()[3])
-                        except (ValueError):
-                            self.job["rmsd"] = 0.0
+        for line in store:
+            if "final rmsd / " in line and self.job['bhess']:
+                try:
+                    self.job["rmsd"] = float(line.split()[3])
+                except (ValueError):
+                    self.job["rmsd"] = 0.0
+            if ":  linear? " in line:
+                # linear needed for symmetry and S_rot (only if turned off)
+                try:
+                    if line.split()[2] == "false":
+                        self.job["linear"] = False
+                    elif line.split()[2] == "true":
+                        self.job["linear"] = True
+                except (IndexError,Exception) as e:
+                    #pass
+                    print(e)
         if os.path.isfile(os.path.join(self.job["workdir"], "xtb_enso.json")):
             with open(
                 os.path.join(self.job["workdir"], "xtb_enso.json"),
@@ -590,12 +632,16 @@ class QmJob(MoleculeData):
                     self.job["success"] = True
                 if "point group" in data:
                     self.job["symmetry"] = data["point group"]
+                if "linear" in data:
+                    self.job["linear"] = data.get("linear", self.job["linear"])
             else:
                 print(
                     f"{'ERROR:':{WARNLEN}}while converting mRRHO in: {last_folders(self.job['workdir'], 2)}"
                 )
                 self.job["energy"] = 0.0
                 self.job["success"] = False
+            # calculate symnum
+            self.job["symnum"] = self._get_sym_num(sym=self.job['symmetry'], linear=self.job["linear"])
         else:
             print(
                 f"{'WARNING:':{WARNLEN}}File "
@@ -603,6 +649,7 @@ class QmJob(MoleculeData):
             )
             self.job["energy"] = 0.0
             self.job["success"] = False
+
 
     def execute(self):
         """

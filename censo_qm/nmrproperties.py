@@ -113,7 +113,13 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
         )
         for _ in range(1000):
             for conf in calculate:
-                conf.calc_free_energy(e=energy, solv=solv, rrho=rrho)
+                conf.calc_free_energy(
+                    e=energy, 
+                    solv=solv, 
+                    rrho=rrho,
+                    t=config.temperature,
+                    consider_sym=config.consider_sym
+                    )
                 conf.free_energy += normalvariate(
                     0.0, get_std_dev(conf)
                 )
@@ -134,7 +140,13 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
     if wanted:
         for _ in range(1000):
             for conf in calculate:
-                conf.calc_free_energy(e=energy, solv=solv, rrho=rrho)
+                conf.calc_free_energy(
+                    e=energy,
+                    solv=solv,
+                    rrho=rrho,
+                    t=config.temperature,
+                    consider_sym=config.consider_sym
+                    )
                 conf.free_energy += normalvariate(
                     0.0, (0.4/AU2KCAL)
                 )
@@ -151,34 +163,42 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
             for atom in conf.shieldings.keys():
                 sigma_std_dev_const[atom].append(tmp_sigma[atom])
 
-    
-    print("# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)  SD(σ by 0.4 kcal/mol)   shift    σ_ref")
-    print("".ljust(int(100), "-"))
-    maxsigma = max([len(str(sigma).split(".")[0]) for sigma in averaged.values()]) + 5
-    make_shift = (
-        lambda atom: f"{-sigma+element_ref_shield.get(element[atom], 0.0):> {maxsigma}.2f}"
-        if (element_ref_shield.get(element[atom], None) is not None)
-        else "None"
-    )
-    for atom, sigma in averaged.items():
-        try:
-            std_dev = calc_std_dev(sigma_std_dev[atom])
-        except Exception as e:
-            #print(e)
-            std_dev = 0.0
-        try:
-            std_dev_const = calc_std_dev(sigma_std_dev_const[atom])
-        except Exception as e:
-            #print(e)
-            std_dev_const = 0.0
-        try:
-            print(
-                f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}  "
-                f"{std_dev:^ 24.6f} {std_dev_const:^ 24.6f} {make_shift(atom):>5}    {element_ref_shield.get(element[atom], 0.0)}"
-            )
-        except Exception as e:
-            print(f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}")
-    print("".ljust(int(80), "-"))
+    with open(os.path.join(config.cwd, 'averaged_shift.dat'), "w", newline=None) as out:
+        line=("# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)  SD(σ by 0.4 kcal/mol)       shift        σ_ref")
+        print(line)
+        out.write(line+"\n")
+        line= ("".ljust(int(105), "-"))
+        print(line)
+        out.write(line+"\n")
+        maxsigma = max([len(str(sigma).split(".")[0]) for sigma in averaged.values()]) + 5
+        make_shift = (
+            lambda atom: f"{-sigma+element_ref_shield.get(element[atom], 0.0):> {maxsigma}.2f}"
+            if (element_ref_shield.get(element[atom], None) is not None)
+            else "None"
+        )
+        for atom, sigma in averaged.items():
+            try:
+                std_dev = calc_std_dev(sigma_std_dev[atom])
+            except Exception:
+                std_dev = 0.0
+            try:
+                std_dev_const = calc_std_dev(sigma_std_dev_const[atom])
+            except Exception:
+                std_dev_const = 0.0
+            try:
+                line = (
+                    f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}  "
+                    f"{std_dev:^ 24.6f} {std_dev_const:^ 24.6f} {make_shift(atom):>5}    {float(element_ref_shield.get(element[atom], 0.0)):> 10.3f}"
+                )
+                print(line)
+                out.write(line+"\n")
+            except Exception:
+                line=(f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}")
+                print(line)
+                out.write(line+"\n")
+        line = ("".ljust(int(105), "-"))
+        print(line)
+        out.write(line+"\n")       
 
 
 def write_anmrrc(config):
@@ -648,7 +668,13 @@ def part4(config, conformers, store_confs, ensembledata):
 
 
     for conf in calculate:
-        conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
+        conf.calc_free_energy(
+            e=energy,
+            solv=gsolv,
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
@@ -666,7 +692,10 @@ def part4(config, conformers, store_confs, ensembledata):
         lambda conf: "CONF" + str(getattr(conf, "id")),
         lambda conf: getattr(conf, energy)["energy"],
         lambda conf: getattr(conf, gsolv)["energy"],
-        lambda conf: getattr(conf, rrho)["energy"],
+        #lambda conf: getattr(conf, rrho)["energy"],
+        lambda conf: conf.get_mrrho(
+            config.temperature, rrho, config.consider_sym
+        ),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
         lambda conf: getattr(conf, "bm_weight") * 100,
@@ -1050,7 +1079,13 @@ def part4(config, conformers, store_confs, ensembledata):
     # write anmr_enso output!
     print("\nGenerating file anmr_enso for processing with the ANMR program.")
     for conf in calculate:
-        conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
+        conf.calc_free_energy(
+            e=energy,
+            solv=gsolv,
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         length = max([str(i.id) for i in calculate])
@@ -1081,7 +1116,8 @@ def part4(config, conformers, store_confs, ensembledata):
                 f"{1:<5} {conf.id:^{length}} {conf.id:^{length}} "
                 f"{conf.bm_weight: {2}.4f} {getattr(conf, energy)['energy']: {fmtenergy}.{7}f} "
                 f"{getattr(conf, str(gsolv), {'energy': 0.0})['energy']: {fmtsolv-7}.{7}f} "
-                f"{getattr(conf, str(rrho), {'energy': 0.0})['energy']: {fmtrrho-7}.{7}f} "
+                f"{conf.get_mrrho(config.temperature, rrho, config.consider_sym)} "
+                #f"{getattr(conf, str(rrho), {'energy': 0.0})['energy']: {fmtrrho-7}.{7}f} "
                 f"{conf.gi:.3f}\n"
             )
 

@@ -292,7 +292,13 @@ def part5(config, conformers, store_confs, ensembledata):
             )
 
     for conf in calculate:
-        conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
+        conf.calc_free_energy(
+            e=energy,
+            solv=gsolv,
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
@@ -310,7 +316,12 @@ def part5(config, conformers, store_confs, ensembledata):
         lambda conf: "CONF" + str(getattr(conf, "id")),
         lambda conf: getattr(conf, energy)["energy"],
         lambda conf: getattr(conf, gsolv)["energy"],
-        lambda conf: getattr(conf, rrho)["energy"],
+        #lambda conf: getattr(conf, rrho)["energy"],
+        lambda conf: conf.get_mrrho(
+            config.temperature,
+            rrho,
+            config.consider_sym
+        ),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
         lambda conf: getattr(conf, "bm_weight") * 100,
@@ -540,15 +551,36 @@ def part5(config, conformers, store_confs, ensembledata):
                 f"  populated to {conf.bm_weight*100:.2f} % "
             )
             calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
+
+    outlen = config.lenconfx+1
+    if len('ENSEMBLE') >= config.lenconfx:
+        outlen = len('ENSEMBLE')+1
+
     for freq in config.freq_or:
         averaged_or = 0.0
-        for conf in calculate:
-            averaged_or += conf.bm_weight * conf.optical_rotation_info["range"].get(
-                freq, 0.0
-            )
+        with open(os.path.join(config.cwd, f"OR_{int(freq)}.dat"), "w", newline=None) as outdata:
+            outdata.write(f"{'#label':{outlen}} {'#unmod_alpha':>{max_fmt}} {'#%pop':^7} {'#pop_alpha':{max_fmt}} \n")
+            for conf in calculate:
+                averaged_or += conf.bm_weight * conf.optical_rotation_info["range"].get(
+                    freq, 0.0
+                )
+                # CONFX
+                outdata.write(
+                    f"{'CONF'+str(conf.id):{outlen}} "+
+                    f"{conf.optical_rotation_info['range'].get(freq, 0.0):> {max_fmt}.7f} "+
+                    f"{conf.bm_weight*100:> 6.2f} "+
+                    f"{conf.optical_rotation_info['range'].get(freq, 0.0)*conf.bm_weight:> {max_fmt}.7f}\n"
+                    )
+            # ENSEMBLE
+            outdata.write(
+                f"{'ENSEMBLE':{outlen}} "+
+                f"{'-':^{max_fmt-1}} "+
+                f"{100.00:> 6.2f} "+
+                f"{averaged_or:> {max_fmt}.7f}\n"
+                )
         print(
             f"\nAveraged specific rotation at {freq} nm : "
-            f"{averaged_or: .3f}   in deg*[dm(g/cc)]^(-1)"
+            f"{averaged_or:> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
         )
 
 
@@ -560,7 +592,13 @@ def part5(config, conformers, store_confs, ensembledata):
             for _ in range(1000):
                 averaged_or = 0.0
                 for conf in calculate:
-                    conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
+                    conf.calc_free_energy(
+                        e=energy,
+                        solv=gsolv,
+                        rrho=rrho,
+                        t=config.temperature,
+                        consider_sym=config.consider_sym
+                        )
                     conf.free_energy += normalvariate(
                         0.0, conf.lowlevel_gsolv_compare_info["std_dev"]
                     )
@@ -590,7 +628,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 print(e)
                 max_fmt = 16
             print(
-                f"    SD based on SD of Gsolv (part2)     "
+                f"    SD based on SD of Gsolv (part2)    "
                 f": {calc_std_dev(all_or):> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
             )
 
@@ -600,7 +638,13 @@ def part5(config, conformers, store_confs, ensembledata):
             for _ in range(1000):
                 averaged_or = 0.0
                 for conf in calculate:
-                    conf.calc_free_energy(e=energy, solv=gsolv, rrho=rrho)
+                    conf.calc_free_energy(
+                        e=energy, 
+                        solv=gsolv, 
+                        rrho=rrho,
+                        t=config.consider_sym,
+                        consider_sym=config.consider_sym
+                        )
                     conf.free_energy += normalvariate(
                         0.0, (0.4/AU2KCAL)
                     )
@@ -630,7 +674,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 print(e)
                 max_fmt = 16
             print(
-                f"    SD based on SD in G of 0.4 kcal/mol     "
+                f"    SD based on SD in G of 0.4 kcal/mol"
                 f": {calc_std_dev(all_or):> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
             )
 
