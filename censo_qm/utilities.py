@@ -172,7 +172,7 @@ def x2t(path, infile="inp.xyz"):
 
 
 def write_trj(
-    results, cwd, outpath, optfolder, nat, attribute, overwrite=False, *args, **kwargs
+    results, cwd, outpath, optfolder, nat, attribute, temperature, consider_sym, overwrite=False, *args, **kwargs
 ):
     """
     Write trajectory (multiple xyz geometries) to file.
@@ -199,8 +199,13 @@ def write_trj(
                 ### coordinates in xyz
                 out.write("  {}\n".format(nat))
                 xtbfree = conf.calc_free_energy(
-                    e=energy, solv=None, rrho=rrho, out=True
-                )
+                    e=energy, 
+                    solv=None,
+                    rrho=rrho,
+                    out=True,
+                    t=temperature,
+                    consider_sym=consider_sym
+                    )
                 if xtbfree is not None:
                     xtbfree = f"{xtbfree:20.8f}"
                 out.write(
@@ -779,8 +784,13 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
 def format_line(key, value, options, optionlength=70, dist_to_options=30):
     """
     used in print_parameters
+    'key: value ---space--- #(separator) option1 option2 ...'
     """
     # limit printout of possibilities
+    if len(options) > 0:
+        separator = '#'
+    else:
+        separator = ''
     if len(str(options)) > optionlength:
         length = 0
         reduced = []
@@ -790,8 +800,8 @@ def format_line(key, value, options, optionlength=70, dist_to_options=30):
                 reduced.append(item)
         reduced.append("...")
         options = reduced
-    line = "{}: {:{digits}} # {} \n".format(
-        key, str(value), options, digits=dist_to_options - len(key)
+    line = "{}: {:{digits}} {} {} \n".format(
+        key, str(value), separator, options, digits=dist_to_options - len(key)
     )
     return line
 

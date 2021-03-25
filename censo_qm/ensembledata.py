@@ -10,6 +10,18 @@ class EnsembleData:
             "part2_opt": None,
             "part2": None,
             "part3": None,
+            "part4": None,
+            "part5": None,
+        },
+        previous_part_info={
+            "part0": 0.0,
+            "part1_firstsort": 0.0,
+            "part1": 0.0,
+            "part2_opt": 0.0,
+            "part2": 0.0,
+            "part3": 0.0,
+            "part4": 0.0,
+            "part5": 0.0,
         },
         avGcorrection=None,
         comment=None,
@@ -42,6 +54,7 @@ class EnsembleData:
         self.id = id
         self.filename = filename
         self.part_info = part_info
+        self.previous_part_info = previous_part_info
         self.avGcorrection = avGcorrection
         self.comment = comment
         self.bestconf = bestconf

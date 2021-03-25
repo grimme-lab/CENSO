@@ -5,6 +5,7 @@ idea is to improve on E and (Gsolv)
 import os
 import sys
 import math
+import time
 from multiprocessing import JoinableQueue as Queue
 from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN
 from .parallel import run_in_parallel
@@ -77,19 +78,18 @@ def part1(config, conformers, store_confs, ensembledata):
 
     max_len_digilen = 0
     for item in info:
-        if item[0] == 'justprint':
+        if item[0] == "justprint":
             if "short-notation" in item[1]:
-                tmp = len(item[1]) -len('short-notation:')
+                tmp = len(item[1]) - len("short-notation:")
             else:
                 tmp = len(item[1])
         else:
             tmp = len(item[1])
         if tmp > max_len_digilen:
             max_len_digilen = tmp
-    max_len_digilen +=1
+    max_len_digilen += 1
     if max_len_digilen < DIGILEN:
         max_len_digilen = DIGILEN
-
 
     optionsexchange = {True: "on", False: "off"}
     for item in info:
@@ -280,6 +280,7 @@ def part1(config, conformers, store_confs, ensembledata):
             folder = instruction["func"]
 
     check = {True: "was successful", False: "FAILED"}
+    start_firstsort = time.perf_counter()
     if calculate:
         print(f"The {name} is calculated for:")
         print_block(["CONF" + str(i.id) for i in calculate])
@@ -313,7 +314,7 @@ def part1(config, conformers, store_confs, ensembledata):
             calculate,
             instruction,
             config.balance,
-            folder
+            folder,
         )
 
         for conf in list(calculate):
@@ -335,6 +336,7 @@ def part1(config, conformers, store_confs, ensembledata):
                     conf.prescreening_sp_info["method"] = conf.job["method"]
                     if instruction["jobtype"] == "sp_implicit":
                         conf.prescreening_gsolv_info["energy"] = 0.0
+                        conf.prescreening_gsolv_info["range"] = {conf.job['temperature']: 0.0,}
                         conf.prescreening_gsolv_info["info"] = "calculated"
                         conf.prescreening_gsolv_info["method"] = conf.job["method2"]
             elif instruction["jobtype"] in (
@@ -362,6 +364,7 @@ def part1(config, conformers, store_confs, ensembledata):
                     conf.prescreening_sp_info["method"] = conf.job["method"]
                     conf.prescreening_gsolv_info["gas-energy"] = conf.job["energy"]
                     conf.prescreening_gsolv_info["energy"] = conf.job["energy2"]
+                    conf.prescreening_gsolv_info["range"] = conf.job["erange1"]
                     conf.prescreening_gsolv_info["info"] = "calculated"
                     conf.prescreening_gsolv_info["method"] = conf.job["method2"]
             else:
@@ -404,6 +407,8 @@ def part1(config, conformers, store_confs, ensembledata):
                     f"{conf.prescreening_gsolv_info['energy']:>.8f}"
                 )
             calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
+    end_firstsort = time.perf_counter()
+    ensembledata.part_info["part1_firstsort"] = end_firstsort -start_firstsort
     for conf in calculate:
         conf.reset_job_info()
     if not calculate:
@@ -425,7 +430,13 @@ def part1(config, conformers, store_confs, ensembledata):
         else:
             solv = "prescreening_gsolv_info"
         e = "prescreening_sp_info"
-        conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e=e, 
+            solv=solv,
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
     except ValueError:
@@ -435,7 +446,9 @@ def part1(config, conformers, store_confs, ensembledata):
     try:
         maxreldft = max([i.rel_free_energy for i in calculate if i is not None])
     except ValueError:
-        print_errors(f"{'ERROR:':{WARNLEN}}No conformer left or Error in maxreldft!", save_errors)
+        print_errors(
+            f"{'ERROR:':{WARNLEN}}No conformer left or Error in maxreldft!", save_errors
+        )
     # print sorting
     columncall = [
         lambda conf: "CONF" + str(getattr(conf, "id")),
@@ -494,14 +507,16 @@ def part1(config, conformers, store_confs, ensembledata):
             if conf.rel_free_energy > (config.part1_threshold):
                 store_confs.append(calculate.pop(calculate.index(conf)))
         if calculate:
-            print(f"Below the g_thr(1) threshold of {config.part1_threshold} kcal/mol.\n")
+            print(
+                f"Below the g_thr(1) threshold of {config.part1_threshold} kcal/mol.\n"
+            )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
             print(f"{'ERROR:':{WARNLEN}}There are no more conformers left!")
     else:
         print(
             "\nAll relative (free) energies are below the g_thr(1) threshold "
-            f"of ({config.part1_threshold} kcal/mol.\nAll conformers are "
+            f"of {config.part1_threshold} kcal/mol.\nAll conformers are "
             "considered further."
         )
     ensembledata.nconfs_per_part["part1_firstsort"] = len(calculate)
@@ -564,7 +579,7 @@ def part1(config, conformers, store_confs, ensembledata):
             "success": False,
             "imagthr": config.imagthr,
             "sthr": config.sthr,
-            "scale":config.scale,
+            "scale": config.scale,
         }
 
         instruction_prerrho["method"], _ = config.get_method_name(
@@ -601,20 +616,33 @@ def part1(config, conformers, store_confs, ensembledata):
             # check if too many calculations failed
 
             ###
+
             for conf in list(calculate):
                 print(
-                    f"The prescreening G_mRRHO calculation @ {conf.job['symmetry']} "
+                    f"The prescreening G_mRRHO run @ {conf.job['symmetry']} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.job['energy']:>.8f}"
+                    f"{conf.job['energy']:>.8f} "
+                    f"""S_rot(sym)= {conf.calc_entropy_sym(
+                        config.temperature,
+                        symnum=conf.job['symnum']):>.7f} """
+                    f"""using= {conf.get_mrrho(
+                        config.temperature,
+                        rrho='direct_input',
+                        consider_sym=config.consider_sym,
+                        symnum=conf.job['symnum'],
+                        direct_input=conf.job['energy']):>.7f}"""
                 )
                 if not conf.job["success"]:
                     conf.prescreening_grrho_info["info"] = "failed"
                     store_confs.append(calculate.pop(calculate.index(conf)))
                 else:
                     conf.sym = conf.job["symmetry"]
+                    conf.symnum = conf.job["symnum"]
+                    conf.linear = conf.job["linear"]
                     conf.prescreening_grrho_info["rmsd"] = conf.job["rmsd"]
                     conf.prescreening_grrho_info["energy"] = conf.job["energy"]
+                    conf.prescreening_grrho_info["range"] = {conf.job['temperature']: conf.job["energy"],}
                     conf.prescreening_grrho_info["info"] = "calculated"
                     conf.prescreening_grrho_info["method"] = instruction_prerrho[
                         "method"
@@ -639,10 +667,15 @@ def part1(config, conformers, store_confs, ensembledata):
                     os.path.join(config.cwd, "CONF" + str(conf.id), folderrho)
                 )
                 print(
-                    f"The prescreening G_mRRHO calculation @ {conf.sym} "
+                    f"The prescreening G_mRRHO run @ {conf.sym} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.prescreening_grrho_info['energy']:>.8f}"
+                    f"{conf.prescreening_grrho_info['energy']:>.8f} "
+                    f"S_rot(sym)= {conf.calc_entropy_sym(config.temperature):>.7f}"
+                    f""" using= {conf.get_mrrho(
+                        config.temperature,
+                        rrho='prescreening_grrho_info',
+                        consider_sym=config.consider_sym):>.7f}"""
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
@@ -670,7 +703,10 @@ def part1(config, conformers, store_confs, ensembledata):
         lambda conf: getattr(conf, "rel_xtb_free_energy"),
         lambda conf: getattr(conf, "prescreening_sp_info")["energy"],
         lambda conf: getattr(conf, "prescreening_gsolv_info")["energy"],
-        lambda conf: getattr(conf, "prescreening_grrho_info")["energy"],
+        # lambda conf: getattr(conf, "prescreening_grrho_info")["energy"],
+        lambda conf: conf.get_mrrho(
+            config.temperature, "prescreening_grrho_info", config.consider_sym
+        ),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
     ]
@@ -729,9 +765,20 @@ def part1(config, conformers, store_confs, ensembledata):
             solv = None
         else:
             solv = "prescreening_gsolv_info"
-        conf.calc_free_energy(e="prescreening_sp_info", solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e="prescreening_sp_info", 
+            solv=solv, 
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
         conf.xtb_free_energy = conf.calc_free_energy(
-            e="xtb_energy", solv=None, rrho=rrho, out=True
+            e="xtb_energy",
+            solv=None,
+            rrho=rrho, 
+            out=True,
+            t=config.temperature,
+            consider_sym=config.consider_sym
         )
 
     try:
@@ -745,7 +792,9 @@ def part1(config, conformers, store_confs, ensembledata):
     try:
         maxreldft = max([i.rel_free_energy for i in calculate if i is not None])
     except ValueError:
-        print_errors(f"{'ERROR:':{WARNLEN}}No conformer left or Error in maxreldft!", save_errors)
+        print_errors(
+            f"{'ERROR:':{WARNLEN}}No conformer left or Error in maxreldft!", save_errors
+        )
     # print sorting
     calculate.sort(key=lambda x: int(x.id))
     printout(
@@ -782,9 +831,17 @@ def part1(config, conformers, store_confs, ensembledata):
     else:
         std_dev = calc_std_dev(
             [
-                conf.prescreening_grrho_info["energy"] * AU2KCAL
+                conf.get_mrrho(
+                    config.temperature,
+                    rrho="prescreening_grrho_info",
+                    consider_sym=config.consider_sym
+                    ) * AU2KCAL
                 for conf in calculate
-                if conf.prescreening_grrho_info["energy"] is not None
+                if conf.get_mrrho(
+                    config.temperature,
+                    rrho="prescreening_grrho_info",
+                    consider_sym=config.consider_sym
+                    ) is not None
             ]
         )
     max_fuzzy = 1
@@ -810,7 +867,13 @@ def part1(config, conformers, store_confs, ensembledata):
             else:
                 solv = "prescreening_gsolv_info"
             e = "prescreening_sp_info"
-            conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+            conf.calc_free_energy(
+                e=e, 
+                solv=solv, 
+                rrho=rrho, 
+                t=config.temperature,
+                consider_sym=config.consider_sym
+                )
         try:
             minfree = min([i.free_energy for i in calculate if i is not None])
         except ValueError:
@@ -828,7 +891,13 @@ def part1(config, conformers, store_confs, ensembledata):
             else:
                 solv = "prescreening_gsolv_info"
             e = "prescreening_sp_info"
-            conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+            conf.calc_free_energy(
+                e=e, 
+                solv=solv, 
+                rrho=rrho,
+                t=config.temperature,
+                consider_sym=config.consider_sym
+                )
         try:
             minfree = min([i.free_energy for i in calculate if i is not None])
         except ValueError:
@@ -874,7 +943,9 @@ def part1(config, conformers, store_confs, ensembledata):
             )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
-            print_errors(f"{'ERROR:':{WARNLEN}}There are no more conformers left!", save_errors)
+            print_errors(
+                f"{'ERROR:':{WARNLEN}}There are no more conformers left!", save_errors
+            )
     else:
         for conf in list(calculate):
             conf.part_info["part1"] = "passed"
@@ -904,7 +975,13 @@ def part1(config, conformers, store_confs, ensembledata):
             solv = None
         else:
             solv = "prescreening_gsolv_info"
-        conf.calc_free_energy(e="prescreening_sp_info", solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e="prescreening_sp_info", 
+            solv=solv, 
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
 
     # write coord.enso_best
     for conf in calculate:
@@ -923,7 +1000,11 @@ def part1(config, conformers, store_confs, ensembledata):
                 best.write(
                     "$coord  # {}   {}   !CONF{} \n".format(
                         conf.free_energy,
-                        conf.prescreening_grrho_info["energy"],
+                        conf.get_mrrho(
+                            config.temperature, 
+                            rrho="prescreening_grrho_info", 
+                            consider_sym=config.consider_sym
+                        ),
                         conf.id,
                     )
                 )
@@ -975,7 +1056,13 @@ def part1(config, conformers, store_confs, ensembledata):
         else:
             solv = "prescreening_gsolv_info"
         e = "prescreening_sp_info"
-        conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e=e, 
+            solv=solv, 
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
 
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     avG = 0.0
@@ -985,7 +1072,12 @@ def part1(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         avG += conf.bm_weight * conf.free_energy
         avE += conf.bm_weight * conf.prescreening_sp_info["energy"]
-        avGRRHO += conf.bm_weight * conf.prescreening_grrho_info["energy"]
+        #avGRRHO += conf.bm_weight * conf.prescreening_grrho_info["energy"]
+        avGRRHO += conf.bm_weight * conf.get_mrrho(
+                config.temperature, 
+                "prescreening_grrho_info", 
+                config.consider_sym
+            )
         avGsolv += conf.bm_weight * conf.prescreening_gsolv_info["energy"]
 
     # printout:
@@ -1011,25 +1103,33 @@ def part1(config, conformers, store_confs, ensembledata):
     print("".ljust(int(PLENGTH), "-"))
     print("")
 
-    ################################################################################
+    ############################################################################
+    # Calculate unbiased GFNn-xTB energy:
+    for conf in list(calculate):
+        if conf.xtb_energy_unbiased is None:
+            pass
+        else:
+            conf = calculate.pop(calculate.index(conf))
+            conf.job["success"] = True
+            prev_calculated.append(conf)
 
-    print("\nCalculating unbiased GFNn-xTB energy")
-    instruction_gfn = {
-        "jobtype": "xtb_sp",
-        "func": getattr(config, "part1_gfnv"),
-        "charge": config.charge,
-        "unpaired": config.unpaired,
-        "solvent": config.solvent,
-        "progpath": config.external_paths["xtbpath"],
-        "sm": config.sm_rrho,
-        "rmsdbias": config.rmsdbias,
-        "temperature": config.temperature,
-        "gfn_version": config.part1_gfnv,
-        "energy": 0.0,
-        "energy2": 0.0,
-        "success": False,
-    }
     if calculate:
+        print("\nCalculating unbiased GFNn-xTB energy")
+        instruction_gfn = {
+            "jobtype": "xtb_sp",
+            "func": getattr(config, "part1_gfnv"),
+            "charge": config.charge,
+            "unpaired": config.unpaired,
+            "solvent": config.solvent,
+            "progpath": config.external_paths["xtbpath"],
+            "sm": config.sm_rrho,
+            "rmsdbias": config.rmsdbias,
+            "temperature": config.temperature,
+            "gfn_version": config.part1_gfnv,
+            "energy": 0.0,
+            "energy2": 0.0,
+            "success": False,
+        }
         folder_gfn = "GFN_unbiased"
         save_errors, store_confs, calculate = new_folders(
             config.cwd, calculate, folder_gfn, save_errors, store_confs
@@ -1055,6 +1155,11 @@ def part1(config, conformers, store_confs, ensembledata):
                 conf.xtb_energy_unbiased = conf.xtb_energy
             else:
                 conf.xtb_energy_unbiased = conf.job["energy"]
+    if prev_calculated:
+        for conf in list(prev_calculated):
+            calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
+    ############################################################################
+
     # write ensemble
     move_recursively(config.cwd, "enso_ensemble_part1.xyz")
     if config.evaluate_rrho:
@@ -1068,6 +1173,8 @@ def part1(config, conformers, store_confs, ensembledata):
         config.func,
         config.nat,
         "free_energy",
+        config.temperature,
+        config.consider_sym,
         **kwargs,
     )
 
@@ -1078,17 +1185,11 @@ def part1(config, conformers, store_confs, ensembledata):
         conf.bm_weight = 0.0
         conf.reset_job_info()
     if save_errors:
-        print(
-            "\n***---------------------------------------------------------***"
-        )
-        print(
-            "Printing most relevant errors again, just for user convenience:"
-        )
+        print("\n***---------------------------------------------------------***")
+        print("Printing most relevant errors again, just for user convenience:")
         for _ in list(save_errors):
             print(save_errors.pop())
-        print(
-            "***---------------------------------------------------------***"
-        )
+        print("***---------------------------------------------------------***")
 
     tmp = int((PLENGTH - len("END of Part1")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part1" + "".rjust(tmp, "<"))

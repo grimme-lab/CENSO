@@ -4,6 +4,8 @@ conformer.
 """
 from collections import OrderedDict
 from .utilities import print
+from .cfg import R, AU2KCAL
+from math import log
 
 
 class MoleculeData:
@@ -23,6 +25,8 @@ class MoleculeData:
         rel_xtb_energy=None,
         rel_xtb_free_energy=None,
         sym="c1",
+        linear=False,
+        symnum=1,
         gi=1.0,
         removed=False,
         free_energy=0.0,
@@ -37,6 +41,7 @@ class MoleculeData:
             "energy": None,
             "gas-energy": None,
             "solv-energy": None,
+            "range": None,
             "info": "not_calculated",
             "method": None,
             "prev_methods": None,
@@ -61,6 +66,7 @@ class MoleculeData:
         },
         prescreening_grrho_info={
             "energy": None,
+            "range": None,
             "info": "not_calculated",
             "method": None,
             "fuzzythr": 0.0,
@@ -101,6 +107,7 @@ class MoleculeData:
         },
         prescreening_gsolv_info={
             "energy": None,
+            "range": None,
             "gas-energy": None,
             "info": "not_calculated",
             "method": None,
@@ -231,8 +238,8 @@ class MoleculeData:
             temperature_info["range"] = []
         if xtb_energy is None:
             xtb_energy = 100.0
-        if xtb_energy_unbiased is None:
-            xtb_energy_unbiased = 100.0
+        #if xtb_energy_unbiased is None:
+        #    xtb_energy_unbiased = 100.0
         if xtb_free_energy is None:
             xtb_free_energy = 100.0
         if rel_xtb_energy is None:
@@ -243,6 +250,7 @@ class MoleculeData:
             cheap_prescreening_sp_info["energy"] = 0.0
         if cheap_prescreening_gsolv_info.get("energy") is None:
             cheap_prescreening_gsolv_info["energy"] = 0.0
+        self._initialize(cheap_prescreening_gsolv_info)
         if prescreening_sp_info.get("energy") is None:
             prescreening_sp_info["energy"] = 0.0
         if lowlevel_sp_info.get("energy") is None:
@@ -251,6 +259,7 @@ class MoleculeData:
             highlevel_sp_info["energy"] = 0.0
         if prescreening_grrho_info.get("energy") is None:
             prescreening_grrho_info["energy"] = 0.0
+        self._initialize(prescreening_grrho_info)
         if lowlevel_grrho_info.get("energy") is None:
             lowlevel_grrho_info["energy"] = 0.0
         self._initialize(lowlevel_grrho_info)
@@ -259,6 +268,7 @@ class MoleculeData:
         self._initialize(lowlevel_hrrho_info)
         if prescreening_gsolv_info.get("energy") is None:
             prescreening_gsolv_info["energy"] = 0.0
+        self._initialize(prescreening_gsolv_info)
         if lowlevel_gsolv_info.get("energy") is None:
             lowlevel_gsolv_info["energy"] = 0.0
         self._initialize(lowlevel_gsolv_info)
@@ -313,6 +323,8 @@ class MoleculeData:
             )
         if not isinstance(sym, str):
             raise TypeError("Please provide symmetry as string.")
+        if not isinstance(linear, bool):
+            raise TypeError("Please provide information on linear molecules as bool.")
         if not isinstance(gi, float):
             try:
                 gi = float(gi)
@@ -367,6 +379,8 @@ class MoleculeData:
         self.rel_xtb_energy = rel_xtb_energy
         self.rel_xtb_free_energy = rel_xtb_free_energy
         self.sym = sym
+        self.linear = linear
+        self.symnum = symnum
         self.gi = gi
         self.cheap_prescreening_gsolv_info = cheap_prescreening_gsolv_info
         self.cheap_prescreening_sp_info = cheap_prescreening_sp_info
@@ -423,6 +437,8 @@ class MoleculeData:
         attributes = [
             "lowlevel_grrho_info",
             "lowlevel_hrrho_info",
+            "highlevel_grrho_info",
+            "highlevel_hrrho_info",
             "lowlevel_gsolv_info",
             "highlevel_gsolv_info",
         ]
@@ -491,7 +507,59 @@ class MoleculeData:
             runinfo.append((key, getattr(self, key)))
         return OrderedDict(runinfo)
 
-    def calc_free_energy(self, e=None, solv=None, rrho=None, t=None, out=False):
+    # def calc_free_energy(self, e=None, solv=None, rrho=None, t=None, out=False):
+    #     """
+    #     Calculate free energy for molecule either at normal temperature,
+    #     or if the temperature is not None from the range of temperatures.
+    #     if out=False free energy is written to self.free_energy
+    #     if out=True free energy is simply returned 
+    #     """
+    #     if t is None:
+    #         try:
+    #             f = 0.0
+    #             if e is not None:
+    #                 if e in ("xtb_energy", "xtb_energy_unbiased"):
+    #                     f += getattr(self, e, 0.0)
+    #                 else:
+    #                     f += getattr(self, e, {"energy": 0.0})["energy"]
+    #             if solv is not None:
+    #                 f += getattr(self, solv, {"energy": 0.0})["energy"]
+    #             if rrho is not None:
+    #                 f += getattr(self, rrho, {"energy": 0.0})["energy"]
+    #             if not out:
+    #                 self.free_energy = f
+    #             else:
+    #                 return f
+    #         except Exception as error:
+    #             print("ERROR in _calc_free_energy: ", error)
+    #             if not out:
+    #                 self.free_energy = None
+    #             else:
+    #                 return f
+    #     else:
+    #         try:
+    #             f = 0.0
+    #             if e is not None:
+    #                 if e in ("xtb_energy", "xtb_energy_unbiased"):
+    #                     f += getattr(self, e, 0.0)
+    #                 else:
+    #                     f += getattr(self, e)["energy"]
+    #             if solv is not None:
+    #                 f += getattr(self, solv)["range"].get(t, 0.0)
+    #             if rrho is not None:
+    #                 f += getattr(self, rrho)["range"].get(t, 0.0)
+    #             if not out:
+    #                 self.free_energy = f
+    #             else:
+    #                 return f
+    #         except (Exception, KeyError) as error:
+    #             print("ERROR in _calc_free_energy: ", error)
+    #             if not out:
+    #                 self.free_energy = None
+    #             else:
+    #                 return f
+
+    def calc_free_energy(self, e=None, solv=None, rrho=None, t=None, out=False, consider_sym=None):
         """
         Calculate free energy for molecule either at normal temperature,
         or if the temperature is not None from the range of temperatures.
@@ -499,46 +567,72 @@ class MoleculeData:
         if out=True free energy is simply returned 
         """
         if t is None:
-            try:
-                f = 0.0
-                if e is not None:
-                    if e in ("xtb_energy", "xtb_energy_unbiased"):
-                        f += getattr(self, e, 0.0)
-                    else:
-                        f += getattr(self, e, {"energy": 0.0})["energy"]
-                if solv is not None:
-                    f += getattr(self, solv, {"energy": 0.0})["energy"]
-                if rrho is not None:
-                    f += getattr(self, rrho, {"energy": 0.0})["energy"]
-                if not out:
-                    self.free_energy = f
+            print("xxxxxxxxxxxxx No temperature provided in calc_free_energy xxxxxxxxxxxxxxx")
+        try:
+            f = 0.0
+            if e is not None:
+                if e in ("xtb_energy", "xtb_energy_unbiased"):
+                    f += getattr(self, e, 0.0)
                 else:
-                    return f
-            except Exception as error:
-                print("ERROR in _calc_free_energy: ", error)
-                if not out:
-                    self.free_energy = None
+                    f += getattr(self, e)["energy"]
+            if solv is not None:
+                if solv in ("cheap_prescreening_gsolv_info", "prescreening_gsolv_info"):
+                    f += getattr(self, solv).get("range", {}).get(t,getattr(self, solv, {"energy": 0.0})["energy"])
                 else:
-                    return f
-        else:
-            try:
-                f = 0.0
-                if e is not None:
-                    if e in ("xtb_energy", "xtb_energy_unbiased"):
-                        f += getattr(self, e, 0.0)
-                    else:
-                        f += getattr(self, e)["energy"]
-                if solv is not None:
                     f += getattr(self, solv)["range"].get(t, 0.0)
-                if rrho is not None:
-                    f += getattr(self, rrho)["range"].get(t, 0.0)
-                if not out:
-                    self.free_energy = f
-                else:
-                    return f
-            except (Exception, KeyError) as error:
-                print("ERROR in _calc_free_energy: ", error)
-                if not out:
-                    self.free_energy = None
-                else:
-                    return f
+            if rrho is not None:
+                f += self.get_mrrho(
+                        t,
+                        rrho=rrho,
+                        consider_sym=consider_sym,
+                        symnum=self.symnum,
+                    )
+            if not out:
+                self.free_energy = f
+            else:
+                return f
+        except (Exception, KeyError) as error:
+            print("ERROR in _calc_free_energy: ", error)
+            if not out:
+                self.free_energy = None
+            else:
+                return f
+
+    def calc_entropy_sym(self, temperature, symnum=None):
+        """ RTln(sigma) rotational entropy"""
+        if symnum is None:
+            symnum=self.symnum
+        return R / AU2KCAL * temperature * log(symnum)
+
+
+    def get_mrrho(
+        self, temperature, rrho=None, consider_sym=None, symnum=None, direct_input=0.0
+    ):
+        """ return mRRHO with or without RTln(sigma) (rot entropy)"""
+        f = 0.0
+        if rrho is not None:
+            if rrho == "direct_input":
+                f = direct_input
+            elif rrho in ("prescreening_grrho_info",):
+                f += (
+                    getattr(self, rrho)
+                    .get("range", {})
+                    .get(temperature, getattr(self, rrho, {"energy": 0.0})["energy"])
+                )
+            elif rrho in ("rrho_optimization",):
+                f += (
+                    getattr(self, "optimization_info")
+                    .get("energy_rrho", 0.0)
+                )
+            else:
+                f += getattr(self, rrho)["range"].get(temperature, 0.0)
+            if consider_sym is None:
+                consider_sym = True
+            if not consider_sym:
+                # sym is considered but consider_sym off
+                if symnum is None:
+                    symnum = self.symnum
+                f += -self.calc_entropy_sym(temperature, symnum=symnum)
+            return f
+        else:
+            return f

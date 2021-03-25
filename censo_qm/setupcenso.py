@@ -55,8 +55,29 @@ def enso_startup(cwd, args):
         print("Removed files and going to exit!")
         sys.exit(0)
 
+    configfname = ".censorc"
     if args.writeconfig:
+        #check if .censorc in local or home dir and ask user it the program 
+        # paths should be copied
+        tmp = None
         newconfigfname = "censorc_new"
+        if os.path.isfile(os.path.join(config.cwd, configfname)):
+            tmp = os.path.join(config.cwd, configfname)
+        elif os.path.isfile(os.path.join(os.path.expanduser("~"), configfname)):
+            tmp = os.path.join(os.path.expanduser("~"), configfname)
+        if tmp is not None:
+            print(f"An existing .censorc has been found in {tmp}")
+            print(f"Do you want to copy existing program path information to the new remote configuration file?")
+            print("Please type 'yes' or 'no':")
+            user_input = input()
+            if user_input.strip() in ('y', 'yes'):
+                config.read_program_paths(tmp)
+                config.write_rcfile(os.path.join(config.cwd, newconfigfname), usepaths=True)
+                print("")
+            elif user_input.strip() in ('n', 'no'):
+                config.write_rcfile(os.path.join(config.cwd, newconfigfname))
+        else:
+            config.write_rcfile(os.path.join(config.cwd, newconfigfname))
         print(
             "A new ensorc was written into the current directory file: "
             f"{newconfigfname}!\nYou have to adjust the settings to your needs"
@@ -65,10 +86,8 @@ def enso_startup(cwd, args):
             "and place it either in your /home/$USER/ or current directory.\n"
             "\nAll done!"
         )
-        config.write_rcfile(os.path.join(config.cwd, newconfigfname))
         sys.exit(0)
 
-    configfname = ".censorc"
     if args.inprcpath:
         try:
             tmp_path = os.path.abspath(os.path.expanduser(args.inprcpath))
@@ -178,6 +197,14 @@ def enso_startup(cwd, args):
                 print(f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!")
                 sys.exit(1)
         config.read_config(config.configpath, startread, args)
+
+    if args.copyinput:
+        config.read_program_paths(config.configpath)
+        config.write_censo_inp(config.cwd)
+        print("The file censo.inp with the current settings has been written to the current working directory.")
+        print("\nGoing to exit!")
+        sys.exit(1)
+
 
     # read inputfile:
     if os.path.isfile(os.path.join(config.cwd, "enso.json")):
@@ -376,6 +403,7 @@ def enso_startup(cwd, args):
                         id=save_data[conf].get("id"),
                         filename=save_data[conf].get("filename"),
                         part_info=save_data[conf].get("part_info"),
+                        previous_part_info=save_data[conf].get("previous_part_info", EnsembleData().previous_part_info),
                         avGcorrection=save_data[conf].get("avGcorrection"),
                         comment=save_data[conf].get("comment"),
                         bestconf=save_data[conf].get("bestconf"),
@@ -398,8 +426,10 @@ def enso_startup(cwd, args):
                         xtb_free_energy=save_data[conf].get("xtb_free_energy"),
                         rel_xtb_energy=save_data[conf].get("rel_xtb_energy"),
                         rel_xtb_free_energy=save_data[conf].get("rel_xtb_free_energy"),
-                        sym=save_data[conf].get("sym"),
-                        gi=save_data[conf].get("gi"),
+                        sym=save_data[conf].get("sym", getattr(MoleculeData(0), "sym")),
+                        linear=save_data[conf].get("linear", getattr(MoleculeData(0), "linear")),
+                        symnum=save_data[conf].get("symnum", getattr(MoleculeData(0), "symnum")),
+                        gi=save_data[conf].get("gi", getattr(MoleculeData(0), "sym")),
                         removed=save_data[conf].get(
                             "removed", getattr(MoleculeData(0), "removed")
                         ),
@@ -638,6 +668,22 @@ def enso_startup(cwd, args):
                                 func2=config.func_or_scf,
                             )
                             molecule.load_prev("optical_rotation_info", method)
+                        #####
+                        elif value and key in (
+                            "func_j",
+                            "basis_j",
+                            "sm4_j"
+                        ):
+                            # reset to default, load is not available
+                            molecule.nmr_coupling_info=getattr(MoleculeData(0), "nmr_coupling_info")
+                        elif value and key in (
+                            "func_s",
+                            "basis_s",
+                            "sm4_s"
+                        ):
+                            # reset to default, load is not available
+                            molecule.nmr_shielding_info=getattr(MoleculeData(0), "nmr_shielding_info")
+                        #####
                         elif value and key in ("func3", "basis3"):
                             # save calculated to
                             molecule.save_prev(

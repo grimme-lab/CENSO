@@ -118,18 +118,18 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Applies structure constraint to input/DFT geometry for mRRHO calcuation."
+        help="Uses SPH and applies structure constraint to input/DFT geometry for mRRHO calcuation. "
         "Options are: ['on' or 'off'].",
     )
     group1.add_argument(
         "-consider_sym",
-        "---consider_sym",
-        dest="-consider_sym",
+        "--consider_sym",
+        dest="consider_sym",
         choices=["on", "off"],
         action="store",
         required=False,
         metavar="",
-        help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold)."
+        help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold). "
         "Options are: ['on' or 'off'].",
     )
     group1.add_argument(
@@ -140,7 +140,7 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Applies constraint to rmsdpot.xyz to be consistent to CREST."
+        help="Applies constraint to rmsdpot.xyz to be consistent to CREST. "
         "Options are: ['on' or 'off'].",
     )
     group1.add_argument(
@@ -928,6 +928,16 @@ def cml(startup_description, options, argv=None):
         "directory.",
     )
     group8.add_argument(
+        "-copyinput",
+        "--copyinput",
+        dest="copyinput",
+        default=False,
+        action="store_true",
+        required=False,
+        help="Write all current settings to a censo.inp configuration file, which is placed into the current "
+        "directory.",
+    )
+    group8.add_argument(
         "-progress",
         "--progress",
         dest="progress",
@@ -1356,6 +1366,7 @@ class internal_settings:
         "dmf",
         "dmso",
         "ether",
+        "ethanol",
         "ethylacetate",
         "furane",
         "hexadecane",
@@ -1502,7 +1513,7 @@ class internal_settings:
             ("trange", {"default": [273.15, 378.15, 5], "type": list}),
             ("multitemp", {"default": True, "type": bool}),
             ("evaluate_rrho", {"default": True, "type": bool}),
-            ("consider_sym", {"default": False, "type": bool}),
+            ("consider_sym", {"default": True, "type": bool}),
             ("bhess", {"default": True, "type": bool}),
             ("imagthr", {"default": "automatic", "type": str}),
             ("sthr", {"default": "automatic", "type": str}),
@@ -1739,7 +1750,6 @@ class internal_settings:
             "sm2",
             "nat",
             "radsize",
-            "consider_sym",
             "cosmorsparam",
         ]
         # might be changed, but data may be lost/overwritten
@@ -1760,12 +1770,13 @@ class internal_settings:
             "freq_or": False,
             "func3":False,
             "basis3":False,
-            # "consider_sym": False, # --> reset all rrho values!
-            # funcJ
-            # basisJ
-            # funcS
-            # basisS
-            # sm4_ j s
+            "func_j":False,
+            "basis_j":False,
+            "sm4_j":False,
+            "func_s":False,
+            "basis_s":False,
+            "sm4_s":False,
+            # "consider_sym": calculated on the fly 
         }
 
 
@@ -2791,7 +2802,8 @@ class config_setup(internal_settings):
             )
             info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
             info.append(["part1", "part1"])
-            info.append(["nconf", "starting number of considered conformers"])
+            if not self.part0:
+                info.append(["nconf", "starting number of considered conformers"])
             info.append(["prog", "program for part1"])
             info.append(["func", "functional for initial evaluation"])
             info.append(["basis", "basis set for initial evaluation"])
@@ -3450,7 +3462,7 @@ class config_setup(internal_settings):
         external_paths.update(self.external_paths)
         return error_logical
 
-    def write_rcfile(self, pathtofile):
+    def write_rcfile(self, pathtofile, usepaths=False):
         """
         write new global configruation file into the current directroy.
         """
@@ -3459,20 +3471,33 @@ class config_setup(internal_settings):
             outdata.write("$CENSO global configuration file: .censorc\n")
             outdata.write(f"$VERSION:{__version__} \n")
             outdata.write("\n")
-            outdata.write("ORCA: /path/excluding/binary/\n")
-            outdata.write("ORCA version: 4.2.1\n")
-            outdata.write("GFN-xTB: /path/including/binary/xtb-binary\n")
-            outdata.write("CREST: /path/including/binary/crest-binary\n")
-            outdata.write("mpshift: /path/including/binary/mpshift-binary\n")
-            outdata.write("escf: /path/including/binary/escf-binary\n")
-            outdata.write("\n")
-            outdata.write("#COSMO-RS\n")
-            outdata.write(
-                "ctd = BP_TZVP_C30_1601.ctd cdir = "
-                '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES" ldir = '
-                '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"\n'
-            )
-            # outdata.write("cosmothermversion: 16\n")
+            if usepaths:
+                # write stored program paths to file
+                outdata.write(f"ORCA: {self.external_paths['orcapath']}\n")
+                outdata.write(f"ORCA version: {self.external_paths['orcaversion']}\n")
+                outdata.write(f"GFN-xTB: {self.external_paths['xtbpath']}\n")
+                outdata.write(f"CREST: {self.external_paths['crestpath']}\n")
+                outdata.write(f"mpshift: {self.external_paths['mpshiftpath']}\n")
+                outdata.write(f"escf: {self.external_paths['escfpath']}\n")
+                outdata.write("\n")
+                outdata.write("#COSMO-RS\n")
+                outdata.write(f"{self.external_paths['cosmorssetup']}\n")
+                # outdata.write("cosmothermversion: 16\n")
+            else:
+                outdata.write("ORCA: /path/excluding/binary/\n")
+                outdata.write("ORCA version: 4.2.1\n")
+                outdata.write("GFN-xTB: /path/including/binary/xtb-binary\n")
+                outdata.write("CREST: /path/including/binary/crest-binary\n")
+                outdata.write("mpshift: /path/including/binary/mpshift-binary\n")
+                outdata.write("escf: /path/including/binary/escf-binary\n")
+                outdata.write("\n")
+                outdata.write("#COSMO-RS\n")
+                outdata.write(
+                    "ctd = BP_TZVP_C30_1601.ctd cdir = "
+                    '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES" ldir = '
+                    '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"\n'
+                )
+                # outdata.write("cosmothermversion: 16\n")
             outdata.write("$ENDPROGRAMS\n\n")
             outdata.write("$CRE SORTING SETTINGS:\n")
             outdata.write("$GENERAL SETTINGS:\n")
@@ -3546,38 +3571,104 @@ class config_setup(internal_settings):
                 outdata.write(format_line(key, value, options))
             outdata.write("$END CENSORC\n")
 
-    def write_enso_inp(self, path=None):
+    def write_censo_inp(self, path=None):
         """
-         Write file "enso.inp" which is the control file for the calculation
+         Write file "censo.inp" which stores current settings in the .censorc format
          """
         if path is None:
             path = self.cwd
-        with open(os.path.join(path, "enso.inp"), "w", newline=None) as inp:
-            inp.write("$ File: enso.inp settings of current calculation\n")
-            data = self.provide_runinfo(extend=False)
-            for key in data.keys():
-                value = data[key]
-                options = self.value_options.get(key, "possibilities")
+        args_key = {v: k for k, v in self.key_args_dict.items()}
+        data = self.provide_runinfo(extend=False)
+        with open(os.path.join(path, "censo.inp"), "w", newline=None) as outdata:
+            outdata.write("$File: censo.inp settings of current calculation\n")
+            outdata.write(f"$VERSION:{__version__} \n")
+            outdata.write("\n")
+            # write stored program paths to file
+            outdata.write(f"ORCA: {self.external_paths['orcapath']}\n")
+            outdata.write(f"ORCA version: {self.external_paths['orcaversion']}\n")
+            outdata.write(f"GFN-xTB: {self.external_paths['xtbpath']}\n")
+            outdata.write(f"CREST: {self.external_paths['crestpath']}\n")
+            outdata.write(f"mpshift: {self.external_paths['mpshiftpath']}\n")
+            outdata.write(f"escf: {self.external_paths['escfpath']}\n")
+            outdata.write("\n")
+            outdata.write("#COSMO-RS\n")
+            outdata.write(f"{self.external_paths['cosmorssetup']}\n")
+            # outdata.write("cosmothermversion: 16\n")
+            outdata.write("$ENDPROGRAMS\n\n")
+            outdata.write("$CRE SORTING SETTINGS:\n")
+            outdata.write("$GENERAL SETTINGS:\n")
+            for key in OrderedDict(self.defaults_refine_ensemble_general):
+                value = self._exchange_onoff(
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_general)[key]["default"]),
+                    reverse=True,
+                )
                 if key == "nconf" and value is None:
                     value = "all"
-                value = self._exchange_onoff(value, reverse=True)
-                # limit printout of possibilities
-                if len(str(options)) > 80:
-                    length = 0
-                    reduced = []
-                    for item in options:
-                        length += len(item) + 2
-                        if length < 80:
-                            reduced.append(item)
-                    reduced.append("...")
-                    options = reduced
-                    length = 0
-                inp.write(
-                    "{}: {:{digits}} # {}\n".format(
-                        str(key), str(value), options, digits=30 - len(str(key))
-                    )
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$PART0 - CHEAP-PRESCREENING - SETTINGS:\n")
+            for key in OrderedDict(self.defaults_refine_ensemble_part0):
+                value = self._exchange_onoff(
+                    data.get(
+                        key,
+                    OrderedDict(self.defaults_refine_ensemble_part0)[key]["default"]),
+                    reverse=True,
                 )
-            inp.write("$end\n")
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$PART1 - PRESCREENING - SETTINGS:\n")
+            outdata.write("# func and basis is set under GENERAL SETTINGS\n")
+            for key in OrderedDict(self.defaults_refine_ensemble_part1):
+                value = self._exchange_onoff(data.get(
+                    key,
+                    OrderedDict(self.defaults_refine_ensemble_part1)[key]["default"]),
+                    reverse=True,
+                )
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$PART2 - OPTIMIZATION - SETTINGS:\n")
+            outdata.write("# func and basis is set under GENERAL SETTINGS\n")
+            for key in OrderedDict(self.defaults_refine_ensemble_part2):
+                value = self._exchange_onoff(data.get(
+                    key,
+                    OrderedDict(self.defaults_refine_ensemble_part2)[key]["default"]),
+                    reverse=True,
+                )
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$PART3 - REFINEMENT - SETTINGS:\n")
+            for key in OrderedDict(self.defaults_refine_ensemble_part3):
+                value = self._exchange_onoff(data.get(
+                    key,
+                    OrderedDict(self.defaults_refine_ensemble_part3)[key]["default"]),
+                    reverse=True,
+                )
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$NMR PROPERTY SETTINGS:\n")
+            outdata.write("$PART4 SETTINGS:\n")
+            for key in OrderedDict(self.defaults_nmrprop_part4):
+                value = self._exchange_onoff(data.get(
+                    key,
+                    OrderedDict(self.defaults_nmrprop_part4)[key]["default"]),
+                    reverse=True,
+                )
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$OPTICAL ROTATION PROPERTY SETTINGS:\n")
+            outdata.write("$PART5 SETTINGS:\n")
+            for key in OrderedDict(self.defaults_optical_rotation_part5):
+                value = self._exchange_onoff(data.get(
+                    key,
+                    OrderedDict(self.defaults_optical_rotation_part5)[key]["default"]),
+                    reverse=True,
+                )
+                key = args_key.get(key, key)
+                outdata.write(format_line(key, value, ""))
+            outdata.write("\n$END censo.inp\n")
+##########################
 
     def read_json(self, path, silent=False):
         """
