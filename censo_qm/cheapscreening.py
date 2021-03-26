@@ -259,6 +259,7 @@ def part0(config, conformers, ensembledata):
                     conf.cheap_prescreening_sp_info["info"] = "calculated"
                     conf.cheap_prescreening_sp_info["method"] = conf.job["method"]
                     conf.cheap_prescreening_gsolv_info["energy"] = conf.job["energy2"]
+                    conf.cheap_prescreening_gsolv_info["range"] = {config.temperature: conf.job['energy2'],}
                     conf.cheap_prescreening_gsolv_info["info"] = "calculated"
                     conf.cheap_prescreening_gsolv_info["method"] = conf.job["method2"]
                     conf.cheap_prescreening_gsolv_info["gas-energy"] = conf.job[
@@ -345,7 +346,13 @@ def part0(config, conformers, ensembledata):
     rrho = None
     energy = "cheap_prescreening_sp_info"
     for conf in calculate:
-        conf.calc_free_energy(e=energy, solv=solvation, rrho=rrho)
+        conf.calc_free_energy(
+            e=energy,
+            solv=solvation,
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
     except ValueError:
@@ -428,8 +435,8 @@ def part0(config, conformers, ensembledata):
         (5, 2),
         (5, 2),
     ]
-    columndescription[1] = f"{config.part0_gfnv.upper()}-xTB[{config.sm_rrho.upper()}]"
-    columndescription[2] = f"{config.part0_gfnv.upper()}-xTB[{config.sm_rrho.upper()}]"
+    columndescription[1] = f"{config.part0_gfnv.upper()}-xTB[{config.sm_rrho}]"
+    columndescription[2] = f"{config.part0_gfnv.upper()}-xTB[{config.sm_rrho}]"
     columndescription[3] = instruction["method"]
     columndescription[4] = instruction["method2"]
     if config.solvent == "gas":

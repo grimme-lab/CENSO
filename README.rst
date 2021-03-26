@@ -203,7 +203,7 @@ a replacement solvent. E.g. if CCl4 is not available choose CHCl3.
 .. raw:: html
 
     <p align="center">
-    <img src="docs/src/solvents.png" alt="censo_solvents.json" width="800">
+    <img src="docs/src/solvents.png" alt="censo_solvents.json" width="700">
     </p>
 
 The solvent file is directly used in `CENSO` and typos will cause calculations to crash!

@@ -662,7 +662,16 @@ def part3(config, conformers, store_confs, ensembledata):
                     f"The G_mRRHO calculation @ {conf.job['symmetry']} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.job['energy']:>.8f}"
+                    f"{conf.job['energy']:>.8f} "
+                    f"""S_rot(sym)= {conf.calc_entropy_sym(
+                        config.temperature,
+                        symnum=conf.job['symnum']):>.7f} """
+                    f"""using= {conf.get_mrrho(
+                        config.temperature,
+                        rrho='direct_input',
+                        consider_sym=config.consider_sym,
+                        symnum=conf.job['symnum'],
+                        direct_input=conf.job["energy"]):>.7f}"""
                 )
                 if not conf.job["success"]:
                     conf.part_info["part3"] = "refused"
@@ -671,6 +680,7 @@ def part3(config, conformers, store_confs, ensembledata):
                     store_confs.append(calculate.pop(calculate.index(conf)))
                 else:
                     conf.sym = conf.job["symmetry"]
+                    conf.linear = conf.job["linear"]
                     conf.highlevel_grrho_info["rmsd"] = conf.job["rmsd"]
                     conf.highlevel_grrho_info["energy"] = conf.job["energy"]
                     conf.highlevel_grrho_info["info"] = "calculated"
@@ -701,7 +711,12 @@ def part3(config, conformers, store_confs, ensembledata):
                     f"The G_mRRHO calculation @ {conf.sym} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.highlevel_grrho_info['energy']:>.8f}"
+                    f"{conf.highlevel_grrho_info['energy']:>.8f} "
+                    f"S_rot(sym)= {conf.calc_entropy_sym(config.temperature):>.7f}"
+                    f""" using= {conf.get_mrrho(
+                        config.temperature,
+                        rrho='highlevel_grrho_info',
+                        consider_sym=config.consider_sym):>.7f}"""
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
@@ -727,9 +742,13 @@ def part3(config, conformers, store_confs, ensembledata):
         lambda conf: getattr(conf, "rel_xtb_energy"),
         lambda conf: getattr(conf, "highlevel_sp_info")["energy"],
         lambda conf: getattr(conf, "highlevel_gsolv_info")["energy"],
-        lambda conf: getattr(conf, "highlevel_grrho_info")["energy"],
+        #lambda conf: getattr(conf, "highlevel_grrho_info")["energy"],
+        lambda conf: conf.get_mrrho(
+            config.temperature, "highlevel_grrho_info", config.consider_sym
+        ),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
+        lambda conf: getattr(conf, "bm_weight") * 100,
     ]
     columnheader = [
         "CONF#",
@@ -740,17 +759,38 @@ def part3(config, conformers, store_confs, ensembledata):
         "GmRRHO [Eh]",
         "Gtot",
         "ΔGtot",
+        "Boltzmannweight",
     ]
-    columndescription = ["", "[a.u.]", "[kcal/mol]", "", "", "", "[Eh]", "[kcal/mol]"]
-    columndescription2 = ["", "", "", "", "", "", "", ""]
-    columnformat = ["", (12, 7), (5, 2), (12, 7), (12, 7), (12, 7), (12, 7), (5, 3)]
+    columndescription = [
+        "",
+        "[a.u.]",
+        "[kcal/mol]", 
+        "",
+        "",
+        "",
+        "[Eh]", 
+        "[kcal/mol]",
+        f"  % at {config.temperature:.2f} K",
+        ]
+    columndescription2 = ["", "", "", "", "", "", "", "", ""]
+    columnformat = [
+        "",
+        (12, 7),
+        (5, 2),
+        (12, 7),
+        (12, 7),
+        (12, 7),
+        (12, 7),
+        (5, 3),
+        (5, 2)
+        ]
     if config.solvent == "gas":
         columndescription[3] = instruction["method"]
     elif config.solvent != "gas":
         columndescription[3] = instruction["method"]
         columndescription[4] = instruction["method2"]
     if config.evaluate_rrho:
-        columndescription[5] = str(instruction_rrho["method"]).upper()  # Grrho
+        columndescription[5] = instruction_rrho["method"]
     if not config.evaluate_rrho or config.solvent == "gas":
         if not config.evaluate_rrho:
             # ignore rrho in printout
@@ -776,7 +816,13 @@ def part3(config, conformers, store_confs, ensembledata):
         else:
             solv = "highlevel_gsolv_info"
         e = "highlevel_sp_info"
-        conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e=e, 
+            solv=solv, 
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
 
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
@@ -858,13 +904,19 @@ def part3(config, conformers, store_confs, ensembledata):
             else:
                 solv = "highlevel_gsolv_info"
             e = "highlevel_sp_info"
-            conf.calc_free_energy(e=e, solv=solv, rrho=rrho, t=temperature)
-        try:
-            minfreeT = min(
-                [conf.free_energy for conf in calculate if conf.free_energy is not None]
-            )
-        except ValueError:
-            raise ValueError
+            conf.calc_free_energy(
+                e=e, 
+                solv=solv, 
+                rrho=rrho, 
+                t=temperature,
+                consider_sym=config.consider_sym
+                )
+        # try:
+        #     minfreeT = min(
+        #         [conf.free_energy for conf in calculate if conf.free_energy is not None]
+        #     )
+        # except ValueError:
+        #     raise ValueError
 
         calculate = calc_boltzmannweights(calculate, "free_energy", temperature)
         avG = 0.0
@@ -875,8 +927,13 @@ def part3(config, conformers, store_confs, ensembledata):
         for conf in calculate:
             avG += conf.bm_weight * conf.free_energy
             avE += conf.bm_weight * conf.highlevel_sp_info["energy"]
-            avGRRHO += conf.bm_weight * conf.highlevel_grrho_info["range"].get(
-                temperature, 0.0
+            #avGRRHO += conf.bm_weight * conf.highlevel_grrho_info["range"].get(
+            #    temperature, 0.0
+            #)
+            avGRRHO += conf.bm_weight * conf.get_mrrho(
+                temperature, 
+                "highlevel_grrho_info", 
+                config.consider_sym
             )
             avGsolv += conf.bm_weight * conf.highlevel_gsolv_info["range"].get(
                 temperature, 0.0
@@ -936,7 +993,13 @@ def part3(config, conformers, store_confs, ensembledata):
         else:
             solv = "highlevel_gsolv_info"
         e = "highlevel_sp_info"
-        conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e=e, 
+            solv=solv,
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
 
     # SORTING for the next part:
@@ -991,6 +1054,8 @@ def part3(config, conformers, store_confs, ensembledata):
         folder,
         config.nat,
         "free_energy",
+        config.temperature,
+        config.consider_sym,
         **kwargs,
     )
 
@@ -1010,7 +1075,13 @@ def part3(config, conformers, store_confs, ensembledata):
             ) as best:
                 best.write(
                     "$coord  # {}   {}   !CONF{} \n".format(
-                        conf.free_energy, conf.highlevel_grrho_info["energy"], conf.id
+                        conf.free_energy, 
+                        conf.get_mrrho(
+                            config.temperature, 
+                            rrho="highlevel_grrho_info", 
+                            consider_sym=config.consider_sym
+                        ),
+                        conf.id
                     )
                 )
                 for line in coord[1:]:

@@ -369,11 +369,11 @@ def part2(config, conformers, store_confs, ensembledata):
         conf.reset_job_info()
     # ***************************************************************************
     # NEW ENSEMBLE OPTIMIZER:
+    start_opt_time = time.perf_counter()
     if calculate:
         print("Starting optimizations".center(70, "*"))
         ### settings in instruction_opt are overwriting conf.job everytime,(while loop)
         ### therefore dont write information which has to be reaccessed to it!
-
         run = 1
         timings = []  # time per cycle
         cycle_spearman = []  # spearmanthr used in evaluation per cycle
@@ -525,12 +525,22 @@ def part2(config, conformers, store_confs, ensembledata):
                     # check if too many calculations failed
                     ###
                     for conf in list(calculate):
+                        #  'rrho_optimization' used in get_mrrho
                         print(
                             f"The G_mRRHO calculation on crudely optimized DFT "
                             f"geometry @ {conf.job['symmetry']} "
                             f"{check[conf.job['success']]} for "
                             f"{last_folders(conf.job['workdir'], 3):>{pl}}: "
-                            f"{conf.job['energy']:>.8f}"
+                            f"{conf.job['energy']:>.8f} "
+                            f"""S_rot(sym)= {conf.calc_entropy_sym(
+                                config.temperature,
+                                symnum=conf.job['symnum']):>.7f} """
+                            f"""using= {conf.get_mrrho(
+                                config.temperature,
+                                rrho='direct_input', 
+                                consider_sym=config.consider_sym,
+                                symnum=conf.job['symnum'],
+                                direct_input=conf.job["energy"]):>.7f}"""
                         )
                         if not conf.job["success"]:
                             store_confs.append(calculate.pop(calculate.index(conf)))
@@ -540,6 +550,8 @@ def part2(config, conformers, store_confs, ensembledata):
                                 "method_rrho"
                             ] = instruction_rrho_crude["method"]
                             conf.optimization_info["info_rrho"] = "calculated"
+                            conf.symnum = conf.job['symnum']
+                            conf.sym = conf.job['symmetry']
 
                     for conf in list(calculate):
                         if conf.id in converged_run1:
@@ -580,7 +592,7 @@ def part2(config, conformers, store_confs, ensembledata):
                     print("Spearman rank evaluation is performed in the next cycle.")
                     cycle_spearman.append("")
                     run_spearman = False
-                # if run == 1 and not gesc:
+                # elif run == 1 and not gesc:
                 #     # only evaluate spearman starting from second cycle
                 #     print("Spearman rank evaluation is performed in the next cycle.")
                 #     cycle_spearman.append("")
@@ -603,18 +615,24 @@ def part2(config, conformers, store_confs, ensembledata):
                 # calculate min of each cycle:
                 minecyc = []
                 if config.evaluate_rrho:
-                    rrho_energy = "energy_rrho"
+                    #rrho_energy = "energy_rrho"
+                    rrho_energy = "rrho_optimization"
                 else:
-                    rrho_energy = "axqzv"  # to get 0.0 contribution
+                    rrho_energy = None  # to get 0.0 contribution
                 for i in range(maxecyc):
                     try:
                         minecyc.append(
                             min(
                                 [
                                     conf.job["ecyc"][i]
-                                    + getattr(conf, "optimization_info").get(
-                                        rrho_energy, 0.0
+                                    + conf.get_mrrho(
+                                        config.temperature,
+                                        rrho=rrho_energy,
+                                        consider_sym=config.consider_sym,
                                     )
+                                    #+ getattr(conf, "optimization_info").get(
+                                    #    rrho_energy, 0.0
+                                    #)
                                     for conf in calculate + prev_calculated
                                     if conf.job["ecyc"][i] is not None
                                 ]
@@ -632,9 +650,14 @@ def part2(config, conformers, store_confs, ensembledata):
                         conf.job["decyc"].append(
                             (
                                 conf.job["ecyc"][i]
-                                + getattr(conf, "optimization_info").get(
-                                    rrho_energy, 0.0
+                                + conf.get_mrrho(
+                                    config.temperature,
+                                    rrho=rrho_energy,
+                                    consider_sym=config.consider_sym,
                                 )
+                                #+ getattr(conf, "optimization_info").get(
+                                #    rrho_energy, 0.0
+                                #)
                                 - minecyc[i]
                             )
                             * AU2KCAL
@@ -868,6 +891,8 @@ def part2(config, conformers, store_confs, ensembledata):
             print("sum:  {:>.2f}".format(sum(timings)))
         print("\nCONVERGED optimizations for the following remaining conformers:")
         prev_calculated.sort(key=lambda x: int(x.id))
+    end_opt_time = time.perf_counter()
+    ensembledata.part_info["part2_opt"] = end_opt_time - start_opt_time
     # end if calculate--
     for conf in list(prev_calculated):
         print(
@@ -1340,13 +1365,24 @@ def part2(config, conformers, store_confs, ensembledata):
                     f"The lowlevel G_mRRHO calculation @ {conf.job['symmetry']} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.job['energy']:>.8f}"
+                    f"{conf.job['energy']:>.8f} "
+                    f"""S_rot(sym)= {conf.calc_entropy_sym(
+                        config.temperature,
+                        symnum=conf.job['symnum']):>.7f} """
+                    f"""using= {conf.get_mrrho(
+                        config.temperature,
+                        rrho='direct_input',
+                        consider_sym=config.consider_sym,
+                        symnum=conf.job['symnum'],
+                        direct_input=conf.job["energy"]):>.7f}"""
                 )
                 if not conf.job["success"]:
                     conf.lowlevel_grrho_info["info"] = "failed"
                     store_confs.append(calculate.pop(calculate.index(conf)))
                 else:
                     conf.sym = conf.job["symmetry"]
+                    conf.linear = conf.job["linear"]
+                    conf.symnum = conf.job["symnum"]
                     conf.lowlevel_grrho_info["rmsd"] = conf.job["rmsd"]
                     conf.lowlevel_grrho_info["energy"] = conf.job["energy"]
                     conf.lowlevel_grrho_info["info"] = "calculated"
@@ -1377,7 +1413,12 @@ def part2(config, conformers, store_confs, ensembledata):
                     f"The lowlevel G_mRRHO calculation @ {conf.sym} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.lowlevel_grrho_info['energy']:>.8f}"
+                    f"{conf.lowlevel_grrho_info['energy']:>.8f} "
+                    f"S_rot(sym)= {conf.calc_entropy_sym(config.temperature):>.7f}"
+                    f""" using= {conf.get_mrrho(
+                        config.temperature,
+                        rrho='lowlevel_grrho_info',
+                        consider_sym=config.consider_sym):>.7f}"""
                 )
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
         if not calculate:
@@ -1395,7 +1436,10 @@ def part2(config, conformers, store_confs, ensembledata):
         lambda conf: getattr(conf, "rel_xtb_energy"),
         lambda conf: getattr(conf, "lowlevel_sp_info")["energy"],
         lambda conf: getattr(conf, "lowlevel_gsolv_info")["energy"],
-        lambda conf: getattr(conf, "lowlevel_grrho_info")["energy"],
+        #lambda conf: getattr(conf, "lowlevel_grrho_info")["energy"],
+        lambda conf: conf.get_mrrho(
+            config.temperature, "lowlevel_grrho_info", config.consider_sym
+        ),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
         lambda conf: getattr(conf, "bm_weight") * 100,
@@ -1469,7 +1513,13 @@ def part2(config, conformers, store_confs, ensembledata):
         else:
             solv = "lowlevel_gsolv_info"
         e = "lowlevel_sp_info"
-        conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e=e, 
+            solv=solv, 
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
 
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
@@ -1716,7 +1766,13 @@ def part2(config, conformers, store_confs, ensembledata):
             else:
                 solv = "lowlevel_gsolv_info"
             e = "lowlevel_sp_info"
-            conf.calc_free_energy(e=e, solv=solv, rrho=rrho, t=temperature)
+            conf.calc_free_energy(
+                e=e,
+                solv=solv,
+                rrho=rrho,
+                t=temperature,
+                consider_sym=config.consider_sym
+                )
         try:
             minfreeT = min(
                 [conf.free_energy for conf in calculate if conf.free_energy is not None]
@@ -1733,9 +1789,11 @@ def part2(config, conformers, store_confs, ensembledata):
         for conf in calculate:
             avG += conf.bm_weight * conf.free_energy
             avE += conf.bm_weight * conf.lowlevel_sp_info["energy"]
-            avGRRHO += conf.bm_weight * conf.lowlevel_grrho_info["range"].get(
-                temperature, 0.0
-            )
+            avGRRHO += conf.bm_weight * conf.get_mrrho(
+                temperature, 
+                "lowlevel_grrho_info", 
+                config.consider_sym
+                )
             avGsolv += conf.bm_weight * conf.lowlevel_gsolv_info["range"].get(
                 temperature, 0.0
             )
@@ -1791,7 +1849,13 @@ def part2(config, conformers, store_confs, ensembledata):
         else:
             solv = "lowlevel_gsolv_info"
         e = "lowlevel_sp_info"
-        conf.calc_free_energy(e=e, solv=solv, rrho=rrho)
+        conf.calc_free_energy(
+            e=e, 
+            solv=solv, 
+            rrho=rrho,
+            t=config.temperature,
+            consider_sym=config.consider_sym
+            )
     # ensembledata is used to store avGcorrection
     ensembledata.comment = [
         lowestconf,
@@ -1843,6 +1907,8 @@ def part2(config, conformers, store_confs, ensembledata):
             config.func,
             config.nat,
             "free_energy",
+            config.temperature,
+            config.consider_sym,
             overwrite=True,
             **kwargs,
         )
@@ -1900,6 +1966,8 @@ def part2(config, conformers, store_confs, ensembledata):
         config.func,
         config.nat,
         "free_energy",
+        config.temperature,
+        config.consider_sym,
         **kwargs,
     )
 
@@ -1919,7 +1987,13 @@ def part2(config, conformers, store_confs, ensembledata):
             ) as best:
                 best.write(
                     "$coord  # {}   {}   !CONF{} \n".format(
-                        conf.free_energy, conf.lowlevel_grrho_info["energy"], conf.id
+                        conf.free_energy,
+                        conf.get_mrrho(
+                            config.temperature, 
+                            rrho="lowlevel_grrho_info", 
+                            consider_sym=config.consider_sym
+                        ),
+                        conf.id
                     )
                 )
                 for line in coord[1:]:

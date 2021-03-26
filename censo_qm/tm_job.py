@@ -746,7 +746,6 @@ class TmJob(QmJob):
                 ) as inp:
                     stor = inp.readlines()
                 for line in stor:
-                    #vwork = 0
                     if "T=" in line:
                         T = float(line.split()[5])
                         vwork = R * T * math.log(videal * T)
