@@ -7,7 +7,7 @@ import sys
 import math
 import time
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN, qm_prepinfo
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -26,6 +26,7 @@ from .utilities import (
     print,
     print_errors,
     calc_boltzmannweights,
+    conf_in_interval,
 )
 
 
@@ -194,6 +195,7 @@ def part1(config, conformers, store_confs, ensembledata):
         "energy": 0.0,
         "energy2": 0.0,
         "success": False,
+        "onlyread": config.onlyread,
     }
 
     if config.solvent == "gas":
@@ -203,8 +205,6 @@ def part1(config, conformers, store_confs, ensembledata):
         )
         name = "prescreening_single-point"
         folder = instruction["func"]
-        if config.prog == "orca":
-            instruction["progpath"] = config.external_paths["orcapath"]
     else:
         if config.smgsolv1 in config.smgsolv_1:
             # additive Gsolv
@@ -232,9 +232,6 @@ def part1(config, conformers, store_confs, ensembledata):
             elif instruction["sm"] in ("gbsa_gsolv", "alpb_gsolv"):
                 # do DFT gas phase sp and additive Gsolv
                 instruction["jobtype"] = instruction["sm"]
-                if config.prog == "orca":
-                    instruction["progpath"] = config.external_paths["orcapath"]
-                instruction["xtb_driver_path"] = config.external_paths["xtbpath"]
                 instruction["method"], instruction["method2"] = config.get_method_name(
                     instruction["jobtype"],
                     func=instruction["func"],
@@ -267,9 +264,6 @@ def part1(config, conformers, store_confs, ensembledata):
         else:
             # with implicit solvation
             instruction["jobtype"] = "sp_implicit"
-            # instruction["prepinfo"] = ["low+"]
-            if config.prog == "orca":
-                instruction["progpath"] = config.external_paths["orcapath"]
             instruction["method"], instruction["method2"] = config.get_method_name(
                 "sp_implicit",
                 func=instruction["func"],
@@ -279,6 +273,18 @@ def part1(config, conformers, store_confs, ensembledata):
             name = "prescreening_single-point"
             folder = instruction["func"]
 
+    # Supporting info update:
+    try:
+        if job == TmJob:
+            ensembledata.si["part1"]["Energy_settings"] = " ".join(
+                qm_prepinfo["tm"][instruction["prepinfo"][0]]
+            ).replace("-", "")
+        elif job == OrcaJob:
+            ensembledata.si["part1"]["Energy_settings"] = " ".join(
+                qm_prepinfo["orca"][instruction["prepinfo"][0]]
+            )
+    except TypeError as e:
+        print(e)
     check = {True: "was successful", False: "FAILED"}
     start_firstsort = time.perf_counter()
     if calculate:
@@ -302,20 +308,69 @@ def part1(config, conformers, store_confs, ensembledata):
                 calculate, store_confs, save_errors = ensemble2coord(
                     config, folder, calculate, store_confs, save_errors
                 )
-
-        # parallel calculation:
-        calculate = run_in_parallel(
-            config,
-            q,
-            resultq,
-            job,
-            config.maxthreads,
-            config.omp,
-            calculate,
-            instruction,
-            config.balance,
-            folder,
-        )
+        tmppath = os.path.join(config.cwd, "part1preG.dat")
+        if config.onlyread and not os.path.isfile(tmppath):
+            print(
+                f"Reading data from {tmppath} is not possible since it can not be found."
+            )
+            print(
+                f"{'ERROR:':{WARNLEN}}The re-read data in part1 can be the data from part2"
+                " since files have been overwritten!"
+            )
+        if config.onlyread and os.path.isfile(tmppath):
+            ####################################################################
+            # this is only a temporary fix, and needed because in part1
+            # COSMO-RS (and single-point) data is overwritten in part2.
+            # This has to be changed when backward compability is broken.
+            with open(tmppath, "r", newline=None, encoding=CODING) as inp:
+                data = inp.readlines()
+            if instruction["jobtype"] in ("sp", "sp_implicit"):
+                for line in data[3:]:
+                    confid = int(line.strip().split()[0][4:])
+                    try:
+                        energy = float(line.strip().split()[3])
+                    except (ValueError, IndexError) as e:
+                        print(e)
+                    for conf in calculate:
+                        if conf.id == confid:
+                            conf.job["energy"] = energy
+                            conf.job["success"] = True
+                            conf.job["workdir"] = f"CONF{confid}/{folder}"
+            elif instruction["jobtype"] in (
+                "cosmors",
+                "smd_gsolv",
+                "gbsa_gsolv",
+                "alpb_gsolv",
+            ):
+                for line in data[3:]:
+                    confid = int(line.strip().split()[0][4:])
+                    try:
+                        energy = float(line.strip().split()[3])
+                        gsolv = float(line.strip().split()[4])
+                    except (ValueError, IndexError) as e:
+                        print(e)
+                    for conf in calculate:
+                        if conf.id == confid:
+                            conf.job["energy"] = energy
+                            conf.job["energy2"] = gsolv
+                            conf.job["erange1"] = {instruction["temperature"]: gsolv}
+                            conf.job["success"] = True
+                            conf.job["workdir"] = f"CONF{confid}/{folder}"
+            ####################################################################
+        else:
+            # parallel calculation:
+            calculate = run_in_parallel(
+                config,
+                q,
+                resultq,
+                job,
+                config.maxthreads,
+                config.omp,
+                calculate,
+                instruction,
+                config.balance,
+                folder,
+            )
 
         for conf in list(calculate):
             if instruction["jobtype"] in ("sp", "sp_implicit"):
@@ -336,7 +391,9 @@ def part1(config, conformers, store_confs, ensembledata):
                     conf.prescreening_sp_info["method"] = conf.job["method"]
                     if instruction["jobtype"] == "sp_implicit":
                         conf.prescreening_gsolv_info["energy"] = 0.0
-                        conf.prescreening_gsolv_info["range"] = {conf.job['temperature']: 0.0,}
+                        conf.prescreening_gsolv_info["range"] = {
+                            conf.job["temperature"]: 0.0
+                        }
                         conf.prescreening_gsolv_info["info"] = "calculated"
                         conf.prescreening_gsolv_info["method"] = conf.job["method2"]
             elif instruction["jobtype"] in (
@@ -408,7 +465,28 @@ def part1(config, conformers, store_confs, ensembledata):
                 )
             calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
     end_firstsort = time.perf_counter()
-    ensembledata.part_info["part1_firstsort"] = end_firstsort -start_firstsort
+    ensembledata.part_info["part1_firstsort"] = end_firstsort - start_firstsort
+
+    # create data for possible SI generation:-----------------------------------
+    # Energy:
+    ensembledata.si["part1"]["Energy"] = instruction["method"]
+    if "DOGCP" in instruction["prepinfo"]:
+        ensembledata.si["part1"]["Energy"] += " + GCP"
+    # Energy_settings are set above!
+    # GmRRHO is done below!
+    # Solvation:
+    if config.solvent == "gas":
+        ensembledata.si["part1"]["G_solv"] = "gas-phase"
+    else:
+        ensembledata.si["part1"]["G_solv"] = instruction["method2"]
+    # Geometry:
+    ensembledata.si["part1"]["Geometry"] = "GFNn-xTB (input geometry)"
+    # QM-CODE:
+    ensembledata.si["part1"]["main QM code"] = str(config.prog).upper()
+    # Threshold:
+    ensembledata.si["part1"]["Threshold"] = f"{config.part1_threshold} kcal/mol"
+    # END SI generation --------------------------------------------------------
+
     for conf in calculate:
         conf.reset_job_info()
     if not calculate:
@@ -431,12 +509,12 @@ def part1(config, conformers, store_confs, ensembledata):
             solv = "prescreening_gsolv_info"
         e = "prescreening_sp_info"
         conf.calc_free_energy(
-            e=e, 
+            e=e,
             solv=solv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
     except ValueError:
@@ -545,6 +623,9 @@ def part1(config, conformers, store_confs, ensembledata):
                 conf = calculate.pop(calculate.index(conf))
                 conf.__class__ = job
                 conf.job["success"] = True
+                conf.sym = conf.prescreening_grrho_info.get("sym", conf.sym)
+                conf.linear = conf.prescreening_grrho_info.get("linear", conf.linear)
+                conf.symnum = conf.prescreening_grrho_info.get("symnum", conf.symnum)
                 prev_calculated.append(conf)
 
         if not calculate and not prev_calculated:
@@ -565,7 +646,6 @@ def part1(config, conformers, store_confs, ensembledata):
             "charge": config.charge,
             "unpaired": config.unpaired,
             "solvent": config.solvent,
-            "progpath": config.external_paths["xtbpath"],
             "bhess": config.bhess,
             "consider_sym": config.consider_sym,
             "sm_rrho": config.sm_rrho,
@@ -580,6 +660,7 @@ def part1(config, conformers, store_confs, ensembledata):
             "imagthr": config.imagthr,
             "sthr": config.sthr,
             "scale": config.scale,
+            "onlyread": config.onlyread,
         }
 
         instruction_prerrho["method"], _ = config.get_method_name(
@@ -589,6 +670,14 @@ def part1(config, conformers, store_confs, ensembledata):
             sm=instruction_prerrho["sm_rrho"],
             solvent=instruction_prerrho["solvent"],
         )
+        # GmRRHO for SI information:
+        if config.evaluate_rrho:
+            ensembledata.si["part1"]["G_mRRHO"] = instruction_prerrho["method"]
+            if "bhess" in ensembledata.si["part1"]["G_mRRHO"]:
+                ensembledata.si["part1"]["G_mRRHO"] += " SPH"
+        else:
+            ensembledata.si["part1"]["G_mRRHO"] = "not included"
+
         if calculate:
             print("The prescreening G_mRRHO calculation is now performed for:")
             print_block(["CONF" + str(i.id) for i in calculate])
@@ -640,9 +729,14 @@ def part1(config, conformers, store_confs, ensembledata):
                     conf.sym = conf.job["symmetry"]
                     conf.symnum = conf.job["symnum"]
                     conf.linear = conf.job["linear"]
+                    conf.prescreening_grrho_info["sym"] = conf.job["symmetry"]
+                    conf.prescreening_grrho_info["symnum"] = conf.job["symnum"]
+                    conf.prescreening_grrho_info["linear"] = conf.job["linear"]
                     conf.prescreening_grrho_info["rmsd"] = conf.job["rmsd"]
                     conf.prescreening_grrho_info["energy"] = conf.job["energy"]
-                    conf.prescreening_grrho_info["range"] = {conf.job['temperature']: conf.job["energy"],}
+                    conf.prescreening_grrho_info["range"] = {
+                        conf.job["temperature"]: conf.job["energy"]
+                    }
                     conf.prescreening_grrho_info["info"] = "calculated"
                     conf.prescreening_grrho_info["method"] = instruction_prerrho[
                         "method"
@@ -766,19 +860,19 @@ def part1(config, conformers, store_confs, ensembledata):
         else:
             solv = "prescreening_gsolv_info"
         conf.calc_free_energy(
-            e="prescreening_sp_info", 
-            solv=solv, 
+            e="prescreening_sp_info",
+            solv=solv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
         conf.xtb_free_energy = conf.calc_free_energy(
             e="xtb_energy",
             solv=None,
-            rrho=rrho, 
+            rrho=rrho,
             out=True,
             t=config.temperature,
-            consider_sym=config.consider_sym
+            consider_sym=config.consider_sym,
         )
 
     try:
@@ -808,6 +902,9 @@ def part1(config, conformers, store_confs, ensembledata):
         columndescription2=columndescription2,
     )
     # --------------------------------------------------------------------------
+    calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+    conf_in_interval(calculate)
+    # --------------------------------------------------------------------------
     for conf in calculate:
         if conf.free_energy == minfree:
             ensembledata.bestconf["part1"] = conf.id
@@ -834,14 +931,16 @@ def part1(config, conformers, store_confs, ensembledata):
                 conf.get_mrrho(
                     config.temperature,
                     rrho="prescreening_grrho_info",
-                    consider_sym=config.consider_sym
-                    ) * AU2KCAL
+                    consider_sym=config.consider_sym,
+                )
+                * AU2KCAL
                 for conf in calculate
                 if conf.get_mrrho(
                     config.temperature,
                     rrho="prescreening_grrho_info",
-                    consider_sym=config.consider_sym
-                    ) is not None
+                    consider_sym=config.consider_sym,
+                )
+                is not None
             ]
         )
     max_fuzzy = 1
@@ -868,12 +967,12 @@ def part1(config, conformers, store_confs, ensembledata):
                 solv = "prescreening_gsolv_info"
             e = "prescreening_sp_info"
             conf.calc_free_energy(
-                e=e, 
-                solv=solv, 
-                rrho=rrho, 
+                e=e,
+                solv=solv,
+                rrho=rrho,
                 t=config.temperature,
-                consider_sym=config.consider_sym
-                )
+                consider_sym=config.consider_sym,
+            )
         try:
             minfree = min([i.free_energy for i in calculate if i is not None])
         except ValueError:
@@ -892,12 +991,12 @@ def part1(config, conformers, store_confs, ensembledata):
                 solv = "prescreening_gsolv_info"
             e = "prescreening_sp_info"
             conf.calc_free_energy(
-                e=e, 
-                solv=solv, 
+                e=e,
+                solv=solv,
                 rrho=rrho,
                 t=config.temperature,
-                consider_sym=config.consider_sym
-                )
+                consider_sym=config.consider_sym,
+            )
         try:
             minfree = min([i.free_energy for i in calculate if i is not None])
         except ValueError:
@@ -976,12 +1075,12 @@ def part1(config, conformers, store_confs, ensembledata):
         else:
             solv = "prescreening_gsolv_info"
         conf.calc_free_energy(
-            e="prescreening_sp_info", 
-            solv=solv, 
+            e="prescreening_sp_info",
+            solv=solv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
 
     # write coord.enso_best
     for conf in calculate:
@@ -1001,9 +1100,9 @@ def part1(config, conformers, store_confs, ensembledata):
                     "$coord  # {}   {}   !CONF{} \n".format(
                         conf.free_energy,
                         conf.get_mrrho(
-                            config.temperature, 
-                            rrho="prescreening_grrho_info", 
-                            consider_sym=config.consider_sym
+                            config.temperature,
+                            rrho="prescreening_grrho_info",
+                            consider_sym=config.consider_sym,
                         ),
                         conf.id,
                     )
@@ -1057,12 +1156,12 @@ def part1(config, conformers, store_confs, ensembledata):
             solv = "prescreening_gsolv_info"
         e = "prescreening_sp_info"
         conf.calc_free_energy(
-            e=e, 
-            solv=solv, 
+            e=e,
+            solv=solv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
 
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     avG = 0.0
@@ -1072,12 +1171,10 @@ def part1(config, conformers, store_confs, ensembledata):
     for conf in calculate:
         avG += conf.bm_weight * conf.free_energy
         avE += conf.bm_weight * conf.prescreening_sp_info["energy"]
-        #avGRRHO += conf.bm_weight * conf.prescreening_grrho_info["energy"]
+        # avGRRHO += conf.bm_weight * conf.prescreening_grrho_info["energy"]
         avGRRHO += conf.bm_weight * conf.get_mrrho(
-                config.temperature, 
-                "prescreening_grrho_info", 
-                config.consider_sym
-            )
+            config.temperature, "prescreening_grrho_info", config.consider_sym
+        )
         avGsolv += conf.bm_weight * conf.prescreening_gsolv_info["energy"]
 
     # printout:
@@ -1121,7 +1218,6 @@ def part1(config, conformers, store_confs, ensembledata):
             "charge": config.charge,
             "unpaired": config.unpaired,
             "solvent": config.solvent,
-            "progpath": config.external_paths["xtbpath"],
             "sm": config.sm_rrho,
             "rmsdbias": config.rmsdbias,
             "temperature": config.temperature,
@@ -1129,6 +1225,7 @@ def part1(config, conformers, store_confs, ensembledata):
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
+            "onlyread": config.onlyread,
         }
         folder_gfn = "GFN_unbiased"
         save_errors, store_confs, calculate = new_folders(

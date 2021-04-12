@@ -4,6 +4,7 @@ Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
 import os
+
 try:
     from math import isclose
 except ImportError:
@@ -11,7 +12,7 @@ except ImportError:
 import time
 import subprocess
 import json
-from .cfg import ENVIRON, CODING, WARNLEN, censo_solvent_db, rot_sym_num
+from .cfg import ENVIRON, CODING, WARNLEN, censo_solvent_db, rot_sym_num, external_paths
 from .utilities import last_folders, print
 from .datastructure import MoleculeData
 
@@ -36,6 +37,7 @@ class QmJob(MoleculeData):
             "method2": "",  # description of the method
             "workdir": "",
             "copymos": "",
+            "moread": None,
             "omp": 1,
             "charge": 0,
             "unpaired": 0,
@@ -87,7 +89,7 @@ class QmJob(MoleculeData):
             "internal_error": [],
             #
             "cosmorsparam": "",  # normal/fine
-            "symnum":1,
+            "symnum": 1,
         }
 
     def _sp(self, silent=False):
@@ -113,7 +115,7 @@ class QmJob(MoleculeData):
     def _get_sym_num(self, sym=None, linear=None):
         """Get rotational symmetry number from Schoenfließ symbol"""
         if sym is None:
-            sym = 'c1'
+            sym = "c1"
         if linear is None:
             linear = False
         symnum = 1
@@ -129,77 +131,77 @@ class QmJob(MoleculeData):
                 break
         return symnum
 
-    def _xtb_sp(self):
+    def _xtb_sp(self, filename="sp.out", silent=False):
         """
-        Get single-point energy from xTB
+        Get single-point energy from GFNn-xTB
+        --> return self.job["energy"]
+        --> return self.job["success"] 
         """
-        files = [
-            "xtbrestart",
-            "xtbtopo.mol",
-            "xcontrol-inp",
-            "wbo",
-            "charges",
-            "gfnff_topo",
-            "sp.out",
-        ]
-        for file in files:
-            if os.path.isfile(os.path.join(self.job["workdir"], file)):
-                os.remove(os.path.join(self.job["workdir"], file))
-        # run single-point:
-
-        call = [
-            self.job["progpath"],
-            "coord",
-            "--" + self.job["gfn_version"],
-            "--sp",
-            "--chrg",
-            str(self.job["charge"]),
-            "--norestart",
-        ]
-        if self.job["solvent"] != "gas":
-            call.extend(
-                [
-                    "--" + str(self.job["sm"]),
-                    censo_solvent_db[self.job["solvent"]]["xtb"][1],
-                    "-I",
-                    "xcontrol-inp",
-                ]
-            )
-            with open(
+        outputpath = os.path.join(self.job["workdir"], filename)
+        if not self.job["onlyread"]:
+            files = [
+                "xtbrestart",
+                "xtbtopo.mol",
+                "xcontrol-inp",
+                "wbo",
+                "charges",
+                "gfnff_topo",
+                filename,
+            ]
+            for file in files:
+                if os.path.isfile(os.path.join(self.job["workdir"], file)):
+                    os.remove(os.path.join(self.job["workdir"], file))
+            # run single-point:
+            call = [
+                external_paths["xtbpath"],
+                "coord",
+                "--" + self.job["gfn_version"],
+                "--sp",
+                "--chrg",
+                str(self.job["charge"]),
+                "--norestart",
+                "--parallel",
+                str(self.job["omp"]),
+            ]
+            if self.job["solvent"] != "gas":
+                call.extend(
+                    [
+                        "--" + str(self.job["sm"]),
+                        censo_solvent_db[self.job["solvent"]]["xtb"][1],
+                        "reference",
+                        "-I",
+                        "xcontrol-inp",
+                    ]
+                )
+                with open(
                     os.path.join(self.job["workdir"], "xcontrol-inp"), "w", newline=None
                 ) as xcout:
-                xcout.write("$gbsa\n")
-                xcout.write("  gbsagrid=tight\n")
-                xcout.write("$end\n")
-        with open(
-            os.path.join(self.job["workdir"], "sp.out"), "w", newline=None
-        ) as outputfile:
-            returncode = subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-                env=ENVIRON,
-            )
-        if returncode != 0:
-            self.job["energy"] = 0.0
-            self.job["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
-                f"{last_folders(self.job['workdir'], 2)}"
-            )
-            return
-        # read gas phase energy:
-        if os.path.isfile(os.path.join(self.job["workdir"], "sp.out")):
-            with open(
-                os.path.join(self.job["workdir"], "sp.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
+                    xcout.write("$gbsa\n")
+                    xcout.write("  gbsagrid=tight\n")
+                    xcout.write("$end\n")
+            with open(outputpath, "w", newline=None) as outputfile:
+                returncode = subprocess.call(
+                    call,
+                    shell=False,
+                    stdin=None,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=False,
+                    cwd=self.job["workdir"],
+                    stdout=outputfile,
+                    env=ENVIRON,
+                )
+            if returncode != 0:
+                self.job["energy"] = 0.0
+                self.job["success"] = False
+                print(
+                    f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
+                    f"{last_folders(self.job['workdir'], 2)}"
+                )
+                return
+            time.sleep(0.02)
+        # read energy:
+        if os.path.isfile(outputpath):
+            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 store = inp.readlines()
                 for line in store:
                     if "| TOTAL ENERGY" in line:
@@ -207,25 +209,28 @@ class QmJob(MoleculeData):
                             self.job["energy"] = float(line.split()[3])
                             self.job["success"] = True
                         except Exception:
-                            print(
-                                f"{'ERROR:':{WARNLEN}}while converting "
-                                f"single-point in: {last_folders(self.job['workdir'], 2)}"
-                            )
+                            if not silent:
+                                print(
+                                    f"{'ERROR:':{WARNLEN}}while converting "
+                                    f"single-point in: {last_folders(self.job['workdir'], 2)}"
+                                )
                             self.job["energy"] = 0.0
                             self.job["success"] = False
                             return
         else:
             self.job["energy"] = 0.0
             self.job["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
-                f"{last_folders(self.job['workdir'], 2)}"
-            )
+            if not silent:
+                print(
+                    f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
+                    f"{last_folders(self.job['workdir'], 2)}"
+                )
             return
-        print(
-            f"{self.job['gfn_version']}-xTB energy for {last_folders(self.job['workdir'], 2)}"
-            f" = {self.job['energy']: >.7f}"
-        )
+        if not silent:
+            print(
+                f"{self.job['gfn_version']}-xTB energy for {last_folders(self.job['workdir'], 2)}"
+                f" = {self.job['energy']: >.7f}"
+            )
 
     def _xtb_gsolv(self):
         """
@@ -234,82 +239,28 @@ class QmJob(MoleculeData):
         using xTB and the GFNn or GFN-FF hamiltonian.
         --> return gsolv at energy2
         """
-        tmp_gas = 0
-        tmp_solv = 0
-        if self.job["jobtype"] == "gbsa_gsolv":
-            xtbsm = "gbsa"
-        elif self.job["jobtype"] == "alpb_gsolv":
-            xtbsm = "alpb"
         print(
             f"Running {self.job['jobtype'].upper()} calculation in "
             f"{last_folders(self.job['workdir'], 3)}"
         )
-        files = [
-            "xtbrestart",
-            "xtbtopo.mol",
-            "xcontrol-inp",
-            "wbo",
-            "charges",
-            "gfnff_topo",
-            "gas.out",
-            "solv.out",
-        ]
-        for file in files:
-            if os.path.isfile(os.path.join(self.job["workdir"], file)):
-                os.remove(os.path.join(self.job["workdir"], file))
-        # run gas phase single-point:
-        with open(
-            os.path.join(self.job["workdir"], "gas.out"), "w", newline=None
-        ) as outputfile:
-            returncode = subprocess.call(
-                [
-                    self.job["xtb_driver_path"],
-                    "coord",
-                    "--" + self.job["gfn_version"],
-                    "--sp",
-                    "--chrg",
-                    str(self.job["charge"]),
-                    "--norestart",
-                ],
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-                env=ENVIRON,
-            )
-        if returncode != 0:
-            self.job["energy2"] = 0.0
+        tmp_gas = None
+        tmp_solv = None
+        # keep possible DFT energy:
+        keep_dft_energy = self.job["energy"]
+        self.job["energy"] = 0.0
+        keep_solvent = self.job["solvent"]
+        self.job["solvent"] = "gas"
+        self.job["sm"] = "gas-phase"
+
+        # run gas-phase GFNn-xTB single-point
+        self._xtb_sp(filename="gas.out", silent=True)
+        if self.job["success"]:
+            tmp_gas = self.job["energy"]
+            # reset for next calculation
+            self.job["energy"] = 0.0
             self.job["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}Gas phase {self.job['gfn_version']}-xTB error in "
-                f"{last_folders(self.job['workdir'], 3)}"
-            )
-            return
-        # read gas phase energy:
-        if os.path.isfile(os.path.join(self.job["workdir"], "gas.out")):
-            with open(
-                os.path.join(self.job["workdir"], "gas.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
-                store = inp.readlines()
-                for line in store:
-                    if "| TOTAL ENERGY" in line:
-                        try:
-                            tmp_gas = float(line.split()[3])
-                            self.job["success"] = True
-                        except Exception:
-                            print(
-                                f"{'ERROR:':{WARNLEN}}while converting gas phase "
-                                f"single-point in: {last_folders(self.job['workdir'], 3)}"
-                            )
-                            self.job["energy2"] = 0.0
-                            self.job["success"] = False
-                            return
         else:
+            self.job["energy"] = keep_dft_energy
             self.job["energy2"] = 0.0
             self.job["success"] = False
             print(
@@ -317,73 +268,22 @@ class QmJob(MoleculeData):
                 f"{last_folders(self.job['workdir'], 3)}"
             )
             return
+        # run gas-phase GFNn-xTB single-point
         # run single-point in solution:
-        # ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
+        # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        with open(
-                os.path.join(self.job["workdir"], "xcontrol-inp"), "w", newline=None
-            ) as xcout:
-            xcout.write("$gbsa\n")
-            xcout.write("  gbsagrid=tight\n")
-            xcout.write("$end\n")
-        with open(
-            os.path.join(self.job["workdir"], "solv.out"), "w", newline=None
-        ) as outputfile:
-            returncode = subprocess.call(
-                [
-                    self.job["xtb_driver_path"],
-                    "coord",
-                    "--" + self.job["gfn_version"],
-                    "--sp",
-                    "--" + xtbsm,
-                    censo_solvent_db[self.job["solvent"]]["xtb"][1],
-                    "reference",
-                    "--chrg",
-                    str(self.job["charge"]),
-                    "--norestart",
-                    "-I",
-                    "xcontrol-inp",
-                ],
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-                env=ENVIRON,
-            )
-            if returncode != 0:
-                self.job["energy2"] = 0.0
-                self.job["success"] = False
-                print(
-                    f"{'ERROR:':{WARNLEN}}Solution phase {self.job['gfn_version']}-xTB error in "
-                    f"{last_folders(self.job['workdir'], 3)}"
-                )
-                return
-        time.sleep(0.05)
-        # #read solv.out
-        if os.path.isfile(os.path.join(self.job["workdir"], "solv.out")):
-            with open(
-                os.path.join(self.job["workdir"], "solv.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
-                store = inp.readlines()
-                for line in store:
-                    if "| TOTAL ENERGY" in line:
-                        try:
-                            tmp_solv = float(line.split()[3])
-                            self.job["success"] = True
-                        except Exception:
-                            print(
-                                f"{'ERROR:':{WARNLEN}}while converting solution phase "
-                                f"single-point in: {last_folders(self.job['workdir'], 3)}"
-                            )
-                            self.job["energy2"] = 0.0
-                            self.job["success"] = False
-                            return
+        if self.job["jobtype"] == "gbsa_gsolv":
+            self.job["sm"] = "gbsa"
+        elif self.job["jobtype"] == "alpb_gsolv":
+            self.job["sm"] = "alpb"
+        self.job["solvent"] = keep_solvent
+        self._xtb_sp(filename="solv.out", silent=True)
+        if self.job["success"]:
+            tmp_solv = self.job["energy"]
+            # reset
+            self.job["energy"] = keep_dft_energy
         else:
+            self.job["energy"] = keep_dft_energy
             self.job["energy2"] = 0.0
             self.job["success"] = False
             print(
@@ -397,15 +297,16 @@ class QmJob(MoleculeData):
                 self.job["success"] = False
             else:
                 self.job["energy2"] = tmp_solv - tmp_gas
-                self.job["erange1"] = {self.job["temperature"] :tmp_solv - tmp_gas}
-                self.job["success"] = True
+                self.job["erange1"] = {self.job["temperature"]: tmp_solv - tmp_gas}
                 self.job["energy_xtb_gas"] = tmp_gas
                 self.job["energy_xtb_solv"] = tmp_solv
 
-    def _xtbrrho(self):
+    def _xtbrrho(self, filename="ohess.out"):
         """
-        mRRHO contribution with GFNn/GFN-FF-XTB
+        mRRHO contribution with GFNn/GFN-FF-xTB
         """
+        outputpath = os.path.join(self.job["workdir"], filename)
+        xcontrolpath = os.path.join(self.job["workdir"], "xcontrol-inp")
         if not self.job["onlyread"]:
             print(
                 f"Running {str(self.job['gfn_version']).upper()}-xTB mRRHO in "
@@ -427,9 +328,7 @@ class QmJob(MoleculeData):
                     if isclose(self.job["temperature"], t, abs_tol=0.6):
                         self.job["trange"].pop(self.job["trange"].index(t))
                 self.job["trange"].append(self.job["temperature"])
-            with open(
-                os.path.join(self.job["workdir"], "xcontrol-inp"), "w", newline=None
-            ) as xcout:
+            with open(xcontrolpath, "w", newline=None) as xcout:
                 xcout.write("$thermo\n")
                 if self.job["trange"]:
                     xcout.write(
@@ -438,33 +337,29 @@ class QmJob(MoleculeData):
                     )
                 else:
                     xcout.write("    temp={}\n".format(self.job["temperature"]))
-                if self.job.get("sthr", "automatic") == 'automatic':
+                if self.job.get("sthr", "automatic") == "automatic":
                     xcout.write("    sthr=50.0\n")
                 else:
-                    xcout.write("    sthr={}\n".format(self.job['sthr']))
-                if self.job.get("imagthr", "automatic") == 'automatic':
+                    xcout.write("    sthr={}\n".format(self.job["sthr"]))
+                if self.job.get("imagthr", "automatic") == "automatic":
                     if self.job["bhess"]:
                         xcout.write("    imagthr={}\n".format("-100"))
                     else:
                         xcout.write("    imagthr={}\n".format("-50"))
                 else:
                     xcout.write("    imagthr={}\n".format(self.job["imagthr"]))
-                if self.job.get("scale", "automatic") == 'automatic':
-                    #xcout.write("    scale={}\n".format("1.0"))
-                    pass # is method dependant leave it to xTB e.g. GFNFF has a 
+                if self.job.get("scale", "automatic") != "automatic":
+                    # for automatic --> is method dependant leave it to xTB e.g. GFNFF has a
                     # different scaling factor than GFN2
-                else:
-                    xcout.write("    scale={}\n".format(self.job['scale']))
+                    xcout.write("    scale={}\n".format(self.job["scale"]))
                 xcout.write("$symmetry\n")
-                if self.job["consider_sym"]:
-                    # xcout.write("    desy=0.1\n") # taken from xtb defaults
-                    xcout.write("     maxat=1000\n")
-                # always consider symmetry!
-                #else:
-                #    xcout.write("    desy=0.0\n")
+                xcout.write("     maxat=1000\n")
+                # always consider symmetry
+                # xcout.write("    desy=0.1\n") # taken from xtb defaults
+                # xcout.write("    desy=0.0\n")
                 if self.job["solvent"] != "gas":
                     xcout.write("$gbsa\n")
-                    xcout.write("  gbsagrid=tight\n")         
+                    xcout.write("  gbsagrid=tight\n")
                 xcout.write("$end\n")
             if self.job["bhess"]:
                 # set ohess or bhess
@@ -473,13 +368,11 @@ class QmJob(MoleculeData):
             else:
                 dohess = "--ohess"
                 olevel = "vtight"
-            time.sleep(0.05)
-            with open(
-                os.path.join(self.job["workdir"], "ohess.out"), "w", newline=None
-            ) as outputfile:
+            time.sleep(0.02)
+            with open(outputpath, "w", newline=None) as outputfile:
                 if self.job["solvent"] != "gas":
                     callargs = [
-                        self.job["progpath"],
+                        external_paths["xtbpath"],
                         "coord",
                         "--" + str(self.job["gfn_version"]),
                         dohess,
@@ -492,10 +385,12 @@ class QmJob(MoleculeData):
                         "--norestart",
                         "-I",
                         "xcontrol-inp",
+                        "--parallel",
+                        str(self.job["omp"]),
                     ]
                 else:
                     callargs = [
-                        self.job["progpath"],
+                        external_paths["xtbpath"],
                         "coord",
                         "--" + str(self.job["gfn_version"]),
                         dohess,
@@ -506,6 +401,8 @@ class QmJob(MoleculeData):
                         "--norestart",
                         "-I",
                         "xcontrol-inp",
+                        "--parallel",
+                        str(self.job["omp"]),
                     ]
                 if self.job["rmsdbias"]:
                     callargs.extend(
@@ -524,7 +421,6 @@ class QmJob(MoleculeData):
                     stdout=outputfile,
                     env=ENVIRON,
                 )
-            time.sleep(0.05)
             # check if converged:
             if returncode != 0:
                 self.job["energy"] = 0.0
@@ -536,7 +432,7 @@ class QmJob(MoleculeData):
                 print(self.job["errormessage"][-1])
                 return
         # start reading output!
-        if not os.path.isfile(os.path.join(self.job["workdir"], "ohess.out")):
+        if not os.path.isfile(outputpath):
             self.job["energy"] = 0.0
             self.job["success"] = False
             self.job["errormessage"].append(
@@ -545,14 +441,8 @@ class QmJob(MoleculeData):
             print(self.job["errormessage"][-1])
             return
         # start reading file:
-        with open(
-                os.path.join(self.job["workdir"], "ohess.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
-                store = inp.readlines()
-
+        with open(outputpath, "r", encoding=CODING, newline=None) as inp:
+            store = inp.readlines()
         if self.job["trange"]:
             gt = {}
             ht = {}
@@ -587,22 +477,21 @@ class QmJob(MoleculeData):
             else:
                 self.job["success"] = False
                 return
-        # end self.trange
+        # end self.job["trange"]
         for line in store:
-            if "final rmsd / " in line and self.job['bhess']:
+            if "final rmsd / " in line and self.job["bhess"]:
                 try:
                     self.job["rmsd"] = float(line.split()[3])
-                except (ValueError):
+                except (ValueError, IndexError):
                     self.job["rmsd"] = 0.0
             if ":  linear? " in line:
-                # linear needed for symmetry and S_rot (only if turned off)
+                # linear needed for symmetry and S_rot (only if considersym is turned off)
                 try:
                     if line.split()[2] == "false":
                         self.job["linear"] = False
                     elif line.split()[2] == "true":
                         self.job["linear"] = True
-                except (IndexError,Exception) as e:
-                    #pass
+                except (IndexError, Exception) as e:
                     print(e)
         if os.path.isfile(os.path.join(self.job["workdir"], "xtb_enso.json")):
             with open(
@@ -641,7 +530,9 @@ class QmJob(MoleculeData):
                 self.job["energy"] = 0.0
                 self.job["success"] = False
             # calculate symnum
-            self.job["symnum"] = self._get_sym_num(sym=self.job['symmetry'], linear=self.job["linear"])
+            self.job["symnum"] = self._get_sym_num(
+                sym=self.job["symmetry"], linear=self.job["linear"]
+            )
         else:
             print(
                 f"{'WARNING:':{WARNLEN}}File "
@@ -649,7 +540,6 @@ class QmJob(MoleculeData):
             )
             self.job["energy"] = 0.0
             self.job["success"] = False
-
 
     def execute(self):
         """

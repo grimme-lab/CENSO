@@ -4,7 +4,7 @@ conformer.
 """
 from collections import OrderedDict
 from .utilities import print
-from .cfg import R, AU2KCAL
+from .cfg import R, AU2KCAL, rot_sym_num
 from math import log
 
 
@@ -72,6 +72,9 @@ class MoleculeData:
             "fuzzythr": 0.0,
             "rmsd": None,
             "prev_methods": None,
+            "sym": "c1",
+            "linear": False,
+            "symnum": 1,
         },
         lowlevel_grrho_info={
             "energy": None,
@@ -80,6 +83,9 @@ class MoleculeData:
             "method": None,
             "rmsd": None,
             "prev_methods": None,
+            "sym": "c1",
+            "linear": False,
+            "symnum": 1,
         },
         lowlevel_hrrho_info={
             "energy": None,
@@ -96,6 +102,9 @@ class MoleculeData:
             "method": None,
             "rmsd": None,
             "prev_methods": None,
+            "sym": "c1",
+            "linear": False,
+            "symnum": 1,
         },
         highlevel_hrrho_info={
             "energy": None,
@@ -238,7 +247,7 @@ class MoleculeData:
             temperature_info["range"] = []
         if xtb_energy is None:
             xtb_energy = 100.0
-        #if xtb_energy_unbiased is None:
+        # if xtb_energy_unbiased is None:
         #    xtb_energy_unbiased = 100.0
         if xtb_free_energy is None:
             xtb_free_energy = 100.0
@@ -512,7 +521,7 @@ class MoleculeData:
     #     Calculate free energy for molecule either at normal temperature,
     #     or if the temperature is not None from the range of temperatures.
     #     if out=False free energy is written to self.free_energy
-    #     if out=True free energy is simply returned 
+    #     if out=True free energy is simply returned
     #     """
     #     if t is None:
     #         try:
@@ -559,7 +568,9 @@ class MoleculeData:
     #             else:
     #                 return f
 
-    def calc_free_energy(self, e=None, solv=None, rrho=None, t=None, out=False, consider_sym=None):
+    def calc_free_energy(
+        self, e=None, solv=None, rrho=None, t=None, out=False, consider_sym=None
+    ):
         """
         Calculate free energy for molecule either at normal temperature,
         or if the temperature is not None from the range of temperatures.
@@ -567,7 +578,9 @@ class MoleculeData:
         if out=True free energy is simply returned 
         """
         if t is None:
-            print("xxxxxxxxxxxxx No temperature provided in calc_free_energy xxxxxxxxxxxxxxx")
+            print(
+                "xxxxxxxxxxxxx No temperature provided in calc_free_energy xxxxxxxxxxxxxxx"
+            )
         try:
             f = 0.0
             if e is not None:
@@ -577,16 +590,17 @@ class MoleculeData:
                     f += getattr(self, e)["energy"]
             if solv is not None:
                 if solv in ("cheap_prescreening_gsolv_info", "prescreening_gsolv_info"):
-                    f += getattr(self, solv).get("range", {}).get(t,getattr(self, solv, {"energy": 0.0})["energy"])
+                    f += (
+                        getattr(self, solv)
+                        .get("range", {})
+                        .get(t, getattr(self, solv, {"energy": 0.0})["energy"])
+                    )
                 else:
                     f += getattr(self, solv)["range"].get(t, 0.0)
             if rrho is not None:
                 f += self.get_mrrho(
-                        t,
-                        rrho=rrho,
-                        consider_sym=consider_sym,
-                        symnum=self.symnum,
-                    )
+                    t, rrho=rrho, consider_sym=consider_sym, symnum=self.symnum
+                )
             if not out:
                 self.free_energy = f
             else:
@@ -598,12 +612,30 @@ class MoleculeData:
             else:
                 return f
 
+    def _get_sym_num(self, sym=None, linear=None):
+        """Get rotational symmetry number from Schoenfließ symbol"""
+        if sym is None:
+            sym = "c1"
+        if linear is None:
+            linear = False
+        symnum = 1
+        if linear and "c" in sym.lower()[0]:
+            symnum = 1
+            return symnum
+        elif linear and "d" in sym.lower()[0]:
+            symnum = 2
+            return symnum
+        for key in rot_sym_num.keys():
+            if key in sym.lower():
+                symnum = rot_sym_num.get(key, 1)
+                break
+        return symnum
+
     def calc_entropy_sym(self, temperature, symnum=None):
         """ RTln(sigma) rotational entropy"""
         if symnum is None:
-            symnum=self.symnum
+            symnum = self.symnum
         return R / AU2KCAL * temperature * log(symnum)
-
 
     def get_mrrho(
         self, temperature, rrho=None, consider_sym=None, symnum=None, direct_input=0.0
@@ -620,10 +652,7 @@ class MoleculeData:
                     .get(temperature, getattr(self, rrho, {"energy": 0.0})["energy"])
                 )
             elif rrho in ("rrho_optimization",):
-                f += (
-                    getattr(self, "optimization_info")
-                    .get("energy_rrho", 0.0)
-                )
+                f += getattr(self, "optimization_info").get("energy_rrho", 0.0)
             else:
                 f += getattr(self, rrho)["range"].get(temperature, 0.0)
             if consider_sym is None:

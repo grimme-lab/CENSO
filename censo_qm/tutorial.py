@@ -1,14 +1,15 @@
 """
 Guide for setting up CENSO and performing a CENSO calculation
 """
-from .cfg import DESCR
+from .cfg import DESCR, censo_solvent_db
 from .inputhandling import internal_settings
+
 
 def interactiv_doc():
     """Guide for interactive explaination of CENSO"""
 
     default_settings = internal_settings()
-    
+
     general = """
     Commandline Energetic Sorting (CENSO) is a sorting algorithm for efficient
     evaluation of Structure Ensembles (SE). The input ensemble (or single structure)
@@ -613,7 +614,16 @@ def interactiv_doc():
     * ALPB_Gsolv    [xtb]
     * GBSA_Gsolv    [xtb]
 
-    """
+    Available solvents and naming convention employed in CENSO:
+    
+"""
+    tmp = "    "
+    for count, solvent in enumerate(list(censo_solvent_db.keys())):
+        tmp += f"{solvent}, "
+        if (count + 1) % 5 == 0:
+            solvation += tmp + "\n"
+            tmp = "    "
+    solvation += tmp
 
     example_applications = """
     CENSO can be used for several applications / target quantities. Some are 
@@ -661,6 +671,12 @@ def interactiv_doc():
     Functionals that can be employed by TM for funcS
     {', '.join(internal_settings.func_s_tm)}
 
+    Functionals that can be employed by TM for funcOR
+    {', '.join(internal_settings.func_or_tm)}
+
+    Functionals that can be employed by TM for funcOR_SCF
+    {', '.join(internal_settings.func_or_scf_tm)}
+
     Functionals that can be employed by ORCA for func:
     {', '.join(internal_settings.func_orca)}
 
@@ -674,19 +690,15 @@ def interactiv_doc():
     {', '.join(internal_settings.func_s_orca)}
     """
 
-# CONFORMER numbering kept from crest input
+    # CONFORMER numbering kept from crest input
 
-# folders which are created
-    #part0_sp
-    #GFN_unbiased/
-    #rrho_part1/
-    #b97-3c/ folder of func name
-
-
+    # folders which are created
+    # part0_sp
+    # GFN_unbiased/
+    # rrho_part1/
+    # b97-3c/ folder of func name
 
     # which functionals are available
-
-
 
     tutorial_data = {
         "general": general,
@@ -699,7 +711,7 @@ def interactiv_doc():
         "functionals": functionals,
         "jobscript": jobscript,
     }
-    tutorial_data['everything'] = '\n\n'.join(tutorial_data.values())
+    tutorial_data["everything"] = "\n\n".join(tutorial_data.values())
 
     options = list(tutorial_data.keys())
     print(DESCR)
@@ -711,7 +723,7 @@ def interactiv_doc():
     print("\nPlease input your information request:")
     while True:
         user_input = input()
-        if user_input.strip() in ('q', 'exit'):
+        if user_input.strip() in ("q", "exit"):
             break
         if user_input.strip() not in options:
             print(f"Options are: {options}")
@@ -722,7 +734,7 @@ def interactiv_doc():
             #     print(everything)
             # if user_input == 'jobscript':
             #     print(jobscript)
-            #break
+            # break
             print("\n\nDo you want information on any of the other topics?")
             print("\nIf you want to exit please type one of the following: exit or q")
     print("\n****CENSO TUTORIAL END****")

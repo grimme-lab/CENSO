@@ -35,6 +35,62 @@ class EnsembleData:
             "part2": None,
             "part3": None,
         },
+        supporting_info={
+            "part0": {
+                "Energy": None,
+                "Energy_settings": None,
+                "G_mRRHO": None,
+                "G_solv": None,
+                "Geometry": None,
+                "Threshold": None,
+                "main QM code": None,
+            },
+            "part1": {
+                "Energy": None,
+                "Energy_settings": None,
+                "G_mRRHO": None,
+                "G_solv": None,
+                "Geometry": None,
+                "Threshold": None,
+                "main QM code": None,
+            },
+            "part2": {
+                "Energy": None,
+                "Energy_settings": None,
+                "G_mRRHO": None,
+                "G_solv": None,
+                "Geometry": None,
+                "Threshold": None,
+                "main QM code": None,
+            },
+            "part3": {
+                "Energy": None,
+                "Energy_settings": None,
+                "G_mRRHO": None,
+                "G_solv": None,
+                "Geometry": None,
+                "Threshold": None,
+                "main QM code": None,
+            },
+            "part4": {
+                "Energy": None,
+                "Energy_settings": None,
+                "G_mRRHO": None,
+                "G_solv": None,
+                "Geometry": None,
+                "Threshold": None,
+                "main QM code": None,
+            },
+            "part5": {
+                "Energy": None,
+                "Energy_settings": None,
+                "G_mRRHO": None,
+                "G_solv": None,
+                "Geometry": None,
+                "Threshold": None,
+                "main QM code": None,
+            },
+        },
     ):
         """
        ensemble_data: Creates an object where data
@@ -59,3 +115,4 @@ class EnsembleData:
         self.comment = comment
         self.bestconf = bestconf
         self.nconfs_per_part = nconfs_per_part
+        self.si = supporting_info

@@ -7,7 +7,7 @@ from multiprocessing import JoinableQueue as Queue
 import shutil
 import os
 import sys
-from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN
+from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN, qm_prepinfo
 from .utilities import (
     check_for_folder,
     print_block,
@@ -22,6 +22,7 @@ from .utilities import (
     print,
     print_errors,
     ensemble2coord,
+    conf_in_interval,
 )
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
@@ -77,19 +78,19 @@ def part3(config, conformers, store_confs, ensembledata):
             info.append(
                 ["bhess", "Apply constraint to input geometry during mRRHO calculation"]
             )
-    
+
     max_len_digilen = 0
     for item in info:
-        if item[0] == 'justprint':
+        if item[0] == "justprint":
             if "short-notation" in item[1]:
-                tmp = len(item[1]) -len('short-notation:')
+                tmp = len(item[1]) - len("short-notation:")
             else:
                 tmp = len(item[1])
         else:
             tmp = len(item[1])
         if tmp > max_len_digilen:
             max_len_digilen = tmp
-    max_len_digilen +=1
+    max_len_digilen += 1
     if max_len_digilen < DIGILEN:
         max_len_digilen = DIGILEN
 
@@ -191,21 +192,43 @@ def part3(config, conformers, store_confs, ensembledata):
 
     geometries_from_input = False
     # check if calculated on unoptimized geometries:
-    if any([conf.optimization_info["info"] == "not_calculated" for conf in calculate+prev_calculated]):
+    if any(
+        [
+            conf.optimization_info["info"] == "not_calculated"
+            for conf in calculate + prev_calculated
+        ]
+    ):
         if config.part2:
-            print_errors(f"{'ERROR:':{WARNLEN}}Calculating (free) energies on "
-                         f"DFT unoptimized geometries!\n"
-                         f"{'':{WARNLEN}}Even though part2 is calculated!\n"
-                         f"{'':{WARNLEN}}Calculation on mixture of optimized "
-                         f"and unoptimized geometries is not advised!",
-                         save_errors)
+            print_errors(
+                f"{'ERROR:':{WARNLEN}}Calculating (free) energies on "
+                f"DFT unoptimized geometries!\n"
+                f"{'':{WARNLEN}}Even though part2 is calculated!\n"
+                f"{'':{WARNLEN}}Calculation on mixture of optimized "
+                f"and unoptimized geometries is not advised!",
+                save_errors,
+            )
             print("Going to exit!")
             sys.exit(1)
         else:
-            print_errors(f"{'WARNING:':{WARNLEN}} Calculating (free) energies "
-                         f"on DFT unoptimized geometries!", save_errors)
+            print_errors(
+                f"{'WARNING:':{WARNLEN}} Calculating (free) energies "
+                f"on DFT unoptimized geometries!",
+                save_errors,
+            )
             geometries_from_input = True
-
+    # SI geometry:
+    if geometries_from_input:
+        ensembledata.si["part3"]["Geometry"] = "GFNn-xTB (input geometry)"
+    else:
+        ensembledata.si["part3"]["Geometry"], _ = config.get_method_name(
+            "xtbopt",
+            func=config.func,
+            basis=config.basis,
+            solvent=config.solvent,
+            sm=config.sm2,
+        )
+        ensembledata.si["part3"]["Geometry"] += f" @optlevel: {config.optlevel2}"
+    #
 
     if config.solvent == "gas":
         print("\nCalculating single-point energies!")
@@ -227,6 +250,7 @@ def part3(config, conformers, store_confs, ensembledata):
         "energy": 0.0,
         "energy2": 0.0,
         "success": False,
+        "onlyread": config.onlyread,
     }
     if config.multitemp:
         instruction["trange"] = [
@@ -240,8 +264,6 @@ def part3(config, conformers, store_confs, ensembledata):
         instruction["method"], _ = config.get_method_name(
             "sp", func=instruction["func"], basis=instruction["basis"]
         )
-        if config.prog3 == "orca":
-            instruction["progpath"] = config.external_paths["orcapath"]
         folder = "part3"
         name = "highlevel single-point"
     else:
@@ -271,9 +293,6 @@ def part3(config, conformers, store_confs, ensembledata):
             elif instruction["sm"] in ("gbsa_gsolv", "alpb_gsolv"):
                 # do DFT gas phase sp and additive Gsolv
                 instruction["jobtype"] = instruction["sm"]
-                if config.prog3 == "orca":
-                    instruction["progpath"] = config.external_paths["orcapath"]
-                instruction["xtb_driver_path"] = config.external_paths["xtbpath"]
                 instruction["method"], instruction["method2"] = config.get_method_name(
                     instruction["jobtype"],
                     func=instruction["func"],
@@ -297,7 +316,6 @@ def part3(config, conformers, store_confs, ensembledata):
                 job = OrcaJob
                 instruction["prepinfo"] = ["high"]
                 instruction["jobtype"] = instruction["sm"]
-                instruction["progpath"] = config.external_paths["orcapath"]
                 instruction["method"], instruction["method2"] = config.get_method_name(
                     "smd_gsolv",
                     func=instruction["func"],
@@ -310,8 +328,6 @@ def part3(config, conformers, store_confs, ensembledata):
             # with implicit solvation
             instruction["jobtype"] = "sp_implicit"
             instruction["prepinfo"] = ["high"]
-            if config.prog3 == "orca":
-                instruction["progpath"] = config.external_paths["orcapath"]
             instruction["method"], instruction["method2"] = config.get_method_name(
                 "sp_implicit",
                 func=instruction["func"],
@@ -320,7 +336,7 @@ def part3(config, conformers, store_confs, ensembledata):
             )
             name = "high level single-point"
             folder = "part3"
-    
+
     if prev_calculated:
         check_for_folder(config.cwd, [i.id for i in prev_calculated], folder)
         print("The calculation was performed before for:")
@@ -337,10 +353,10 @@ def part3(config, conformers, store_confs, ensembledata):
             config.cwd, calculate, folder, save_errors, store_confs
         )
         # write coord to folder
-        if config.smgsolv3 in ('cosmors', 'cosmors-fine'):
+        if config.smgsolv3 in ("cosmors", "cosmors-fine"):
             cp_to = ["part3", folder]
         else:
-            cp_to = [folder,]
+            cp_to = [folder]
         for folder in cp_to:
             if geometries_from_input:
                 # working on DFT unoptimized geometries
@@ -350,13 +366,18 @@ def part3(config, conformers, store_confs, ensembledata):
             else:
                 # need to copy optimized coord to folder
                 for conf in list(calculate):
-                    tmp1 = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
+                    tmp1 = os.path.join(
+                        config.cwd, "CONF" + str(conf.id), config.func, "coord"
+                    )
                     tmp2 = os.path.join("CONF" + str(conf.id), folder, "coord")
                     try:
                         shutil.copy(tmp1, tmp2)
                     except FileNotFoundError:
-                        print_errors(f"{'ERROR:':{WARNLEN}}can't copy optimized "
-                                     f"geometry of CONF{conf.id}!", save_errors)
+                        print_errors(
+                            f"{'ERROR:':{WARNLEN}}can't copy optimized "
+                            f"geometry of CONF{conf.id}!",
+                            save_errors,
+                        )
                         store_confs.append(calculate.pop(calculate.index(conf)))
 
         if config.solvent == "gas":
@@ -375,7 +396,7 @@ def part3(config, conformers, store_confs, ensembledata):
             calculate,
             instruction,
             config.balance,
-            folder
+            folder,
         )
         # check if too many calculations failed
 
@@ -471,6 +492,36 @@ def part3(config, conformers, store_confs, ensembledata):
                     f"{conf.highlevel_gsolv_info['energy']:>.8f}"
                 )
             calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
+
+    # create data for possible SI generation:-----------------------------------
+    # Energy:
+    ensembledata.si["part3"]["Energy"] = instruction["method"]
+    if "DOGCP" in instruction["prepinfo"]:
+        ensembledata.si["part3"]["Energy"] += " + GCP"
+    # Energy_settings:
+    if job == TmJob:
+        ensembledata.si["part3"]["Energy_settings"] = " ".join(
+            qm_prepinfo["tm"][instruction["prepinfo"][0]]
+        ).replace("-", "")
+    elif job == OrcaJob:
+        ensembledata.si["part3"]["Energy_settings"] = " ".join(
+            qm_prepinfo["orca"][instruction["prepinfo"][0]]
+        )
+    # GmRRHO is done below!
+    # Solvation:
+    if config.solvent == "gas":
+        ensembledata.si["part3"]["G_solv"] = "gas-phase"
+    else:
+        ensembledata.si["part3"]["G_solv"] = instruction["method2"]
+    # Geometry is done above:
+    # QM-CODE:
+    ensembledata.si["part3"]["main QM code"] = str(config.prog3).upper()
+    # Threshold:
+    ensembledata.si["part3"][
+        "Threshold"
+    ] = f"Boltzmann sum threshold: {config.part3_threshold} %"
+    # END SI generation --------------------------------------------------------
+
     for conf in calculate:
         conf.reset_job_info()
 
@@ -499,7 +550,8 @@ def part3(config, conformers, store_confs, ensembledata):
             "progpath": config.external_paths["xtbpath"],
             "imagthr": config.imagthr,
             "sthr": config.sthr,
-            "scale":config.scale,
+            "scale": config.scale,
+            "onlyread": config.onlyread,
         }
         folder_rrho = "rrho_part3"
         instruction_rrho["method"], _ = config.get_method_name(
@@ -509,13 +561,22 @@ def part3(config, conformers, store_confs, ensembledata):
             sm=instruction_rrho["sm_rrho"],
             solvent=instruction_rrho["solvent"],
         )
+
+        # GmRRHO for SI information:
+        if config.evaluate_rrho:
+            ensembledata.si["part3"]["G_mRRHO"] = instruction_rrho["method"]
+            if "bhess" in ensembledata.si["part3"]["G_mRRHO"]:
+                ensembledata.si["part3"]["G_mRRHO"] += " SPH"
+        else:
+            ensembledata.si["part3"]["G_mRRHO"] = "not included"
+        # END SI
+
         if config.multitemp:
             instruction_rrho["trange"] = [
                 i for i in frange(config.trange[0], config.trange[1], config.trange[2])
             ]
         else:
             instruction_rrho["trange"] = []
-
 
         # check if calculated
         for conf in list(calculate):
@@ -526,16 +587,16 @@ def part3(config, conformers, store_confs, ensembledata):
             if conf.highlevel_grrho_info["info"] == "calculated":
                 conf = calculate.pop(calculate.index(conf))
                 conf.job["success"] = True
+                conf.sym = conf.highlevel_grrho_info.get("sym", conf.sym)
+                conf.linear = conf.highlevel_grrho_info.get("linear", conf.linear)
+                conf.symnum = conf.highlevel_grrho_info.get("symnum", conf.symnum)
                 prev_calculated.append(conf)
             elif conf.highlevel_grrho_info["info"] == "failed":
                 conf = calculate.pop(calculate.index(conf))
                 conf.part_info["part3"] = "refused"
                 store_confs.append(conf)
                 print(f"Calculation of CONF{conf.id} failed in the previous run!")
-            elif conf.highlevel_grrho_info["info"] in (
-                "not_calculated",
-                "prep-failed",
-            ):
+            elif conf.highlevel_grrho_info["info"] in ("not_calculated", "prep-failed"):
                 # stay in calculate (e.g not_calculated or prep-failed)
                 # check if method has been calculated in part2
                 if instruction_rrho["method"] == conf.lowlevel_grrho_info["method"]:
@@ -549,8 +610,13 @@ def part3(config, conformers, store_confs, ensembledata):
                     getattr(conf, "highlevel_grrho_info").update(tmp)
                     # if rrho is taken from part2 still make folder for rrho_part3
                     save_errors, store_confs, calculate = new_folders(
-                    config.cwd, [conf,], folder_rrho, save_errors, store_confs,
-                    silent=True)
+                        config.cwd,
+                        [conf],
+                        folder_rrho,
+                        save_errors,
+                        store_confs,
+                        silent=True,
+                    )
                     prev_calculated.append(calculate.pop(calculate.index(conf)))
                 elif (
                     instruction_rrho["method"]
@@ -565,8 +631,13 @@ def part3(config, conformers, store_confs, ensembledata):
                     )
                     # if rrho is taken from part2 still make folder for rrho_part3
                     save_errors, store_confs, calculate = new_folders(
-                    config.cwd, [conf,], folder_rrho, save_errors, store_confs,
-                    silent=True)
+                        config.cwd,
+                        [conf],
+                        folder_rrho,
+                        save_errors,
+                        store_confs,
+                        silent=True,
+                    )
                     prev_calculated.append(calculate.pop(calculate.index(conf)))
                 else:
                     # stays in calculate and has to be calculated now
@@ -624,7 +695,8 @@ def part3(config, conformers, store_confs, ensembledata):
                             config.cwd, "CONF" + str(conf.id), folder_rrho
                         )
                         shutil.copy(
-                            os.path.join(tmp_from, "coord"), os.path.join(tmp_to, "coord")
+                            os.path.join(tmp_from, "coord"),
+                            os.path.join(tmp_to, "coord"),
                         )
                     except shutil.SameFileError:
                         pass
@@ -635,11 +707,15 @@ def part3(config, conformers, store_confs, ensembledata):
                                 "The corresponding file does not exist."
                             )
                         elif not os.path.isdir(tmp_to):
-                            print(f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!")
+                            print(
+                                f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!"
+                            )
                         print(f"{'ERROR:':{WARNLEN}}Removing conformer {conf.name}!")
                         conf.highlevel_grrho_info["info"] = "prep-failed"
                         store_confs.append(calculate.pop(calculate.index(conf)))
-                        save_errors.append(f"CONF{conf.id} was removed, because IO failed!")
+                        save_errors.append(
+                            f"CONF{conf.id} was removed, because IO failed!"
+                        )
             # parallel execution:
             calculate = run_in_parallel(
                 config,
@@ -681,6 +757,9 @@ def part3(config, conformers, store_confs, ensembledata):
                 else:
                     conf.sym = conf.job["symmetry"]
                     conf.linear = conf.job["linear"]
+                    conf.highlevel_grrho_info["sym"] = conf.job["symmetry"]
+                    conf.highlevel_grrho_info["linear"] = conf.job["linear"]
+                    conf.highlevel_grrho_info["symnum"] = conf.job["symnum"]
                     conf.highlevel_grrho_info["rmsd"] = conf.job["rmsd"]
                     conf.highlevel_grrho_info["energy"] = conf.job["energy"]
                     conf.highlevel_grrho_info["info"] = "calculated"
@@ -742,7 +821,7 @@ def part3(config, conformers, store_confs, ensembledata):
         lambda conf: getattr(conf, "rel_xtb_energy"),
         lambda conf: getattr(conf, "highlevel_sp_info")["energy"],
         lambda conf: getattr(conf, "highlevel_gsolv_info")["energy"],
-        #lambda conf: getattr(conf, "highlevel_grrho_info")["energy"],
+        # lambda conf: getattr(conf, "highlevel_grrho_info")["energy"],
         lambda conf: conf.get_mrrho(
             config.temperature, "highlevel_grrho_info", config.consider_sym
         ),
@@ -764,14 +843,14 @@ def part3(config, conformers, store_confs, ensembledata):
     columndescription = [
         "",
         "[a.u.]",
-        "[kcal/mol]", 
+        "[kcal/mol]",
         "",
         "",
         "",
-        "[Eh]", 
+        "[Eh]",
         "[kcal/mol]",
         f"  % at {config.temperature:.2f} K",
-        ]
+    ]
     columndescription2 = ["", "", "", "", "", "", "", "", ""]
     columnformat = [
         "",
@@ -782,8 +861,8 @@ def part3(config, conformers, store_confs, ensembledata):
         (12, 7),
         (12, 7),
         (5, 3),
-        (5, 2)
-        ]
+        (5, 2),
+    ]
     if config.solvent == "gas":
         columndescription[3] = instruction["method"]
     elif config.solvent != "gas":
@@ -817,12 +896,12 @@ def part3(config, conformers, store_confs, ensembledata):
             solv = "highlevel_gsolv_info"
         e = "highlevel_sp_info"
         conf.calc_free_energy(
-            e=e, 
-            solv=solv, 
+            e=e,
+            solv=solv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
 
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
@@ -843,20 +922,16 @@ def part3(config, conformers, store_confs, ensembledata):
         columndescription2=columndescription2,
     )
     # end printout for part3
-
+    conf_in_interval(calculate)
+    # --------------------------------------------------------------------------
     for conf in calculate:
         if conf.free_energy == minfree:
             ensembledata.bestconf["part3"] = conf.id
 
-################################################################################
+    ################################################################################
     # calculate average G correction
     print("\nCalculating Boltzmann averaged free energy of ensemble!\n")
-    avGcorrection = {
-        "avG": {},
-        "avE": {},
-        "avGsolv": {},
-        "avGRRHO": {},
-    }
+    avGcorrection = {"avG": {}, "avE": {}, "avGsolv": {}, "avGRRHO": {}}
     if config.multitemp:
         trange = [
             i for i in frange(config.trange[0], config.trange[1], config.trange[2])
@@ -905,18 +980,12 @@ def part3(config, conformers, store_confs, ensembledata):
                 solv = "highlevel_gsolv_info"
             e = "highlevel_sp_info"
             conf.calc_free_energy(
-                e=e, 
-                solv=solv, 
-                rrho=rrho, 
+                e=e,
+                solv=solv,
+                rrho=rrho,
                 t=temperature,
-                consider_sym=config.consider_sym
-                )
-        # try:
-        #     minfreeT = min(
-        #         [conf.free_energy for conf in calculate if conf.free_energy is not None]
-        #     )
-        # except ValueError:
-        #     raise ValueError
+                consider_sym=config.consider_sym,
+            )
 
         calculate = calc_boltzmannweights(calculate, "free_energy", temperature)
         avG = 0.0
@@ -927,13 +996,11 @@ def part3(config, conformers, store_confs, ensembledata):
         for conf in calculate:
             avG += conf.bm_weight * conf.free_energy
             avE += conf.bm_weight * conf.highlevel_sp_info["energy"]
-            #avGRRHO += conf.bm_weight * conf.highlevel_grrho_info["range"].get(
+            # avGRRHO += conf.bm_weight * conf.highlevel_grrho_info["range"].get(
             #    temperature, 0.0
-            #)
+            # )
             avGRRHO += conf.bm_weight * conf.get_mrrho(
-                temperature, 
-                "highlevel_grrho_info", 
-                config.consider_sym
+                temperature, "highlevel_grrho_info", config.consider_sym
             )
             avGsolv += conf.bm_weight * conf.highlevel_gsolv_info["range"].get(
                 temperature, 0.0
@@ -973,13 +1040,15 @@ def part3(config, conformers, store_confs, ensembledata):
         else:
             print(line)
     print("".ljust(int(PLENGTH), "-"))
-    print("avGcorrection(T)* = Correction to free energy, which can be added (manually) to avG(T).")
+    print(
+        "avGcorrection(T)* = Correction to free energy, which can be added (manually) to avG(T)."
+    )
     print("                    If only a small ensemble is evaluated in part3 ")
     print("                    this can incorporate information of higher lying ")
     print("                    conformers of a more complete ensemble from part2.")
     print("")
 
-################################################################################
+    ################################################################################
     # -----------------------------Trange Ouput END------------------------------
     # reset boltzmannweights to correct temperature
     # get free energy at (T)
@@ -994,12 +1063,12 @@ def part3(config, conformers, store_confs, ensembledata):
             solv = "highlevel_gsolv_info"
         e = "highlevel_sp_info"
         conf.calc_free_energy(
-            e=e, 
+            e=e,
             solv=solv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
 
     # SORTING for the next part:
@@ -1075,13 +1144,13 @@ def part3(config, conformers, store_confs, ensembledata):
             ) as best:
                 best.write(
                     "$coord  # {}   {}   !CONF{} \n".format(
-                        conf.free_energy, 
+                        conf.free_energy,
                         conf.get_mrrho(
-                            config.temperature, 
-                            rrho="highlevel_grrho_info", 
-                            consider_sym=config.consider_sym
+                            config.temperature,
+                            rrho="highlevel_grrho_info",
+                            consider_sym=config.consider_sym,
                         ),
-                        conf.id
+                        conf.id,
                     )
                 )
                 for line in coord[1:]:
@@ -1098,18 +1167,11 @@ def part3(config, conformers, store_confs, ensembledata):
         conf.reset_job_info()
 
     if save_errors:
-        print(
-            "\n***---------------------------------------------------------***"
-        )
-        print(
-            "Printing most relevant errors again, just for user convenience:"
-        )
+        print("\n***---------------------------------------------------------***")
+        print("Printing most relevant errors again, just for user convenience:")
         for _ in list(save_errors):
             print(save_errors.pop())
-        print(
-            "***---------------------------------------------------------***"
-
-        )
+        print("***---------------------------------------------------------***")
     tmp = int((PLENGTH - len("END of Part3")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part3" + "".rjust(tmp, "<"))
     if config.progress:
