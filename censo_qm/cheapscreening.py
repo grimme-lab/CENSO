@@ -5,7 +5,7 @@ The idea is to improve on the description of E with a very fast DFT method.
 import os
 import sys
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, qm_prepinfo
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -20,6 +20,7 @@ from .utilities import (
     print,
     print_errors,
     calc_boltzmannweights,
+    conf_in_interval,
 )
 
 
@@ -52,16 +53,16 @@ def part0(config, conformers, ensembledata):
 
     max_len_digilen = 0
     for item in info:
-        if item[0] == 'justprint':
+        if item[0] == "justprint":
             if "short-notation" in item[1]:
-                tmp = len(item[1]) -len('short-notation:')
+                tmp = len(item[1]) - len("short-notation:")
             else:
                 tmp = len(item[1])
         else:
             tmp = len(item[1])
         if tmp > max_len_digilen:
             max_len_digilen = tmp
-    max_len_digilen +=1
+    max_len_digilen += 1
     if max_len_digilen < DIGILEN:
         max_len_digilen = DIGILEN
 
@@ -147,30 +148,10 @@ def part0(config, conformers, ensembledata):
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
-            "xtb_driver_path": config.external_paths["xtbpath"],
+            "temperature": config.temperature,
+            "onlyread": config.onlyread,
         }
 
-        tmp_disp = ""
-        if config.prog == "tm":
-            instruction["prepinfo"] = ["clear", "-grid", "1", "-scfconv", "5", "DOGCP"]
-            if config.func0 == "b97-d":
-                instruction["prepinfo"].append("-zero")
-                tmp_disp = "D3(0)"
-
-        elif config.prog == "orca":
-            instruction["progpath"] = config.external_paths["orcapath"]
-            instruction["prepinfo"] = ["low", "DOGCP"]
-
-        instruction["method"], instruction["method2"], = config.get_method_name(
-            instruction["jobtype"],
-            func=instruction["func"],
-            basis=instruction["basis"],
-            sm=instruction["sm"],
-            solvent=instruction["solvent"],
-            prog=config.prog,
-            disp=tmp_disp,
-            gfn_version=instruction["gfn_version"],
-        )
     elif config.solvent == "gas":
         instruction = {
             "jobtype": "sp",
@@ -187,28 +168,36 @@ def part0(config, conformers, ensembledata):
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
+            "onlyread": config.onlyread,
         }
 
-        tmp_disp = ""
-        if config.prog == "tm":
-            instruction["prepinfo"] = ["clear", "-grid", "1", "-scfconv", "5", "DOGCP"]
-            if config.func0 == "b97-d":
-                instruction["prepinfo"].append("-zero")
-                tmp_disp = "D3(0)"
+    tmp_disp = ""
+    if config.prog == "tm":
+        instruction["prepinfo"] = ["clear", "-grid", "1", "-scfconv", "5", "DOGCP"]
+        ensembledata.si["part0"]["Energy_settings"] = "scfconv 5, grid 1"
+        if config.func0 == "b97-d":
+            instruction["prepinfo"].append("-zero")
+            tmp_disp = "D3(0)"
+            ensembledata.si["part0"][
+                "Energy_settings"
+            ] += " using D3(0) instead of D3(BJ)"
 
-        elif config.prog == "orca":
-            instruction["progpath"] = config.external_paths["orcapath"]
-            instruction["prepinfo"] = ["low", "DOGCP"]
-
-        instruction["method"], instruction["method2"], = config.get_method_name(
-            instruction["jobtype"],
-            func=instruction["func"],
-            basis=instruction["basis"],
-            sm=instruction["sm"],
-            solvent=instruction["solvent"],
-            prog=config.prog,
-            disp=tmp_disp,
+    elif config.prog == "orca":
+        instruction["prepinfo"] = ["low", "DOGCP"]
+        ensembledata.si["part0"]["Energy_settings"] = " ".join(
+            qm_prepinfo["orca"][instruction["prepinfo"][0]]
         )
+
+    instruction["method"], instruction["method2"], = config.get_method_name(
+        instruction["jobtype"],
+        func=instruction["func"],
+        basis=instruction["basis"],
+        sm=instruction["sm"],
+        solvent=instruction["solvent"],
+        prog=config.prog,
+        disp=tmp_disp,
+        gfn_version=instruction.get("gfn_version", ""),
+    )
 
     name = "efficient gas-phase single-point"
     # folder = "part0_sp"
@@ -235,7 +224,7 @@ def part0(config, conformers, ensembledata):
             calculate,
             instruction,
             config.balance,
-            folder
+            folder,
         )
 
         for conf in list(calculate):
@@ -259,7 +248,9 @@ def part0(config, conformers, ensembledata):
                     conf.cheap_prescreening_sp_info["info"] = "calculated"
                     conf.cheap_prescreening_sp_info["method"] = conf.job["method"]
                     conf.cheap_prescreening_gsolv_info["energy"] = conf.job["energy2"]
-                    conf.cheap_prescreening_gsolv_info["range"] = {config.temperature: conf.job['energy2'],}
+                    conf.cheap_prescreening_gsolv_info["range"] = {
+                        config.temperature: conf.job["energy2"]
+                    }
                     conf.cheap_prescreening_gsolv_info["info"] = "calculated"
                     conf.cheap_prescreening_gsolv_info["method"] = conf.job["method2"]
                     conf.cheap_prescreening_gsolv_info["gas-energy"] = conf.job[
@@ -289,6 +280,7 @@ def part0(config, conformers, ensembledata):
                     f"{'ERROR:':{WARNLEN}}UNEXPECTED BEHAVIOUR: {conf.job['success']} {conf.job['jobtype']}",
                     save_errors,
                 )
+
         # save current data to jsonfile
         config.write_json(
             config.cwd,
@@ -301,6 +293,28 @@ def part0(config, conformers, ensembledata):
         check_tasks(calculate, config.check)
     else:
         print("No conformers are considered additionally.")
+
+    # create data for possible SI generation:-----------------------------------
+    # Energy:
+    ensembledata.si["part0"]["Energy"] = instruction["method"]
+    if "DOGCP" in instruction["prepinfo"]:
+        ensembledata.si["part0"]["Energy"] += " + GCP"
+    # Energy_settings are set above!
+    # GmRRHO:
+    ensembledata.si["part0"]["G_mRRHO"] = "not included"
+    # Solvation:
+    if config.solvent == "gas":
+        ensembledata.si["part0"]["G_solv"] = "gas-phase"
+    else:
+        ensembledata.si["part0"]["G_solv"] = instruction["method2"]
+    # Geometry:
+    ensembledata.si["part0"]["Geometry"] = "GFNn-xTB (input geometry)"
+    # QM-CODE:
+    ensembledata.si["part0"]["main QM code"] = str(config.prog).upper()
+    # Threshold:
+    ensembledata.si["part0"]["Threshold"] = f"{config.part0_threshold} kcal/mol"
+    # END SI generation --------------------------------------------------------
+
     if prev_calculated:
         # adding conformers calculated before:
         for conf in list(prev_calculated):
@@ -351,8 +365,8 @@ def part0(config, conformers, ensembledata):
             solv=solvation,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
     except ValueError:
@@ -389,7 +403,9 @@ def part0(config, conformers, ensembledata):
     try:
         maxreldft = max([i.rel_free_energy for i in calculate if i is not None])
     except ValueError:
-        print_errors(f"{'ERROR:':{WARNLEN}}No conformer left or error in maxreldft!", save_errors)
+        print_errors(
+            f"{'ERROR:':{WARNLEN}}No conformer left or error in maxreldft!", save_errors
+        )
     # print sorting
     columncall = [
         lambda conf: "CONF" + str(getattr(conf, "id")),
@@ -460,6 +476,9 @@ def part0(config, conformers, ensembledata):
     )
     print("".ljust(int(PLENGTH), "-"))
     # --------------------------------------------------------------------------
+    calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+    conf_in_interval(calculate, full_free_energy=False)
+    # --------------------------------------------------------------------------
 
     # write to enso.json
     config.write_json(
@@ -489,7 +508,9 @@ def part0(config, conformers, ensembledata):
             )
             print_block(["CONF" + str(i.id) for i in calculate])
         else:
-            print_errors(f"{'ERROR:':{WARNLEN}}There are no more conformers left!", save_errors)
+            print_errors(
+                f"{'ERROR:':{WARNLEN}}There are no more conformers left!", save_errors
+            )
     else:
         for conf in list(calculate):
             conf.part_info["part0"] = "passed"
@@ -543,17 +564,11 @@ def part0(config, conformers, ensembledata):
     )
 
     if save_errors:
-        print(
-            "\n***---------------------------------------------------------***"
-        )
-        print(
-            "Printing most relevant errors again, just for user convenience:"
-        )
+        print("\n***---------------------------------------------------------***")
+        print("Printing most relevant errors again, just for user convenience:")
         for _ in list(save_errors):
             print(save_errors.pop())
-        print(
-            "***---------------------------------------------------------***"
-        )
+        print("***---------------------------------------------------------***")
 
     tmp = int((PLENGTH - len("END of Part0")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part0" + "".rjust(tmp, "<"))

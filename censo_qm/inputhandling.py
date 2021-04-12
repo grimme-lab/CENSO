@@ -23,6 +23,8 @@ from .cfg import (
     external_paths,
     __version__,
     cosmors_param,
+    composite_method_basis,
+    disp_already_included_in_func,
 )
 from .utilities import frange, format_line, print
 
@@ -444,7 +446,7 @@ def cml(startup_description, options, argv=None):
     )
     group4.add_argument(
         "-ancopt",
-        choices=["on"], # there is no other option right now!
+        choices=["on"],  # there is no other option right now!
         dest="ancopt",
         required=False,
         metavar="",
@@ -727,7 +729,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Investigates hydrogen nuclei in coupling and shielding calculations."
-            "choices=['on', 'off']",
+        "choices=['on', 'off']",
     )
     group6.add_argument(
         "-cactive",
@@ -737,7 +739,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Investigates carbon nuclei in coupling and shielding calculations."
-            "choices=['on', 'off']",
+        "choices=['on', 'off']",
     )
     group6.add_argument(
         "-factive",
@@ -747,7 +749,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Investigates fluorine nuclei in coupling and shielding calculations."
-            "choices=['on', 'off']",
+        "choices=['on', 'off']",
     )
     group6.add_argument(
         "-siactive",
@@ -757,7 +759,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Investigates silicon nuclei in coupling and shielding calculations."
-            "choices=['on', 'off']",
+        "choices=['on', 'off']",
     )
     group6.add_argument(
         "-pactive",
@@ -767,7 +769,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Investigates phosophorus nuclei in coupling and shielding calculations."
-            "choices=['on', 'off']",
+        "choices=['on', 'off']",
     )
     group9 = parser.add_argument_group("OPTICAL ROTATION MODE")
     group9.add_argument(
@@ -854,7 +856,7 @@ def cml(startup_description, options, argv=None):
         action="store",
         metavar="",
         help="Automatically balance the number of threads and cores when a low number"
-            "of conformers is left. (never exceed O*P cores).",
+        "of conformers is left. (never exceed O*P cores).",
     )
     group11 = parser.add_argument_group("Concerning overall mRRHO calculations")
     group11.add_argument(
@@ -917,6 +919,14 @@ def cml(startup_description, options, argv=None):
         "Stronger than -cleanup !",
     )
     group8.add_argument(
+        "--readonly",
+        "-readonly",
+        dest="onlyread",
+        choices=["on", "off"],
+        action="store",
+        help="Create new enso.json from the output of previous calculations.",
+    )
+    group8.add_argument(
         "-newconfig",
         "-write_censorc",
         "--write_censorc",
@@ -945,7 +955,7 @@ def cml(startup_description, options, argv=None):
         choices=["on", "off"],
         default="off",
         help="Print progress to stderr when starting and finishing a sorting Part."
-             "Choices are 'on' or 'off'.",
+        "Choices are 'on' or 'off'.",
     )
     group8.add_argument(
         "-inprc",
@@ -961,6 +971,14 @@ def cml(startup_description, options, argv=None):
         required=False,
         action="store_true",
         help="Start interactive CENSO documentation.",
+    )
+    group8.add_argument(
+        "-create_SI",
+        "--create_SI",
+        dest="create_si",
+        required=False,
+        action="store_true",
+        help="Start automatic SI generation after CENSO run.",
     )
     args = parser.parse_args(argv)
 
@@ -1088,6 +1106,7 @@ class internal_settings:
         "cosmorsparam": "cosmorsparam",
         "progress": "progress",
         "balance": "balance",
+        "onlyread": "onlyread",
     }
     knownbasissets3 = [
         "SVP",
@@ -1122,28 +1141,28 @@ class internal_settings:
     ]
 
     # information on functionals:
-    composite_method_basis = {
-        "pbeh-3c": "def2-mSVP",
-        "pbeh3c": "def2-mSVP",
-        "b97-3c": "def2-mTZVP",
-        "b973c": "def2-mTZVP",
-        "hf3c": "minix",
-        "hf-3c": "minix",
-        "r2scan-3c": "def2-mTZVPP",
-    }
-    gga_dfa = ("tpss", "pbe", "kt2")
-    hybrid_dfa = (
-        "pbe0",
-        "pw6b95",
-        "wb97x-d3",
-        "cam-b3lyp",
-        "b3-lyp",
-        "pbeh-3c",
-        "m06x",
-        "bh-lyp",
-        "tpssh",
-    )
-    dh_dfa = ("dsd-blyp",)
+    # composite_method_basis = {
+    #     "pbeh-3c": "def2-mSVP",
+    #     "pbeh3c": "def2-mSVP",
+    #     "b97-3c": "def2-mTZVP",
+    #     "b973c": "def2-mTZVP",
+    #     "hf3c": "minix",
+    #     "hf-3c": "minix",
+    #     "r2scan-3c": "def2-mTZVPP",
+    # }
+    # gga_dfa = ("tpss", "pbe", "kt2")
+    # hybrid_dfa = (
+    #     "pbe0",
+    #     "pw6b95",
+    #     "wb97x-d3",
+    #     "cam-b3lyp",
+    #     "b3-lyp",
+    #     "pbeh-3c",
+    #     "m06x",
+    #     "bh-lyp",
+    #     "tpssh",
+    # )
+    # dh_dfa = ("dsd-blyp",)
 
     knownbasissetsJ = knownbasissets3 + ["pcJ-0", "pcJ-1", "pcJ-2"]
     knownbasissetsS = knownbasissets3 + [
@@ -1156,12 +1175,38 @@ class internal_settings:
     ]
     func_orca = ["pbeh-3c", "b97-3c", "tpss", "b97-d3", "pbe"]
     func_tm = ["pbeh-3c", "b97-3c", "tpss", "r2scan-3c", "b97-d", "pbe"]
-    func3_orca = ["pw6b95", "pbe0","b97-d3", "wb97x-d3", "wb97x-d3bj", "wb97x-v", "dsd-blyp", "b97-3c", "pbeh-3c", "tpss", "pbe"]
-    func3_tm = ["pw6b95", "pbe0", "b97-d", "r2scan-3c", "b97-3c", "wb97x-v", "pbeh-3c", "tpss", "pbe",]
-    func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c"]
-    func_j_orca = ["tpss", "pbe0", "pbeh-3c"]
-    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "b97-3c", "kt1", "kt2", "r2scan-3c"]
-    func_s_orca = ["tpss", "pbe0", "dsd-blyp", "pbeh-3c", "kt2"]
+    func3_orca = [
+        "pw6b95",
+        "pbe0",
+        "b97-d3",
+        "wb97x-d3",
+        "wb97x-d3bj",
+        "wb97x-v",
+        "dsd-blyp",
+        "b97-3c",
+        "pbeh-3c",
+        "tpss",
+        "pbe",
+        "b3lyp",
+    ]
+    func3_tm = [
+        "pw6b95",
+        "pbe0",
+        "b97-d",
+        "r2scan-3c",
+        "b97-3c",
+        "wb97x-v",
+        "pbeh-3c",
+        "tpss",
+        "pbe",
+        "b3-lyp",
+    ]
+    func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c", "pbe"]
+    func_j_orca = ["tpss", "pbe0", "pbeh-3c", "pbe"]
+    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "b97-3c", "kt1", "kt2", "r2scan-3c", "pbe"]
+    func_s_orca = ["tpss", "pbe0", "dsd-blyp", "pbeh-3c", "kt2", "pbe"]
+    func_or_scf_tm = list(set(func_tm + func3_tm))
+    func_or_tm = list(set(func_tm + func3_tm))
     impgfnv = ["gfn1", "gfn2", "gfnff"]
     tmp_smd_solvents = [
         "1,1,1-TRICHLOROETHANE",
@@ -1529,7 +1574,7 @@ class internal_settings:
             ("omp", {"default": 1, "type": int}),
             ("balance", {"default": False, "type": bool}),
             ("cosmorsparam", {"default": "automatic", "type": str}),
-
+            ("onlyread", {"default": False, "type": bool}),
         ]
         self.defaults_refine_ensemble_part0 = [
             # part0
@@ -1650,7 +1695,7 @@ class internal_settings:
             "part4": ["on", "off"],
             "optical_rotation": ["on", "off"],
             "prog3": ["tm", "orca", "prog"],
-            "ancopt": ["on",], #, "off"],
+            "ancopt": ["on"],  # , "off"],
             "opt_spearman": ["on", "off"],
             "evaluate_rrho": ["on", "off"],
             "consider_sym": ["on", "off"],
@@ -1734,6 +1779,7 @@ class internal_settings:
             "sthr": ["automatic or e.g., 50     # in cm-1"],
             "scale": ["automatic or e.g., 1.0 "],
             "cosmorsparam": ["automatic"] + sorted(list(cosmors_param.keys())),
+            "onlyread": ["on", "off"],
         }
         # must not be changed if restart(concerning optimization)
         self.restart_unchangeable = [
@@ -1768,15 +1814,15 @@ class internal_settings:
             "basis_or": False,
             "func_or_scf": False,
             "freq_or": False,
-            "func3":False,
-            "basis3":False,
-            "func_j":False,
-            "basis_j":False,
-            "sm4_j":False,
-            "func_s":False,
-            "basis_s":False,
-            "sm4_s":False,
-            # "consider_sym": calculated on the fly 
+            "func3": False,
+            "basis3": False,
+            "func_j": False,
+            "basis_j": False,
+            "sm4_j": False,
+            "func_s": False,
+            "basis_s": False,
+            "sm4_s": False,
+            # "consider_sym": calculated on the fly
         }
 
 
@@ -1811,7 +1857,7 @@ class config_setup(internal_settings):
         self.basis = "automatic"
         self.maxthreads = 1
         self.omp = 1
-        self.balance=False
+        self.balance = False
         self.cosmorsparam = "automatic"
         # part0
         self.part0 = False
@@ -1885,7 +1931,7 @@ class config_setup(internal_settings):
         self.save_errors = []
         self.save_infos = []
 
-        self.startupinfokeys = ["nat", "md5", "maxconf", "run"]
+        self.startupinfokeys = ["nat", "md5", "maxconf", "run", "configpath"]
         self.nat = 0
         self.md5 = ""
         self.maxconf = 0
@@ -1921,6 +1967,16 @@ class config_setup(internal_settings):
                 if int(file.split(".")[2]) > 1:
                     print(f"Removing: {file}")
                     os.remove(os.path.join(self.cwd, file))
+        # get files like amat.tmp from COSMO calculation (can be several Mb)
+        files_in_sub_cwd = glob.glob(self.cwd + "/**/**/**/*mat.tmp", recursive=True)
+        size = 0
+        for tmpfile in files_in_sub_cwd:
+            if any(x in tmpfile for x in ["a3mat.tmp", "a2mat.tmp", "amat.tmp"]):
+                if os.path.isfile(tmpfile):
+                    size += os.path.getsize(tmpfile)
+                    # print(f"Removing {tmpfile} {os.path.getsize(tmpfile)} byte")
+                    os.remove(tmpfile)
+        print(f"Removed {size/(1024*1024): .2f} Mb")
         if complete:
             if "enso.json" in files_in_cwd:
                 print(f"Removing: {'enso.json'}")
@@ -1931,16 +1987,6 @@ class config_setup(internal_settings):
             if os.path.isdir(os.path.join(self.cwd, "conformer_rotamer_check")):
                 print("Removing conformer_rotamer_check")
                 shutil.rmtree(os.path.join(self.cwd, "conformer_rotamer_check"))
-            # get files like amat.tmp from COSMO calculation (can be several Mb)
-            files_in_sub_cwd = glob.glob(self.cwd + '/**/**/**/*mat.tmp', recursive=True)
-            size = 0
-            for tmpfile in files_in_sub_cwd:
-                if any(x in tmpfile for x in ['a3mat.tmp', 'a2mat.tmp', 'amat.tmp']):
-                    if os.path.isfile(tmpfile):
-                        size += os.path.getsize(tmpfile)
-                        #print(f"Removing {tmpfile} {os.path.getsize(tmpfile)} byte")
-                        os.remove(tmpfile)
-            print(f"Removed {size/1024} Mb")
             # ask if CONF folders should be removed
 
     def get_method_name(
@@ -1962,17 +2008,14 @@ class config_setup(internal_settings):
         --> method2 gsolv
         """
         if func is not None and basis is not None:
-            if func in self.composite_method_basis.keys():
+            if func in composite_method_basis.keys():
                 if basis == self.func_basis_default.get(func, None):
                     # composite method (e.g. r2scan-3c)
                     tmp_func_basis = func
-                # elif disp is not None:
-                #     # FUNC-DISP/BASIS
-                #     tmp_func_basis = f"{func}-{disp}/{basis}"
                 else:
                     # FUNC/BASIS
                     tmp_func_basis = f"{func}/{basis}"
-            elif disp is not None:
+            elif disp is not None and func not in disp_already_included_in_func:
                 # FUNC-DISP/BASIS
                 tmp_func_basis = f"{func}-{disp}/{basis}"
             else:
@@ -2259,9 +2302,13 @@ class config_setup(internal_settings):
         # Handle basis0 for func0:
         if self.basis0 == "None" or self.basis0 is None or self.basis0 == "automatic":
             if self.prog == "tm":
-                default = self.internal_defaults_tm.get("basis0", {'default':"def2-SV(P)"})['default']
+                default = self.internal_defaults_tm.get(
+                    "basis0", {"default": "def2-SV(P)"}
+                )["default"]
             elif self.prog == "orca":
-                default = self.internal_defaults_orca.get("basis0",{'default':"def2-SV(P)"})['default']
+                default = self.internal_defaults_orca.get(
+                    "basis0", {"default": "def2-SV(P)"}
+                )["default"]
             else:
                 default = "def2-SV(P)"
             self.basis0 = self.func_basis_default.get(self.func0, default)
@@ -2284,9 +2331,13 @@ class config_setup(internal_settings):
         # Handle basis for func:
         if self.basis == "None" or self.basis is None or self.basis == "automatic":
             if self.prog == "tm":
-                default = self.internal_defaults_tm.get("basis", {'default':"def2-TZVP"})['default']
+                default = self.internal_defaults_tm.get(
+                    "basis", {"default": "def2-TZVP"}
+                )["default"]
             elif self.prog == "orca":
-                default = self.internal_defaults_orca.get("basis", {'default':"def2-TZVP"})['default']
+                default = self.internal_defaults_orca.get(
+                    "basis", {"default": "def2-TZVP"}
+                )["default"]
             else:
                 default = "def2-TZVP"
             self.basis = self.func_basis_default.get(self.func, default)
@@ -2294,29 +2345,33 @@ class config_setup(internal_settings):
         # Handle basis3:
         if self.basis3 == "None" or self.basis3 is None or self.basis3 == "automatic":
             if self.prog3 == "tm":
-                default = self.internal_defaults_tm.get("basis3", {'default':"def2-TZVP"})['default']
+                default = self.internal_defaults_tm.get(
+                    "basis3", {"default": "def2-TZVP"}
+                )["default"]
             elif self.prog3 == "orca":
-                default = self.internal_defaults_orca.get("basis3", {'default':"def2-TZVP"})['default']
+                default = self.internal_defaults_orca.get(
+                    "basis3", {"default": "def2-TZVP"}
+                )["default"]
             else:
                 default = "def2-TZVP"
             self.basis3 = self.func_basis_default.get(self.func3, default)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3
-        if self.part3 and self.func3 in self.composite_method_basis.keys():
-            if self.basis3 != self.composite_method_basis[self.func3]:
+        if self.part3 and self.func3 in composite_method_basis.keys():
+            if self.basis3 != composite_method_basis[self.func3]:
                 self.save_errors.append(
                     f"{'INFORMATION:':{WARNLEN}}You are using a basis "
                     f"set (basis3) {self.basis3} different to the original composite method"
-                    f" basis set ({self.composite_method_basis[self.func3]})!"
+                    f" basis set ({composite_method_basis[self.func3]})!"
                 )
-        if self.part3 and self.prog3 == 'orca' and self.func3 not in self.func3_orca:
+        if self.part3 and self.prog3 == "orca" and self.func3 not in self.func3_orca:
             self.save_errors.append(
                 f"{'ERROR:':{WARNLEN}}The functional "
                 f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
                 f"{'':{WARNLEN}}Options are: {self.func3_orca}"
             )
             error_logical = True
-        elif self.part3 and self.prog3 == 'tm' and self.func3 not in self.func3_tm:
+        elif self.part3 and self.prog3 == "tm" and self.func3 not in self.func3_tm:
             self.save_errors.append(
                 f"{'ERROR:':{WARNLEN}}The functional "
                 f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
@@ -2349,7 +2404,7 @@ class config_setup(internal_settings):
             getattr(self, "basis_j", None) is None
             or getattr(self, "basis_j", None) == "automatic"
         ):
-            default_basis_j = self.composite_method_basis.get(self.func_j, "def2-TZVP")
+            default_basis_j = composite_method_basis.get(self.func_j, "def2-TZVP")
             setattr(self, "basis_j", default_basis_j)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_s
@@ -2374,7 +2429,7 @@ class config_setup(internal_settings):
             getattr(self, "basis_s", None) is None
             or getattr(self, "basis_s", None) == "automatic"
         ):
-            default_basis_s = self.composite_method_basis.get(self.func_s, "def2-TZVP")
+            default_basis_s = composite_method_basis.get(self.func_s, "def2-TZVP")
             setattr(self, "basis_s", default_basis_s)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # no unpaired electrons in coupling or shielding calculations!
@@ -2649,7 +2704,9 @@ class config_setup(internal_settings):
                                 f" for solventmodel/program {key} can not be checked but is used anyway."
                             )
                     else:
-                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[1] not in getattr(self, lookup[key]):
+                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
+                            1
+                        ] not in getattr(self, lookup[key]):
                             self.save_errors.append(
                                 f"{'WARNING:':{WARNLEN}}The solvent "
                                 f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
@@ -2657,12 +2714,16 @@ class config_setup(internal_settings):
                             )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # prog3 if smgsolv3 cosmors
-        if self.part3 and self.solvent != 'gas' and self.smgsolv3 in ('cosmors', 'cosmors-fine'):
-            if self.prog3 == 'orca':
+        if (
+            self.part3
+            and self.solvent != "gas"
+            and self.smgsolv3 in ("cosmors", "cosmors-fine")
+        ):
+            if self.prog3 == "orca":
                 self.save_errors.append(
-                                f"{'ERROR:':{WARNLEN}}Part3 when used with COSMO-RS can only be prog3 = TM!\n"
-                                f"{'':{WARNLEN}}Set prog3 to tm !"
-                            )
+                    f"{'ERROR:':{WARNLEN}}Part3 when used with COSMO-RS can only be prog3 = TM!\n"
+                    f"{'':{WARNLEN}}Set prog3 to tm !"
+                )
                 error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle optlevel2:
@@ -2703,16 +2764,16 @@ class config_setup(internal_settings):
                 )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # optical rotation
-        if self.optical_rotation and self.prog == 'orca':
+        if self.optical_rotation and self.prog == "orca":
             self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}Optical rotation calculations are only possible with TM."
-                )
+                f"{'ERROR:':{WARNLEN}}Optical rotation calculations are only possible with TM."
+            )
             error_logical = True
         if silent:
             self.save_errors = store_errors
         return error_logical
 
-    def print_parameters(self):
+    def print_parameters(self, cmlcall=None):
         """
         print settings at startup
         """
@@ -2722,6 +2783,8 @@ class config_setup(internal_settings):
         print("PARAMETERS".center(PLENGTH, " "))
         print("".ljust(PLENGTH, "-") + "\n")
 
+        if cmlcall is not None:
+            print(f"program call: {' '.join(cmlcall)}")
         print(
             f"The configuration file {os.path.basename(self.configpath)} is read "
             f"from {self.configpath}."
@@ -2730,6 +2793,14 @@ class config_setup(internal_settings):
         if self.save_infos:
             for _ in list(self.save_infos):
                 print(self.save_infos.pop(0))
+        if self.onlyread:
+            self.save_errors.append(
+                f"{'WARNING:':{WARNLEN}}Using the option ``readonly`` to re-read"
+                + f" data from old outputs. This option is experimental therefore "
+                + f"check results carefully.\n"
+                + f"{'        ':{WARNLEN}}It can only succeed if exactly the same "
+                + f"input commands (.censorc + command line) are supplied!"
+            )
         if self.save_errors:
             print("")
             for _ in list(self.save_errors):
@@ -2826,7 +2897,12 @@ class config_setup(internal_settings):
                     if self.solvent != "gas":
                         info.append(["sm_rrho", "solvent model applied with xTB"])
             info.append(["printoption", "evaluate at different temperatures", "off"])
-            info.append(["part1_threshold", "threshold g_thr(1) and G_thr(1) for sorting in part1"])
+            info.append(
+                [
+                    "part1_threshold",
+                    "threshold g_thr(1) and G_thr(1) for sorting in part1",
+                ]
+            )
             if self.solvent != "gas":
                 info.append(
                     ["smgsolv1", "solvent model for Gsolv contribution of part1"]
@@ -2881,7 +2957,7 @@ class config_setup(internal_settings):
                 info.append(
                     [
                         "opt_limit",
-                        "optimize all conformers below this G_thr(opt,2) threshold"
+                        "optimize all conformers below this G_thr(opt,2) threshold",
                     ]
                 )
                 info.append(["printoption", "spearmanthr", f"{self.spearmanthr:.3f}"])
@@ -2893,7 +2969,10 @@ class config_setup(internal_settings):
                     info.append(["smgsolv2", "solvent model for Gsolv contribution"])
             info.append(["multitemp", "evaluate at different temperatures"])
             info.append(
-                ["part2_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
+                [
+                    "part2_threshold",
+                    "Boltzmann sum threshold G_thr(2) for sorting in part2",
+                ]
             )
             info.append(["evaluate_rrho", "calculate mRRHO contribution"])
             if self.evaluate_rrho:
@@ -2906,8 +2985,8 @@ class config_setup(internal_settings):
                         info.append(
                             [
                                 "bhess",
-                                "Apply constraint to input geometry "+
-                                "during mRRHO calculation",
+                                "Apply constraint to input geometry "
+                                + "during mRRHO calculation",
                             ]
                         )
                     if self.solvent != "gas":
@@ -3054,8 +3133,25 @@ class config_setup(internal_settings):
             if getattr(self, "p_active"):
                 info.append(["p_active", "Calculating phosphorus spectrum"])
                 info.append(["p_ref", "reference for 31P"])
-            if all([ not getattr(self, active) for active in ("h_active", "c_active", "f_active", "si_active", "p_active")]):
-                info.append(["printoption", "Calculating spectrum for all nuclei", "H, C, F, Si, P"])
+            if all(
+                [
+                    not getattr(self, active)
+                    for active in (
+                        "h_active",
+                        "c_active",
+                        "f_active",
+                        "si_active",
+                        "p_active",
+                    )
+                ]
+            ):
+                info.append(
+                    [
+                        "printoption",
+                        "Calculating spectrum for all nuclei",
+                        "H, C, F, Si, P",
+                    ]
+                )
             info.append(["resonance_frequency", "resonance frequency"])
             # short notation:
 
@@ -3080,17 +3176,17 @@ class config_setup(internal_settings):
 
         max_len_digilen = 0
         for item in info:
-            if item[0] == 'justprint':
+            if item[0] == "justprint":
                 if "short-notation" in item[1]:
                     continue
-                    #tmp = len(item[1]) -len('short-notation:')
+                    # tmp = len(item[1]) -len('short-notation:')
                 else:
                     tmp = len(item[1])
             else:
                 tmp = len(item[1])
             if tmp > max_len_digilen:
                 max_len_digilen = tmp
-        max_len_digilen +=1
+        max_len_digilen += 1
         if max_len_digilen < DIGILEN:
             max_len_digilen = DIGILEN
 
@@ -3125,6 +3221,134 @@ class config_setup(internal_settings):
                     )
                 )
         print("END of parameters\n")
+
+    def create_SI(self, ensembledata):
+        """Automatically create a supporting information block"""
+        si_out = []
+        l_length = 25
+        si_out.append(f"\nAutomatic CENSO-SI creation:\n")
+        si_out.append(
+            "The preparation of this supporting information (SI) is by no means complete and "
+            + "does not relieve the\nuser of the responsibility to verify/complete the SI."
+        )
+        si_out.append(f"In this CENSO run the following settings were employed:\n")
+        # General information:
+        tmp = {"Temperature": self.temperature, "Solvent": self.solvent}
+        si_out.append(f"{'':^{l_length}} | {'General information:'}")
+        si_out.append("".ljust(int(PLENGTH), "-"))
+        for key, value in tmp.items():
+            si_out.append(f"{key:^{l_length}} | {value}")
+        si_out.append("".ljust(int(PLENGTH), "-"))
+        # ----------------------------PART0--------------------------------------
+        if self.part0:
+            # part0: E = fast single-point with normally b97-d/def2-SV(P)
+            #        GRRHO is omitted for speed!
+            #        Gsolv = ALPB_GSOLV
+            si_out.append(f"{'':^{l_length}} | {'PART0 - cheap prescreening'}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+            for key, value in getattr(ensembledata, "si")["part0"].items():
+                si_out.append(f"{key:^{l_length}} | {value}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+        # ==========================END PART0====================================
+        # ----------------------------PART1--------------------------------------
+        if self.part1:
+            # part1: E normally with r2scan-3c
+            # Gsolv can be anything
+            # GmRRHO xtb with GFNn-xTB + ALPB GBSA gas-phase
+            ###
+            si_out.append(f"{'':^{l_length}} | {'PART1 - prescreening'}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+            for key, value in getattr(ensembledata, "si")["part1"].items():
+                si_out.append(f"{key:^{l_length}} | {value}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+        # ==========================END PART1====================================
+        # ----------------------------PART2--------------------------------------
+        if self.part2:
+            # part2: E normally with r2scan-3c
+            # Gsolv can be anything
+            # GmRRHO xtb with GFNn-xTB + ALPB GBSA gas-phase
+            ###
+            si_out.append(f"{'':^{l_length}} | {'PART2 - optimization'}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+            for key, value in getattr(ensembledata, "si")["part2"].items():
+                si_out.append(f"{key:^{l_length}} | {value}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+        # ==========================END PART2====================================
+        # ----------------------------PART3--------------------------------------
+        if self.part3:
+            # # part3: E normally hybrid dft
+            # # Gsolv can be anything
+            # # GmRRHO xtb with GFNn-xTB + ALPB GBSA gas-phase
+            si_out.append(f"{'':^{l_length}} | {'PART3 - refinement'}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+            for key, value in getattr(ensembledata, "si")["part3"].items():
+                si_out.append(f"{key:^{l_length}} | {value}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+        # ==========================END PART3====================================
+        # ----------------------------PART4--------------------------------------
+        if self.part4:
+            ###
+            si_out.append(f"{'':^{l_length}} | {'PART4 - NMR mode'}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+            for key, value in getattr(ensembledata, "si")["part4"].items():
+                si_out.append(f"{key:^{l_length}} | {value}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+        # ==========================END PART4====================================
+        # ----------------------------PART5--------------------------------------
+        if self.optical_rotation:
+            ###
+            si_out.append(f"{'':^{l_length}} | {'PART5 - OR mode'}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+            for key, value in getattr(ensembledata, "si")["part5"].items():
+                si_out.append(f"{key:^{l_length}} | {value}")
+            si_out.append("".ljust(int(PLENGTH), "-"))
+        # ==========================END PART5====================================
+        # PRINT SI PART information
+        for line in si_out:
+            print(line)
+        si_text = """
+        Within CENSO free energies (G) are calculated from:
+
+        G(T) = E + G_mRRHO(T) + G_solv(T)                                 (1)
+
+        The input ensemble (originating from CREST or crest_combi) are sorted 
+        in part0 and part1 at DFT level. This provides an improved description of 
+        the electronic energy and solvation contributions compared to the input 
+        SQM level. Thermostatistical contributions, including ZPVE are evaluated
+        at the GFNn-xTB level in part1. This first filtering removes structures 
+        high lying in free energy and reduces the computational cost by passing
+        fewer conformers to the computational costly DFT optimizations.
+
+        COSMO-RS calculations are performed with the energies and densities from 
+        the functional and basis set combination of the 'Energy' evaluation in the 
+        respective part.
+
+        """
+        print(si_text)
+        print("\nSome citations in bib style are provided below:")
+        # PRINT bib of employed programs
+        from .cfg import si_bib
+
+        out_bib = []
+        requirements = self.needed_external_programs()
+        bib_need = {
+            "needtm": "tm",
+            "needxtb": "xtb",
+            "needcosmors": "cosmors",
+            "needorca": "orca",
+        }
+        out_bib.extend(si_bib.get("censo"))
+        for item in ("needtm", "needxtb", "needcosmors", "needorca"):
+            if requirements.get(item, False):
+                out_bib.extend(si_bib.get(bib_need[item], []))
+        for item in set([self.func0, self.func, self.func3, self.func_j, self.func_s]):
+            if si_bib.get(item, None) is not None:
+                out_bib.extend(si_bib.get(item, []))
+        if self.evaluate_rrho and self.bhess:
+            out_bib.extend(si_bib.get("sph", []))
+        print("\nBib entries:")
+        for line in out_bib:
+            print(line)
 
     def read_program_paths(self, configpath):
         """
@@ -3164,7 +3388,9 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
                 except Exception:
-                    print(f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!.")
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!."
+                    )
             if "ORCA version:" in line:
                 try:
                     tmp = line.split()[2]
@@ -3173,12 +3399,16 @@ class config_setup(internal_settings):
                     tmp = "".join(tmp)
                     self.external_paths["orcaversion"] = tmp
                 except Exception:
-                    print(f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!")
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!"
+                    )
             if "GFN-xTB:" in line:
                 try:
                     self.external_paths["xtbpath"] = str(line.split()[1])
                 except Exception:
-                    print(f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!")
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!"
+                    )
                     if shutil.which("xtb") is not None:
                         self.external_paths["xtbpath"] = shutil.which("xtb")
                         print(
@@ -3188,7 +3418,9 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["crestpath"] = str(line.split()[1])
                 except Exception:
-                    print(f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!")
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!"
+                    )
                     if shutil.which("crest") is not None:
                         self.external_paths["crestpath"] = shutil.which("crest")
                         print(
@@ -3198,16 +3430,20 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["mpshiftpath"] = str(line.split()[1])
                 except Exception:
-                    print(f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!")
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!"
+                    )
             if "escf:" in line:
                 try:
                     self.external_paths["escfpath"] = str(line.split()[1])
                 except Exception:
-                    print(f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!")
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!"
+                    )
             if "$ENDPROGRAMS" in line:
                 break
 
-    def needed_external_programs(self, config):
+    def needed_external_programs(self):
         """
         Automatically checks which external programs are required for the
         current run.
@@ -3215,56 +3451,56 @@ class config_setup(internal_settings):
         requirements = {}
         # xTB
         if (
-            config.prog_rrho == "xtb"
-            or config.part0
-            or config.ancopt
-            or config.smgsolv2 in ("gbsa_gsolv", "alpb_gsolv")
+            self.prog_rrho == "xtb"
+            or self.part0
+            or self.ancopt
+            or self.smgsolv2 in ("gbsa_gsolv", "alpb_gsolv")
         ):
             requirements["needxtb"] = True
         # TM
         if (
-            config.prog == "tm"
-            or config.prog3 == "tm"
-            or config.prog4_j == "tm"
-            or config.prog4_s == "tm"
-            or config.smgsolv1 in ("cosmors", "cosmors-fine")
-            or config.smgsolv2 in ("cosmors", "cosmors-fine")
-            or config.smgsolv3 in ("cosmors", "cosmors-fine")
+            self.prog == "tm"
+            or self.prog3 == "tm"
+            or self.prog4_j == "tm"
+            or self.prog4_s == "tm"
+            or self.smgsolv1 in ("cosmors", "cosmors-fine")
+            or self.smgsolv2 in ("cosmors", "cosmors-fine")
+            or self.smgsolv3 in ("cosmors", "cosmors-fine")
         ):
             requirements["needtm"] = True
             requirements["needcefine"] = True
-        if config.part4 and (config.prog4_j == "tm" or config.prog4_s == "tm"):
-            if config.couplings:
+        if self.part4 and (self.prog4_j == "tm" or self.prog4_s == "tm"):
+            if self.couplings:
                 requirements["needescf"] = True
-            if config.shieldings:
+            if self.shieldings:
                 requirements["needmpshift"] = True
         # COSMORS
         if (
-            (config.part1 and config.smgsolv1 == "cosmors")
-            or (config.part2 and config.smgsolv2 == "cosmors")
-            or (config.part3 and config.smgsolv3 == "cosmors")
+            (self.part1 and self.smgsolv1 == "cosmors")
+            or (self.part2 and self.smgsolv2 == "cosmors")
+            or (self.part3 and self.smgsolv3 == "cosmors")
         ):
             requirements["needcosmors"] = True
             requirements["needcosmors-normal"] = True
         if (
-            (config.part1 and config.smgsolv1 == "cosmors-fine")
-            or (config.part2 and config.smgsolv2 == "cosmors-fine")
-            or (config.part3 and config.smgsolv3 == "cosmors-fine")
+            (self.part1 and self.smgsolv1 == "cosmors-fine")
+            or (self.part2 and self.smgsolv2 == "cosmors-fine")
+            or (self.part3 and self.smgsolv3 == "cosmors-fine")
         ):
             requirements["needcosmors"] = True
             requirements["needcosmors-fine"] = True
         # ORCA
         if (
-            config.prog == "orca"
-            or config.prog3 == "orca"
-            or config.prog4_j == "orca"
-            or config.prog4_s == "orca"
-            or config.smgsolv1 == "smd_gsolv"
-            or config.smgsolv2 == "smd_gsolv"
-            or config.smgsolv3 == "smd_gsolv"
+            self.prog == "orca"
+            or self.prog3 == "orca"
+            or self.prog4_j == "orca"
+            or self.prog4_s == "orca"
+            or self.smgsolv1 == "smd_gsolv"
+            or self.smgsolv2 == "smd_gsolv"
+            or self.smgsolv3 == "smd_gsolv"
         ):
             requirements["needorca"] = True
-        if config.run:
+        if self.run:
             requirements["startenso"] = True
         return requirements
 
@@ -3448,10 +3684,14 @@ class config_setup(internal_settings):
         # COSMORS
         if requirements.get("needcosmors", False):
             if self.external_paths["cosmorssetup"] is None:
-                print(f"{'ERROR:':{WARNLEN}}Set up for COSMO-RS has to be written to .censorc!")
+                print(
+                    f"{'ERROR:':{WARNLEN}}Set up for COSMO-RS has to be written to .censorc!"
+                )
                 error_logical = True
             if self.external_paths["cosmothermversion"] is None:
-                print(f"{'ERROR:':{WARNLEN}}Version of COSMO-RS has to be written to .censorc!")
+                print(
+                    f"{'ERROR:':{WARNLEN}}Version of COSMO-RS has to be written to .censorc!"
+                )
                 error_logical = True
             if shutil.which("cosmotherm") is not None:
                 print("    Using COSMOtherm from {}".format(shutil.which("cosmotherm")))
@@ -3601,7 +3841,10 @@ class config_setup(internal_settings):
                 value = self._exchange_onoff(
                     data.get(
                         key,
-                        OrderedDict(self.defaults_refine_ensemble_general)[key]["default"]),
+                        OrderedDict(self.defaults_refine_ensemble_general)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 if key == "nconf" and value is None:
@@ -3613,7 +3856,10 @@ class config_setup(internal_settings):
                 value = self._exchange_onoff(
                     data.get(
                         key,
-                    OrderedDict(self.defaults_refine_ensemble_part0)[key]["default"]),
+                        OrderedDict(self.defaults_refine_ensemble_part0)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 key = args_key.get(key, key)
@@ -3621,9 +3867,13 @@ class config_setup(internal_settings):
             outdata.write("\n$PART1 - PRESCREENING - SETTINGS:\n")
             outdata.write("# func and basis is set under GENERAL SETTINGS\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part1):
-                value = self._exchange_onoff(data.get(
-                    key,
-                    OrderedDict(self.defaults_refine_ensemble_part1)[key]["default"]),
+                value = self._exchange_onoff(
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part1)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 key = args_key.get(key, key)
@@ -3631,18 +3881,26 @@ class config_setup(internal_settings):
             outdata.write("\n$PART2 - OPTIMIZATION - SETTINGS:\n")
             outdata.write("# func and basis is set under GENERAL SETTINGS\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part2):
-                value = self._exchange_onoff(data.get(
-                    key,
-                    OrderedDict(self.defaults_refine_ensemble_part2)[key]["default"]),
+                value = self._exchange_onoff(
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part2)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 key = args_key.get(key, key)
                 outdata.write(format_line(key, value, ""))
             outdata.write("\n$PART3 - REFINEMENT - SETTINGS:\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part3):
-                value = self._exchange_onoff(data.get(
-                    key,
-                    OrderedDict(self.defaults_refine_ensemble_part3)[key]["default"]),
+                value = self._exchange_onoff(
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part3)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 key = args_key.get(key, key)
@@ -3650,9 +3908,10 @@ class config_setup(internal_settings):
             outdata.write("\n$NMR PROPERTY SETTINGS:\n")
             outdata.write("$PART4 SETTINGS:\n")
             for key in OrderedDict(self.defaults_nmrprop_part4):
-                value = self._exchange_onoff(data.get(
-                    key,
-                    OrderedDict(self.defaults_nmrprop_part4)[key]["default"]),
+                value = self._exchange_onoff(
+                    data.get(
+                        key, OrderedDict(self.defaults_nmrprop_part4)[key]["default"]
+                    ),
                     reverse=True,
                 )
                 key = args_key.get(key, key)
@@ -3660,15 +3919,20 @@ class config_setup(internal_settings):
             outdata.write("\n$OPTICAL ROTATION PROPERTY SETTINGS:\n")
             outdata.write("$PART5 SETTINGS:\n")
             for key in OrderedDict(self.defaults_optical_rotation_part5):
-                value = self._exchange_onoff(data.get(
-                    key,
-                    OrderedDict(self.defaults_optical_rotation_part5)[key]["default"]),
+                value = self._exchange_onoff(
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_optical_rotation_part5)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 key = args_key.get(key, key)
                 outdata.write(format_line(key, value, ""))
             outdata.write("\n$END censo.inp\n")
-##########################
+
+    ##########################
 
     def read_json(self, path, silent=False):
         """

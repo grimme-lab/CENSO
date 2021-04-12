@@ -106,7 +106,7 @@ def t2x(path, writexyz=False, outfile="original.xyz"):
     if not os.path.basename(path) == "coord":
         if os.path.isfile(path):
             with open(path, "r", encoding=CODING, newline=None) as f:
-                if not '$coord' in f.readline():
+                if not "$coord" in f.readline():
                     path = os.path.join(path, "coord")
         else:
             path = os.path.join(path, "coord")
@@ -172,7 +172,17 @@ def x2t(path, infile="inp.xyz"):
 
 
 def write_trj(
-    results, cwd, outpath, optfolder, nat, attribute, temperature, consider_sym, overwrite=False, *args, **kwargs
+    results,
+    cwd,
+    outpath,
+    optfolder,
+    nat,
+    attribute,
+    temperature,
+    consider_sym,
+    overwrite=False,
+    *args,
+    **kwargs,
 ):
     """
     Write trajectory (multiple xyz geometries) to file.
@@ -199,13 +209,13 @@ def write_trj(
                 ### coordinates in xyz
                 out.write("  {}\n".format(nat))
                 xtbfree = conf.calc_free_energy(
-                    e=energy, 
+                    e=energy,
                     solv=None,
                     rrho=rrho,
                     out=True,
                     t=temperature,
-                    consider_sym=consider_sym
-                    )
+                    consider_sym=consider_sym,
+                )
                 if xtbfree is not None:
                     xtbfree = f"{xtbfree:20.8f}"
                 out.write(
@@ -216,9 +226,10 @@ def write_trj(
                 for line in conf_xyz:
                     out.write(line + "\n")
     except (FileExistsError, ValueError):
-        print(f"{'WARNING:':{WARNLEN}}Could not write trajectory: "
-              f"{last_folders(outpath, 1)}."
-              )
+        print(
+            f"{'WARNING:':{WARNLEN}}Could not write trajectory: "
+            f"{last_folders(outpath, 1)}."
+        )
 
 
 def check_for_float(line):
@@ -396,7 +407,9 @@ def calc_boltzmannweights(confs, property, T):
         T = float(T)
     except ValueError:
         T = 298.15  # K
-        print(f"{'WARNING:':{WARNLEN}}Temperature can not be converted and is therfore set to T = {T} K.")
+        print(
+            f"{'WARNING:':{WARNLEN}}Temperature can not be converted and is therfore set to T = {T} K."
+        )
     if T == 0:
         T += 0.00001  # avoid division by zero
     try:
@@ -436,8 +449,12 @@ def new_folders(cwd, conflist, foldername, save_errors, store_confs, silent=Fals
             print(e)
             if not os.path.isdir(tmp_dir):
                 print(f"{'ERROR:':{WARNLEN}}Could not create folder for CONF{conf.id}!")
-                print(f"{'ERROR:':{WARNLEN}}CONF{conf.id} is removed, because IO failed!")
-                save_errors.append(f"{'ERROR:':{WARNLEN}}CONF{conf.id} was removed, because IO failed!")
+                print(
+                    f"{'ERROR:':{WARNLEN}}CONF{conf.id} is removed, because IO failed!"
+                )
+                save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}CONF{conf.id} was removed, because IO failed!"
+                )
                 store_confs.append(conflist.pop(conflist.index(conf)))
     if not silent:
         print("Constructed folders!")
@@ -752,7 +769,9 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
                 store = inp.readlines()
         except (Exception) as e:
             print(f"{'ERROR:':{WARNLEN}}{e}")
-            print(f"{'ERROR:':{WARNLEN}}output file (enso.tags) of CREST routine does not exist!")
+            print(
+                f"{'ERROR:':{WARNLEN}}output file (enso.tags) of CREST routine does not exist!"
+            )
         keep = []
     if config.crestcheck:
         try:
@@ -788,9 +807,9 @@ def format_line(key, value, options, optionlength=70, dist_to_options=30):
     """
     # limit printout of possibilities
     if len(options) > 0:
-        separator = '#'
+        separator = "#"
     else:
-        separator = ''
+        separator = ""
     if len(str(options)) > optionlength:
         length = 0
         reduced = []
@@ -822,7 +841,8 @@ def check_tasks(results, check=False, thresh=0.25):
         sys.exit(1)
     if fail_rate >= thresh and check:
         print(
-            f"{'ERROR:':{WARNLEN}}{fail_rate*100} % of the calculations failed!" "\nGoing to exit!"
+            f"{'ERROR:':{WARNLEN}}{fail_rate*100} % of the calculations failed!"
+            "\nGoing to exit!"
         )
         sys.exit(1)
     elif fail_rate >= thresh:
@@ -874,6 +894,7 @@ def calc_weighted_std_dev(data, weights=None):
     std_dev = math.sqrt(variance)
     return std_dev
 
+
 def print_errors(line, save_errors):
     """print line and append to list save_errors"""
     print(line)
@@ -881,3 +902,42 @@ def print_errors(line, save_errors):
         save_errors.append(line)
     except Exception:
         pass
+
+
+def conf_in_interval(conformers, full_free_energy=True, bm=True):
+    """ number of conformers (and Boltzmann weights) within free energy window intervals """
+    basins = {}
+    max_rel_free = max([getattr(conf, "rel_free_energy") for conf in conformers])
+    for i in frange(0.5, 6.0, 0.5):
+        if i <= max_rel_free + 0.5:
+            basins[i] = {"nconf": 0, "bmweight": 0.0}
+
+    for conf in conformers:
+        for ewin in basins.keys():
+            if getattr(conf, "rel_free_energy") <= float(ewin):
+                basins[ewin]["nconf"] += 1
+                if bm:
+                    basins[ewin]["bmweight"] += getattr(conf, "bm_weight")
+    out = []
+    if full_free_energy:
+        outg = "G"
+    else:
+        outg = "g"
+    out.append(f"\nNumber of conformers observed within the following Δ{outg} windows:")
+    if bm:
+        out.append(f"Δ{outg} [kcal/mol]  #CONF   sum(Boltzmann_weights)")
+    else:
+        out.append(f"Δ{outg} [kcal/mol]  #CONF")
+    out.append("".ljust(int(45), "-"))
+    for ewin in basins.keys():
+        if bm:
+            tmp = f"0 - {ewin}"
+            out.append(
+                f"{tmp:^{14}}   {basins[ewin]['nconf']}         {basins[ewin]['bmweight']: .2f}"
+            )
+        else:
+            tmp = f"0 - {ewin}"
+            out.append(f"{tmp:^{14}}   {basins[ewin]['nconf']}")
+    out.append("".ljust(int(45), "-"))
+    for line in out:
+        print(line)

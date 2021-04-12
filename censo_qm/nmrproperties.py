@@ -8,14 +8,7 @@ import sys
 import json
 from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
-from .cfg import (
-    PLENGTH, 
-    DIGILEN, 
-    AU2KCAL,
-    WARNLEN,
-    CODING,
-    NmrRef
-)
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, CODING, NmrRef, qm_prepinfo
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -114,16 +107,16 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
         for _ in range(1000):
             for conf in calculate:
                 conf.calc_free_energy(
-                    e=energy, 
-                    solv=solv, 
+                    e=energy,
+                    solv=solv,
                     rrho=rrho,
                     t=config.temperature,
-                    consider_sym=config.consider_sym
-                    )
-                conf.free_energy += normalvariate(
-                    0.0, get_std_dev(conf)
+                    consider_sym=config.consider_sym,
                 )
-            calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+                conf.free_energy += normalvariate(0.0, get_std_dev(conf))
+            calculate = calc_boltzmannweights(
+                calculate, "free_energy", config.temperature
+            )
             tmp_sigma = {}
             for i in range(1, config.nat + 1):
                 tmp_sigma[i] = 0
@@ -145,12 +138,12 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
                     solv=solv,
                     rrho=rrho,
                     t=config.temperature,
-                    consider_sym=config.consider_sym
-                    )
-                conf.free_energy += normalvariate(
-                    0.0, (0.4/AU2KCAL)
+                    consider_sym=config.consider_sym,
                 )
-            calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+                conf.free_energy += normalvariate(0.0, (0.4 / AU2KCAL))
+            calculate = calc_boltzmannweights(
+                calculate, "free_energy", config.temperature
+            )
             tmp_sigma = {}
             for i in range(1, config.nat + 1):
                 tmp_sigma[i] = 0
@@ -163,14 +156,16 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
             for atom in conf.shieldings.keys():
                 sigma_std_dev_const[atom].append(tmp_sigma[atom])
 
-    with open(os.path.join(config.cwd, 'averaged_shift.dat'), "w", newline=None) as out:
-        line=("# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)  SD(σ by 0.4 kcal/mol)       shift        σ_ref")
+    with open(os.path.join(config.cwd, "averaged_shift.dat"), "w", newline=None) as out:
+        line = "# in coord  element  σ(sigma)  SD(σ based on SD Gsolv)  SD(σ by 0.4 kcal/mol)       shift        σ_ref"
         print(line)
-        out.write(line+"\n")
-        line= ("".ljust(int(105), "-"))
+        out.write(line + "\n")
+        line = "".ljust(int(105), "-")
         print(line)
-        out.write(line+"\n")
-        maxsigma = max([len(str(sigma).split(".")[0]) for sigma in averaged.values()]) + 5
+        out.write(line + "\n")
+        maxsigma = (
+            max([len(str(sigma).split(".")[0]) for sigma in averaged.values()]) + 5
+        )
         make_shift = (
             lambda atom: f"{-sigma+element_ref_shield.get(element[atom], 0.0):> {maxsigma}.2f}"
             if (element_ref_shield.get(element[atom], None) is not None)
@@ -191,14 +186,53 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
                     f"{std_dev:^ 24.6f} {std_dev_const:^ 24.6f} {make_shift(atom):>5}    {float(element_ref_shield.get(element[atom], 0.0)):> 10.3f}"
                 )
                 print(line)
-                out.write(line+"\n")
+                out.write(line + "\n")
             except Exception:
-                line=(f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}")
+                line = f"{atom:< {10}}  {element[atom]:^{7}}  {sigma:> {maxsigma}.2f}"
                 print(line)
-                out.write(line+"\n")
-        line = ("".ljust(int(105), "-"))
+                out.write(line + "\n")
+        line = "".ljust(int(105), "-")
         print(line)
-        out.write(line+"\n")       
+        out.write(line + "\n")
+
+    ############################################################################
+    # print min and max shielding within all conformers with averaging, but no boltzmann weighting
+    atom_sigma = {}
+    for atom in conf.shieldings.keys():
+        atom_sigma[atom] = {}
+        for conf in calculate:
+            # get shielding constants
+            atom_sigma[atom][conf.id] = sum(
+                [conf.shieldings.get(eq_atom, 0.0) for eq_atom in chemeq[atom]]
+            ) / len(chemeq[atom])
+    tmppl = maxsigma + 1
+    if tmppl <= 8:
+        tmppl = 8
+    line = f"\n{'# in coord':<{10}}  {'element':^{7}}  {'σ(sigma)':>{tmppl}} {'min(σ)*':>{tmppl}} CONFX  {'max(σ)*':>{tmppl}} CONFX  Δ(max-min)"
+    print(line)
+    line = "".ljust(int(105), "-")
+    print(line)
+    for atom in conf.shieldings.keys():
+        try:
+            minx = min(list(atom_sigma[atom].values()))
+            minid = next(
+                key for key, value in atom_sigma[atom].items() if value == minx
+            )
+            maxx = max(list(atom_sigma[atom].values()))
+            maxid = next(
+                key for key, value in atom_sigma[atom].items() if value == maxx
+            )
+            line = (f"{atom:< {10}}  {element[atom]:^{7}}  {averaged[atom]:> {maxsigma}.2f}  " +
+                  f"{minx :> {maxsigma}.2f} {'CONF'+str(minid)}  {maxx :> {maxsigma}.2f} " +
+                  f"{'CONF'+str(maxid)}  {maxx-minx:> {maxsigma}.2f}")
+            print(line)
+        except Exception:
+            pass
+    line = "".ljust(int(105), "-")
+    print(line)
+    print(
+        f"* min(σ) and max(σ) are averaged over the chemical equivalent atoms, but not Boltzmann weighted."
+    )
 
 
 def write_anmrrc(config):
@@ -379,7 +413,6 @@ def write_anmrrc(config):
     return refs
 
 
-
 def part4(config, conformers, store_confs, ensembledata):
     """
     Calculate nmr properties: shielding and coupling constants on the populated
@@ -425,23 +458,30 @@ def part4(config, conformers, store_confs, ensembledata):
     if getattr(config, "p_active"):
         info.append(["p_active", "Calculating phosphorus spectrum"])
         info.append(["p_ref", "reference for 31P"])
-    if all([ not getattr(config, active) for active in ("h_active", "c_active", "f_active", "si_active", "p_active")]):
-        info.append(["printoption", "Calculating spectrum for all nuclei", "H, C, F, Si, P"])
+    if all(
+        [
+            not getattr(config, active)
+            for active in ("h_active", "c_active", "f_active", "si_active", "p_active")
+        ]
+    ):
+        info.append(
+            ["printoption", "Calculating spectrum for all nuclei", "H, C, F, Si, P"]
+        )
     info.append(["resonance_frequency", "spectrometer frequency"])
     # active nuclei
 
     max_len_digilen = 0
     for item in info:
-        if item[0] == 'justprint':
+        if item[0] == "justprint":
             if "short-notation" in item[1]:
-                tmp = len(item[1]) -len('short-notation:')
+                tmp = len(item[1]) - len("short-notation:")
             else:
                 tmp = len(item[1])
         else:
             tmp = len(item[1])
         if tmp > max_len_digilen:
             max_len_digilen = tmp
-    max_len_digilen +=1
+    max_len_digilen += 1
     if max_len_digilen < DIGILEN:
         max_len_digilen = DIGILEN
 
@@ -514,7 +554,7 @@ def part4(config, conformers, store_confs, ensembledata):
             boltzmannthr = config.part2_threshold
         elif config.part1:
             # part2 is not calculated use Boltzmann weights directly from part1
-            #--> misappropriate config.part2_threshold
+            # --> misappropriate config.part2_threshold
             # This means starting from not DFT optimized geometries!
             energy = "prescreening_sp_info"
             rrho = "prescreening_grrho_info"
@@ -530,19 +570,31 @@ def part4(config, conformers, store_confs, ensembledata):
         elif getattr(conf, rrho)["info"] != "calculated" and config.evaluate_rrho:
             store_confs.append(mol)
             continue
-        elif (
-            getattr(conf, gsolv)["info"] != "calculated" and config.solvent != "gas"
-        ):
+        elif getattr(conf, gsolv)["info"] != "calculated" and config.solvent != "gas":
             store_confs.append(mol)
             continue
         else:
             calculate.append(mol)
 
     if unoptimized_warning:
-        print_errors(f"{'INFORMATION:':{WARNLEN}} Conformers have not been optimized at DFT level!!!\n"
-                     f"{'':{WARNLEN}}Use results with care!\n", save_errors
+        print_errors(
+            f"{'INFORMATION:':{WARNLEN}} Conformers have not been optimized at DFT level!!!\n"
+            f"{'':{WARNLEN}}Use results with care!\n",
+            save_errors,
         )
-
+    # SI geometry:
+    if unoptimized_warning:
+        ensembledata.si["part4"]["Geometry"] = "GFNn-xTB (input geometry)"
+    else:
+        ensembledata.si["part4"]["Geometry"], _ = config.get_method_name(
+            "xtbopt",
+            func=config.func,
+            basis=config.basis,
+            solvent=config.solvent,
+            sm=config.sm2,
+        )
+        ensembledata.si["part4"]["Geometry"] += f" @optlevel: {config.optlevel2}"
+    #
     if not calculate and not prev_calculated:
         print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
@@ -554,6 +606,7 @@ def part4(config, conformers, store_confs, ensembledata):
 
     # Calculate Boltzmann weight for confs:
     if config.part3:
+        using_part = "part3 - refinement"
         if not config.evaluate_rrho:
             rrho = None
             rrho_method = None
@@ -591,6 +644,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 solvent=config.solvent,
             )
     elif config.part2:
+        using_part = "part2 - optimization"
         if not config.evaluate_rrho:
             rrho = None
             rrho_method = None
@@ -628,6 +682,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 solvent=config.solvent,
             )
     elif config.part1:
+        using_part = "part1 - prescreening"
         # on DFT unoptimized geometries!
         if not config.evaluate_rrho:
             rrho = None
@@ -665,7 +720,19 @@ def part4(config, conformers, store_confs, ensembledata):
                 gfn_version=config.part1_gfnv,
                 solvent=config.solvent,
             )
-
+    # SI information:-------------------------------------------------------
+    ensembledata.si["part4"]["Energy"] = f"using Energy from {using_part}"
+    ensembledata.si["part4"]["Energy_settings"] = f"see {using_part}"
+    ensembledata.si["part4"]["G_mRRHO"] = f"using G_mRRHO from {using_part}"
+    ensembledata.si["part4"]["G_solv"] = f"using G_solv from {using_part}"
+    ensembledata.si["part4"]["Threshold"] = f"Boltzmann sum threshold: {boltzmannthr} %"
+    if config.prog4_j == config.prog4_s:
+        ensembledata.si["part4"]["main QM code"] = str(config.prog4_j).upper()
+    else:
+        ensembledata.si["part4"]["main QM code"] = (
+            str(config.prog4_j).upper() + " " + str(config.prog4_s).upper()
+        )
+    # END SI information--------------------------------------------------------
 
     for conf in calculate:
         conf.calc_free_energy(
@@ -673,8 +740,8 @@ def part4(config, conformers, store_confs, ensembledata):
             solv=gsolv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
@@ -692,10 +759,8 @@ def part4(config, conformers, store_confs, ensembledata):
         lambda conf: "CONF" + str(getattr(conf, "id")),
         lambda conf: getattr(conf, energy)["energy"],
         lambda conf: getattr(conf, gsolv)["energy"],
-        #lambda conf: getattr(conf, rrho)["energy"],
-        lambda conf: conf.get_mrrho(
-            config.temperature, rrho, config.consider_sym
-        ),
+        # lambda conf: getattr(conf, rrho)["energy"],
+        lambda conf: conf.get_mrrho(config.temperature, rrho, config.consider_sym),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
         lambda conf: getattr(conf, "bm_weight") * 100,
@@ -781,7 +846,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 print(f"{'ERROR:':{WARNLEN}}can't copy geometry!")
                 store_confs.append(calculate.pop(calculate.index(conf)))
     elif config.part1:
-        # do not use coord from folder config.func it could be optimized if 
+        # do not use coord from folder config.func it could be optimized if
         # part2 has ever been run, take coord from ensemble file
         # write coord to folder
         calculate, store_confs, save_errors = ensemble2coord(
@@ -794,7 +859,9 @@ def part4(config, conformers, store_confs, ensembledata):
             if getattr(conf, "nmr_coupling_info")["info"] == "calculated":
                 prev_calculated.append(calculate.pop(calculate.index(conf)))
             elif getattr(conf, "nmr_coupling_info")["info"] == "failed":
-                print(f"{'INFORMATION:':{WARNLEN}}The calculation failed for CONF{conf.id} in the previous run.")
+                print(
+                    f"{'INFORMATION:':{WARNLEN}}The calculation failed for CONF{conf.id} in the previous run."
+                )
                 store_confs.append(calculate.pop(calculate.index(conf)))
             else:
                 # still in calculate
@@ -821,11 +888,11 @@ def part4(config, conformers, store_confs, ensembledata):
             "f_active": config.f_active,
             "p_active": config.p_active,
             "si_active": config.si_active,
+            "onlyread": config.onlyread,
         }
         if config.prog4_j == "orca":
             job = OrcaJob
-            instruction_j["progpath"] = config.external_paths["orcapath"]
-            instruction_j["prepinfo"].extend(['nmrJ',])
+            instruction_j["prepinfo"].extend(["nmrJ"])
             instruction_j["method"], _ = config.get_method_name(
                 instruction_j["jobtype"],
                 func=instruction_j["func"],
@@ -836,7 +903,6 @@ def part4(config, conformers, store_confs, ensembledata):
             )
         elif config.prog4_j == "tm":
             job = TmJob
-            instruction_j["progpath"] = config.external_paths["escfpath"]
             instruction_j["method"], _ = config.get_method_name(
                 instruction_j["jobtype"],
                 func=instruction_j["func"],
@@ -855,6 +921,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 solvent=instruction_j["solvent"],
                 prog=config.prog4_j,
             )
+
         check = {True: "was successful", False: "FAILED"}
         pl = config.lenconfx + 4 + len(str("/" + folder))
         if calculate:
@@ -956,6 +1023,8 @@ def part4(config, conformers, store_confs, ensembledata):
             "f_active": config.f_active,
             "p_active": config.p_active,
             "si_active": config.si_active,
+            "onlyread": config.onlyread,
+            "moread": None,
         }
 
         if config.basis_j != config.basis_s:
@@ -968,9 +1037,12 @@ def part4(config, conformers, store_confs, ensembledata):
             instruction_s["prepinfo"] = ["high+"]
         if (config.basis_j == config.basis_s) and (config.prog4_j == config.prog4_s):
             if config.func_j == config.func_s and config.couplings:
-                instruction_s["prepinfo"] = []
                 # don't do single-point
+                if config.prog4_s == "tm":
+                    instruction_s["prepinfo"] = []
                 instruction_s["jobtype"] = "shieldings"
+                if config.prog4_s == "orca":
+                    instruction_s["moread"] = ["! MORead", '%moinp "inpJ.gbw"']
             elif config.func_j != config.func_s and config.couplings:
                 instruction_s["prepinfo"] = ["high+"]
                 # use already converged mos as start mos
@@ -980,8 +1052,7 @@ def part4(config, conformers, store_confs, ensembledata):
 
         if config.prog4_s == "orca":
             job = OrcaJob
-            instruction_s["prepinfo"].extend(['nmrS',])
-            instruction_s["progpath"] = config.external_paths["orcapath"]
+            instruction_s["prepinfo"].extend(["nmrS"])
             instruction_s["method"], _ = config.get_method_name(
                 instruction_s["jobtype"],
                 func=instruction_s["func"],
@@ -992,7 +1063,6 @@ def part4(config, conformers, store_confs, ensembledata):
             )
         elif config.prog4_s == "tm":
             job = TmJob
-            instruction_s["progpath"] = config.external_paths["mpshiftpath"]
             instruction_s["method"], _ = config.get_method_name(
                 instruction_s["jobtype"],
                 func=instruction_s["func"],
@@ -1071,11 +1141,48 @@ def part4(config, conformers, store_confs, ensembledata):
                 print(line)
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
 
+    # SI update-----------------------------------------------------------------
+    if config.couplings:
+        ensembledata.si["part4"]["Coupling constants"] = instruction_j["method"]
+        if config.prog4_j == "tm":
+            ensembledata.si["part4"]["Coupling constants"] += " " + " ".join(
+                qm_prepinfo["tm"][instruction_j["prepinfo"][0]]
+            ).replace("-", "")
+        elif config.prog4_j == "orca":
+            ensembledata.si["part4"]["Coupling constants"] += " " + " ".join(
+                qm_prepinfo["orca"][instruction_j["prepinfo"][0]]
+            )
+    else:
+        ensembledata.si["part4"]["Coupling constants"] = "not calculated"
+    if config.shieldings:
+        ensembledata.si["part4"]["Shielding constants"] = instruction_s["method"]
+        if config.prog4_s == "tm":
+            if (
+                config.prog4_j == "tm"
+                and config.func_s == config.func_j
+                and config.basis_s == config.basis_j
+                and config.couplings
+            ):
+                ensembledata.si["part4"]["Shielding constants"] += " " + " ".join(
+                    qm_prepinfo["tm"][instruction_j["prepinfo"][0]]
+                ).replace("-", "")
+            else:
+                ensembledata.si["part4"]["Shielding constants"] += " " + " ".join(
+                    qm_prepinfo["tm"][instruction_s["prepinfo"][0]]
+                ).replace("-", "")
+        elif config.prog4_s == "orca":
+            ensembledata.si["part4"]["Shielding constants"] += " " + " ".join(
+                qm_prepinfo["orca"][instruction_s["prepinfo"][0]]
+            )
+    else:
+        ensembledata.si["part4"]["Shielding constants"] = "not calculated"
+    # END SI update--------------------------------------------------------------
+
     if not calculate:
         print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
         sys.exit(1)
-        
+
     # write anmr_enso output!
     print("\nGenerating file anmr_enso for processing with the ANMR program.")
     for conf in calculate:
@@ -1084,20 +1191,30 @@ def part4(config, conformers, store_confs, ensembledata):
             solv=gsolv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         length = max([str(i.id) for i in calculate])
         if int(length) < 4:
             length = 4
         fmtenergy = max([len("{: .7f}".format(i.free_energy)) for i in calculate])
-        if config.solvent != 'gas':
-            fmtsolv = max([len("{: .7f}".format(getattr(i, gsolv,{'energy': 0.0})["energy"])) for i in calculate])
+        if config.solvent != "gas":
+            fmtsolv = max(
+                [
+                    len("{: .7f}".format(getattr(i, gsolv, {"energy": 0.0})["energy"]))
+                    for i in calculate
+                ]
+            )
         else:
             fmtsolv = 10
         if config.evaluate_rrho:
-            fmtrrho = max([len("{: .7f}".format(getattr(i, rrho,{'energy': 0.0})["energy"])) for i in calculate])
+            fmtrrho = max(
+                [
+                    len("{: .7f}".format(getattr(i, rrho, {"energy": 0.0})["energy"]))
+                    for i in calculate
+                ]
+            )
         else:
             fmtrrho = 10
     except Exception as e:
@@ -1116,8 +1233,8 @@ def part4(config, conformers, store_confs, ensembledata):
                 f"{1:<5} {conf.id:^{length}} {conf.id:^{length}} "
                 f"{conf.bm_weight: {2}.4f} {getattr(conf, energy)['energy']: {fmtenergy}.{7}f} "
                 f"{getattr(conf, str(gsolv), {'energy': 0.0})['energy']: {fmtsolv-7}.{7}f} "
-                f"{conf.get_mrrho(config.temperature, rrho, config.consider_sym)} "
-                #f"{getattr(conf, str(rrho), {'energy': 0.0})['energy']: {fmtrrho-7}.{7}f} "
+                f"{conf.get_mrrho(config.temperature, rrho, config.consider_sym): {fmtrrho-7}.{7}f} "
+                # f"{getattr(conf, str(rrho), {'energy': 0.0})['energy']: {fmtrrho-7}.{7}f} "
                 f"{conf.gi:.3f}\n"
             )
 
@@ -1125,23 +1242,28 @@ def part4(config, conformers, store_confs, ensembledata):
     print("\nWriting .anmrrc!")
     element_ref_shield = write_anmrrc(config)
 
-    print("\nGenerating plain nmrprop.dat files for each populated conformer.")
-    print("These files contain all calculated shielding and coupling constants.")
-    print("The files can be read by ANMR using the keyword '-plain'.\n")
-    # write generic:
-    instructgeneric = {"jobtype": "genericout", "nat": int(config.nat)}
-    calculate = run_in_parallel(
-        config,
-        q,
-        resultq,
-        job,
-        config.maxthreads,
-        config.omp,
-        calculate, 
-        instructgeneric,
-        False,
-        folder
-    )
+    if config.prog4_s == config.prog4_j:
+        print("\nGenerating plain nmrprop.dat files for each populated conformer.")
+        print("These files contain all calculated shielding and coupling constants.")
+        print("The files can be read by ANMR using the keyword '-plain'.\n")
+        # write generic:
+        instructgeneric = {
+            "jobtype": "genericout",
+            "nat": int(config.nat),
+            "onlyread": config.onlyread,
+        }
+        calculate = run_in_parallel(
+            config,
+            q,
+            resultq,
+            job,
+            config.maxthreads,
+            config.omp,
+            calculate,
+            instructgeneric,
+            False,
+            folder,
+        )
 
     # printout the averaged shielding constants
     if config.shieldings:
@@ -1152,17 +1274,11 @@ def part4(config, conformers, store_confs, ensembledata):
         conf.reset_job_info()
 
     if save_errors:
-        print(
-            "\n***---------------------------------------------------------***"
-        )
-        print(
-            "Printing most relevant errors again, just for user convenience:"
-        )
+        print("\n***---------------------------------------------------------***")
+        print("Printing most relevant errors again, just for user convenience:")
         for _ in list(save_errors):
             print(save_errors.pop())
-        print(
-            "***---------------------------------------------------------***"
-        )
+        print("***---------------------------------------------------------***")
     # end printout for part4
     tmp = int((PLENGTH - len("END of Part4")) / 2)
     print("\n" + "".ljust(tmp, ">") + "END of Part4" + "".rjust(tmp, "<"))
