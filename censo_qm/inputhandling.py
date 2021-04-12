@@ -2015,7 +2015,7 @@ class config_setup(internal_settings):
                 else:
                     # FUNC/BASIS
                     tmp_func_basis = f"{func}/{basis}"
-            elif disp is not None and func not in disp_already_included_in_func:
+            elif disp is not None: #and func not in disp_already_included_in_func:
                 # FUNC-DISP/BASIS
                 tmp_func_basis = f"{func}-{disp}/{basis}"
             else:

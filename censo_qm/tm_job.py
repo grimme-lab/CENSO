@@ -457,7 +457,6 @@ class TmJob(QmJob):
                 # get energy:
                 for line in stor:
                     if "|  total energy      = " in line:
-                        found = True
                         try:
                             self.job["energy"] = float(line.strip().split()[4])
                             self.job["success"] = True

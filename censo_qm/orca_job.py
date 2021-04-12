@@ -5,7 +5,6 @@ from collections import OrderedDict
 import os
 import time
 import subprocess
-import shutil
 from .cfg import (
     CODING,
     ENVIRON,
