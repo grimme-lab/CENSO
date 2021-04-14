@@ -56,19 +56,18 @@ def part5(config, conformers, store_confs, ensembledata):
 
     max_len_digilen = 0
     for item in info:
-        if item[0] == 'justprint':
+        if item[0] == "justprint":
             if "short-notation" in item[1]:
-                tmp = len(item[1]) -len('short-notation:')
+                tmp = len(item[1]) - len("short-notation:")
             else:
                 tmp = len(item[1])
         else:
             tmp = len(item[1])
         if tmp > max_len_digilen:
             max_len_digilen = tmp
-    max_len_digilen +=1
+    max_len_digilen += 1
     if max_len_digilen < DIGILEN:
         max_len_digilen = DIGILEN
-
 
     optionsexchange = {True: "on", False: "off"}
     for item in info:
@@ -140,7 +139,7 @@ def part5(config, conformers, store_confs, ensembledata):
             boltzmannthr = config.part2_threshold
         elif config.part1:
             # part2 is not calculated use boltzmann weights directly from part1
-            #--> misappropriate config.part2_threshold
+            # --> misappropriate config.part2_threshold
             # This means starting from not DFT optimized geometries!
             energy = "prescreening_sp_info"
             rrho = "prescreening_grrho_info"
@@ -155,19 +154,31 @@ def part5(config, conformers, store_confs, ensembledata):
         elif getattr(conf, rrho)["info"] != "calculated" and config.evaluate_rrho:
             store_confs.append(mol)
             continue
-        elif (
-            getattr(conf, gsolv)["info"] != "calculated" and config.solvent != "gas"
-        ):
+        elif getattr(conf, gsolv)["info"] != "calculated" and config.solvent != "gas":
             store_confs.append(mol)
             continue
         else:
             calculate.append(mol)
 
     if unoptimized_warning:
-        print_errors(f"{'INFORMATION:':{WARNLEN}}Conformers have not been optimized at DFT level!!!\n"
-                     f"{'':{WARNLEN}}Use results with care!\n", save_errors
+        print_errors(
+            f"{'INFORMATION:':{WARNLEN}}Conformers have not been optimized at DFT level!!!\n"
+            f"{'':{WARNLEN}}Use results with care!\n",
+            save_errors,
         )
-
+    # SI geometry:
+    if unoptimized_warning:
+        ensembledata.si["part5"]["Geometry"] = "GFNn-xTB (input geometry)"
+    else:
+        ensembledata.si["part5"]["Geometry"], _ = config.get_method_name(
+            "xtbopt",
+            func=config.func,
+            basis=config.basis,
+            solvent=config.solvent,
+            sm=config.sm2,
+        )
+        ensembledata.si["part5"]["Geometry"] += f" @optlevel: {config.optlevel2}"
+    #
     if not calculate and not prev_calculated:
         print(f"{'ERROR:':{WARNLEN}}No conformers left!")
         print("Going to exit!")
@@ -179,6 +190,7 @@ def part5(config, conformers, store_confs, ensembledata):
 
     # Calculate Boltzmann weight for confs:
     if config.part3:
+        using_part = "part3 - refinement"
         if not config.evaluate_rrho:
             rrho = None
             rrho_method = None
@@ -216,6 +228,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 solvent=config.solvent,
             )
     elif config.part2:
+        using_part = "part2 - optimization"
         if not config.evaluate_rrho:
             rrho = None
             rrho_method = None
@@ -253,6 +266,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 solvent=config.solvent,
             )
     elif config.part1:
+        using_part = "part1 - prescreening"
         # on DFT unoptimized geometries!
         if not config.evaluate_rrho:
             rrho = None
@@ -291,14 +305,23 @@ def part5(config, conformers, store_confs, ensembledata):
                 solvent=config.solvent,
             )
 
+    # SI information:-------------------------------------------------------
+    ensembledata.si["part5"]["Energy"] = f"using Energy from {using_part}"
+    ensembledata.si["part5"]["Energy_settings"] = f"see {using_part}"
+    ensembledata.si["part5"]["G_mRRHO"] = f"using G_mRRHO from {using_part}"
+    ensembledata.si["part5"]["G_solv"] = f"using G_solv from {using_part}"
+    ensembledata.si["part5"]["Threshold"] = f"Boltzmann sum threshold: {boltzmannthr} %"
+    ensembledata.si["part5"]["main QM code"] = str("tm").upper()
+    # END SI information--------------------------------------------------------
+
     for conf in calculate:
         conf.calc_free_energy(
             e=energy,
             solv=gsolv,
             rrho=rrho,
             t=config.temperature,
-            consider_sym=config.consider_sym
-            )
+            consider_sym=config.consider_sym,
+        )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
         minfree = min([i.free_energy for i in calculate if i is not None])
@@ -316,12 +339,8 @@ def part5(config, conformers, store_confs, ensembledata):
         lambda conf: "CONF" + str(getattr(conf, "id")),
         lambda conf: getattr(conf, energy)["energy"],
         lambda conf: getattr(conf, gsolv)["energy"],
-        #lambda conf: getattr(conf, rrho)["energy"],
-        lambda conf: conf.get_mrrho(
-            config.temperature,
-            rrho,
-            config.consider_sym
-        ),
+        # lambda conf: getattr(conf, rrho)["energy"],
+        lambda conf: conf.get_mrrho(config.temperature, rrho, config.consider_sym),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "rel_free_energy"),
         lambda conf: getattr(conf, "bm_weight") * 100,
@@ -408,7 +427,7 @@ def part5(config, conformers, store_confs, ensembledata):
                 print(f"{'ERROR:':{WARNLEN}}can't copy geometry!")
                 store_confs.append(calculate.pop(calculate.index(conf)))
     elif config.part1:
-        # do not use coord from folder config.func it could be optimized if 
+        # do not use coord from folder config.func it could be optimized if
         # part2 has ever been run, take coord from ensemble file
         # write coord to folder
         calculate, store_confs, save_errors = ensemble2coord(
@@ -425,7 +444,9 @@ def part5(config, conformers, store_confs, ensembledata):
         if getattr(conf, "optical_rotation_info")["info"] == "calculated":
             prev_calculated.append(calculate.pop(calculate.index(conf)))
         elif getattr(conf, "optical_rotation_info")["info"] == "failed":
-            print(f"{'INFORMATION:':{WARNLEN}}The calculation failed for CONF{conf.id} in the previous run.")
+            print(
+                f"{'INFORMATION:':{WARNLEN}}The calculation failed for CONF{conf.id} in the previous run."
+            )
             store_confs.append(calculate.pop(calculate.index(conf)))
 
     instruction_or = {
@@ -445,19 +466,19 @@ def part5(config, conformers, store_confs, ensembledata):
         "freq_or": config.freq_or,
     }
     if config.prog == "orca":
-        print(f"{'ERROR:':{WARNLEN}}Can't calculate OR with ORCA! You can use TM instead.")
+        print(
+            f"{'ERROR:':{WARNLEN}}Can't calculate OR with ORCA! You can use TM instead."
+        )
         print("Going to exit!")
         sys.exit(1)
         # ORCA can't calculate optical rotation!!! -->
         job = OrcaJob
-        instruction_or["progpath"] = config.external_paths["orcapath"]
         if config.solvent != "gas":
             instruction_or["solvent"] = config.solvent
             instruction_or["sm"] = "cpcm"
     if config.prog == "tm":
         job = TmJob
         instruction_or["prepinfo"] = ["clear", "-grid", "2", "-scfconv", "6"]
-        instruction_or["progpath"] = config.external_paths["escfpath"]
         if config.basis == config.basis_or:
             instruction_or["copymos"] = config.func
             instruction_or["jobtype"] = "opt-rot"
@@ -474,6 +495,12 @@ def part5(config, conformers, store_confs, ensembledata):
         func2=instruction_or["func"],
         sm=instruction_or["sm"],
     )
+    # SI update-----------------------------------------------------------------
+    ensembledata.si["part5"]["Optical rotation"] = (
+        instruction_or["method"]
+        + f" using {' '.join(instruction_or['prepinfo']).replace('-', '').replace('clear', '')}"
+    )
+    # END SI update--------------------------------------------------------------
 
     print(f"\nOptical-rotation is calculated at {instruction_or['method']} level.\n")
     check = {True: "was successful", False: "FAILED"}
@@ -552,41 +579,50 @@ def part5(config, conformers, store_confs, ensembledata):
             )
             calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
 
-    outlen = config.lenconfx+1
-    if len('ENSEMBLE') >= config.lenconfx:
-        outlen = len('ENSEMBLE')+1
+    outlen = config.lenconfx + 1
+    if len("ENSEMBLE") >= config.lenconfx:
+        outlen = len("ENSEMBLE") + 1
 
     for freq in config.freq_or:
         averaged_or = 0.0
-        with open(os.path.join(config.cwd, f"OR_{int(freq)}.dat"), "w", newline=None) as outdata:
-            outdata.write(f"{'#label':{outlen}} {'#unmod_alpha':>{max_fmt}} {'#%pop':^7} {'#pop_alpha':{max_fmt}} \n")
+        with open(
+            os.path.join(config.cwd, f"OR_{int(freq)}.dat"), "w", newline=None
+        ) as outdata:
+            outdata.write(
+                f"{'#label':{outlen}} {'#unmod_alpha':>{max_fmt}} {'#%pop':^7} {'#pop_alpha':{max_fmt}} \n"
+            )
             for conf in calculate:
                 averaged_or += conf.bm_weight * conf.optical_rotation_info["range"].get(
                     freq, 0.0
                 )
                 # CONFX
                 outdata.write(
-                    f"{'CONF'+str(conf.id):{outlen}} "+
-                    f"{conf.optical_rotation_info['range'].get(freq, 0.0):> {max_fmt}.7f} "+
-                    f"{conf.bm_weight*100:> 6.2f} "+
-                    f"{conf.optical_rotation_info['range'].get(freq, 0.0)*conf.bm_weight:> {max_fmt}.7f}\n"
-                    )
+                    f"{'CONF'+str(conf.id):{outlen}} "
+                    + f"{conf.optical_rotation_info['range'].get(freq, 0.0):> {max_fmt}.7f} "
+                    + f"{conf.bm_weight*100:> 6.2f} "
+                    + f"{conf.optical_rotation_info['range'].get(freq, 0.0)*conf.bm_weight:> {max_fmt}.7f}\n"
+                )
             # ENSEMBLE
             outdata.write(
-                f"{'ENSEMBLE':{outlen}} "+
-                f"{'-':^{max_fmt-1}} "+
-                f"{100.00:> 6.2f} "+
-                f"{averaged_or:> {max_fmt}.7f}\n"
-                )
+                f"{'ENSEMBLE':{outlen}} "
+                + f"{'-':^{max_fmt-1}} "
+                + f"{100.00:> 6.2f} "
+                + f"{averaged_or:> {max_fmt}.7f}\n"
+            )
         print(
             f"\nAveraged specific rotation at {freq} nm : "
             f"{averaged_or:> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
         )
 
-
-    if all(
-        [conf.lowlevel_gsolv_compare_info["std_dev"] is not None for conf in calculate]
-    ) and calculate:
+    if (
+        all(
+            [
+                conf.lowlevel_gsolv_compare_info["std_dev"] is not None
+                for conf in calculate
+            ]
+        )
+        and calculate
+    ):
         for freq in config.freq_or:
             all_or = []
             for _ in range(1000):
@@ -597,8 +633,8 @@ def part5(config, conformers, store_confs, ensembledata):
                         solv=gsolv,
                         rrho=rrho,
                         t=config.temperature,
-                        consider_sym=config.consider_sym
-                        )
+                        consider_sym=config.consider_sym,
+                    )
                     conf.free_energy += normalvariate(
                         0.0, conf.lowlevel_gsolv_compare_info["std_dev"]
                     )
@@ -639,15 +675,13 @@ def part5(config, conformers, store_confs, ensembledata):
                 averaged_or = 0.0
                 for conf in calculate:
                     conf.calc_free_energy(
-                        e=energy, 
-                        solv=gsolv, 
+                        e=energy,
+                        solv=gsolv,
                         rrho=rrho,
                         t=config.consider_sym,
-                        consider_sym=config.consider_sym
-                        )
-                    conf.free_energy += normalvariate(
-                        0.0, (0.4/AU2KCAL)
+                        consider_sym=config.consider_sym,
                     )
+                    conf.free_energy += normalvariate(0.0, (0.4 / AU2KCAL))
                 calculate = calc_boltzmannweights(
                     calculate, "free_energy", config.temperature
                 )
@@ -677,7 +711,28 @@ def part5(config, conformers, store_confs, ensembledata):
                 f"    SD based on SD in G of 0.4 kcal/mol"
                 f": {calc_std_dev(all_or):> {max_fmt}.3f}   in deg*[dm(g/cc)]^(-1)"
             )
+    if calculate:
+        # print min and max OR values and corresponding conformers, but no Boltzmann weighting
+        print("")
+        output = []
+        output.append(f"{'frequency'}     {'min(OR)'} {'CONF'}    {'max(OR)'} {'CONF'}")
+        output.append("".ljust(int(50), "-"))
+        for freq in config.freq_or:
+            tmp_or = {}
+            for conf in calculate:
+                tmp_or[conf.id] = conf.optical_rotation_info["range"].get(freq)
+            minx = min(list(tmp_or.values()))
+            minid = next(key for key, value in tmp_or.items() if value == minx)
+            maxx = max(list(tmp_or.values()))
+            maxid = next(key for key, value in tmp_or.items() if value == maxx)
 
+            output.append(
+                f"{float(freq): ^12}  {minx: .2f} {'CONF'+str(minid)}    {maxx: .2f} {'CONF'+str(maxid)}"
+            )
+        output.append("".ljust(int(50), "-"))
+        output.append("* min and max values are not Boltzmann weighted.")
+        for line in output:
+            print(line)
 
     for conf in calculate:
         conf.reset_job_info()
@@ -693,17 +748,11 @@ def part5(config, conformers, store_confs, ensembledata):
     )
 
     if save_errors:
-        print(
-            "\n***---------------------------------------------------------***"
-        )
-        print(
-            "Printing most relevant errors again, just for user convenience:"
-        )
+        print("\n***---------------------------------------------------------***")
+        print("Printing most relevant errors again, just for user convenience:")
         for _ in list(save_errors):
             print(save_errors.pop())
-        print(
-            "***---------------------------------------------------------***"
-        )
+        print("***---------------------------------------------------------***")
     if not calculate:
         print("ERROR: No conformers left!")
         print("Going to exit!")
