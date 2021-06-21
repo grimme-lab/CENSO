@@ -282,13 +282,13 @@ def main(argv=None):
         prev_timings += ensembledata.previous_part_info["part3"]
     if config.part4:
         print(
-            f"{'Part4':20}: {'':{conflength}}    {ensembledata.part_info['part4']:{timelen}.2f} s  {ensembledata.previous_part_info['part4']:>{prev_timelen}.2f} s"
+            f"{'Part4':20}: {ensembledata.nconfs_per_part['part4']:{conflength}}    {ensembledata.part_info['part4']:{timelen}.2f} s  {ensembledata.previous_part_info['part4']:>{prev_timelen}.2f} s"
         )
         timings += ensembledata.part_info["part4"]
         prev_timings += ensembledata.previous_part_info["part4"]
     if config.optical_rotation:
         print(
-            f"{'Part5':20}: {'':{conflength}}    {ensembledata.part_info['part5']:{timelen}.2f} s  {ensembledata.previous_part_info['part5']:>{prev_timelen}.2f} s"
+            f"{'Part5':20}: {ensembledata.nconfs_per_part['part5']:{conflength}}    {ensembledata.part_info['part5']:{timelen}.2f} s  {ensembledata.previous_part_info['part5']:>{prev_timelen}.2f} s"
         )
         timings += ensembledata.part_info["part5"]
         prev_timings += ensembledata.previous_part_info["part5"]

@@ -11,12 +11,7 @@ from .cfg import (
     WARNLEN,
     censo_solvent_db,
     external_paths,
-    composite_method_basis,
-    composite_dfa,
-    # gga_dfa,
-    hybrid_dfa,
-    dh_dfa,
-    disp_already_included_in_func,
+    dfa_settings,
 )
 from .utilities import last_folders, t2x, x2t, print
 from .qm_job import QmJob
@@ -93,26 +88,33 @@ class OrcaJob(QmJob):
         # build up call:
         orcainput = orcainput_start.copy()
         # set functional
-        if self.job["func"] in composite_dfa and self.job[
+        if self.job["func"] in dfa_settings.composite_method_basis.keys() and self.job[
             "basis"
-        ] == composite_method_basis.get(self.job["func"], "NONE"):
-            orcainput["functional"] = [f"! {self.job['func']}"]
+        ] == dfa_settings.composite_method_basis.get(self.job["func"], "NONE"):
+            if self.job["func"] == "b3lyp-3c":
+                orcainput["functional"] = [f"! {'b3lyp'}"]
+                orcainput["basis"] = [f"! {self.job['basis']}"]
+                orcainput["gcp"] = [f"! GCP(DFT/SV(P))"]
+            else:
+                orcainput["functional"] = [
+                    f"! {dfa_settings.functionals.get(self.job['func']).get('orca')}"
+                ]
         else:
-            if self.job["func"] == "kt2":
+            if self.job["func"] in ("kt2", "kt2-novdw"):
                 orcainput["functional"] = [
                     "%method",
                     "  method dft",
                     "  functional gga_xc_kt2",
                     "end",
                 ]
-            elif self.job["func"] == "dsd-blyp":
-                orcainput["functional"] = [f"! ri-{self.job['func']}"]
             else:
-                orcainput["functional"] = [f"! {self.job['func']}"]
+                orcainput["functional"] = [
+                    f"! {dfa_settings.functionals.get(self.job['func']).get('orca')}"
+                ]
             # set basis set
             orcainput["basis"] = [f"! {self.job['basis']}"]
             # set gcp:
-            if "DOGCP" in self.job["prepinfo"]:
+            if "DOGCP" in self.job["prepinfo"] or self.job["func"] == "b3lyp-3c":
                 gcp_keywords = {
                     "minis": "MINIS",
                     "sv": "SV",
@@ -122,16 +124,20 @@ class OrcaJob(QmJob):
                     "def2-tzvp": "TZ",
                 }
                 if self.job["basis"].lower() in gcp_keywords.keys():
-                    if self.job["func"] in composite_dfa and self.job[
+                    if self.job[
+                        "func"
+                    ] in dfa_settings.composite_method_basis.keys() and self.job[
                         "basis"
-                    ] == composite_method_basis.get(self.job["func"], "NONE"):
+                    ] == dfa_settings.composite_method_basis.get(
+                        self.job["func"], "NONE"
+                    ):
                         pass
                     else:
                         orcainput["gcp"] = [
                             f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"
                         ]
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
-            if self.job["func"] in dh_dfa:
+            if self.job["func"] in dfa_settings().dh_dfa():
                 if nmrprop:
                     orcainput["frozencore"] = ["!NOFROZENCORE"]
                 else:
@@ -157,14 +163,20 @@ class OrcaJob(QmJob):
                     ]
                 else:
                     orcainput["mp2"] = ["%mp2", "    RI true", "end"]
-            elif self.job["func"] in hybrid_dfa:
+            elif (
+                self.job["func"] in dfa_settings().hybrid_dfa()
+                and self.job["func"] != "pbeh-3c"
+            ):
                 orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
-            elif self.job["func"] in composite_dfa:
+            elif self.job["func"] in dfa_settings.composite_method_basis.keys():
                 pass
             else:  # essentially gga
                 orcainput["RI-approx"] = ["! RI def2/J"]
         # set grid
-        if self.job["func"] in dh_dfa or self.job["func"] in hybrid_dfa:
+        if (
+            self.job["func"] in dfa_settings().dh_dfa()
+            or self.job["func"] in dfa_settings().hybrid_dfa()
+        ):
             orcainput["grid"] = ["! grid5 nofinalgrid"]
         else:
             orcainput["grid"] = ["! grid4 nofinalgrid"]
@@ -188,8 +200,30 @@ class OrcaJob(QmJob):
                     orcainput["scfconv"] = extension[self.job["prepinfo"][0]]["scfconv"]
 
         # add dispersion
-        if self.job["func"] not in disp_already_included_in_func:
-            orcainput["disp"] = ["! d3bj"]
+        # dispersion correction information
+        if dfa_settings.functionals.get(self.job["func"]).get("disp") == "composite":
+            if self.job["func"] == "b3lyp-3c":
+                orcainput["disp"] = ["! d3bj"]
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d3bj":
+            if self.job["func"] not in ("b97-d3(0)", "b97-d3"):
+                orcainput["disp"] = ["! d3bj"]
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d3(0)":
+            if self.job["func"] not in ("b97-d3(0)", "b97-d3"):
+                orcainput["disp"] = ["! D3ZERO"]
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d4":
+            orcainput["disp"] = ["! D4"]
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "nl":
+            # b3lyp NL
+            orcainput["disp"] = ["! NL vdwgrid3"]
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "novdw":
+            pass
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "included":
+            pass
+        else:
+            print(
+                f" {dfa_settings.functionals.get(self.job['func']).get('disp')} unknown dispersion option!"
+            )
+
         # optimization ancopt or pure orca
         if self.job["jobtype"] == "xtbopt":
             orcainput["job"] = ["! ENGRAD"]
@@ -274,6 +308,20 @@ class OrcaJob(QmJob):
             orcainput["disp"] = []
         # couplings
         if nmrprop and "nmrJ" in self.job["prepinfo"]:
+            if not any(
+                [
+                    self.job["h_active"],
+                    self.job["c_active"],
+                    self.job["f_active"],
+                    self.job["si_active"],
+                    self.job["p_active"],
+                ]
+            ):
+                self.job["h_active"] = True
+                self.job["c_active"] = True
+                self.job["f_active"] = True
+                self.job["si_active"] = True
+                self.job["p_active"] = True
             tmp = []
             tmp.append("%eprnmr")
             if self.job["h_active"]:
@@ -291,6 +339,20 @@ class OrcaJob(QmJob):
             orcainput["couplings"] = tmp
         # shielding
         if nmrprop and "nmrS" in self.job["prepinfo"]:
+            if not any(
+                [
+                    self.job["h_active"],
+                    self.job["c_active"],
+                    self.job["f_active"],
+                    self.job["si_active"],
+                    self.job["p_active"],
+                ]
+            ):
+                self.job["h_active"] = True
+                self.job["c_active"] = True
+                self.job["f_active"] = True
+                self.job["si_active"] = True
+                self.job["p_active"] = True
             tmp = []
             tmp.append("%eprnmr")
             if self.job["h_active"]:
@@ -312,7 +374,10 @@ class OrcaJob(QmJob):
         error_logical = False
         if not orcainput["functional"]:
             error_logical = True
-        elif not orcainput["basis"] and self.job["func"] not in composite_dfa:
+        elif (
+            not orcainput["basis"]
+            and self.job["func"] not in dfa_settings.composite_method_basis.keys()
+        ):
             error_logical = True
         elif not orcainput["geom"]:
             error_logical = True
@@ -320,7 +385,7 @@ class OrcaJob(QmJob):
             print("unusable input!")
 
         tmp = []
-        for key, value in orcainput.items():
+        for value in orcainput.values():
             if value:
                 tmp.extend(value)
         if returndict:
@@ -441,9 +506,16 @@ class OrcaJob(QmJob):
             else:
                 self.job["energy"] = energy_gas
                 self.job["energy2"] = energy_solv - energy_gas
-                self.job["erange1"] = {
-                    self.job["temperature"]: energy_solv - energy_gas
-                }
+                if self.job["trange"]:
+                    tmp = {}
+                    for temperature in self.job["trange"]:
+                        tmp[temperature] = energy_solv - energy_gas
+                    tmp[self.job["temperature"]] = energy_solv - energy_gas
+                    self.job["erange1"] = tmp
+                else:
+                    self.job["erange1"] = {
+                        self.job["temperature"]: energy_solv - energy_gas
+                    }
                 self.job["success"] = True
         return
 
@@ -588,14 +660,18 @@ class OrcaJob(QmJob):
                             self.job["ecyc"].append(float(line.split("->")[-1]))
                         except ValueError as e:
                             error_logical = True
-                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            print(
+                                f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
+                            )
                             break
                     if " :: gradient norm      " in line:
                         try:
                             self.job["grad_norm"] = float(line.split()[3])
                         except ValueError as e:
                             error_logical = True
-                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            print(
+                                f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
+                            )
                             break
         else:
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")

@@ -1,7 +1,7 @@
 """
 Guide for setting up CENSO and performing a CENSO calculation
 """
-from .cfg import DESCR, censo_solvent_db
+from .cfg import DESCR, censo_solvent_db, dfa_settings
 from .inputhandling import internal_settings
 
 
@@ -9,6 +9,7 @@ def interactiv_doc():
     """Guide for interactive explaination of CENSO"""
 
     default_settings = internal_settings()
+    func_info = dfa_settings()
 
     general = """
     Commandline Energetic Sorting (CENSO) is a sorting algorithm for efficient
@@ -659,35 +660,41 @@ def interactiv_doc():
     """
 
     functionals = f"""
+    Functionals that can be employed by TM for func0:
+    {', '.join(func_info.infos('func0', prog='tm'))}
+
     Functionals that can be employed by TM for func:
-    {', '.join(internal_settings.func_tm)}
+    {', '.join(func_info.infos('func', prog='tm'))}
 
     Functionals that can be employed by TM for func3
-    {', '.join(internal_settings.func3_tm)}
+    {', '.join(func_info.infos('func3', prog='tm'))}
 
     Functionals that can be employed by TM for funcJ
-    {', '.join(internal_settings.func_j_tm)}
+    {', '.join(func_info.infos('func_j', prog='tm'))}
 
     Functionals that can be employed by TM for funcS
-    {', '.join(internal_settings.func_s_tm)}
+    {', '.join(func_info.infos('func_s', prog='tm'))}
 
     Functionals that can be employed by TM for funcOR
-    {', '.join(internal_settings.func_or_tm)}
+    {', '.join(func_info.infos('func_or', prog='tm'))}
 
     Functionals that can be employed by TM for funcOR_SCF
-    {', '.join(internal_settings.func_or_scf_tm)}
+    {', '.join(func_info.infos('func_or_scf', prog='tm'))}
+
+    Functionals that can be employed by ORCA for func0:
+    {', '.join(func_info.infos('func0', prog='orca'))}
 
     Functionals that can be employed by ORCA for func:
-    {', '.join(internal_settings.func_orca)}
+    {', '.join(func_info.infos('func', prog='orca'))}
 
     Functionals that can be employed by ORCA for func3
-    {', '.join(internal_settings.func3_orca)}
+    {', '.join(func_info.infos('func3', prog='orca'))}
 
     Functionals that can be employed by ORCA for funcJ
-    {', '.join(internal_settings.func_j_orca)}
+    {', '.join(func_info.infos('func_j', prog='orca'))}
 
     Functionals that can be employed by ORCA for funcS
-    {', '.join(internal_settings.func_s_orca)}
+    {', '.join(func_info.infos('func_s', prog='orca'))}
     """
 
     # CONFORMER numbering kept from crest input

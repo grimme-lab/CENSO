@@ -60,7 +60,8 @@ def enso_startup(cwd, args):
         if tmp is not None:
             print(f"An existing .censorc has been found in {tmp}")
             print(
-                f"Do you want to copy existing program path information to the new remote configuration file?"
+                f"Do you want to copy existing program path information to the "
+                f"new remote configuration file?"
             )
             print("Please type 'yes' or 'no':")
             user_input = input()
@@ -146,6 +147,7 @@ def enso_startup(cwd, args):
         except (ValueError, TypeError, FileNotFoundError):
             print(
                 f"{'ERROR:':{WARNLEN}}Your censo_solvents.json file in {solvent_user_path} is corrupted!\n"
+                f"{'':{WARNLEN}}You can delete your corrupted file and a new censo_solvents.json will be created on the next start of CENSO."
             )
             raise
 
@@ -170,18 +172,18 @@ def enso_startup(cwd, args):
             "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
         )
     ### END NMR reference shielding constant database adjustable by user
+
+    ### if restart read all settings from previous run (enso.json)
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
         tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
         previous_settings = tmp.get("settings")
-        # import json
-        # print(json.dumps(vars(args), sort_keys=False, indent=4))
         for key, value in previous_settings.items():
             if vars(args).get(key, "unKn_own") == "unKn_own":
                 # print(key, 'not_known')
                 continue
             if getattr(args, key, "unKn_own") is None:
                 setattr(args, key, value)
-        # print(json.dumps(vars(args), sort_keys=False, indent=4))
+    ### END if restart
 
     if config.configpath:
         # combine args und comandline
@@ -189,16 +191,24 @@ def enso_startup(cwd, args):
         startread = "$CRE SORTING SETTINGS:"
         with open(config.configpath, "r") as myfile:
             try:
-                tmp_version = "$VERSION"
                 data = myfile.readlines()
                 censorc_version = "0.0.0"
                 for line in data:
-                    if tmp_version in line:
+                    if "$VERSION" in line:
                         censorc_version = line.split(":")[1]
-                if int(censorc_version.split(".")[0]) < int(__version__.split(".")[0]):
+                if int(censorc_version.split(".")[1]) < int(
+                    __version__.split(".")[1]
+                ) or int(censorc_version.split(".")[0]) < int(
+                    __version__.split(".")[0]
+                ):
                     print(
                         f"{'ERROR:':{WARNLEN}}There has been an API break and you have to "
                         f"create a new .censorc.\n{'':{WARNLEN}}E.g. 'censo -newconfig'"
+                    )
+                    print(
+                        f"{'INFORMATION:':{WARNLEN}}Due to the API break data in ~/.censo_assets/ might need updating.\n"
+                        f"{'':{WARNLEN}}Therefore delete the files {'censo_nmr_ref.json'} and {'censo_solvents.json'} so "
+                        "that they can be re-created upon the next censo call."
                     )
                     sys.exit(1)
                 myfile.seek(0)  # reset reader
@@ -213,18 +223,20 @@ def enso_startup(cwd, args):
                     f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!"
                 )
                 sys.exit(1)
+        # combine commandline and .censorc
         config.read_config(config.configpath, startread, args)
 
     if args.copyinput:
         config.read_program_paths(config.configpath)
         config.write_censo_inp(config.cwd)
         print(
-            "The file censo.inp with the current settings has been written to the current working directory."
+            "The file censo.inp with the current settings has been written to "
+            "the current working directory."
         )
         print("\nGoing to exit!")
         sys.exit(1)
 
-    # read inputfile:
+    # read ensemble input file (e.g. crest_conformers.xyz)
     if os.path.isfile(os.path.join(config.cwd, "enso.json")):
         tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
         if "ensemble_info" in tmp and args.inp is None:
@@ -289,17 +301,42 @@ def enso_startup(cwd, args):
             config.nconf = config.maxconf
         else:
             config.nconf = args.nconf
+    elif isinstance(config.nconf, int):
+        pass
+        # keep from .censorc
     else:
         config.nconf = config.maxconf
 
     # check settings-combination and show error:
     error_logical = config.check_logic()
 
+    if getattr(args, "onlyread", None) is not None:
+        if getattr(args, "onlyread") == "on":
+            setattr(config, "onlyread", True)
+        elif getattr(args, "onlyread") == "off":
+            setattr(config, "onlyread", False)
+
     # printing parameters
     config.print_parameters(cmlcall=sys.argv)
     config.read_program_paths(config.configpath)
     requirements = config.needed_external_programs()
     error_logical = config.processQMpaths(requirements, error_logical)
+    # print errors
+    if config.save_errors:
+        print("")
+        print("".ljust(PLENGTH, "*"))
+        for _ in list(config.save_errors):
+            print(config.save_errors.pop(0))
+        print("".ljust(PLENGTH, "*"))
+    if config.onlyread:
+        config.save_errors.append(
+            f"{'WARNING:':{WARNLEN}}Using the option ``readonly`` to re-read"
+            + f" data from old outputs. This option is experimental therefore "
+            + f"check results carefully.\n"
+            + f"{'':{WARNLEN}}It can only succeed if exactly the same "
+            + f"input commands (.censorc + command line) are supplied!"
+        )
+    # END print error
 
     if error_logical and not args.debug and args.checkinput:
         print(
@@ -329,9 +366,78 @@ def enso_startup(cwd, args):
                 )
                 print("\nGoing to exit!")
                 sys.exit(1)
+            # create previous run data
             previousrun = config_setup(internal_settings)
             for item in save_data["settings"].keys():
                 setattr(previousrun, item, save_data["settings"].get(item))
+            # end previous run data
+            if getattr(previousrun, "fixed_temperature", "unKn_own") == "unKn_own":
+                print(
+                    f"{'ERROR:':{WARNLEN}}important information ('fixed_temperature') for restarting missing from "
+                    f"{config.jsonpath}!"
+                )
+                print("\nGoing to exit!")
+                sys.exit(1)
+            else:
+                if isinstance(
+                    getattr(previousrun, "fixed_temperature", "unKn_own"), float
+                ):
+                    setattr(
+                        config,
+                        "fixed_temperature",
+                        (getattr(previousrun, "fixed_temperature")),
+                    )
+                else:
+                    print(
+                        f"{'ERROR:':{WARNLEN}}Can't read fixed_temperature information necessary for restart!"
+                    )
+                    print("\nGoing to exit!")
+                    sys.exit(1)
+            ### test concerning temperature changes for providing Boltzmann weights
+            ### at different temperatures
+            prev_temp = getattr(previousrun, "temperature", None)
+            if prev_temp != getattr(config, "temperature"):
+                print(
+                    f"{'INFORMATION:':{WARNLEN}}The temperature has been changed from (previous) {prev_temp} K to (current) {getattr(config, 'temperature')} K."
+                )
+                # check multitemp on in previous
+                if getattr(previousrun, "multitemp", None):
+                    # has trange been changed ?
+                    prev_trange = getattr(previousrun, "trange", [])
+                    if not isinstance(prev_trange, list) or prev_trange != getattr(
+                        config, "trange"
+                    ):
+                        print(
+                            f"{'ERROR:':{WARNLEN}}The temperature range has been changed together with the temperature which is not allowed."
+                        )
+                        print("\nGoing to exit!")
+                        sys.exit(1)
+                    # is the temperature in trange
+                    if float(getattr(config, "temperature")) in [
+                        i
+                        for i in frange(prev_trange[0], prev_trange[1], prev_trange[2])
+                    ]:
+                        # have to set everything to correct new temperature!
+                        print(
+                            f"{'INFORMATION:':{WARNLEN}}Temperature change is possible!"
+                        )
+                    else:
+                        print(
+                            f"{'ERROR:':{WARNLEN}}Temperature has not been previously calculated, e.g. not in temperature range (trange). Change of temperature not possible!"
+                        )
+                        print(
+                            f"{'INFORMATION:':{WARNLEN}}Temperatures in trange are: {[i for i in frange(prev_trange[0], prev_trange[1], prev_trange[2])]}"
+                        )
+                        print("\nGoing to exit!")
+                        sys.exit(1)
+                else:
+                    print(
+                        f"{'ERROR:':{WARNLEN}}Temperature change is requested, but no previous other temperatures have been calculated!"
+                    )
+                    print("\nGoing to exit!")
+                    sys.exit(1)
+            ### END test temperatures
+
             if config.md5 != previousrun.md5:
                 print(
                     f"{'WARNING:':{WARNLEN}}The inputfile containing all conformers was "
@@ -749,8 +855,9 @@ def enso_startup(cwd, args):
                 conformers.extend(newconfs)
                 get_energy_from_ensemble(config.ensemblepath, config, conformers)
         elif not args.checkinput:
+            # enso.json does not exist, create new conformers
             # don't create enso.json on checkinput
-            #  enso.json does not exist, create new conformers
+            # this is essentially the first start of CENSO
             print(
                 f"{'INFORMATION:':{WARNLEN}}No restart information exists and is created during this run!\n"
             )
@@ -759,6 +866,8 @@ def enso_startup(cwd, args):
                 conformers.append(QmJob(i))
             # read energy from input_file and calculate rel_energy
             get_energy_from_ensemble(config.ensemblepath, config, conformers)
+            # set fixed temperature for this and all following runs
+            config._set_fixed_temperature()
             ensembledata = EnsembleData()
             ensembledata.filename = args.inp
             ensembledata.nconfs_per_part["starting"] = config.nconf
