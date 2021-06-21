@@ -288,7 +288,10 @@ def get_energy_from_ensemble(path, config, conformers):
     try:
         lowest = float(min([i for i in e.values() if i is not None]))
     except (ValueError, TypeError):
-        print(f"{'WARNING:':{WARNLEN}}Can't calculate rel_xtb_energy!")
+        print(
+            f"{'WARNING:':{WARNLEN}}xtb_energy is not provided in the {os.path.basename(path)} ensemble!"
+        )
+        print(f"{'WARNING:':{WARNLEN}}Can't calculate the rel_xtb_energy!")
         return
     for conf in conformers:
         try:
@@ -908,6 +911,7 @@ def conf_in_interval(conformers, full_free_energy=True, bm=True):
     """ number of conformers (and Boltzmann weights) within free energy window intervals """
     basins = {}
     max_rel_free = max([getattr(conf, "rel_free_energy") for conf in conformers])
+    len_confx = max([len(str(conf.id)) for conf in conformers]) + 1
     for i in frange(0.5, 6.0, 0.5):
         if i <= max_rel_free + 0.5:
             basins[i] = {"nconf": 0, "bmweight": 0.0}
@@ -933,7 +937,7 @@ def conf_in_interval(conformers, full_free_energy=True, bm=True):
         if bm:
             tmp = f"0 - {ewin}"
             out.append(
-                f"{tmp:^{14}}   {basins[ewin]['nconf']}         {basins[ewin]['bmweight']: .2f}"
+                f"{tmp:^{14}}   {basins[ewin]['nconf']:{len_confx}}         {basins[ewin]['bmweight']: .2f}"
             )
         else:
             tmp = f"0 - {ewin}"

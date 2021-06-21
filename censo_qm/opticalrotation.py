@@ -7,7 +7,7 @@ import shutil
 import sys
 from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, dfa_settings
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -185,7 +185,7 @@ def part5(config, conformers, store_confs, ensembledata):
         sys.exit(1)
 
     calculate.sort(key=lambda x: int(x.id))
-    print("Considering the following conformers:")
+    print(f"Considering the following {len(calculate)} conformers:")
     print_block(["CONF" + str(i.id) for i in calculate])
 
     # Calculate Boltzmann weight for confs:
@@ -338,7 +338,10 @@ def part5(config, conformers, store_confs, ensembledata):
     columncall = [
         lambda conf: "CONF" + str(getattr(conf, "id")),
         lambda conf: getattr(conf, energy)["energy"],
-        lambda conf: getattr(conf, gsolv)["energy"],
+        # lambda conf: getattr(conf, gsolv)["energy"],
+        lambda conf: getattr(conf, gsolv)
+        .get("range", {})
+        .get(config.temperature, getattr(conf, gsolv, {"energy": 0.0})["energy"]),
         # lambda conf: getattr(conf, rrho)["energy"],
         lambda conf: conf.get_mrrho(config.temperature, rrho, config.consider_sym),
         lambda conf: getattr(conf, "free_energy"),
@@ -399,6 +402,7 @@ def part5(config, conformers, store_confs, ensembledata):
             if conf.bm_weight < (1 - boltzmannthr):
                 store_confs.append(calculate.pop(calculate.index(conf)))
     print(f"\nConformers that are below the Boltzmann-thr of {boltzmannthr}:")
+    ensembledata.nconfs_per_part["part5"] = len(calculate)
     print_block(["CONF" + str(i.id) for i in calculate])
 
     # create folder
@@ -456,7 +460,7 @@ def part5(config, conformers, store_confs, ensembledata):
         "basis": getattr(
             config,
             "basis_or",
-            config.func_basis_default.get(config.func, "def2-mTZVPP"),
+            dfa_settings.composite_method_basis.get(config.func_or_scf, "def2-mTZVPP"),
         ),
         "charge": config.charge,
         "unpaired": config.unpaired,

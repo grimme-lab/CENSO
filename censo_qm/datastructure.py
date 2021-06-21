@@ -38,7 +38,7 @@ class MoleculeData:
             "prev_methods": None,
         },
         cheap_prescreening_gsolv_info={
-            "energy": None,
+            # "energy": None,
             "gas-energy": None,
             "solv-energy": None,
             "range": None,
@@ -65,7 +65,7 @@ class MoleculeData:
             "prev_methods": None,
         },
         prescreening_grrho_info={
-            "energy": None,
+            # "energy": None,
             "range": None,
             "info": "not_calculated",
             "method": None,
@@ -77,7 +77,7 @@ class MoleculeData:
             "symnum": 1,
         },
         lowlevel_grrho_info={
-            "energy": None,
+            # "energy": None,
             "range": None,
             "info": "not_calculated",
             "method": None,
@@ -88,7 +88,7 @@ class MoleculeData:
             "symnum": 1,
         },
         lowlevel_hrrho_info={
-            "energy": None,
+            # "energy": None,
             "range": None,
             "info": "not_calculated",
             "method": None,
@@ -96,7 +96,7 @@ class MoleculeData:
             "prev_methods": None,
         },
         highlevel_grrho_info={
-            "energy": None,
+            # "energy": None,
             "range": None,
             "info": "not_calculated",
             "method": None,
@@ -107,7 +107,7 @@ class MoleculeData:
             "symnum": 1,
         },
         highlevel_hrrho_info={
-            "energy": None,
+            # "energy": None,
             "range": None,
             "info": "not_calculated",
             "method": None,
@@ -115,7 +115,7 @@ class MoleculeData:
             "prev_methods": None,
         },
         prescreening_gsolv_info={
-            "energy": None,
+            # "energy": None,
             "range": None,
             "gas-energy": None,
             "info": "not_calculated",
@@ -123,7 +123,7 @@ class MoleculeData:
             "prev_methods": None,
         },
         lowlevel_gsolv_info={
-            "energy": None,
+            # "energy": None,
             "gas-energy": None,
             "range": None,
             "info": "not_calculated",
@@ -139,7 +139,7 @@ class MoleculeData:
             "std_dev": None,
         },
         highlevel_gsolv_info={
-            "energy": None,
+            # "energy": None,
             "gas-energy": None,
             "range": None,
             "info": "not_calculated",
@@ -157,6 +157,8 @@ class MoleculeData:
             "energy_rrho": 0.0,
             "method_rrho": None,
             "info_rrho": "not_calculated",
+            "symnum": 1,
+            "linear": False,
         },
         nmr_coupling_info={
             "info": "not_calculated",

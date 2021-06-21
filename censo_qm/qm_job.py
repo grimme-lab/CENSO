@@ -297,7 +297,14 @@ class QmJob(MoleculeData):
                 self.job["success"] = False
             else:
                 self.job["energy2"] = tmp_solv - tmp_gas
-                self.job["erange1"] = {self.job["temperature"]: tmp_solv - tmp_gas}
+                if self.job["trange"]:
+                    tmp = {}
+                    for temperature in self.job["trange"]:
+                        tmp[temperature] = tmp_solv - tmp_gas
+                    tmp[self.job["temperature"]] = tmp_solv - tmp_gas
+                    self.job["erange1"] = tmp
+                else:
+                    self.job["erange1"] = {self.job["temperature"]: tmp_solv - tmp_gas}
                 self.job["energy_xtb_gas"] = tmp_gas
                 self.job["energy_xtb_solv"] = tmp_solv
 

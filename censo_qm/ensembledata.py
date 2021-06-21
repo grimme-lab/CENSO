@@ -34,6 +34,8 @@ class EnsembleData:
             "part2_opt": None,
             "part2": None,
             "part3": None,
+            "part4": None,
+            "part5": None,
         },
         supporting_info={
             "part0": {

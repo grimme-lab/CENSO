@@ -5,7 +5,7 @@ The idea is to improve on the description of E with a very fast DFT method.
 import os
 import sys
 from multiprocessing import JoinableQueue as Queue
-from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, qm_prepinfo
+from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, qm_prepinfo, dfa_settings
 from .parallel import run_in_parallel
 from .orca_job import OrcaJob
 from .tm_job import TmJob
@@ -50,6 +50,7 @@ def part0(config, conformers, ensembledata):
     info.append(["basis0", "basis set for part0"])
     info.append(["part0_threshold", "threshold g_thr(0)"])
     info.append(["nconf", "starting number of considered conformers"])
+    info.append(["printoption", "temperature", config.fixed_temperature])
 
     max_len_digilen = 0
     for item in info:
@@ -90,6 +91,12 @@ def part0(config, conformers, ensembledata):
     calculate = []  # has to be calculated in this run
     prev_calculated = []  # was already calculated in a previous run
     store_confs = []  # stores all confs which are sorted out!
+
+    if config.temperature != config.fixed_temperature:
+        print(
+            f"{'INFORMATION:':{WARNLEN}}The temperature in part0 is kept fixed at {config.fixed_temperature} to keep consistent"
+        )
+        print(f"{'':{WARNLEN}}data in case of restarts.\n")
 
     print("Calculating efficient gas-phase single-point energies:")
 
@@ -138,7 +145,7 @@ def part0(config, conformers, ensembledata):
             "basis": getattr(
                 config,
                 "basis0",
-                config.func_basis_default.get(config.func0, "def2-SV(P)"),
+                dfa_settings.composite_method_basis.get(config.func0, "def2-SV(P)"),
             ),
             "charge": config.charge,
             "unpaired": config.unpaired,
@@ -148,7 +155,7 @@ def part0(config, conformers, ensembledata):
             "energy": 0.0,
             "energy2": 0.0,
             "success": False,
-            "temperature": config.temperature,
+            "temperature": config.fixed_temperature,
             "onlyread": config.onlyread,
         }
 
@@ -159,7 +166,7 @@ def part0(config, conformers, ensembledata):
             "basis": getattr(
                 config,
                 "basis0",
-                config.func_basis_default.get(config.func0, "def2-SV(P)"),
+                dfa_settings.composite_method_basis.get(config.func0, "def2-SV(P)"),
             ),
             "charge": config.charge,
             "unpaired": config.unpaired,
@@ -171,16 +178,9 @@ def part0(config, conformers, ensembledata):
             "onlyread": config.onlyread,
         }
 
-    tmp_disp = ""
     if config.prog == "tm":
         instruction["prepinfo"] = ["clear", "-grid", "1", "-scfconv", "5", "DOGCP"]
         ensembledata.si["part0"]["Energy_settings"] = "scfconv 5, grid 1"
-        if config.func0 == "b97-d":
-            instruction["prepinfo"].append("-zero")
-            tmp_disp = "D3(0)"
-            ensembledata.si["part0"][
-                "Energy_settings"
-            ] += " using D3(0) instead of D3(BJ)"
 
     elif config.prog == "orca":
         instruction["prepinfo"] = ["low", "DOGCP"]
@@ -195,7 +195,6 @@ def part0(config, conformers, ensembledata):
         sm=instruction["sm"],
         solvent=instruction["solvent"],
         prog=config.prog,
-        disp=tmp_disp,
         gfn_version=instruction.get("gfn_version", ""),
     )
 
@@ -247,9 +246,9 @@ def part0(config, conformers, ensembledata):
                     conf.cheap_prescreening_sp_info["energy"] = conf.job["energy"]
                     conf.cheap_prescreening_sp_info["info"] = "calculated"
                     conf.cheap_prescreening_sp_info["method"] = conf.job["method"]
-                    conf.cheap_prescreening_gsolv_info["energy"] = conf.job["energy2"]
+                    # conf.cheap_prescreening_gsolv_info["energy"] = conf.job["energy2"]
                     conf.cheap_prescreening_gsolv_info["range"] = {
-                        config.temperature: conf.job["energy2"]
+                        config.fixed_temperature: conf.job["energy2"]
                     }
                     conf.cheap_prescreening_gsolv_info["info"] = "calculated"
                     conf.cheap_prescreening_gsolv_info["method"] = conf.job["method2"]
@@ -294,6 +293,33 @@ def part0(config, conformers, ensembledata):
     else:
         print("No conformers are considered additionally.")
 
+    if prev_calculated:
+        # adding conformers calculated before:
+        for conf in list(prev_calculated):
+            conf.job["workdir"] = os.path.normpath(
+                os.path.join(config.cwd, "CONF" + str(conf.id), config.func)
+            )
+            if instruction["jobtype"] == "alpb_gsolv":
+                print(
+                    f"The {name} {check[conf.job['success']]} for "
+                    f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
+                    f"E(DFT) = {conf.cheap_prescreening_sp_info['energy']:>.8f}"
+                    f" Gsolv = {conf.cheap_prescreening_gsolv_info['range'].get(config.fixed_temperature, 0.0):>.8f}"
+                )
+            elif instruction["jobtype"] == "sp":
+                print(
+                    f"The {name} calculation {check[conf.job['success']]} for "
+                    f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
+                    f"E(DFT) = {conf.cheap_prescreening_sp_info['energy']:>.8f}"
+                )
+            calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
+    for conf in calculate:
+        conf.reset_job_info()
+    if not calculate:
+        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
+        print("Going to exit!")
+        sys.exit(1)
+
     # create data for possible SI generation:-----------------------------------
     # Energy:
     ensembledata.si["part0"]["Energy"] = instruction["method"]
@@ -314,33 +340,6 @@ def part0(config, conformers, ensembledata):
     # Threshold:
     ensembledata.si["part0"]["Threshold"] = f"{config.part0_threshold} kcal/mol"
     # END SI generation --------------------------------------------------------
-
-    if prev_calculated:
-        # adding conformers calculated before:
-        for conf in list(prev_calculated):
-            conf.job["workdir"] = os.path.normpath(
-                os.path.join(config.cwd, "CONF" + str(conf.id), config.func)
-            )
-            if instruction["jobtype"] == "alpb_gsolv":
-                print(
-                    f"The {name} {check[conf.job['success']]} for "
-                    f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"E(DFT) = {conf.cheap_prescreening_sp_info['energy']:>.8f}"
-                    f" Gsolv = {conf.cheap_prescreening_gsolv_info['energy']:>.8f}"
-                )
-            elif instruction["jobtype"] == "sp":
-                print(
-                    f"The {name} calculation {check[conf.job['success']]} for "
-                    f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"E(DFT) = {conf.cheap_prescreening_sp_info['energy']:>.8f}"
-                )
-            calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
-    for conf in calculate:
-        conf.reset_job_info()
-    if not calculate:
-        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
-        print("Going to exit!")
-        sys.exit(1)
 
     # ***************************************************************************
     # sorting by E
@@ -364,7 +363,7 @@ def part0(config, conformers, ensembledata):
             e=energy,
             solv=solvation,
             rrho=rrho,
-            t=config.temperature,
+            t=config.fixed_temperature,
             consider_sym=config.consider_sym,
         )
     try:
@@ -375,7 +374,12 @@ def part0(config, conformers, ensembledata):
         if conf.free_energy == minfree:
             ensembledata.bestconf["part0"] = conf.id
             lowest_e = conf.cheap_prescreening_sp_info["energy"]
-            lowest_gsolv = conf.cheap_prescreening_gsolv_info["energy"]
+            # lowest_gsolv = conf.cheap_prescreening_gsolv_info["energy"]
+            lowest_gsolv = (
+                getattr(conf, "cheap_prescreening_gsolv_info")
+                .get("range", {})
+                .get(config.fixed_temperature, 0.0)
+            )
     if config.solvent != "gas":
         try:
             minfree_gfnx = min(
@@ -397,7 +401,10 @@ def part0(config, conformers, ensembledata):
             conf.cheap_prescreening_sp_info["energy"] - lowest_e
         ) * AU2KCAL
         conf.tmp_rel_gsolv = (
-            conf.cheap_prescreening_gsolv_info["energy"] - lowest_gsolv
+            getattr(conf, "cheap_prescreening_gsolv_info")
+            .get("range", {})
+            .get(config.fixed_temperature, 0.0)
+            - lowest_gsolv
         ) * AU2KCAL
 
     try:
@@ -412,7 +419,9 @@ def part0(config, conformers, ensembledata):
         lambda conf: getattr(conf, "cheap_prescreening_gsolv_info")["solv-energy"],
         lambda conf: getattr(conf, "tmp_rel_xtb"),
         lambda conf: getattr(conf, "cheap_prescreening_sp_info")["energy"],
-        lambda conf: getattr(conf, "cheap_prescreening_gsolv_info")["energy"],
+        lambda conf: getattr(conf, "cheap_prescreening_gsolv_info")
+        .get("range", {})
+        .get(config.fixed_temperature, 0.0),
         lambda conf: getattr(conf, "free_energy"),
         lambda conf: getattr(conf, "tmp_rel_e"),
         lambda conf: getattr(conf, "tmp_rel_gsolv"),
@@ -420,14 +429,14 @@ def part0(config, conformers, ensembledata):
     ]
     columnheader = [
         "CONF#",
-        f"G [Eh]",
-        f"ΔG [kcal/mol]",
+        f"E [Eh]",
+        f"ΔE [kcal/mol]",
         "E [Eh]",
         "Gsolv [Eh]",
-        "Gtot",
+        "gtot",
         "ΔE(DFT)",
         "ΔGsolv",
-        "ΔGtot",
+        "Δgtot",
     ]
     columndescription = [
         "",
@@ -476,7 +485,9 @@ def part0(config, conformers, ensembledata):
     )
     print("".ljust(int(PLENGTH), "-"))
     # --------------------------------------------------------------------------
-    calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+    calculate = calc_boltzmannweights(
+        calculate, "free_energy", config.fixed_temperature
+    )
     conf_in_interval(calculate, full_free_energy=False)
     # --------------------------------------------------------------------------
 
@@ -531,14 +542,16 @@ def part0(config, conformers, ensembledata):
     print(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} " f"{'avG(T) /a.u.':>14} ")
     print("".ljust(int(PLENGTH), "-"))
 
-    calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
+    calculate = calc_boltzmannweights(
+        calculate, "free_energy", config.fixed_temperature
+    )
     avG = 0.0
     avE = 0.0
     for conf in calculate:
         avG += conf.bm_weight * conf.free_energy
         avE += conf.bm_weight * conf.cheap_prescreening_sp_info["energy"]
     # printout:
-    print(f"{config.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==")
+    print(f"{config.fixed_temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==")
     print("".ljust(int(PLENGTH), "-"))
     print("")
     ################################################################################

@@ -8,7 +8,7 @@ import time
 import os
 import sys
 from copy import deepcopy
-from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN, qm_prepinfo
+from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN, qm_prepinfo, dfa_settings
 from .utilities import (
     check_for_folder,
     print_block,
@@ -198,6 +198,8 @@ def part2(config, conformers, store_confs, ensembledata):
             if conf.optimization_info["convergence"] == "converged":
                 conf.job["success"] = True
                 conf.job["ecyc"] = conf.optimization_info["ecyc"]
+                conf.linear = conf.optimization_info.get("linear", conf.linear)
+                conf.symnum = conf.optimization_info.get("symnum", conf.symnum)
                 if conf.optimization_info.get("cregen_sort", "pass") == "pass":
                     prev_calculated.append(conf)
                 elif conf.optimization_info.get("cregen_sort", "pass") == "removed":
@@ -221,7 +223,11 @@ def part2(config, conformers, store_confs, ensembledata):
     instruction_prep = {
         "jobtype": "prep",
         "func": config.func,
-        "basis": getattr(config, "basis", config.func_basis_default[config.func]),
+        "basis": getattr(
+            config,
+            "basis",
+            dfa_settings.composite_method_basis.get(config.func, "def2-TZVP"),
+        ),
         "charge": config.charge,
         "unpaired": config.unpaired,
         "solvent": config.solvent,
@@ -237,7 +243,11 @@ def part2(config, conformers, store_confs, ensembledata):
     # INSTRUCTION OPT !!!!
     instruction_opt = {
         "func": config.func,
-        "basis": getattr(config, "basis", config.func_basis_default[config.func]),
+        "basis": getattr(
+            config,
+            "basis",
+            dfa_settings.composite_method_basis.get(config.func, "def2-TZVP"),
+        ),
         "charge": config.charge,
         "unpaired": config.unpaired,
         "solvent": config.solvent,
@@ -247,7 +257,6 @@ def part2(config, conformers, store_confs, ensembledata):
         "sm": config.sm2,
         "optcycles": config.optcycles,
         "optlevel": config.optlevel2,
-        "multiTemp": False,
         "energy": 0.0,
         "energy2": 0.0,
         "success": False,
@@ -258,7 +267,7 @@ def part2(config, conformers, store_confs, ensembledata):
         "jobtype": "rrhoxtb",
         "func": getattr(config, "part2_gfnv"),
         "gfn_version": getattr(config, "part2_gfnv"),
-        "temperature": config.temperature,
+        "temperature": config.fixed_temperature,  # at fixed temperature!
         "charge": config.charge,
         "unpaired": config.unpaired,
         "solvent": config.solvent,
@@ -322,6 +331,11 @@ def part2(config, conformers, store_confs, ensembledata):
             instruction_opt["method"]
             + f" @optlevel: {config.optlevel2} using {' '.join(qm_prepinfo['tm'][instruction_opt['prepinfo'][0]]).replace('-', '')}"
         )
+        if config.func == "r2scan-3c":
+            # uses m4
+            ensembledata.si["part2"]["Geometry"] = ensembledata.si["part2"][
+                "Geometry"
+            ].replace("m3", "m4")
     elif config.prog == "orca":
         ensembledata.si["part2"]["Geometry"] = (
             instruction_opt["method"]
@@ -544,6 +558,10 @@ def part2(config, conformers, store_confs, ensembledata):
                     check = {True: "was successful", False: "FAILED"}
                     # check if too many calculations failed
                     ###
+                    if config.temperature != config.fixed_temperature:
+                        print(
+                            f"{'INFORMATION:':{WARNLEN}}The crude G_mRRHO contribution is evaluated at {config.fixed_temperature} K."
+                        )
                     for conf in list(calculate):
                         #  'rrho_optimization' used in get_mrrho
                         print(
@@ -551,12 +569,12 @@ def part2(config, conformers, store_confs, ensembledata):
                             f"geometry @ {conf.job['symmetry']} "
                             f"{check[conf.job['success']]} for "
                             f"{last_folders(conf.job['workdir'], 3):>{pl}}: "
-                            f"{conf.job['energy']:>.8f} "
+                            f"{conf.job['energy']:>.7f} "
                             f"""S_rot(sym)= {conf.calc_entropy_sym(
-                                config.temperature,
+                                config.fixed_temperature,
                                 symnum=conf.job['symnum']):>.7f} """
                             f"""using= {conf.get_mrrho(
-                                config.temperature,
+                                config.fixed_temperature,
                                 rrho='direct_input', 
                                 consider_sym=config.consider_sym,
                                 symnum=conf.job['symnum'],
@@ -570,6 +588,8 @@ def part2(config, conformers, store_confs, ensembledata):
                                 "method_rrho"
                             ] = instruction_rrho_crude["method"]
                             conf.optimization_info["info_rrho"] = "calculated"
+                            conf.optimization_info["symnum"] = conf.job["symnum"]
+                            conf.optimization_info["linear"] = conf.job["linear"]
                             conf.symnum = conf.job["symnum"]
                             conf.sym = conf.job["symmetry"]
 
@@ -606,8 +626,7 @@ def part2(config, conformers, store_confs, ensembledata):
                     run_spearman = True
                 else:
                     run_spearman = True
-                gesc = True  # gESC with already good sorting
-                if run == 1 and gesc:
+                if run == 1:
                     # only evaluate spearman starting from second cycle
                     print("Spearman rank evaluation is performed in the next cycle.")
                     cycle_spearman.append("")
@@ -635,7 +654,7 @@ def part2(config, conformers, store_confs, ensembledata):
                                 [
                                     conf.job["ecyc"][i]
                                     + conf.get_mrrho(
-                                        config.temperature,
+                                        config.fixed_temperature,
                                         rrho=rrho_energy,
                                         consider_sym=config.consider_sym,
                                     )
@@ -660,7 +679,7 @@ def part2(config, conformers, store_confs, ensembledata):
                             (
                                 conf.job["ecyc"][i]
                                 + conf.get_mrrho(
-                                    config.temperature,
+                                    config.fixed_temperature,
                                     rrho=rrho_energy,
                                     consider_sym=config.consider_sym,
                                 )
@@ -941,7 +960,11 @@ def part2(config, conformers, store_confs, ensembledata):
     instruction_gsolv = {
         "func": config.func,
         "prepinfo": ["low+"],  # TM m4 scfconv6
-        "basis": getattr(config, "basis", config.func_basis_default[config.func]),
+        "basis": getattr(
+            config,
+            "basis",
+            dfa_settings.composite_method_basis.get(config.func, "def2-TZVP"),
+        ),
         "charge": config.charge,
         "unpaired": config.unpaired,
         "solvent": config.solvent,
@@ -953,6 +976,7 @@ def part2(config, conformers, store_confs, ensembledata):
         "gfn_version": config.part2_gfnv,
         "onlyread": config.onlyread,
     }
+    tmp_SI = None
     if config.multitemp:
         instruction_gsolv["trange"] = [
             i for i in frange(config.trange[0], config.trange[1], config.trange[2])
@@ -1015,9 +1039,8 @@ def part2(config, conformers, store_confs, ensembledata):
                     and conf.lowlevel_sp_info["method"] == instruction_gsolv["method"]
                 ):
                     # do not calculate gas phase sp again!
-                    instruction_gsolv["energy"] = conf.lowlevel_sp_info["energy"]
+                    tmp_SI = instruction_gsolv["prepinfo"]
                     instruction_gsolv["prepinfo"] = []
-                # else:
                 name = "lowlevel additive solvation"
                 folder = str(instruction_gsolv["func"]) + "/Gsolv2"
             # SMD_Gsolv
@@ -1167,7 +1190,9 @@ def part2(config, conformers, store_confs, ensembledata):
                     conf.lowlevel_sp_info["info"] = "calculated"
                     conf.lowlevel_sp_info["method"] = conf.job["method"]
                     if instruction_gsolv["jobtype"] == "sp_implicit":
-                        conf.lowlevel_gsolv_info["energy"] = 0.0
+                        conf.lowlevel_gsolv_info["range"] = {
+                            conf.job["temperature"]: 0.0
+                        }
                         conf.lowlevel_gsolv_info["info"] = "calculated"
                         conf.lowlevel_gsolv_info["method"] = conf.job["method2"]
             elif instruction_gsolv["jobtype"] in (
@@ -1190,10 +1215,16 @@ def part2(config, conformers, store_confs, ensembledata):
                     conf.lowlevel_gsolv_info["method"] = conf.job["method2"]
                     store_confs.append(calculate.pop(calculate.index(conf)))
                 else:
+                    if (
+                        instruction_gsolv["jobtype"] in ("gbsa_gsolv", "alpb_gsolv")
+                        and conf.lowlevel_sp_info["info"] == "calculated"
+                        and conf.lowlevel_sp_info["method"]
+                        == instruction_gsolv["method"]
+                    ):
+                        conf.job["energy"] = conf.lowlevel_sp_info["energy"]
                     conf.lowlevel_sp_info["energy"] = conf.job["energy"]
                     conf.lowlevel_sp_info["info"] = "calculated"
                     conf.lowlevel_sp_info["method"] = instruction_gsolv["method"]
-                    conf.lowlevel_gsolv_info["energy"] = conf.job["energy2"]
                     conf.lowlevel_gsolv_info["gas-energy"] = conf.job["energy"]
                     conf.lowlevel_gsolv_info["info"] = "calculated"
                     conf.lowlevel_gsolv_info["method"] = instruction_gsolv["method2"]
@@ -1235,7 +1266,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 print(
                     f"{name} calculation {check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 3):>{pl}}: "
-                    f"{conf.lowlevel_gsolv_info['energy']:>.7f}"
+                    f"{conf.lowlevel_gsolv_info['range'].get(config.temperature, 0.0):>.7f}"
                 )
             calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
 
@@ -1245,20 +1276,39 @@ def part2(config, conformers, store_confs, ensembledata):
     if "DOGCP" in instruction_gsolv["prepinfo"]:
         ensembledata.si["part2"]["Energy"] += " + GCP"
     # Energy_settings:
-    if job == TmJob:
-        ensembledata.si["part2"]["Energy_settings"] = " ".join(
-            qm_prepinfo["tm"][instruction_gsolv["prepinfo"][0]]
-        ).replace("-", "")
-    elif job == OrcaJob:
-        ensembledata.si["part2"]["Energy_settings"] = " ".join(
-            qm_prepinfo["orca"][instruction_gsolv["prepinfo"][0]]
-        )
+    try:
+        if job == TmJob:
+            if tmp_SI is not None:
+                tmp = " ".join(qm_prepinfo["tm"][tmp_SI[0]]).replace("-", "")
+            else:
+                tmp = " ".join(
+                    qm_prepinfo["tm"][instruction_gsolv["prepinfo"][0]]
+                ).replace("-", "")
+        elif job == OrcaJob:
+            if tmp_SI is not None:
+                tmp = " ".join(qm_prepinfo["orca"][tmp_SI[0]])
+            else:
+                tmp = " ".join(qm_prepinfo["orca"][instruction_gsolv["prepinfo"][0]])
+        ensembledata.si["part2"]["Energy_settings"] = tmp
+    except (TypeError, IndexError):
+        pass
     # GmRRHO is done below!
     # Solvation:
     if config.solvent == "gas":
         ensembledata.si["part2"]["G_solv"] = "gas-phase"
     else:
-        ensembledata.si["part2"]["G_solv"] = instruction_gsolv["method2"]
+        if instruction_gsolv["jobtype"] in (
+            "cosmors",
+            "cosmors-fine",
+            "cosmors-normal",
+        ):
+            ensembledata.si["part2"]["G_solv"] = (
+                instruction_gsolv["method2"]
+                + " param= "
+                + instruction_gsolv["ctd-param"]
+            )
+        else:
+            ensembledata.si["part2"]["G_solv"] = instruction_gsolv["method2"]
     # Geometry is done above:
     # QM-CODE:
     ensembledata.si["part2"]["main QM code"] = str(config.prog).upper()
@@ -1442,7 +1492,6 @@ def part2(config, conformers, store_confs, ensembledata):
                     conf.lowlevel_grrho_info["linear"] = conf.job["linear"]
                     conf.lowlevel_grrho_info["symnum"] = conf.job["symnum"]
                     conf.lowlevel_grrho_info["rmsd"] = conf.job["rmsd"]
-                    conf.lowlevel_grrho_info["energy"] = conf.job["energy"]
                     conf.lowlevel_grrho_info["info"] = "calculated"
                     conf.lowlevel_grrho_info["method"] = instruction_rrho["method"]
                     conf.lowlevel_grrho_info["range"] = conf.job["erange1"]
@@ -1471,7 +1520,10 @@ def part2(config, conformers, store_confs, ensembledata):
                     f"The lowlevel G_mRRHO calculation @ {conf.sym} "
                     f"{check[conf.job['success']]} for "
                     f"{last_folders(conf.job['workdir'], 2):>{pl}}: "
-                    f"{conf.lowlevel_grrho_info['energy']:>.8f} "
+                    f"""{conf.get_mrrho(
+                        config.temperature,
+                        rrho='lowlevel_grrho_info',
+                        consider_sym=True):>.8f} """
                     f"S_rot(sym)= {conf.calc_entropy_sym(config.temperature):>.7f}"
                     f""" using= {conf.get_mrrho(
                         config.temperature,
@@ -1493,8 +1545,9 @@ def part2(config, conformers, store_confs, ensembledata):
         lambda conf: getattr(conf, "xtb_energy"),
         lambda conf: getattr(conf, "rel_xtb_energy"),
         lambda conf: getattr(conf, "lowlevel_sp_info")["energy"],
-        lambda conf: getattr(conf, "lowlevel_gsolv_info")["energy"],
-        # lambda conf: getattr(conf, "lowlevel_grrho_info")["energy"],
+        lambda conf: getattr(conf, "lowlevel_gsolv_info")
+        .get("range", {})
+        .get(config.temperature, 0.0),
         lambda conf: conf.get_mrrho(
             config.temperature, "lowlevel_grrho_info", config.consider_sym
         ),
@@ -1609,12 +1662,16 @@ def part2(config, conformers, store_confs, ensembledata):
     # DCOSMO-RS_GSOLV
     instruction_gsolv_compare = {
         "func": config.func,
-        "basis": getattr(config, "basis", config.func_basis_default[config.func]),
+        "basis": getattr(
+            config,
+            "basis",
+            dfa_settings.composite_method_basis.get(config.func, "def2-TZVP"),
+        ),
         "charge": config.charge,
         "unpaired": config.unpaired,
         "solvent": config.solvent,
         "sm": "alpb_gsolv",
-        "temperature": config.temperature,
+        "temperature": config.fixed_temperature,
         "energy": 0.0,
         "energy2": 0.0,
         "success": False,
@@ -1646,7 +1703,12 @@ def part2(config, conformers, store_confs, ensembledata):
             )
             for conf in calculate:
                 if conf.id == ensembledata.bestconf["part2"]:
-                    gsolv_min = conf.lowlevel_gsolv_info["energy"]
+                    gsolv_min = (
+                        getattr(conf, "lowlevel_gsolv_info")
+                        .get("range", {})
+                        .get(config.fixed_temperature, 0.0)
+                    )
+                    # gsolv_min = conf.lowlevel_gsolv_info["energy"]
                     gsolv_min_id = conf.id
                     try:
                         dcosmors_gsolv_min = (
@@ -1723,7 +1785,6 @@ def part2(config, conformers, store_confs, ensembledata):
                         save_errors.append(line)
                         conf.lowlevel_gsolv_compare_info["info"] = "failed"
                         conf.lowlevel_gsolv_compare_info["method"] = conf.job["method"]
-                        # store_confs.append(calculate.pop(calculate.index(conf)))
                         print("ERROR")
                     else:
                         conf.lowlevel_gsolv_compare_info["energy"] = conf.job["energy2"]
@@ -1747,7 +1808,9 @@ def part2(config, conformers, store_confs, ensembledata):
                 if conf.id == gsolv_min_id:
                     alpb_gsolv_min = conf.lowlevel_gsolv_compare_info["energy"]
 
-            print("\nSD of solvation models (all units in kcal/mol):")
+            print(
+                f"\nSD of solvation models @ {config.fixed_temperature} K (all units in kcal/mol):"
+            )
             print(
                 f"CONFX ΔG(COSMO-RS) ΔG(DCOSMO-RS_gsolv) ΔG(ALPB_gsolv)  "
                 f"SD(COSMO-RS 40%, DCOSMO-RS_gsolv 40%, ALPB_gsolv 20%)"
@@ -1755,7 +1818,9 @@ def part2(config, conformers, store_confs, ensembledata):
             print("".ljust(PLENGTH, "-"))
             pl = max([len(str(conf.id)) for conf in calculate])
             for conf in calculate:
-                dgsolv = -gsolv_min + conf.lowlevel_gsolv_info["energy"]
+                dgsolv = -gsolv_min + getattr(conf, "lowlevel_gsolv_info").get(
+                    "range", {}
+                ).get(config.fixed_temperature, 0.0)
                 dgdcosmors = -dcosmors_gsolv_min + (
                     conf.optimization_info["energy"]
                     - conf.lowlevel_gsolv_info["gas-energy"]
@@ -1794,26 +1859,22 @@ def part2(config, conformers, store_confs, ensembledata):
             line = (
                 f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} "
                 f"{'avG(T) /a.u.':>14} "
-                # f"{'avGcorrection(T) /a.u.':>22}"
             )
         elif not config.evaluate_rrho:
             line = (
                 f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} "
                 f"{'avGsolv(T) /a.u.':>16} {'avG(T) /a.u.':>14} "
-                # f"{'avGcorrection(T) /a.u.':>22}"
             )
         elif config.solvent == "gas":
             line = (
                 f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} "
                 f"{'avGmRRHO(T) /a.u.':>16} {'avG(T) /a.u.':>14} "
-                # f"{'avGcorrection(T) /a.u.':>22}"
             )
     else:
         line = (
             f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} "
             f"{'avGmRRHO(T) /a.u.':>16} {'avGsolv(T) /a.u.':>16} "
             f"{'avG(T) /a.u.':>14}"
-            # f" {'avGcorrection(T) /a.u.':>22}"
         )
     print(line)
     print("".ljust(int(PLENGTH), "-"))
@@ -1869,27 +1930,19 @@ def part2(config, conformers, store_confs, ensembledata):
         # printout:
         if not config.evaluate_rrho or config.solvent == "gas":
             if not config.evaluate_rrho and config.solvent == "gas":
-                line = (
-                    f"{temperature:^15} {avE:>14.7f}  {avG:>14.7f} "
-                    # f"{avGcorrection['avGcorrection'][temperature]:>22.7f}"
-                )
+                line = f"{temperature:^15} {avE:>14.7f}  {avG:>14.7f} "
             elif not config.evaluate_rrho:
                 line = (
-                    f"{temperature:^15} {avE:>14.7f} {avGsolv:>16.7f} "
-                    f"{avG:>14.7f} "
-                    # f"{ avGcorrection['avGcorrection'][temperature]:>22.7f}"
+                    f"{temperature:^15} {avE:>14.7f} {avGsolv:>16.7f} " f"{avG:>14.7f} "
                 )
             elif config.solvent == "gas":
                 line = (
-                    f"{temperature:^15} {avE:>14.7f} {avGRRHO:>16.7f} "
-                    f"{avG:>14.7f} "
-                    # f"{ avGcorrection['avGcorrection'][temperature]:>22.7f}"
+                    f"{temperature:^15} {avE:>14.7f} {avGRRHO:>16.7f} " f"{avG:>14.7f} "
                 )
         else:
             line = (
                 f"{temperature:^15} {avE:>14.7f} {avGRRHO:>16.7f} "
                 f"{avGsolv:>16.7f} {avG:>14.7f} "
-                # f"{ avGcorrection['avGcorrection'][temperature]:>22.7f}"
             )
         if temperature == config.temperature:
             print(line, "    <<==part2==")

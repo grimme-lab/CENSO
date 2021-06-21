@@ -222,9 +222,11 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
             maxid = next(
                 key for key, value in atom_sigma[atom].items() if value == maxx
             )
-            line = (f"{atom:< {10}}  {element[atom]:^{7}}  {averaged[atom]:> {maxsigma}.2f}  " +
-                  f"{minx :> {maxsigma}.2f} {'CONF'+str(minid)}  {maxx :> {maxsigma}.2f} " +
-                  f"{'CONF'+str(maxid)}  {maxx-minx:> {maxsigma}.2f}")
+            line = (
+                f"{atom:< {10}}  {element[atom]:^{7}}  {averaged[atom]:> {maxsigma}.2f}  "
+                + f"{minx :> {maxsigma}.2f} {'CONF'+str(minid):<{max([len(str(conf.id)) for conf in calculate])+5}}  {maxx :> {maxsigma}.2f} "
+                + f"{'CONF'+str(maxid):<{max([len(str(conf.id)) for conf in calculate])+5}}  {maxx-minx:> {maxsigma}.2f}"
+            )
             print(line)
         except Exception:
             pass
@@ -238,43 +240,6 @@ def average_shieldings(config, calculate, element_ref_shield, energy, solv, rrho
 def write_anmrrc(config):
     """ Write file .anmrrc with information processed by ANMR """
 
-    if config.solvent != "gas":
-        # optimization in solvent:
-        if config.prog == "tm" and config.sm2 != "dcosmors":
-            print(
-                f"{'WARNING:':{WARNLEN}}The geometry optimization of the reference molecule "
-                "was calculated with DCOSMO-RS (sm2)!"
-            )
-        elif config.prog == "orca" and config.sm2 != "smd":
-            print(
-                f"{'WARNING:':{WARNLEN}}The geometry optimization of the reference molecule "
-                "was calculated with SMD (sm2)!"
-            )
-    if config.prog4_s == "tm":
-        refsm2 = "DCOSMO-RS"
-        refsm4 = "DCOSMO-RS"
-        refbasisS = "def2-TZVP"
-        if config.sm4_s != "dcosmors":
-            print(
-                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
-                "DCOSMORS (sm4_s)!"
-            )
-    elif config.prog4_s == "orca":
-        refsm2 = "SMD"
-        refsm4 = "SMD"
-        refbasisS = "def2-TZVP"
-        if config.sm4_s != "smd":
-            print(
-                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
-                "SMD (sm4_s)!"
-            )
-
-    if config.basis_s != "def2-TZVP":
-        print(
-            f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with the "
-            f"basis def2-TZVP (basisS) instead of {config.basis_s}!"
-        )
-
     # get absolute shielding constant of reference
     ref_decision = {
         "h": {
@@ -283,6 +248,7 @@ def write_anmrrc(config):
             "tm": "h_tm_shieldings",
             "orca": "h_orca_shieldings",
             "adf": "h_adf_shieldings",
+            "ref_mol": getattr(config, "h_ref", "TMS"),
             "active": getattr(config, "h_active", False),
         },
         "c": {
@@ -291,6 +257,7 @@ def write_anmrrc(config):
             "tm": "c_tm_shieldings",
             "orca": "c_orca_shieldings",
             "adf": "c_adf_shieldings",
+            "ref_mol": getattr(config, "c_ref", "TMS"),
             "active": getattr(config, "c_active", False),
         },
         "f": {
@@ -299,6 +266,7 @@ def write_anmrrc(config):
             "tm": "f_tm_shieldings",
             "orca": "f_orca_shieldings",
             "adf": "f_adf_shieldings",
+            "ref_mol": getattr(config, "f_ref", "CFCl3"),
             "active": getattr(config, "f_active", False),
         },
         "si": {
@@ -307,6 +275,7 @@ def write_anmrrc(config):
             "tm": "si_tm_shieldings",
             "orca": "si_orca_shieldings",
             "adf": "si_adf_shieldings",
+            "ref_mol": getattr(config, "si_ref", "TMS"),
             "active": getattr(config, "si_active", False),
         },
         "p": {
@@ -315,9 +284,11 @@ def write_anmrrc(config):
             "tm": "p_tm_shieldings",
             "orca": "p_orca_shieldings",
             "adf": "p_adf_shieldings",
+            "ref_mol": getattr(config, "p_ref", "TMP"),
             "active": getattr(config, "p_active", False),
         },
     }
+    # if non are active set all active
     if all(
         [
             not getattr(config, active)
@@ -326,6 +297,57 @@ def write_anmrrc(config):
     ):
         for element in ref_decision.keys():
             ref_decision[element]["active"] = True
+
+    refwarnings = []
+
+    if config.solvent != "gas":
+        # optimization in solvent:
+        if config.prog == "tm" and config.sm2 != "dcosmors":
+            refwarnings.append(
+                f"{'WARNING:':{WARNLEN}}The geometry optimization of the reference molecule "
+                "was calculated with DCOSMO-RS (sm2)!"
+            )
+        elif config.prog == "orca" and config.sm2 != "smd":
+            refwarnings.append(
+                f"{'WARNING:':{WARNLEN}}The geometry optimization of the reference molecule "
+                "was calculated with SMD (sm2)!"
+            )
+        if config.prog == "tm":
+            refsm2 = "DCOSMO-RS"
+        elif config.prog == "orca":
+            refsm2 = "SMD"
+    if config.prog4_s == "tm":
+        refsm4 = "DCOSMO-RS"
+        refbasisS = "def2-TZVP"
+        if config.sm4_s != "dcosmors":
+            refwarnings.append(
+                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
+                "DCOSMORS (sm4_s)!"
+            )
+    elif config.prog4_s == "orca":
+        refsm4 = "SMD"
+        refbasisS = "def2-TZVP"
+        if config.sm4_s != "smd":
+            refwarnings.append(
+                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
+                "SMD (sm4_s)!"
+            )
+    if config.basis_s != "def2-TZVP":
+        refwarnings.append(
+            f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with the "
+            f"basis def2-TZVP (basisS) instead of {config.basis_s}!"
+        )
+
+    if refwarnings:
+        print(
+            f"{'INFORMATION:':{WARNLEN}}The reference molecule shielding "
+            + f"constant has been calucated with different settings."
+        )
+        print(
+            f"{'':{WARNLEN}}You can always adjust the reference in the file .anmrrc manually!"
+        )
+        for line in refwarnings:
+            print(line)
 
     # read NMR_references
     nmr_ref_user_path = os.path.expanduser(
@@ -342,25 +364,54 @@ def write_anmrrc(config):
             tmp_ref = {}
     nmrref = NmrRef().dict_to_NMRRef(tmp_ref)
     # end reading NMR_references
+
+    relay_names_func_s = {
+        "r2scan-3c": "r2scan-3c",
+        "pbeh-3c": "pbeh-3c",
+        "b97-3c": "b97-3c",
+        "tpss-d3": "tpss",
+        "tpss-d4": "tpss",
+        "tpss-novdw": "tpss",
+        "tpss-d3(0)": "tpss",
+        "kt2-novdw": "kt2",
+        "pbe0-novdw": "pbe0",
+        "pbe0-d3": "pbe0",
+        "pbe0-d3(0)": "pbe0",
+        "pbe0-d4": "pbe0",
+        "wb97x-d3": "wb97x",
+        "dsd-blyp-d3": "dsd-blyp",
+    }
+    tmp_func_s = relay_names_func_s.get(config.func_s, config.func_s)
+    relay_names_func = {
+        "tpss-d3": "tpss",
+        "r2scan-3c": "r2scan-3c",
+        "pbeh-3c": "pbeh-3c",
+        "b97-3c": "b97-3c",
+    }
+    tmp_func = relay_names_func.get(config.func, config.func)
+
     for element, value in ref_decision.items():
         if value.get("active", False):
+            # if getattr(nmrref, ref_decision[element].get(config.prog4_s))[
+            #             ref_decision[element]["ref_mol"]].get(tmp_func, "not_calc")
+            #             == "not_calc":
             try:
                 ref_decision[element]["sigma"] = "{:4.3f}".format(
                     getattr(nmrref, ref_decision[element].get(config.prog4_s))[
-                        config.h_ref
-                    ][config.func][config.func_s][config.solvent]
+                        ref_decision[element]["ref_mol"]
+                    ][tmp_func][tmp_func_s][config.basis_s][config.solvent]
                 )
             except KeyError:
                 try:
                     ref_decision[element]["sigma"] = "{:4.3f}".format(
                         getattr(nmrref, ref_decision[element].get(config.prog4_s))[
-                            config.h_ref
-                        ][config.func].get("pbe0")[config.solvent]
+                            ref_decision[element]["ref_mol"]
+                        ][tmp_func].get("pbe0")["def2-TZVP"][config.solvent]
                     )
                     print(
                         f"{'WARNING:':{WARNLEN}}The reference absolute shielding constant "
-                        f"for {config.func_s} and element {element} could not be found, using {'pbe0'}"
-                        " reference instead!"
+                        f"for {config.func_s}/{config.basis_s} and element {element:3} could "
+                        f"not be found, using {'pbe0/def2-TZVP'} reference instead!"
                     )
                 except KeyError:
                     print(
@@ -403,7 +454,7 @@ def write_anmrrc(config):
         for element, value in ref_decision.items():
             if value.get("active", False):
                 arc.write(
-                    f"{value.get('atomic_number')}  "
+                    f"{value.get('atomic_number'):3}  "
                     f"{ref_decision[element]['sigma']}    {0.0}     "
                     f"{exch[ref_decision[element]['active']]}\n"
                 )
@@ -578,7 +629,7 @@ def part4(config, conformers, store_confs, ensembledata):
 
     if unoptimized_warning:
         print_errors(
-            f"{'INFORMATION:':{WARNLEN}} Conformers have not been optimized at DFT level!!!\n"
+            f"{'INFORMATION:':{WARNLEN}}Conformers have not been optimized at DFT level!!!\n"
             f"{'':{WARNLEN}}Use results with care!\n",
             save_errors,
         )
@@ -601,7 +652,7 @@ def part4(config, conformers, store_confs, ensembledata):
         sys.exit(1)
 
     calculate.sort(key=lambda x: int(x.id))
-    print("Considering the following conformers:")
+    print(f"Considering the following {len(calculate)} conformers:")
     print_block(["CONF" + str(i.id) for i in calculate])
 
     # Calculate Boltzmann weight for confs:
@@ -758,7 +809,10 @@ def part4(config, conformers, store_confs, ensembledata):
     columncall = [
         lambda conf: "CONF" + str(getattr(conf, "id")),
         lambda conf: getattr(conf, energy)["energy"],
-        lambda conf: getattr(conf, gsolv)["energy"],
+        # lambda conf: getattr(conf, gsolv)["energy"],
+        lambda conf: getattr(conf, gsolv)
+        .get("range", {})
+        .get(config.temperature, getattr(conf, gsolv, {"energy": 0.0})["energy"]),
         # lambda conf: getattr(conf, rrho)["energy"],
         lambda conf: conf.get_mrrho(config.temperature, rrho, config.consider_sym),
         lambda conf: getattr(conf, "free_energy"),
@@ -817,6 +871,7 @@ def part4(config, conformers, store_confs, ensembledata):
             if conf.bm_weight < (1 - boltzmannthr):
                 store_confs.append(calculate.pop(calculate.index(conf)))
     print(f"\nConformers that are below the Boltzmann-thr of {boltzmannthr}:")
+    ensembledata.nconfs_per_part["part4"] = len(calculate)
     print_block(["CONF" + str(i.id) for i in calculate])
 
     # create NMR folder
@@ -940,7 +995,7 @@ def part4(config, conformers, store_confs, ensembledata):
             for conf in list(calculate):
                 line = (
                     f"Coupling constant calculation {check[conf.job['success']]}"
-                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}: "
+                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}"
                 )
                 print(line)
                 if not conf.job["success"]:
@@ -1098,7 +1153,7 @@ def part4(config, conformers, store_confs, ensembledata):
             for conf in list(calculate):
                 line = (
                     f"Shielding constant calculation {check[conf.job['success']]}"
-                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}: "
+                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}"
                 )
                 print(line)
                 if not conf.job["success"]:
@@ -1195,7 +1250,7 @@ def part4(config, conformers, store_confs, ensembledata):
         )
     calculate = calc_boltzmannweights(calculate, "free_energy", config.temperature)
     try:
-        length = max([str(i.id) for i in calculate])
+        length = max([len(str(i.id)) for i in calculate]) + 1
         if int(length) < 4:
             length = 4
         fmtenergy = max([len("{: .7f}".format(i.free_energy)) for i in calculate])

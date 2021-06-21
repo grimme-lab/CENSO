@@ -19,9 +19,7 @@ from .cfg import (
     censo_solvent_db,
     external_paths,
     cosmors_param,
-    composite_dfa,
-    composite_method_basis,
-    hybrid_dfa,
+    dfa_settings,
 )
 from .utilities import last_folders, print
 from .qm_job import QmJob
@@ -46,6 +44,7 @@ class TmJob(QmJob):
         """
         Run define for Turbomole calculation using comandline program cefine.
         """
+        controlappend = []
         if self.job["basis"] == "def2-QZVP(-gf)":
             self.job["basis"] = "def2-QZVP"
             removegf = True
@@ -56,11 +55,12 @@ class TmJob(QmJob):
             remove_f = True
         else:
             remove_f = False
+
         # build cefine call:
         minimal_call = [
             external_paths["cefinepath"],
             "-func",
-            str(self.job["func"]),
+            dfa_settings.functionals.get(self.job["func"]).get("tm"),
             "-bas",
             str(self.job["basis"]),
             "-sym",
@@ -69,6 +69,10 @@ class TmJob(QmJob):
         ]
         if remove_f:
             minimal_call.extend(["-fpol"])
+        if removegf:
+            # remove -fg functions from def2-QZVP basis set
+            minimal_call.extend(["-gf"])
+
         extension = {
             "clear": [],
             "low": ["-grid", "m3", "-scfconv", "6"],
@@ -76,7 +80,6 @@ class TmJob(QmJob):
             "high": ["-grid", "m4", "-scfconv", "7"],
             "high+": ["-grid", "m5", "-scfconv", "7"],
         }
-        # additional = ["-fpol", "-novdw"]
 
         dogcp = False  # uses gcp with basis and is added to controlappend
         call = minimal_call
@@ -94,22 +97,38 @@ class TmJob(QmJob):
         else:
             call.extend(extension["low"])
 
-        # kt2:
-        if self.job["func"] in ("kt2", "kt1"):
-            # used only for shielding or coupling calcs!
-            call.extend(["-novdw"])
-        elif self.job["func"] in ("wb97x-v",):
-            call.extend(["-novdw"])
-
-        # r2scan-3c hack
+        # r2scan-3c use at least grid m4
         if self.job["func"] == "r2scan-3c":
             if "m3" in call:
                 call[call.index("m3")] = "m4"
+
         # settings which request no dispersion:
+        # kt1 and kt2 ar only used in part4 (NMR) and fail when using unparameterized disp
+        # wb97x-v already includes VV10
+
+        # dispersion correction information
+        if dfa_settings.functionals.get(self.job["func"]).get("disp") == "composite":
+            pass
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d3bj":
+            call.extend(["-d3"])
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d3(0)":
+            call.extend(["-zero"])
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d4":
+            call.extend(["-d4"])
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "nl":
+            call.extend(["-novdw"])
+            controlappend.append("$donl")
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "novdw":
+            call.extend(["-novdw"])
+        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "included":
+            call.extend(["-novdw"])
+        else:
+            print(
+                f" {dfa_settings.functionals.get(self.job['func']).get('disp')} unknown dispersion option!"
+            )
 
         if "-novdw" in call:
             requestnovdw = True
-            # print("FOUND NOVDW")
         else:
             requestnovdw = False
 
@@ -119,9 +138,7 @@ class TmJob(QmJob):
         # update charge:
         if int(self.job["charge"]) != 0:
             call = call + ["-chrg", str(self.job["charge"])]
-        # remove -fg functions from def2-QZVP basis set
-        if removegf:
-            call = call + ["-gf"]
+
         # call cefine:
         for _ in range(2):
             # print(call)
@@ -144,6 +161,13 @@ class TmJob(QmJob):
                     self.job["success"] = False
                     return
             # check if wrong functional was written by cefine
+            if not os.path.isfile(os.path.join(self.job["workdir"], "control")):
+                line = (
+                    f"{'ERROR:':{WARNLEN}}The control file was not generated"
+                    " by cefine! Can not proceed with calculation!"
+                )
+                self.job["internal_error"].append(line)
+            # check if wrong functional was written by cefine
             with open(
                 os.path.join(self.job["workdir"], "control"),
                 "r",
@@ -153,9 +177,16 @@ class TmJob(QmJob):
                 checkup = control.readlines()
             for line in checkup:
                 if "functional" in line:
-                    testfunc = [self.job["func"]]
-                    if self.job["func"] in ("b973c", "b97-3c"):
+                    testfunc = [
+                        dfa_settings.functionals.get(self.job["func"]).get("tm")
+                    ]
+                    if dfa_settings.functionals.get(self.job["func"]).get("tm") in (
+                        "b973c",
+                        "b97-3c",
+                    ):
                         testfunc.extend(["b973c", "b97-3c"])
+                    elif self.job["func"] == "b3lyp-3c":
+                        testfunc.extend(["b3-lyp"])
                     if not any(func in line for func in testfunc):
                         print(
                             "Wrong functional in control file"
@@ -169,7 +200,7 @@ class TmJob(QmJob):
         if not self.job["success"]:
             return
 
-        if self.job["func"] in ("kt2", "kt1"):
+        if dfa_settings.functionals.get(self.job["func"]).get("tm") in ("kt2", "kt1"):
             # update functional to kt2
             with open(
                 os.path.join(self.job["workdir"], "control"), "r", newline=None
@@ -181,9 +212,15 @@ class TmJob(QmJob):
                 for line in tmp:
                     if "functional" in line:
                         out.write("   functional xcfun set-gga  \n")
-                        if self.job["func"] == "kt2":
+                        if (
+                            dfa_settings.functionals.get(self.job["func"]).get("tm")
+                            == "kt2"
+                        ):
                             out.write("   functional xcfun kt2 1.0  \n")
-                        elif self.job["func"] == "kt1":
+                        elif (
+                            dfa_settings.functionals.get(self.job["func"]).get("tm")
+                            == "kt1"
+                        ):
                             out.write("   functional xcfun kt1 1.0  \n")
                     else:
                         out.write(line + "\n")
@@ -212,7 +249,7 @@ class TmJob(QmJob):
                 ]
             }
         # handle solvents:
-        controlappend = []
+
         if self.job["sm"] == "dcosmors" and self.job["solvent"] != "gas":
             try:
                 filename = solvent_dcosmors.get(self.job["solvent"])[1].split("=")[1]
@@ -272,9 +309,13 @@ class TmJob(QmJob):
             controlappend.append("$rpaconv 4")
 
         if dogcp:
-            if self.job["func"] in composite_dfa and self.job[
+            if dfa_settings.functionals.get(self.job["func"]).get(
+                "tm"
+            ) in dfa_settings.composite_method_basis.keys() and self.job[
                 "basis"
-            ] == composite_method_basis.get(self.job["func"], "NONE"):
+            ] == dfa_settings.composite_method_basis.get(
+                dfa_settings.functionals.get(self.job["func"]).get("tm"), "NONE"
+            ):
                 pass
             else:
                 if self.job["basis"] == "def2-SV(P)":
@@ -299,7 +340,7 @@ class TmJob(QmJob):
         for line in tmp:
             if "$disp" in line:
                 nodisp = False
-                if self.job["func"] in needatm:
+                if dfa_settings.functionals.get(self.job["func"])["tm"] in needatm:
                     if "$disp3 -bj -abc" not in line:
                         replacewatm = "$disp3 -bj -abc"
         if nodisp and (self.job["func"] not in needatm) and not requestnovdw:
@@ -401,14 +442,22 @@ class TmJob(QmJob):
                     [
                         self.job["h_active"],
                         self.job["c_active"],
-                        self.job["c_active"],
+                        self.job["f_active"],
                         self.job["si_active"],
                         self.job["p_active"],
                     ]
                 ):
                     newcontrol.write(nucsel1 + "\n")
                     newcontrol.write(nucsel2 + "\n")
-                else:
+                elif all(
+                    [
+                        self.job["h_active"],
+                        self.job["c_active"],
+                        self.job["f_active"],
+                        self.job["si_active"],
+                        self.job["p_active"],
+                    ]
+                ):
                     # don't write nucsel, every shielding, coupling will be calculated
                     pass
                 newcontrol.write("$rpaconv 8\n")
@@ -942,14 +991,18 @@ class TmJob(QmJob):
                             self.job["ecyc"].append(float(line.split("->")[-1]))
                         except ValueError as e:
                             error_logical = True
-                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            print(
+                                f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
+                            )
                             break
                     if " :: gradient norm      " in line:
                         try:
                             self.job["grad_norm"] = float(line.split()[3])
                         except ValueError as e:
                             error_logical = True
-                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            print(
+                                f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
+                            )
                             break
         else:
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
@@ -1329,7 +1382,15 @@ class TmJob(QmJob):
             ) as out:
                 for line in tmp:
                     if "functional" in line:
-                        out.write(f"   functional {self.job['func2']}   \n")
+                        if (
+                            dfa_settings.functionals[self.job["func2"]]["tm"]
+                            == "b3lyp-3c"
+                        ):
+                            out.write(f"   functional b3-lyp   \n")
+                        else:
+                            out.write(
+                                f"   functional {dfa_settings.functionals[self.job['func2']]['tm']}   \n"
+                            )
                     elif "$disp" in line:
                         pass
                     else:
@@ -1373,7 +1434,7 @@ class TmJob(QmJob):
                 velocity_rep = False  # (velocity representation)
                 do_read_length = False
                 do_read_velocity = True
-                if self.job["func2"] in hybrid_dfa:
+                if self.job["func2"] in dfa_settings().hybrid_dfa():
                     do_read_length = True
                 dum = 0
                 frequencies = self.job["freq_or"]

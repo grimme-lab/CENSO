@@ -23,8 +23,8 @@ from .cfg import (
     external_paths,
     __version__,
     cosmors_param,
-    composite_method_basis,
-    disp_already_included_in_func,
+    dfa_settings,
+    knownbasissets,
 )
 from .utilities import frange, format_line, print
 
@@ -46,7 +46,6 @@ def cml(startup_description, options, argv=None):
         dest="inp",
         type=os.path.abspath,
         action="store",
-        # default="crest_conformers.xyz",
         required=False,
         metavar="",
         help="Input name of ensemble file: e.g. crest_conformers.xyz ",
@@ -103,7 +102,6 @@ def cml(startup_description, options, argv=None):
     group1.add_argument(
         "-trange",
         "--trange",
-        # default=[273.15, 378.15, 5],
         dest="trange",
         nargs=3,
         required=False,
@@ -120,7 +118,8 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Uses SPH and applies structure constraint to input/DFT geometry for mRRHO calcuation. "
+        help="Uses SPH and applies structure constraint to input/DFT geometry "
+        "for mRRHO calcuation. "
         "Options are: ['on' or 'off'].",
     )
     group1.add_argument(
@@ -153,8 +152,8 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Solvation model used in xTB GmRRHO calculation. Applied if not in gas-phase. "
-        "Options are 'gbsa' or 'alpb'.",
+        help="Solvation model used in xTB GmRRHO calculation. Applied if not in "
+        "gas-phase. Options are 'gbsa' or 'alpb'.",
     )
     group1.add_argument(
         "-evaluate_rrho",
@@ -193,7 +192,7 @@ def cml(startup_description, options, argv=None):
         dest="checkinput",
         action="store_true",
         required=False,
-        help="Option to check if all necessary information for the ENSO "
+        help="Option to check if all necessary information for the CENSO "
         "calculation are provided and check if certain setting combinations "
         "make sence. Option to choose from : ['on' or 'off']",
     )
@@ -218,7 +217,7 @@ def cml(startup_description, options, argv=None):
         dest="prog",
         required=False,
         metavar="",
-        help="QM-program used in part1 and part2 either 'orca' or 'tm'.",
+        help="QM-program used in part0, part1 and part2 either 'orca' or 'tm'.",
     )
     group1.add_argument(
         "-prog_rrho",
@@ -227,7 +226,7 @@ def cml(startup_description, options, argv=None):
         dest="prog_rrho",
         required=False,
         metavar="",
-        help="QM-program for mRRHO contribution in part1 2 and 3, either 'xtb' or 'prog'.",
+        help="QM-program for mRRHO contribution in part1 2 and 3, currently only 'xtb'.",
     )
     group1.add_argument(
         "-crestcheck",
@@ -249,7 +248,7 @@ def cml(startup_description, options, argv=None):
         choices=["on", "off"],
         action="store",
         required=False,
-        help="Option to terminate the ENSO-run if too many calculations/preparation"
+        help="Option to terminate the CENSO-run if too many calculations/preparation"
         " steps fail. Options are: ['on' or 'off'].",
     )
     group1.add_argument(
@@ -280,16 +279,6 @@ def cml(startup_description, options, argv=None):
         "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
         " 'BP_TZVPD_FINE_C30_1601.ctd'.",
     )
-    group2 = parser.add_argument_group("SPECIAL RUN MODES")
-    group2.add_argument(
-        "-logK",
-        "--logK",
-        action="store_true",
-        required=False,
-        default=False,
-        help="Automatically set required settings for logK calculation. "
-        "Of course charge, solvent etc. has to be set by the user.",
-    )
     group10 = parser.add_argument_group("CRE CHEAP-PRESCREENING - PART0")
     group10.add_argument(
         "-part0",
@@ -300,7 +289,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Option to turn the CHEAP prescreening evaluation (part0) which "
-        "improves description of ΔE 'on' or 'off'.",
+        "improves description of ΔE compared to the input from semiempirical methods 'on' or 'off'.",
     )
     group10.add_argument(
         "-func0",
@@ -330,7 +319,7 @@ def cml(startup_description, options, argv=None):
         metavar="",
         action="store",
         required=False,
-        help="GFNn-xTB version employed for calculating the gas phase GFNn-xTB "
+        help="GFNn-xTB version employed for calculating the GFNn-xTB "
         "single point in part0. "
         f"Allowed values are [{', '.join(options.value_options['part0_gfnv'])}]",
     )
@@ -406,7 +395,7 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Option to turn the full optimization (part2) 'on' or 'off'.",
+        help="Option to turn the geometry optimization (part2) 'on' or 'off'.",
     )
     group4.add_argument(
         "-sm2",
@@ -416,9 +405,9 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Solvent model employed during the geometry optimization part2."
+        help="Solvent model employed during the geometry optimization in part2."
         "The solvent model sm2 is not used for Gsolv evaluation, but for the "
-        "implicit effect on a property (e.g. the optimization).",
+        "implicit effect on a property (e.g. the geometry in the optimization).",
     )
     group4.add_argument(
         "-smgsolv2",
@@ -428,8 +417,9 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Solvent model for the Gsolv calculation in part2. Either the solvent"
-        " model of the optimization (sm) or an additive solvation model. "
+        help="Solvent model for the Gsolv (solvation contribution to free energy) "
+        "calculation in part2. Either the solvent"
+        " model of the optimization (sm2) or an additive solvation model. "
         f"Allowed values are [{', '.join(options.value_options['smgsolv2'])}]",
     )
     group4.add_argument(
@@ -441,7 +431,7 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         help="GFNn-xTB version employed for calculating the "
-        "mRRHO contribution in part2. "
+        "GmRRHO contribution in part2. "
         f"Allowed values are [{', '.join(options.value_options['part2_gfnv'])}]",
     )
     group4.add_argument(
@@ -450,7 +440,8 @@ def cml(startup_description, options, argv=None):
         dest="ancopt",
         required=False,
         metavar="",
-        help="Option to use xtb as driver for the xTB-optimizer in part2.",
+        help="Option to use xtb as driver for the xTB-optimizer in part2. "
+        "Which is currently not changeable!",
     )
     group4.add_argument(
         "-opt_spearman",
@@ -499,7 +490,8 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Value between -1 and 1 for the spearman correlation coeffient threshold",
+        help="Value between -1 and 1 for the spearman correlation coeffient threshold, "
+        "employed in the ensemlbe optimizer",
     )
     group4.add_argument(
         "-opt_limit",
@@ -510,7 +502,8 @@ def cml(startup_description, options, argv=None):
         metavar="",
         help=(
             "Lower limit Threshold in kcal/mol. If the GFNn and DFT hypersurfaces are"
-            "assumed parallel, the conformers above the threshold are removed and not optimized further."
+            "assumed parallel, the conformers above the threshold are removed and"
+            " not optimized further."
             "The conformers in part2 with a relativ free energy below the "
             "threshold are fully optimized."
         ),
@@ -538,7 +531,7 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         type=int,
-        help=("Radsize used in optimization and only for r2scan-3c!"),
+        help=("Radsize used in the optimization and only for r2scan-3c!"),
     )
     group5 = parser.add_argument_group("CRE REFINEMENT - PART3")
     group5.add_argument(
@@ -549,7 +542,9 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Option to turn the high level free energy evaluation (part3) 'on' or 'off'.",
+        help="Option to turn the high level free energy evaluation (part3) 'on' or 'off'. "
+        "It can be calculated on DFT optimized geometries (after part2) or directly on the "
+        "ensemble input GFNn-xTB gemoetries by turning part0 part1 and part2 off.",
     )
     group5.add_argument(
         "-prog3",
@@ -568,8 +563,9 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         metavar="",
-        help="Functional for the COSMO-RS calculation, use functional "
-        "names as recognized by cefine.",
+        help="Functional for the high level single-point in part3. When Gsolv is "
+        "calculated with COSMO-RS the energy and density for Gsolv is taken from "
+        "func3/basis3 .",
     )
     group5.add_argument(
         "-basis3",
@@ -601,7 +597,7 @@ def cml(startup_description, options, argv=None):
         action="store",
         required=False,
         help="GFNn-xTB version employed for calculating the "
-        "mRRHO contribution in part3. "
+        "GmRRHO contribution in part3. "
         f"Allowed values are [{', '.join(options.value_options['part3_gfnv'])}]",
     )
     group5.add_argument(
@@ -651,7 +647,6 @@ def cml(startup_description, options, argv=None):
         "-funcJ",
         "--funcJ",
         dest="func_j",
-        # choices=func3,
         action="store",
         required=False,
         metavar="",
@@ -687,7 +682,6 @@ def cml(startup_description, options, argv=None):
     group6.add_argument(
         "-prog4S",
         "--prog4S",
-        # choices=options.value_options["prog"],
         dest="prog4_s",
         required=False,
         metavar="",
@@ -697,7 +691,6 @@ def cml(startup_description, options, argv=None):
         "-funcS",
         "--funcS",
         dest="func_s",
-        # choices=func3,
         action="store",
         required=False,
         metavar="",
@@ -843,7 +836,7 @@ def cml(startup_description, options, argv=None):
         type=int,
         action="store",
         metavar="",
-        help="Number of independent calculations during the ENSO calculation. E.g."
+        help="Number of independent calculations during the CENSO calculation. E.g."
         " (maxthreads) 5 independent calculation-"
         " threads with each (omp) 4 cores --> 20 cores need to be available on "
         "the machine.",
@@ -858,7 +851,7 @@ def cml(startup_description, options, argv=None):
         help="Automatically balance the number of threads and cores when a low number"
         "of conformers is left. (never exceed O*P cores).",
     )
-    group11 = parser.add_argument_group("Concerning overall mRRHO calculations")
+    group11 = parser.add_argument_group("Concerning overall GmRRHO calculations")
     group11.add_argument(
         "-imagthr",
         "--imagthr",
@@ -924,7 +917,9 @@ def cml(startup_description, options, argv=None):
         dest="onlyread",
         choices=["on", "off"],
         action="store",
-        help="Create new enso.json from the output of previous calculations.",
+        help="Create new enso.json from the output of previous calculations. "
+        "This option has to used with exactly the same input settings or results will be unusable! "
+        "",
     )
     group8.add_argument(
         "-newconfig",
@@ -944,8 +939,8 @@ def cml(startup_description, options, argv=None):
         default=False,
         action="store_true",
         required=False,
-        help="Write all current settings to a censo.inp configuration file, which is placed into the current "
-        "directory.",
+        help="Write all currently selected settings to a censo.inp configuration "
+        "file, which is placed into the current directory.",
     )
     group8.add_argument(
         "-progress",
@@ -962,7 +957,8 @@ def cml(startup_description, options, argv=None):
         "--inprc",
         dest="inprcpath",
         required=False,
-        help="Path to the destination of the configuration file .censorc",
+        help="Path to the destination of the configuration file .censorc "
+        "The default is ~/.censorc",
     )
     group8.add_argument(
         "-tutorial",
@@ -970,7 +966,7 @@ def cml(startup_description, options, argv=None):
         dest="tutorial",
         required=False,
         action="store_true",
-        help="Start interactive CENSO documentation.",
+        help="Start the interactive CENSO documentation.",
     )
     group8.add_argument(
         "-create_SI",
@@ -978,36 +974,10 @@ def cml(startup_description, options, argv=None):
         dest="create_si",
         required=False,
         action="store_true",
-        help="Start automatic SI generation after CENSO run.",
+        help="Start automatic SI generation after CENSO run. (Work in progress)",
     )
     args = parser.parse_args(argv)
 
-    # apply logK settings but don't override user input!
-    if args.logK:
-        logk_settings = OrderedDict(
-            [
-                # general/cross-over settings
-                ("multitemp", "on"),
-                ("evaluate_rrho", "on"),
-                ("bhess", "on"),
-                ("crestcheck", "on"),
-                # part 1
-                ("part1", "on"),
-                ("smgsolv1", "cosmors"),
-                # part2
-                ("part2", "on"),
-                ("ancopt", "on"),
-                ("smgsolv2", "cosmors"),
-                ("opt_spearman", "on"),
-                ("spearmanthr", -4),
-                # part3
-                ("smgsolv3", "cosmors"),
-            ]
-        )
-        for key in logk_settings.keys():
-            if not getattr(args, key):
-                setattr(args, key, logk_settings[key])
-    # --------------------------end logK----------------------------------------
     if args.part3only:
         setattr(args, "part0", "off")
         setattr(args, "part1", "off")
@@ -1049,9 +1019,9 @@ class internal_settings:
         "part4": "part4",
         "func0": "func0",
         "func": "func",
+        "func3": "func3",
         "basis0": "basis0",
         "basis": "basis",
-        "func3": "func3",
         "basis3": "basis3",
         "couplings": "couplings",
         "progJ": "prog4_j",
@@ -1106,107 +1076,8 @@ class internal_settings:
         "cosmorsparam": "cosmorsparam",
         "progress": "progress",
         "balance": "balance",
-        "onlyread": "onlyread",
     }
-    knownbasissets3 = [
-        "SVP",
-        "SV(P)",
-        "TZVP",
-        "TZVPP",
-        "QZVP",
-        "QZVPP",
-        "def2-SV(P)",
-        "def2-mSVP",
-        "def2-SVP",
-        "def2-TZVP",
-        "def2-TZVPP",
-        "def2-mTZVP",
-        "def2-mTZVPP",
-        "def2-TZVPD",
-        "def-SVP",
-        "def-SV(P)",
-        "def2-QZVP",
-        "DZ",
-        "QZV",
-        "cc-pVDZ",
-        "cc-pVTZ",
-        "cc-pVQZ",
-        "cc-pV5Z",
-        "aug-cc-pVDZ",
-        "aug-cc-pVTZ",
-        "aug-cc-pVQZ",
-        "aug-cc-pV5Z",
-        "def2-QZVPP",
-        "minix",
-    ]
 
-    # information on functionals:
-    # composite_method_basis = {
-    #     "pbeh-3c": "def2-mSVP",
-    #     "pbeh3c": "def2-mSVP",
-    #     "b97-3c": "def2-mTZVP",
-    #     "b973c": "def2-mTZVP",
-    #     "hf3c": "minix",
-    #     "hf-3c": "minix",
-    #     "r2scan-3c": "def2-mTZVPP",
-    # }
-    # gga_dfa = ("tpss", "pbe", "kt2")
-    # hybrid_dfa = (
-    #     "pbe0",
-    #     "pw6b95",
-    #     "wb97x-d3",
-    #     "cam-b3lyp",
-    #     "b3-lyp",
-    #     "pbeh-3c",
-    #     "m06x",
-    #     "bh-lyp",
-    #     "tpssh",
-    # )
-    # dh_dfa = ("dsd-blyp",)
-
-    knownbasissetsJ = knownbasissets3 + ["pcJ-0", "pcJ-1", "pcJ-2"]
-    knownbasissetsS = knownbasissets3 + [
-        "pcSseg-0",
-        "pcSseg-1",
-        "pcSseg-2",
-        "pcSseg-3",
-        "x2c-SVPall-s",
-        "x2c-TZVPall-s",
-    ]
-    func_orca = ["pbeh-3c", "b97-3c", "tpss", "b97-d3", "pbe"]
-    func_tm = ["pbeh-3c", "b97-3c", "tpss", "r2scan-3c", "b97-d", "pbe"]
-    func3_orca = [
-        "pw6b95",
-        "pbe0",
-        "b97-d3",
-        "wb97x-d3",
-        "wb97x-d3bj",
-        "wb97x-v",
-        "dsd-blyp",
-        "b97-3c",
-        "pbeh-3c",
-        "tpss",
-        "pbe",
-        "b3lyp",
-    ]
-    func3_tm = [
-        "pw6b95",
-        "pbe0",
-        "b97-d",
-        "r2scan-3c",
-        "b97-3c",
-        "wb97x-v",
-        "pbeh-3c",
-        "tpss",
-        "pbe",
-        "b3-lyp",
-    ]
-    func_j_tm = ["tpss", "pbe0", "pbeh-3c", "r2scan-3c", "pbe"]
-    func_j_orca = ["tpss", "pbe0", "pbeh-3c", "pbe"]
-    func_s_tm = ["tpss", "pbe0", "pbeh-3c", "b97-3c", "kt1", "kt2", "r2scan-3c", "pbe"]
-    func_s_orca = ["tpss", "pbe0", "dsd-blyp", "pbeh-3c", "kt2", "pbe"]
-    func_or_scf_tm = list(set(func_tm + func3_tm))
-    func_or_tm = list(set(func_tm + func3_tm))
     impgfnv = ["gfn1", "gfn2", "gfnff"]
     tmp_smd_solvents = [
         "1,1,1-TRICHLOROETHANE",
@@ -1519,21 +1390,8 @@ class internal_settings:
     imppref = ["TMP", "PH3"]
     impsiref = ["TMS"]
 
-    func_basis_default = {
-        "pbeh-3c": "def2-mSVP",
-        "b97-3c": "def2-mTZVP",
-        "b973c": "def2-mTZVP",
-        "tpss": "def2-TZVP",
-        "r2scan-3c": "def2-mTZVPP",
-        "hf-3c": "minix",
-        "hf3c": "minix",
-    }
-
     def __init__(self):
-        self.impfunc = list(set(self.func_orca + self.func_tm))
-        self.impfunc3 = list(set(self.func3_orca + self.func3_tm))
-        self.impfunc_j = list(set(self.func_j_orca + self.func_j_tm))
-        self.impfunc_s = list(set(self.func_s_orca + self.func_s_tm))
+        self.func_info = dfa_settings()
         self.impsm2 = list(set(self.sm2_orca + self.sm2_tm + ["default"]))
         self.impsmgsolv1 = list(
             set(self.sm2_orca + self.sm2_tm + self.smgsolv_2 + ["sm2"])
@@ -1574,7 +1432,6 @@ class internal_settings:
             ("omp", {"default": 1, "type": int}),
             ("balance", {"default": False, "type": bool}),
             ("cosmorsparam", {"default": "automatic", "type": str}),
-            ("onlyread", {"default": False, "type": bool}),
         ]
         self.defaults_refine_ensemble_part0 = [
             # part0
@@ -1587,7 +1444,7 @@ class internal_settings:
         self.defaults_refine_ensemble_part1 = [
             # part1
             ("part1", {"default": True, "type": bool}),
-            ("smgsolv1", {"default": "cosmors", "type": str}),  # previously sm2
+            ("smgsolv1", {"default": "cosmors", "type": str}),
             ("part1_gfnv", {"default": "gfn2", "type": str}),
             ("part1_threshold", {"default": 3.5, "type": float}),
         ]
@@ -1596,7 +1453,7 @@ class internal_settings:
             ("part2", {"default": True, "type": bool}),
             ("opt_limit", {"default": 2.5, "type": float}),
             ("sm2", {"default": "default", "type": str}),
-            ("smgsolv2", {"default": "cosmors", "type": str}),  # previously sm2
+            ("smgsolv2", {"default": "cosmors", "type": str}),
             ("part2_gfnv", {"default": "gfn2", "type": str}),
             ("ancopt", {"default": True, "type": bool}),
             ("hlow", {"default": 0.01, "type": float}),
@@ -1612,9 +1469,9 @@ class internal_settings:
             # part3
             ("part3", {"default": False, "type": bool}),
             ("prog3", {"default": "prog", "type": str}),
-            ("func3", {"default": "pw6b95", "type": str}),  # previously b97-d
+            ("func3", {"default": "pw6b95", "type": str}),
             ("basis3", {"default": "def2-TZVPD", "type": str}),
-            ("smgsolv3", {"default": "cosmors", "type": str}),  # previously sm2
+            ("smgsolv3", {"default": "cosmors", "type": str}),
             ("part3_gfnv", {"default": "gfn2 ", "type": str}),
             ("part3_threshold", {"default": 99, "type": float}),
         ]
@@ -1671,8 +1528,11 @@ class internal_settings:
         self.internal_defaults_orca["smgsolv3"]["default"] = "smd"
         self.internal_defaults_orca["sm4_j"]["default"] = "smd"
         self.internal_defaults_orca["sm4_s"]["default"] = "smd"
+        self.internal_defaults_orca["basis0"]["default"] = "def2-SV(P)"
         self.internal_defaults_orca["basis"]["default"] = "def2-TZVP(-f)"
         self.internal_defaults_orca["basis3"]["default"] = "def2-TZVP(-f)"
+        self.internal_defaults_orca["basis_s"]["default"] = "def2-TZVP"
+        self.internal_defaults_orca["basis_j"]["default"] = "def2-TZVP"
         # tm
         self.internal_defaults_tm = deepcopy(self.internal_defaults)
         self.internal_defaults_tm["sm2"]["default"] = "dcosmors"
@@ -1681,7 +1541,12 @@ class internal_settings:
         self.internal_defaults_tm["smgsolv3"]["default"] = "dcosmors"
         self.internal_defaults_tm["sm4_j"]["default"] = "dcosmors"
         self.internal_defaults_tm["sm4_s"]["default"] = "dcosmors"
-
+        self.internal_defaults_tm["basis0"]["default"] = "def2-SV(P)"
+        self.internal_defaults_tm["basis"]["default"] = "def2-TZVP"
+        self.internal_defaults_tm["basis3"]["default"] = "def2-TZVP"
+        self.internal_defaults_tm["basis_s"]["default"] = "def2-TZVP"
+        self.internal_defaults_tm["basis_j"]["default"] = "def2-TZVP"
+        self.internal_defaults_tm["basis_or"]["default"] = "def2-SVPD"
         self.value_options = {
             "nconf": ["all", "number e.g. 10 up to all conformers"],
             "charge": ["number e.g. 0"],
@@ -1707,12 +1572,19 @@ class internal_settings:
             "temperature": ["temperature in K e.g. 298.15"],
             "multitemp": ["on", "off"],
             "trange": ["temperature range [start, end, step]"],
-            "func0": sorted(self.impfunc),
-            "basis0": ["automatic"] + sorted(list(self.func_basis_default.values())),
-            "func": sorted(self.impfunc),
-            "basis": ["automatic"] + sorted(list(self.func_basis_default.values())),
-            "func3": sorted(self.impfunc3),
-            "basis3": sorted(self.knownbasissets3),
+            "func0": sorted(self.func_info.infos("func0", prog=None)),
+            "basis0": ["automatic"]
+            + sorted(
+                list(self.func_info.composite_method_basis.values())
+                + ["def2-SV(P)", "def2-TZVP"]
+            ),
+            "func": sorted(self.func_info.infos("func", prog=None)),
+            "basis": ["automatic"]
+            + sorted(
+                list(self.func_info.composite_method_basis.values()) + ["def2-TZVP"]
+            ),
+            "func3": sorted(self.func_info.infos("func3", prog=None)),
+            "basis3": sorted(knownbasissets),
             "part0_threshold": ["number e.g. 4.0"],
             "part1_threshold": ["number e.g. 5.0"],
             "opt_limit": ["number e.g. 4.0"],
@@ -1751,10 +1623,10 @@ class internal_settings:
             "couplings": ["on", "off"],
             "prog4_j": ["tm", "orca", "adf", "prog"],
             "prog4_s": ["tm", "orca", "adf", "prog"],
-            "func_j": sorted(self.impfunc_j),
-            "basis_j": sorted(self.knownbasissetsJ),
-            "func_s": sorted(self.impfunc_s),
-            "basis_s": sorted(self.knownbasissetsS),
+            "func_j": sorted(self.func_info.infos("func_j", prog=None)),
+            "basis_j": sorted(knownbasissets),
+            "func_s": sorted(self.func_info.infos("func_s", prog=None)),
+            "basis_s": sorted(knownbasissets),
             "h_ref": sorted(self.imphref),
             "c_ref": self.impcref,
             "f_ref": self.impfref,
@@ -1779,14 +1651,12 @@ class internal_settings:
             "sthr": ["automatic or e.g., 50     # in cm-1"],
             "scale": ["automatic or e.g., 1.0 "],
             "cosmorsparam": ["automatic"] + sorted(list(cosmors_param.keys())),
-            "onlyread": ["on", "off"],
         }
         # must not be changed if restart(concerning optimization)
         self.restart_unchangeable = [
             "unpaired",
             "charge",
             "solvent",
-            "temperature",
             "prog",
             "ancopt",
             "opt_spearman",
@@ -1801,7 +1671,8 @@ class internal_settings:
         # might be changed, but data may be lost/overwritten
         self.restart_changeable = {
             "multitemp": False,
-            # "temperature": False, # should not be changeable all solvent and rrho values depend on this
+            # "temperature": False, # should not be changeable all solvent and
+            # rrho values depend on this
             "trange": False,
             "bhess": False,
             "part1_gfnv": False,
@@ -1859,6 +1730,7 @@ class config_setup(internal_settings):
         self.omp = 1
         self.balance = False
         self.cosmorsparam = "automatic"
+
         # part0
         self.part0 = False
         self.part0_gfnv = "gfnff"
@@ -1931,7 +1803,16 @@ class config_setup(internal_settings):
         self.save_errors = []
         self.save_infos = []
 
-        self.startupinfokeys = ["nat", "md5", "maxconf", "run", "configpath"]
+        self.startupinfokeys = [
+            "nat",
+            "md5",
+            "maxconf",
+            "run",
+            "configpath",
+            "fixed_temperature",
+        ]
+        self.onlyread = False
+        self.fixed_temperature = None
         self.nat = 0
         self.md5 = ""
         self.maxconf = 0
@@ -1949,6 +1830,13 @@ class config_setup(internal_settings):
         self.external_paths["cosmothermversion"] = ""
         self.external_paths["mpshiftpath"] = ""
         self.external_paths["escfpath"] = ""
+
+    def _set_fixed_temperature(self):
+        """Initialize the temperature employed in part0 part1 and crude_rrho in the
+        optimization (part2). This temperature is keept fixed for all restarts, to be able
+        to compare the same (free) energies."""
+        if self.fixed_temperature is None:
+            setattr(self, "fixed_temperature", float(getattr(self, "temperature")))
 
     def cleanup_run(self, complete=False):
         """
@@ -2008,14 +1896,14 @@ class config_setup(internal_settings):
         --> method2 gsolv
         """
         if func is not None and basis is not None:
-            if func in composite_method_basis.keys():
-                if basis == self.func_basis_default.get(func, None):
+            if func in dfa_settings.composite_method_basis.keys():
+                if basis == dfa_settings.composite_method_basis[func]:
                     # composite method (e.g. r2scan-3c)
                     tmp_func_basis = func
                 else:
                     # FUNC/BASIS
                     tmp_func_basis = f"{func}/{basis}"
-            elif disp is not None: #and func not in disp_already_included_in_func:
+            elif disp is not None:
                 # FUNC-DISP/BASIS
                 tmp_func_basis = f"{func}-{disp}/{basis}"
             else:
@@ -2069,6 +1957,8 @@ class config_setup(internal_settings):
             else:
                 method = f"{tmp_func_basis}[{str(sm).upper()}]-{prog}"
         elif jobtype in ("opt-rot", "opt-rot_sp"):
+            if func2 == "r2scan-3c" and basis != "def2-mTZVPP":
+                func2 = f"r2scan/{basis}"
             if solvent == "gas":
                 method = f"{tmp_func_basis}_[SCF={func2}]({prog})"
             else:
@@ -2226,6 +2116,14 @@ class config_setup(internal_settings):
                         rcdata[key] = self.internal_defaults[key]["type"](
                             self.internal_defaults[key]["default"]
                         )
+            if key == "nconf":
+                if rcdata[key] == "all":
+                    rcdata[key] = None
+                else:
+                    try:
+                        rcdata[key] = int(rcdata[key])
+                    except ValueError:
+                        rcdata[key] = None
         for key, value in rcdata.items():
             if key in vars(self).keys():
                 setattr(self, key, value)
@@ -2276,161 +2174,298 @@ class config_setup(internal_settings):
                 "free energy will not be calculated, since prog_rrho ist set to 'off'!"
             )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # COSMO-RS only works with TM
+        if self.solvent != "gas":
+            if (
+                self.smgsolv1 in ("cosmors", "cosmors-fine")
+                and self.prog == "orca"
+                and self.part1
+            ):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}Part1 when used with COSMO-RS can only be prog = TM!\n"
+                    f"{'':{WARNLEN}}Set prog to tm or change smgsolv1 to e.g. smd_gsolv!"
+                )
+                error_logical = True
+            if (
+                self.smgsolv2 in ("cosmors", "cosmors-fine")
+                and self.prog == "orca"
+                and self.part2
+            ):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}Part2 when used with COSMO-RS can only be prog = TM!\n"
+                    f"{'':{WARNLEN}}Set prog to tm or change smgsolv2 to e.g. smd_gsolv!"
+                )
+                error_logical = True
+            if (
+                self.smgsolv3 in ("cosmors", "cosmors-fine")
+                and self.prog3 == "orca"
+                and self.part3
+            ):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}Part3 when used with COSMO-RS can only be prog3 = TM!\n"
+                    f"{'':{WARNLEN}}Set prog3 to tm or change smgsolv3 to e.g. smd_gsolv!"
+                )
+                error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # adjust functional-names to new naming convention (cfg.functional)
+        self.func0 = self.func_info.relay_functionals.get(self.func0, self.func0)
+        self.func = self.func_info.relay_functionals.get(self.func, self.func)
+        self.func3 = self.func_info.relay_functionals.get(self.func3, self.func3)
+        self.func_j = self.func_info.relay_functionals.get(self.func_j, self.func_j)
+        self.func_s = self.func_info.relay_functionals.get(self.func_s, self.func_s)
+        self.func_or = self.func_info.relay_functionals.get(self.func_or, self.func_or)
+        self.func_or_scf = self.func_info.relay_functionals.get(
+            self.func_or_scf, self.func_or_scf
+        )
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle func0
+        # available with QM code
+        if self.part0:
+            if self.func0 not in self.func_info.infos("func0", prog=self.prog):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(func0) {self.func0} is not implemented with the {self.prog} program package.\n"
+                )
+                error_logical = True
+            # check if available for part0
+            if self.func0 not in self.func_info.infos("func0"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func0} is not available for part0.\n"
+                )
+                error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle basis0 for func0:
+        if self.part0:
+            if (
+                self.basis0 == "None"
+                or self.basis0 is None
+                or self.basis0 == "automatic"
+            ):
+                if self.prog == "tm":
+                    default = self.internal_defaults_tm.get(
+                        "basis0", {"default": "def2-SV(P)"}
+                    )["default"]
+                elif self.prog == "orca":
+                    default = self.internal_defaults_orca.get(
+                        "basis0", {"default": "def2-SV(P)"}
+                    )["default"]
+                else:
+                    default = "def2-SV(P)"
+                self.basis0 = self.func_info.composite_method_basis.get(
+                    self.func0, default
+                )
+            if self.basis0 not in knownbasissets:
+                if self.basis0 == "def2-TZVP(-f)" and self.prog == "tm":
+                    self.basis0 = "def2-TZVP"
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis0} "
+                        f"is used instead of {'def2-TZVP(-f)'}"
+                    )
+                else:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis0} could not be "
+                        + f"checked, but is used anyway!"
+                    )
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle func
+        # available with QM code
+        if self.part1 or self.part2:
+            if self.func not in self.func_info.infos("func", prog=self.prog):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
+                )
+                error_logical = True
+            # check if available for part1 / part2
+            if self.func not in self.func_info.infos("func"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func} is not available for part1 / part2.\n"
+                )
+                error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle basis for func:
+        if self.part1 or self.part2:
+            if self.basis == "None" or self.basis is None or self.basis == "automatic":
+                if self.prog == "tm":
+                    default = self.internal_defaults_tm.get(
+                        "basis", {"default": "def2-TZVP"}
+                    )["default"]
+                elif self.prog == "orca":
+                    default = self.internal_defaults_orca.get(
+                        "basis", {"default": "def2-TZVP"}
+                    )["default"]
+                else:
+                    default = "def2-TZVP"
+                self.basis = self.func_info.composite_method_basis.get(
+                    self.func, default
+                )
+            if self.basis not in knownbasissets:
+                if self.basis == "def2-TZVP(-f)" and self.prog == "tm":
+                    self.basis = "def2-TZVP"
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} "
+                        f"is used instead of {'def2-TZVP(-f)'}"
+                    )
+                else:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} could not be "
+                        + f"checked, but is used anyway!"
+                    )
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3 dsd-blyp with basis
-        if self.part3 and self.func3 == "dsd-blyp" and self.basis3 != "def2-TZVPP":
+        if (
+            self.part3
+            and self.func3 in ("dsd-blyp", "dsd-blyp-d3")
+            and self.basis3 != "def2-TZVPP"
+        ):
             self.save_errors.append(
                 f"{'WARNING:':{WARNLEN}}DSD-BLYP is only available with the basis set def2-TZVPP!"
             )
             self.basis3 = "def2-TZVPP"
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle func0
-        if self.prog == "orca" and self.func0 not in self.func_orca:
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}The functional "
-                f"(func0) {self.func0} is not implemented with the {self.prog} program package.\n"
-                f"{'':{WARNLEN}}Options are: {self.func_orca}"
-            )
-            error_logical = True
-        if self.prog == "tm" and self.func0 not in self.func_tm:
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}The functional "
-                f"(func0) {self.func0} is not implemented with the {self.prog} program package. "
-                f"{'':{WARNLEN}}Options are: {self.func_tm}"
-            )
-            error_logical = True
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle basis0 for func0:
-        if self.basis0 == "None" or self.basis0 is None or self.basis0 == "automatic":
-            if self.prog == "tm":
-                default = self.internal_defaults_tm.get(
-                    "basis0", {"default": "def2-SV(P)"}
-                )["default"]
-            elif self.prog == "orca":
-                default = self.internal_defaults_orca.get(
-                    "basis0", {"default": "def2-SV(P)"}
-                )["default"]
-            else:
-                default = "def2-SV(P)"
-            self.basis0 = self.func_basis_default.get(self.func0, default)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle func
-        if self.prog == "orca" and self.func not in self.func_orca:
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}The functional "
-                f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
-                f"{'':{WARNLEN}}Options are: {self.func_orca}"
-            )
-            error_logical = True
-        if self.prog == "tm" and self.func not in self.func_tm:
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}The functional (func) {self.func} is not implemented with the {self.prog} program package.\n"
-                f"{'':{WARNLEN}}Options are: {self.func_tm}"
-            )
-            error_logical = True
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle basis for func:
-        if self.basis == "None" or self.basis is None or self.basis == "automatic":
-            if self.prog == "tm":
-                default = self.internal_defaults_tm.get(
-                    "basis", {"default": "def2-TZVP"}
-                )["default"]
-            elif self.prog == "orca":
-                default = self.internal_defaults_orca.get(
-                    "basis", {"default": "def2-TZVP"}
-                )["default"]
-            else:
-                default = "def2-TZVP"
-            self.basis = self.func_basis_default.get(self.func, default)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis3:
-        if self.basis3 == "None" or self.basis3 is None or self.basis3 == "automatic":
-            if self.prog3 == "tm":
-                default = self.internal_defaults_tm.get(
-                    "basis3", {"default": "def2-TZVP"}
-                )["default"]
-            elif self.prog3 == "orca":
-                default = self.internal_defaults_orca.get(
-                    "basis3", {"default": "def2-TZVP"}
-                )["default"]
-            else:
-                default = "def2-TZVP"
-            self.basis3 = self.func_basis_default.get(self.func3, default)
+        if self.part3:
+            if (
+                self.basis3 == "None"
+                or self.basis3 is None
+                or self.basis3 == "automatic"
+            ):
+                if self.prog3 == "tm":
+                    default = self.internal_defaults_tm.get(
+                        "basis3", {"default": "def2-TZVP"}
+                    )["default"]
+                elif self.prog3 == "orca":
+                    default = self.internal_defaults_orca.get(
+                        "basis3", {"default": "def2-TZVP"}
+                    )["default"]
+                else:
+                    default = "def2-TZVP"
+                self.basis3 = self.func_info.composite_method_basis.get(
+                    self.func3, default
+                )
+            if self.basis3 not in knownbasissets:
+                if self.basis3 == "def2-TZVP(-f)" and self.prog3 == "tm":
+                    self.basis3 = "def2-TZVP"
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis3: {self.basis3} "
+                        f"is used instead of {'def2-TZVP(-f)'}"
+                    )
+                else:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis3: {self.basis3} could not be "
+                        + f"checked, but is used anyway!"
+                    )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3
-        if self.part3 and self.func3 in composite_method_basis.keys():
-            if self.basis3 != composite_method_basis[self.func3]:
+        if self.part3:
+            if self.func3 in self.func_info.composite_method_basis.keys():
+                if self.basis3 != self.func_info.composite_method_basis[self.func3]:
+                    self.save_errors.append(
+                        f"{'INFORMATION:':{WARNLEN}}You are using a basis "
+                        f"set (basis3) {self.basis3} different to the original composite method"
+                        f" basis set ({self.func_info.composite_method_basis[self.func3]})!"
+                    )
+            # available with QM code
+            if self.func3 not in self.func_info.infos("func3", prog=self.prog3):
                 self.save_errors.append(
-                    f"{'INFORMATION:':{WARNLEN}}You are using a basis "
-                    f"set (basis3) {self.basis3} different to the original composite method"
-                    f" basis set ({composite_method_basis[self.func3]})!"
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
                 )
-        if self.part3 and self.prog3 == "orca" and self.func3 not in self.func3_orca:
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}The functional "
-                f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
-                f"{'':{WARNLEN}}Options are: {self.func3_orca}"
-            )
-            error_logical = True
-        elif self.part3 and self.prog3 == "tm" and self.func3 not in self.func3_tm:
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}The functional "
-                f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
-                f"{'':{WARNLEN}}Options are: {self.func3_tm}"
-            )
-            error_logical = True
+                error_logical = True
+            # check if available for part3
+            if self.func3 not in self.func_info.infos("func3"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func3} is not available for part3.\n"
+                )
+                error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if self.part4 and (self.couplings or self.shieldings):
             self.nmrmode = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_j
         if self.part4:
-            if self.prog4_j == "orca" and self.func_j not in self.func_j_orca:
+            # available with QM code
+            if self.func_j not in self.func_info.infos("func_j", prog=self.prog4_j):
                 self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcJ) {self.func_j} "
-                    f"is not implemented in CENSO with the {self.prog4_j} program package.\n"
-                    f"{'':{WARNLEN}}Options are: {self.func_j_orca}"
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(funcJ) {self.func_j} is not implemented with the {self.prog4_j} "
+                    "program package.\n"
                 )
                 error_logical = True
-            if self.prog4_j == "tm" and self.func_j not in self.func_j_tm:
+            # check if available for part4
+            if self.func_j not in self.func_info.infos("func_j"):
                 self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcJ) {self.func_j} "
-                    f"is not implemented in CENSO with the {self.prog4_j} program package.\n"
-                    f"{'':{WARNLEN}}Options are: {self.func_j_tm}"
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func_j} is not available for part4.\n"
                 )
                 error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis_j:
-        if (
-            getattr(self, "basis_j", None) is None
-            or getattr(self, "basis_j", None) == "automatic"
-        ):
-            default_basis_j = composite_method_basis.get(self.func_j, "def2-TZVP")
-            setattr(self, "basis_j", default_basis_j)
+        if self.part4:
+            if (
+                getattr(self, "basis_j", None) is None
+                or getattr(self, "basis_j", None) == "automatic"
+            ):
+                default_basis_j = self.func_info.composite_method_basis.get(
+                    self.func_j, "def2-TZVP"
+                )
+                setattr(self, "basis_j", default_basis_j)
+            if self.basis_j not in knownbasissets:
+                if self.basis_j == "def2-TZVP(-f)" and self.prog4_j == "tm":
+                    self.basis_j = "def2-TZVP"
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basisJ: {self.basis_j} "
+                        f"is used instead of {'def2-TZVP(-f)'}"
+                    )
+                else:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis_j} "
+                        "could not be " + f"checked, but is used anyway!"
+                    )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_s
         if self.part4:
-            if self.prog4_s == "orca" and self.func_s not in self.func_s_orca:
+            # available with QM code
+            if self.func_s not in self.func_info.infos("func_s", prog=self.prog4_s):
                 self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcS) {self.func_s}"
-                    f" is not implemented in CENSO with the {self.prog4_s} program package.\n"
-                    f"{'':{WARNLEN}}Options are: {self.func_s_orca}"
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(funcS) {self.func_s} is not implemented with the {self.prog4_s} "
+                    "program package.\n"
                 )
                 error_logical = True
-            if self.prog4_s == "tm" and self.func_s not in self.func_s_tm:
+            # check if available for part4
+            if self.func_s not in self.func_info.infos("func_s"):
                 self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}In part4 the functional (funcS) {self.func_s}"
-                    f" is not implemented in CENSO with the {self.prog4_s} program package.\n"
-                    f"{'':{WARNLEN}}Options are: {self.func_s_tm}"
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func_s} is not available for part4.\n"
                 )
                 error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle basis_s:
-        if (
-            getattr(self, "basis_s", None) is None
-            or getattr(self, "basis_s", None) == "automatic"
-        ):
-            default_basis_s = composite_method_basis.get(self.func_s, "def2-TZVP")
-            setattr(self, "basis_s", default_basis_s)
+        if self.part4:
+            if (
+                getattr(self, "basis_s", None) is None
+                or getattr(self, "basis_s", None) == "automatic"
+            ):
+                default_basis_s = self.func_info.composite_method_basis.get(
+                    self.func_s, "def2-TZVP"
+                )
+                setattr(self, "basis_s", default_basis_s)
+            if self.basis_s not in knownbasissets:
+                if self.basis_s == "def2-TZVP(-f)" and self.prog4_s == "tm":
+                    self.basis_s = "def2-TZVP"
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basisS: {self.basis_s} "
+                        f"is used instead of {'def2-TZVP(-f)'}"
+                    )
+                else:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis0} could not be "
+                        + f"checked, but is used anyway!"
+                    )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # no unpaired electrons in coupling or shielding calculations!
         if self.unpaired > 0:
@@ -2450,159 +2485,188 @@ class config_setup(internal_settings):
             self.sm4_j = "gas-phase"
             self.sm4_s = "gas-phase"
         else:
-            # Handle sm2 --> solvent model in optimization:
-            exchange_sm = {
-                "cosmo": "cpcm",
-                "cpcm": "cosmo",
-                "dcosmors": "smd",
-                "smd": "dcosmors",
-            }
-            if self.sm2 not in self.impsm2:
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The solvent model {self.sm2} is not implemented!"
-                )
-                error_logical = True
-            if self.prog == "orca":
-                if self.sm2 in self.sm2_tm:
+            if self.part2:
+                # Handle sm2 --> solvent model in optimization:
+                exchange_sm = {
+                    "cosmo": "cpcm",
+                    "cpcm": "cosmo",
+                    "dcosmors": "smd",
+                    "smd": "dcosmors",
+                }
+                if self.sm2 not in self.impsm2:
                     self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
-                        f"{self.prog}! Therefore {exchange_sm[self.sm2]} is used!"
+                        f"{'ERROR:':{WARNLEN}}The solvent model {self.sm2} is not implemented!"
                     )
-                    self.sm2 = exchange_sm[self.sm2]
-                elif self.sm2 == "default":
-                    self.sm2 = self.internal_defaults_orca["sm2"]["default"]
-            if self.prog == "tm":
-                if self.sm2 in self.sm2_orca:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
-                        f"{self.prog}! Therefore { exchange_sm[self.sm2]} is used!"
-                    )
-                    self.sm2 = exchange_sm[self.sm2]
-                elif self.sm2 == "default":
-                    self.sm2 = self.internal_defaults_tm["sm2"]["default"]
+                    error_logical = True
+                if self.prog == "orca":
+                    if self.sm2 in self.sm2_tm:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
+                            f"{self.prog}! Therefore {exchange_sm[self.sm2]} is used!"
+                        )
+                        self.sm2 = exchange_sm[self.sm2]
+                    elif self.sm2 == "default":
+                        self.sm2 = self.internal_defaults_orca["sm2"]["default"]
+                if self.prog == "tm":
+                    if self.sm2 in self.sm2_orca:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
+                            f"{self.prog}! Therefore { exchange_sm[self.sm2]} is used!"
+                        )
+                        self.sm2 = exchange_sm[self.sm2]
+                    elif self.sm2 == "default":
+                        self.sm2 = self.internal_defaults_tm["sm2"]["default"]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Handle smgsolv1
-            exchange_sm = {
-                "cosmo": "cpcm",
-                "cpcm": "cosmo",
-                "dcosmors": "smd",
-                "smd": "dcosmors",
-            }
-            if self.smgsolv1 not in self.impsmgsolv1:
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv1}"
-                    " is not implemented for smgsolv1 !"
-                )
-                error_logical = True
-            if self.smgsolv1 == "sm2":
-                self.smgsolv1 = self.sm2
-            if self.prog == "tm" and self.smgsolv1 in self.sm2_orca:
-                self.save_errors.append(
-                    f"{'WARNING:':{WARNLEN}}{self.smgsolv1} is not available with "
-                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv1]} is used!"
-                )
-                self.smgsolv1 = exchange_sm[self.smgsolv1]
-            if self.prog == "orca" and self.smgsolv1 in self.sm2_tm:
-                self.save_errors.append(
-                    f"{'WARNING:':{WARNLEN}}{self.smgsolv1} is not available with "
-                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv1]} is used!"
-                )
-                self.smgsolv1 = exchange_sm[self.smgsolv1]
+            if self.part1:
+                # Handle smgsolv1
+                exchange_sm = {
+                    "cosmo": "cpcm",
+                    "cpcm": "cosmo",
+                    "dcosmors": "smd",
+                    "smd": "dcosmors",
+                }
+                if self.smgsolv1 not in self.impsmgsolv1:
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv1}"
+                        " is not implemented for smgsolv1 !"
+                    )
+                    error_logical = True
+                if self.smgsolv1 == "sm2":
+                    self.smgsolv1 = self.sm2
+                if self.prog == "tm" and self.smgsolv1 in self.sm2_orca:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}{self.smgsolv1} is not available with "
+                        f"{self.prog}! Therefore {exchange_sm[self.smgsolv1]} is used!"
+                    )
+                    self.smgsolv1 = exchange_sm[self.smgsolv1]
+                if self.prog == "orca" and self.smgsolv1 in self.sm2_tm:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}{self.smgsolv1} is not available with "
+                        f"{self.prog}! Therefore {exchange_sm[self.smgsolv1]} is used!"
+                    )
+                    self.smgsolv1 = exchange_sm[self.smgsolv1]
+                if (
+                    self.smgsolv1 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv")
+                    and self.multitemp
+                ):
+                    self.save_errors.append(
+                        f"{'INFORMATION:':{WARNLEN}}{self.smgsolv1} does not provide "
+                        "information at different temperatures!"
+                    )
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Handle smgsolv2
-            exchange_sm = {
-                "cosmo": "cpcm",
-                "cpcm": "cosmo",
-                "dcosmors": "smd",
-                "smd": "dcosmors",
-            }
-            if self.smgsolv2 not in self.impsmgsolv2:
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv2}"
-                    " is not implemented for smgsolv2 !"
-                )
-                error_logical = True
-            if self.smgsolv2 == "sm2":
-                self.smgsolv2 = self.sm2
-            if self.prog == "tm" and self.smgsolv2 in self.sm2_orca:
-                self.save_errors.append(
-                    f"{'WARNING:':{WARNLEN}}{self.smgsolv2} is not available with "
-                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv2]} is used!"
-                )
-                self.smgsolv2 = exchange_sm[self.smgsolv2]
-            if self.prog == "orca" and self.smgsolv2 in self.sm2_tm:
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}{self.smgsolv2} is not available with "
-                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv2]} is used!"
-                )
-                self.smgsolv2 = exchange_sm[self.smgsolv2]
+            if self.part2:
+                # Handle smgsolv2
+                exchange_sm = {
+                    "cosmo": "cpcm",
+                    "cpcm": "cosmo",
+                    "dcosmors": "smd",
+                    "smd": "dcosmors",
+                }
+                if self.smgsolv2 not in self.impsmgsolv2:
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv2}"
+                        " is not implemented for smgsolv2 !"
+                    )
+                    error_logical = True
+                if self.smgsolv2 == "sm2":
+                    self.smgsolv2 = self.sm2
+                if self.prog == "tm" and self.smgsolv2 in self.sm2_orca:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}{self.smgsolv2} is not available with "
+                        f"{self.prog}! Therefore {exchange_sm[self.smgsolv2]} is used!"
+                    )
+                    self.smgsolv2 = exchange_sm[self.smgsolv2]
+                if self.prog == "orca" and self.smgsolv2 in self.sm2_tm:
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}{self.smgsolv2} is not available with "
+                        f"{self.prog}! Therefore {exchange_sm[self.smgsolv2]} is used!"
+                    )
+                    self.smgsolv2 = exchange_sm[self.smgsolv2]
+                if (
+                    self.smgsolv2 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv")
+                    and self.multitemp
+                ):
+                    self.save_errors.append(
+                        f"{'INFORMATION:':{WARNLEN}}{self.smgsolv2} does not provide "
+                        "information at different temperatures!"
+                    )
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Handle smgsolv3
-            exchange_sm = {
-                "cosmo": "cpcm",
-                "cpcm": "cosmo",
-                "dcosmors": "smd",
-                "smd": "dcosmors",
-            }
-            if self.smgsolv3 not in self.impsmgsolv3:
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv3}"
-                    " is not implemented for smgsolv3 !"
-                )
-                error_logical = True
-            if self.smgsolv3 == "sm2":
-                self.smgsolv3 = self.sm2
-            if self.prog == "tm" and self.smgsolv3 in self.sm2_orca:
-                self.save_errors.append(
-                    f"{'WARNING:':{WARNLEN}}{self.smgsolv3} is not available with "
-                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv3]} is used!"
-                )
-                self.smgsolv3 = exchange_sm[self.smgsolv3]
-            if self.prog == "orca" and self.smgsolv3 in self.sm2_tm:
-                self.save_errors.append(
-                    f"{'WARNING:':{WARNLEN}}{self.smgsolv3} is not available with "
-                    f"{self.prog}! Therefore {exchange_sm[self.smgsolv3]} is used!"
-                )
-                self.smgsolv3 = exchange_sm[self.smgsolv3]
+            if self.part3:
+                # Handle smgsolv3
+                exchange_sm = {
+                    "cosmo": "cpcm",
+                    "cpcm": "cosmo",
+                    "dcosmors": "smd",
+                    "smd": "dcosmors",
+                }
+                if self.smgsolv3 not in self.impsmgsolv3:
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}The solvent model {self.smgsolv3}"
+                        " is not implemented for smgsolv3 !"
+                    )
+                    error_logical = True
+                if self.smgsolv3 == "sm2":
+                    self.smgsolv3 = self.sm2
+                if self.prog3 == "tm" and self.smgsolv3 in self.sm2_orca:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}{self.smgsolv3} is not available with "
+                        f"{self.prog3}! Therefore {exchange_sm[self.smgsolv3]} is used!"
+                    )
+                    self.smgsolv3 = exchange_sm[self.smgsolv3]
+                if self.prog3 == "orca" and self.smgsolv3 in self.sm2_tm:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}{self.smgsolv3} is not available with "
+                        f"{self.prog3}! Therefore {exchange_sm[self.smgsolv3]} is used!"
+                    )
+                    self.smgsolv3 = exchange_sm[self.smgsolv3]
+                if (
+                    self.smgsolv3 in ("alpb_gsolv", "gbsa_gsolv", "smd_gsolv")
+                    and self.multitemp
+                ):
+                    self.save_errors.append(
+                        f"{'INFORMATION:':{WARNLEN}}{self.smgsolv3} does not provide "
+                        "information at different temperatures!"
+                    )
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            # Handle sm4_j
-            if self.prog4_j == "orca":
-                if self.sm4_j in self.sm4_j_tm:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}{self.sm4_j} is not available with {self.prog4_j}!"
-                        f" Therefore {exchange_sm[self.sm4_j]} is used!"
-                    )
-                    self.sm4_j = exchange_sm[self.sm4_j]
-                elif self.sm4_j == "default":
-                    self.sm4_j = self.internal_defaults_orca["sm4_j"]["default"]
-            if self.prog4_j == "tm":
-                if self.sm4_j in self.sm4_j_orca:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}{self.sm4_j} is not available with {self.prog4_j}!"
-                        f" Therefore {exchange_sm[self.sm4_j]} is used!"
-                    )
-                    self.sm4_j = exchange_sm[self.sm4_j]
-                elif self.sm4_j == "default":
-                    self.sm4_j = self.internal_defaults_tm["sm4_j"]["default"]
-            # Handle sm4_s
-            if self.prog4_s == "orca":
-                if self.sm4_s in self.sm4_s_tm:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}{self.sm4_s} is not available with {self.prog4_s}!"
-                        f" Therefore { exchange_sm[self.sm4_s]} is used!"
-                    )
-                    self.sm4_s = exchange_sm[self.sm4_s]
-                elif self.sm4_s == "default":
-                    self.sm4_s = self.internal_defaults_orca["sm4_s"]["default"]
-            if self.prog4_s == "tm":
-                if self.sm4_s in self.sm4_s_orca:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}{self.sm4_s} is not available with {self.prog4_s}!"
-                        f" Therefore {exchange_sm[self.sm4_s]} is used!"
-                    )
-                    self.sm4_s = exchange_sm[self.sm4_s]
-                elif self.sm4_s == "default":
-                    self.sm4_s = self.internal_defaults_tm["sm4_s"]["default"]
+            if self.part4:
+                # Handle sm4_j
+                if self.prog4_j == "orca":
+                    if self.sm4_j in self.sm4_j_tm:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}{self.sm4_j} is not available with {self.prog4_j}!"
+                            f" Therefore {exchange_sm[self.sm4_j]} is used!"
+                        )
+                        self.sm4_j = exchange_sm[self.sm4_j]
+                    elif self.sm4_j == "default":
+                        self.sm4_j = self.internal_defaults_orca["sm4_j"]["default"]
+                if self.prog4_j == "tm":
+                    if self.sm4_j in self.sm4_j_orca:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}{self.sm4_j} is not available with {self.prog4_j}!"
+                            f" Therefore {exchange_sm[self.sm4_j]} is used!"
+                        )
+                        self.sm4_j = exchange_sm[self.sm4_j]
+                    elif self.sm4_j == "default":
+                        self.sm4_j = self.internal_defaults_tm["sm4_j"]["default"]
+                # Handle sm4_s
+                if self.prog4_s == "orca":
+                    if self.sm4_s in self.sm4_s_tm:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}{self.sm4_s} is not available with {self.prog4_s}!"
+                            f" Therefore { exchange_sm[self.sm4_s]} is used!"
+                        )
+                        self.sm4_s = exchange_sm[self.sm4_s]
+                    elif self.sm4_s == "default":
+                        self.sm4_s = self.internal_defaults_orca["sm4_s"]["default"]
+                if self.prog4_s == "tm":
+                    if self.sm4_s in self.sm4_s_orca:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}{self.sm4_s} is not available with {self.prog4_s}!"
+                            f" Therefore {exchange_sm[self.sm4_s]} is used!"
+                        )
+                        self.sm4_s = exchange_sm[self.sm4_s]
+                    elif self.sm4_s == "default":
+                        self.sm4_s = self.internal_defaults_tm["sm4_s"]["default"]
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # Check if solvent-information is available for solventmodel
             # Check which solvation models are applied:
@@ -2666,7 +2730,8 @@ class config_setup(internal_settings):
                         == "nothing_found"
                     ):
                         self.save_errors.append(
-                            f"{'ERROR:':{WARNLEN}}The solvent for solventmodel in {key} is not found!"
+                            f"{'ERROR:':{WARNLEN}}The solvent for solventmodel in "
+                            "{key} is not found!"
                         )
                         error_logical = True
                     if key == "DC":
@@ -2686,12 +2751,14 @@ class config_setup(internal_settings):
                                 < 150.0
                             ):
                                 self.save_errors.append(
-                                    f"{'ERROR:':{WARNLEN}}The dielectric constant can not be converted."
+                                    f"{'ERROR:':{WARNLEN}}The dielectric constant "
+                                    "can not be converted."
                                 )
                                 error_logical = True
                         except ValueError:
                             self.save_errors.append(
-                                f"{'ERROR:':{WARNLEN}}The dielectric constant can not be converted."
+                                f"{'ERROR:':{WARNLEN}}The dielectric constant can "
+                                "not be converted."
                             )
                             error_logical = True
                     elif key in ("smd", "cpcm"):
@@ -2701,7 +2768,8 @@ class config_setup(internal_settings):
                             self.save_errors.append(
                                 f"{'WARNING:':{WARNLEN}}The solvent "
                                 f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}"
-                                f" for solventmodel/program {key} can not be checked but is used anyway."
+                                f" for solventmodel/program {key} can not be checked "
+                                "but is used anyway."
                             )
                     else:
                         if censo_solvent_db[self.solvent].get(key, "nothing_found")[
@@ -2710,21 +2778,9 @@ class config_setup(internal_settings):
                             self.save_errors.append(
                                 f"{'WARNING:':{WARNLEN}}The solvent "
                                 f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
-                                f"for solventmodel/program {key} can not be checked but is used anyway."
+                                f"for solventmodel/program {key} can not be checked "
+                                "but is used anyway."
                             )
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # prog3 if smgsolv3 cosmors
-        if (
-            self.part3
-            and self.solvent != "gas"
-            and self.smgsolv3 in ("cosmors", "cosmors-fine")
-        ):
-            if self.prog3 == "orca":
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}Part3 when used with COSMO-RS can only be prog3 = TM!\n"
-                    f"{'':{WARNLEN}}Set prog3 to tm !"
-                )
-                error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle optlevel2:
         # sm2 needs to be set (not default!)
@@ -2741,7 +2797,7 @@ class config_setup(internal_settings):
                 f"{'INFORMATION:':{WARNLEN}}Neither coupling nor "
                 "shielding constants are activated! Part4 is not executed."
             )
-        elif not any(
+        elif self.part4 and not any(
             [
                 getattr(self, flag)
                 for flag in (
@@ -2753,15 +2809,10 @@ class config_setup(internal_settings):
                 )
             ]
         ):
-            if self.part4:
-                self.save_errors.append(
-                    f"{'INFORMATION:':{WARNLEN}}No type of NMR spectrum is "
-                    "activated in the .censorc! Therefore all nuclei are calculated!"
-                )
-            else:
-                self.save_errors.append(
-                    f"{'WARNING:':{WARNLEN}}No type of NMR spectrum is activated in the .censorc!"
-                )
+            self.save_errors.append(
+                f"{'INFORMATION:':{WARNLEN}}No active element for the calculation of NMR is "
+                "activated in the .censorc! Therefore all nuclei are calculated!"
+            )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # optical rotation
         if self.optical_rotation and self.prog == "orca":
@@ -2769,6 +2820,62 @@ class config_setup(internal_settings):
                 f"{'ERROR:':{WARNLEN}}Optical rotation calculations are only possible with TM."
             )
             error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle func_or
+        if self.optical_rotation:
+            # available with QM code
+            if self.func_or not in self.func_info.infos("func_or", prog="tm"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(funcOR) {self.func_or} is not implemented with the "
+                    "{'tm'} program package.\n"
+                )
+                error_logical = True
+            # check if available for part5
+            if self.func_or not in self.func_info.infos("func_or"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func_or} is not available for part5.\n"
+                )
+                error_logical = True
+            # available with QM code
+            if self.func_or_scf not in self.func_info.infos("func_or_scf", prog="tm"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"(funcOR) {self.func_or_scf} is not implemented with the "
+                    "{'tm'} program package.\n"
+                )
+                error_logical = True
+            # check if available for part5
+            if self.func_or_scf not in self.func_info.infos("func_or_scf"):
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}The functional "
+                    f"{self.func_or_scf} is not available for part5.\n"
+                )
+                error_logical = True
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Handle basis_or:
+            if (
+                getattr(self, "basis_or", None) is None
+                or getattr(self, "basis_or", None) == "automatic"
+            ):
+                default_basis_or = self.func_info.composite_method_basis.get(
+                    self.func_or_scf, "def2-SVPD"
+                )
+                setattr(self, "basis_or", default_basis_or)
+            if self.basis_or not in knownbasissets:
+                if self.basis_or == "def2-TZVP(-f)" and self.prog == "tm":
+                    self.basis_or = "def2-TZVP"
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basisOR: {self.basis_or} "
+                        f"is used instead of {'def2-TZVP(-f)'}"
+                    )
+                else:
+                    self.save_errors.append(
+                        f"{'WARNING:':{WARNLEN}}The basis set basisOR: {self.basis_or} "
+                        "could not be checked, but is used anyway!"
+                    )
+
         if silent:
             self.save_errors = store_errors
         return error_logical
@@ -2793,18 +2900,6 @@ class config_setup(internal_settings):
         if self.save_infos:
             for _ in list(self.save_infos):
                 print(self.save_infos.pop(0))
-        if self.onlyread:
-            self.save_errors.append(
-                f"{'WARNING:':{WARNLEN}}Using the option ``readonly`` to re-read"
-                + f" data from old outputs. This option is experimental therefore "
-                + f"check results carefully.\n"
-                + f"{'        ':{WARNLEN}}It can only succeed if exactly the same "
-                + f"input commands (.censorc + command line) are supplied!"
-            )
-        if self.save_errors:
-            print("")
-            for _ in list(self.save_errors):
-                print(self.save_errors.pop(0))
         info = []
         info.append(["justprint", "\n" + "".ljust(int(PLENGTH / 2), "-")])
         info.append(["justprint", "CRE SORTING SETTINGS".center(int(PLENGTH / 2), " ")])
@@ -2832,6 +2927,14 @@ class config_setup(internal_settings):
         info.append(["maxthreads", "maxthreads"])
         info.append(["omp", "omp"])
         info.append(["balance", "automatically balance maxthreads and omp"])
+        if self.onlyread in ("on", True):
+            info.append(
+                [
+                    "printoption",
+                    "onlyread",
+                    {True: "on"}.get(self.onlyread, self.onlyread),
+                ]
+            )
 
         if self.part0:
             # PART0:
@@ -2853,10 +2956,7 @@ class config_setup(internal_settings):
                 info.append(["sm_rrho", "Solvent model used with xTB"])
 
             tmp_func_basis, _ = self.get_method_name(
-                "sp",
-                func=getattr(self, "func0"),
-                basis=getattr(self, "basis0"),
-                disp="D3",
+                "sp", func=getattr(self, "func0"), basis=getattr(self, "basis0")
             )
             info.append(
                 [
@@ -2916,10 +3016,7 @@ class config_setup(internal_settings):
                 solvent=self.solvent,
             )
             tmp_func_basis, _ = self.get_method_name(
-                "sp",
-                func=getattr(self, "func"),
-                basis=getattr(self, "basis"),
-                disp="D3",
+                "sp", func=getattr(self, "func"), basis=getattr(self, "basis")
             )
             if self.solvent != "gas":
                 info.append(
@@ -3058,10 +3155,7 @@ class config_setup(internal_settings):
                 solvent=self.solvent,
             )
             tmp_func3_basis3, _ = self.get_method_name(
-                "sp",
-                func=getattr(self, "func3"),
-                basis=getattr(self, "basis3"),
-                disp="D3",
+                "sp", func=getattr(self, "func3"), basis=getattr(self, "basis3")
             )
             tmp_func_basis, _ = self.get_method_name(
                 "sp", func=getattr(self, "func"), basis=getattr(self, "basis")
@@ -3233,7 +3327,12 @@ class config_setup(internal_settings):
         )
         si_out.append(f"In this CENSO run the following settings were employed:\n")
         # General information:
-        tmp = {"Temperature": self.temperature, "Solvent": self.solvent}
+        tmp = {
+            "CENSO Version": __version__,
+            "Temperature": str(self.temperature)
+            + "K used in sorting and Boltzmann factor evaluation",
+            "Solvent": self.solvent,
+        }
         si_out.append(f"{'':^{l_length}} | {'General information:'}")
         si_out.append("".ljust(int(PLENGTH), "-"))
         for key, value in tmp.items():
@@ -3311,16 +3410,16 @@ class config_setup(internal_settings):
 
         G(T) = E + G_mRRHO(T) + G_solv(T)                                 (1)
 
-        The input ensemble (originating from CREST or crest_combi) are sorted 
-        in part0 and part1 at DFT level. This provides an improved description of 
-        the electronic energy and solvation contributions compared to the input 
-        SQM level. Thermostatistical contributions, including ZPVE are evaluated
-        at the GFNn-xTB level in part1. This first filtering removes structures 
-        high lying in free energy and reduces the computational cost by passing
-        fewer conformers to the computational costly DFT optimizations.
+        The input ensemble (originating from CREST or crest_combi) is sorted 
+        in part0 and part1 at DFT level on GFNn-xTB input geometries. This provides an 
+        improved description of the electronic energy and solvation contributions 
+        compared to the input SQM level. Thermostatistical contributions, including 
+        ZPVE are evaluated at the GFNn-xTB level in part1. This first filtering step 
+        removes structures high lying in free energy and reduces the computational 
+        cost by passing fewer conformers to the computational costly DFT optimizations.
 
         COSMO-RS calculations are performed with the energies and densities from 
-        the functional and basis set combination of the 'Energy' evaluation in the 
+        the functional and basis set combination of the 'energy' evaluation in the 
         respective part.
 
         """

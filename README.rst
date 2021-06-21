@@ -215,7 +215,7 @@ Cite
 General reference:
 
 S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn 
-*J. Phys. Chem. A* **2021**, XXXX, XXX, XXX-XXX.
+*J. Phys. Chem. A* **2021**, *125* (19), 4039–4054.
 
 DOI: `10.1021/acs.jpca.1c00971 <https://doi.org/10.1021/acs.jpca.1c00971>`_. 
 
