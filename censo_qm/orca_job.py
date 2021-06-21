@@ -5,7 +5,6 @@ from collections import OrderedDict
 import os
 import time
 import subprocess
-import shutil
 from .cfg import (
     CODING,
     ENVIRON,
@@ -14,7 +13,7 @@ from .cfg import (
     external_paths,
     composite_method_basis,
     composite_dfa,
-    #gga_dfa,
+    # gga_dfa,
     hybrid_dfa,
     dh_dfa,
     disp_already_included_in_func,
@@ -50,10 +49,11 @@ class OrcaJob(QmJob):
 
         # understood commands in prepinfo:
         # DOGCP = uses gcp if basis known for gcp
-        # 
+        #
 
         orcainput_start = OrderedDict(
             [
+                ("moread", None),
                 ("functional", None),
                 ("disp", None),
                 ("basis", None),
@@ -63,16 +63,18 @@ class OrcaJob(QmJob):
                 ("scfconv", None),
                 ("frozencore", None),
                 ("mp2", None),
-                ("default", [
-                            "! smallprint printgap noloewdin",
-                            "! NOSOSCF",
-                            "%MaxCore 8000",
-                            "%output",
-                            "       print[P_BondOrder_M] 1",
-                            "       print[P_Mayer] 1",
-                            "       print[P_basis] 2",
-                            "end",
-                        ]
+                (
+                    "default",
+                    [
+                        "! smallprint printgap noloewdin",
+                        "! NOSOSCF",
+                        "%MaxCore 8000",
+                        "%output",
+                        "       print[P_BondOrder_M] 1",
+                        "       print[P_Mayer] 1",
+                        "       print[P_basis] 2",
+                        "end",
+                    ],
                 ),
                 ("job", None),
                 ("optthreshold", None),
@@ -88,19 +90,12 @@ class OrcaJob(QmJob):
         else:
             nmrprop = False
 
-        # definitions taken from .cfg:
-        # composite_dfa
-        # gga_dfa
-        # hybrid_dfa
-        # dh_dfa
-        # disp_already_included_in_func
-
-
         # build up call:
         orcainput = orcainput_start.copy()
         # set functional
-        if (self.job["func"] in composite_dfa and 
-            self.job['basis'] == composite_method_basis.get(self.job["func"],'NONE')):
+        if self.job["func"] in composite_dfa and self.job[
+            "basis"
+        ] == composite_method_basis.get(self.job["func"], "NONE"):
             orcainput["functional"] = [f"! {self.job['func']}"]
         else:
             if self.job["func"] == "kt2":
@@ -117,20 +112,24 @@ class OrcaJob(QmJob):
             # set basis set
             orcainput["basis"] = [f"! {self.job['basis']}"]
             # set gcp:
-            if "DOGCP" in self.job['prepinfo']:
-                gcp_keywords  = {
-                        'minis': "MINIS",
-                        "sv": "SV",
-                        "6-31g(d)": "631GD",
-                        'def2-sv(p)': "SV(P)",
-                        'def2-svp': "SVP",
-                        'def2-tzvp': "TZ",
+            if "DOGCP" in self.job["prepinfo"]:
+                gcp_keywords = {
+                    "minis": "MINIS",
+                    "sv": "SV",
+                    "6-31g(d)": "631GD",
+                    "def2-sv(p)": "SV(P)",
+                    "def2-svp": "SVP",
+                    "def2-tzvp": "TZ",
                 }
-                if self.job['basis'].lower() in gcp_keywords.keys():
-                    if self.job['func'] in composite_dfa and self.job['basis'] == composite_method_basis.get(self.job["func"],'NONE'):
+                if self.job["basis"].lower() in gcp_keywords.keys():
+                    if self.job["func"] in composite_dfa and self.job[
+                        "basis"
+                    ] == composite_method_basis.get(self.job["func"], "NONE"):
                         pass
                     else:
-                        orcainput["gcp"] = [f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"]
+                        orcainput["gcp"] = [
+                            f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"
+                        ]
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
             if self.job["func"] in dh_dfa:
                 if nmrprop:
@@ -169,7 +168,10 @@ class OrcaJob(QmJob):
             orcainput["grid"] = ["! grid5 nofinalgrid"]
         else:
             orcainput["grid"] = ["! grid4 nofinalgrid"]
-
+        if self.job["moread"] is not None:
+            #! MORead
+            #%moinp "jobname2.gbw"
+            orcainput["moread"] = self.job["moread"]
         orcainput["scfconv"] = ["! scfconv6"]
         # set scfconv or convergence threshold e.g. loosescf or scfconv6
 
@@ -184,8 +186,6 @@ class OrcaJob(QmJob):
                 if self.job["prepinfo"][0] in extension.keys():
                     orcainput["grid"] = extension[self.job["prepinfo"][0]]["grid"]
                     orcainput["scfconv"] = extension[self.job["prepinfo"][0]]["scfconv"]
-            else:
-                pass
 
         # add dispersion
         if self.job["func"] not in disp_already_included_in_func:
@@ -269,7 +269,7 @@ class OrcaJob(QmJob):
             orcainput["geom"] = [f"*xyz {self.job['charge']} {self.job['unpaired']+1}"]
             orcainput["geom"].extend(geom)
             orcainput["geom"].append("*")
-        #nmr kt2 disp
+        # nmr kt2 disp
         if self.job["func"] == "kt2" and ("nmrJ" or "nmrS" in self.job["prepinfo"]):
             orcainput["disp"] = []
         # couplings
@@ -328,10 +328,11 @@ class OrcaJob(QmJob):
         else:
             return tmp
 
-    def _sp(self, silent=False):
+    def _sp(self, silent=False, filename="sp.out"):
         """
         ORCA input generation and single-point calculation
         """
+        outputpath = os.path.join(self.job["workdir"], filename)
         if not self.job["onlyread"]:
             with open(
                 os.path.join(self.job["workdir"], "inp"), "w", newline=None
@@ -344,9 +345,7 @@ class OrcaJob(QmJob):
             if not silent:
                 print(f"Running single-point in {last_folders(self.job['workdir'], 2)}")
             # start SP calculation
-            with open(
-                os.path.join(self.job["workdir"], "sp.out"), "w", newline=None
-            ) as outputfile:
+            with open(outputpath, "w", newline=None) as outputfile:
                 call = [os.path.join(external_paths["orcapath"], "orca"), "inp"]
                 subprocess.call(
                     call,
@@ -358,14 +357,10 @@ class OrcaJob(QmJob):
                     stdout=outputfile,
                 )
             time.sleep(0.05)
+        # read output
         # check if scf is converged:
-        if os.path.isfile(os.path.join(self.job["workdir"], "sp.out")):
-            with open(
-                os.path.join(self.job["workdir"], "sp.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
+        if os.path.isfile(outputpath):
+            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
                 for line in stor:
                     if "FINAL SINGLE POINT ENERGY" in line:
@@ -382,10 +377,7 @@ class OrcaJob(QmJob):
         else:
             self.job["energy"] = 0.0
             self.job["success"] = False
-            print(
-                f"{'WARNING:':{WARNLEN}}{os.path.join(self.job['workdir'], 'sp.out')} "
-                "doesn't exist!"
-            )
+            print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
         return
 
     def _smd_gsolv(self):
@@ -409,10 +401,9 @@ class OrcaJob(QmJob):
         keepsm = self.job["sm"]
         self.job["solvent"] = "gas"
         self.job["sm"] = "gas-phase"
-        self._sp(silent=True)
+        self._sp(silent=True, filename="sp_gas.out")
 
         if self.job["success"] == False:
-            self.job["success"] = False
             self.job["energy"] = 0.0
             self.job["energy2"] = 0.0
             print(
@@ -423,46 +414,21 @@ class OrcaJob(QmJob):
         else:
             energy_gas = self.job["energy"]
             self.job["energy"] = 0.0
-        # mv inp inp_solv sp.out sp_solv.out
-        try:
-            shutil.move(
-                os.path.join(self.job["workdir"], "inp"),
-                os.path.join(self.job["workdir"], "inp_gas"),
-            )
-            shutil.move(
-                os.path.join(self.job["workdir"], "sp.out"),
-                os.path.join(self.job["workdir"], "sp_gas.out"),
-            )
-        except FileNotFoundError:
-            pass
         # calculate in solution
         self.job["solvent"] = keepsolv
         self.job["sm"] = keepsm
-        self._sp(silent=True)
+        self._sp(silent=True, filename="sp_solv.out")
         if self.job["success"] == False:
-            self.job["success"] = False
             self.job["energy"] = 0.0
             self.job["energy2"] = 0.0
             print(
-               f"{'ERROR:':{WARNLEN}}in gas solution phase single-point "
+                f"{'ERROR:':{WARNLEN}}in gas solution phase single-point "
                 f"of {last_folders(self.job['workdir'], 2):18}"
             )
             return
         else:
             energy_solv = self.job["energy"]
             self.job["energy"] = 0.0
-        # mv inp inp_solv sp.out sp_solv.out
-        try:
-            shutil.move(
-                os.path.join(self.job["workdir"], "inp"),
-                os.path.join(self.job["workdir"], "inp_solv"),
-            )
-            shutil.move(
-                os.path.join(self.job["workdir"], "sp.out"),
-                os.path.join(self.job["workdir"], "sp_solv.out"),
-            )
-        except FileNotFoundError:
-            pass
         if self.job["success"]:
             if energy_solv is None or energy_gas is None:
                 self.job["energy"] = 0.0
@@ -475,7 +441,9 @@ class OrcaJob(QmJob):
             else:
                 self.job["energy"] = energy_gas
                 self.job["energy2"] = energy_solv - energy_gas
-                self.job["erange1"] = {self.job["temperature"] :energy_solv - energy_gas}
+                self.job["erange1"] = {
+                    self.job["temperature"]: energy_solv - energy_gas
+                }
                 self.job["success"] = True
         return
 
@@ -502,6 +470,7 @@ class OrcaJob(QmJob):
             output = "opt-part2.out"
         else:
             output = "opt-part1.out"
+        outputpath = os.path.join(self.job["workdir"], output)
         if not self.job["onlyread"]:
             print(f"Running optimization in {last_folders(self.job['workdir'], 2):18}")
             files = [
@@ -515,7 +484,6 @@ class OrcaJob(QmJob):
             for file in files:
                 if os.path.isfile(os.path.join(self.job["workdir"], file)):
                     os.remove(os.path.join(self.job["workdir"], file))
-        if not self.job["onlyread"]:
             # convert coord to xyz, write inp.xyz
             t2x(self.job["workdir"], writexyz=True, outfile="inp.xyz")
             # add inputfile information to coord (xtb as a driver)
@@ -530,7 +498,9 @@ class OrcaJob(QmJob):
                     newcoord.write(line)
                 newcoord.write("$external\n")
                 newcoord.write("   orca input file= inp\n")
-                newcoord.write(f"   orca bin= {os.path.join(self.job['progpath'], 'orca')}")
+                newcoord.write(
+                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')}"
+                )
                 newcoord.write("$end")
 
             with open(
@@ -540,13 +510,13 @@ class OrcaJob(QmJob):
                     inp.write(line + "\n")
             # Done writing input!
             callargs = [
-                self.job["xtb_driver_path"],
+                external_paths["xtbpath"],
                 "coord",
                 "--opt",
                 self.job["optlevel"],
                 "--orca",
                 "-I",
-                "opt.inp"
+                "opt.inp",
             ]
             with open(
                 os.path.join(self.job["workdir"], "opt.inp"), "w", newline=None
@@ -565,12 +535,12 @@ class OrcaJob(QmJob):
                 out.write("engine=lbfgs\n")
                 out.write("$external\n")
                 out.write("   orca input file= inp\n")
-                out.write(f"   orca bin= {os.path.join(self.job['progpath'], 'orca')}")
+                out.write(
+                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')}"
+                )
                 out.write("$end \n")
             time.sleep(0.02)
-            with open(
-                os.path.join(self.job["workdir"], output), "w", newline=None
-            ) as outputfile:
+            with open(outputpath, "w", newline=None) as outputfile:
                 returncode = subprocess.call(
                     callargs,
                     shell=False,
@@ -588,14 +558,10 @@ class OrcaJob(QmJob):
                     f"in {last_folders(self.job['workdir'], 2):18} not converged"
                 )
             time.sleep(0.02)
-            # check if optimization finished correctly:
-        if os.path.isfile(os.path.join(self.job["workdir"], output)):
-            with open(
-                os.path.join(self.job["workdir"], output),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
+        # read output
+        # check if optimization finished correctly:
+        if os.path.isfile(outputpath):
+            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
                 for line in stor:
                     if (
@@ -615,23 +581,24 @@ class OrcaJob(QmJob):
                     elif "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
                         self.job["cycles"] += int(line.split()[5])
                         self.job["converged"] = True
-            with open(
-                os.path.join(self.job["workdir"], output),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
-                for line in inp:
-                    if "av. E: " in line:
-                        # self.job["ecyc"].append(float(line.split("Eh")[0].split()[-1]))
-                        self.job["ecyc"].append(float(line.split("->")[-1]))
+                ################
+                for line in stor:
+                    if "av. E: " in line and "->" in line:
+                        try:
+                            self.job["ecyc"].append(float(line.split("->")[-1]))
+                        except ValueError as e:
+                            error_logical = True
+                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            break
                     if " :: gradient norm      " in line:
-                        self.job["grad_norm"] = float(line.split()[3])
+                        try:
+                            self.job["grad_norm"] = float(line.split()[3])
+                        except ValueError as e:
+                            error_logical = True
+                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            break
         else:
-            print(
-                f"{'WARNING:':{WARNLEN}}"
-                f"{os.path.join(self.job['workdir'], output)} doesn't exist!"
-            )
+            print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
             error_logical = True
         if not error_logical:
             try:
@@ -646,38 +613,42 @@ class OrcaJob(QmJob):
             self.job["ecyc"] = []
             self.job["grad_norm"] = 10.0
 
-        # convert optimized xyz to coord file
-        x2t(self.job["workdir"], infile="inp.xyz")
+        if not self.job["onlyread"]:
+            # convert optimized xyz to coord file
+            x2t(self.job["workdir"], infile="inp.xyz")
         return
 
     def _nmrS(self):
         """
         ORCA NMR shielding constant calculation
         """
-        with open(os.path.join(self.job["workdir"], "inpS"), "w", newline=None) as inp:
-            for line in self._prep_input():
-                inp.write(line + "\n")
-        # Done input!
-        # shielding calculation
-        print(
-            "Running shielding calculation in {:18}".format(
-                last_folders(self.job["workdir"], 2)
+        if not self.job["onlyread"]:
+            with open(
+                os.path.join(self.job["workdir"], "inpS"), "w", newline=None
+            ) as inp:
+                for line in self._prep_input():
+                    inp.write(line + "\n")
+            # Done input!
+            # shielding calculation
+            print(
+                "Running shielding calculation in {:18}".format(
+                    last_folders(self.job["workdir"], 2)
+                )
             )
-        )
-        with open(
-            os.path.join(self.job["workdir"], "orcaS.out"), "w", newline=None
-        ) as outputfile:
-            call = [os.path.join(self.job["progpath"], "orca"), "inpS"]
-            subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-            )
-        time.sleep(0.1)
+            with open(
+                os.path.join(self.job["workdir"], "orcaS.out"), "w", newline=None
+            ) as outputfile:
+                call = [os.path.join(external_paths["orcapath"], "orca"), "inpS"]
+                subprocess.call(
+                    call,
+                    shell=False,
+                    stdin=None,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=False,
+                    cwd=self.job["workdir"],
+                    stdout=outputfile,
+                )
+            time.sleep(0.1)
         # check if calculation was successfull:
         with open(
             os.path.join(self.job["workdir"], "orcaS.out"),
@@ -707,31 +678,34 @@ class OrcaJob(QmJob):
         progpath
         success
         """
-        # generate input   # double hybrids not implemented
-        with open(os.path.join(self.job["workdir"], "inpJ"), "w", newline=None) as inp:
-            for line in self._prep_input():
-                inp.write(line + "\n")
-        # Done input!
-        # start coupling calculation
-        print(
-            "Running coupling calculation in {}".format(
-                last_folders(self.job["workdir"], 2)
+        if not self.job["onlyread"]:
+            # generate input   # double hybrids not implemented
+            with open(
+                os.path.join(self.job["workdir"], "inpJ"), "w", newline=None
+            ) as inp:
+                for line in self._prep_input():
+                    inp.write(line + "\n")
+            # Done input!
+            # start coupling calculation
+            print(
+                "Running coupling calculation in {}".format(
+                    last_folders(self.job["workdir"], 2)
+                )
             )
-        )
-        with open(
-            os.path.join(self.job["workdir"], "orcaJ.out"), "w", newline=None
-        ) as outputfile:
-            call = [os.path.join(self.job["progpath"], "orca"), "inpJ"]
-            subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-            )
-        time.sleep(0.1)
+            with open(
+                os.path.join(self.job["workdir"], "orcaJ.out"), "w", newline=None
+            ) as outputfile:
+                call = [os.path.join(external_paths["orcapath"], "orca"), "inpJ"]
+                subprocess.call(
+                    call,
+                    shell=False,
+                    stdin=None,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=False,
+                    cwd=self.job["workdir"],
+                    stdout=outputfile,
+                )
+            time.sleep(0.1)
         # check if calculation was successfull:
         with open(
             os.path.join(self.job["workdir"], "orcaJ.out"),
@@ -823,6 +797,7 @@ class OrcaJob(QmJob):
         ) as out:
             s = sorted(zip(atom, sigma))
             atom, sigma = map(list, zip(*s))
+            self.shieldings = dict(zip(atom, sigma))
             for i in range(len(atom)):
                 out.write("{:{digits}} {}\n".format(atom[i], sigma[i], digits=4))
             for i in range(self.job["nat"] - len(atom)):
@@ -867,7 +842,7 @@ class OrcaJob(QmJob):
             self._smd_gsolv()
         elif self.job["jobtype"] == "couplings_sp":
             self._nmrJ()
-        elif self.job["jobtype"] == "shieldings_sp":
+        elif self.job["jobtype"] in ("shieldings_sp", "shieldings"):
             self._nmrS()
         elif self.job["jobtype"] == "genericout":
             self._genericoutput()

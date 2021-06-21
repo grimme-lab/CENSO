@@ -20,7 +20,8 @@ from .cfg import (
     external_paths,
     cosmors_param,
     composite_dfa,
-    composite_method_basis
+    composite_method_basis,
+    hybrid_dfa,
 )
 from .utilities import last_folders, print
 from .qm_job import QmJob
@@ -242,7 +243,9 @@ class TmJob(QmJob):
                     self.job["internal_error"].append(line)
         if self.job["solvent"] != "gas" and self.job["sm"] in ("cosmo", "dcosmors"):
             if solvent_dcosmors.get(self.job["solvent"], "not found!") == "not found!":
-                print(f"{'ERROR:':{WARNLEN}} Solvent {self.job['solvent']} is not known for cefine!")
+                print(
+                    f"{'ERROR:':{WARNLEN}} Solvent {self.job['solvent']} is not known for cefine!"
+                )
                 self.job["success"] = False
                 self.job["internal_error"].append("prep-failed")
                 return
@@ -269,7 +272,9 @@ class TmJob(QmJob):
             controlappend.append("$rpaconv 4")
 
         if dogcp:
-            if self.job['func'] in composite_dfa and self.job['basis'] == composite_method_basis.get(self.job["func"],'NONE'):
+            if self.job["func"] in composite_dfa and self.job[
+                "basis"
+            ] == composite_method_basis.get(self.job["func"], "NONE"):
                 pass
             else:
                 if self.job["basis"] == "def2-SV(P)":
@@ -412,18 +417,18 @@ class TmJob(QmJob):
 
     # ****************************end cefine************************************
 
-    def _sp(self, silent=False):
+    def _sp(self, silent=False, outfile="ridft.out"):
         """
         Turbomole single-point calculation, needs previous cefine run
         """
+        fullpath = os.path.join(self.job["workdir"], outfile)
         if not self.job["onlyread"]:
+            # perform calculation:
             if not silent:
                 print(
                     f"Running single-point in {last_folders(self.job['workdir'], 2):18}"
                 )
-            with open(
-                os.path.join(self.job["workdir"], "ridft.out"), "w", newline=None
-            ) as outputfile:
+            with open(fullpath, "w", newline=None) as outputfile:
                 subprocess.call(
                     ["ridft"],
                     shell=False,
@@ -434,15 +439,11 @@ class TmJob(QmJob):
                     stdout=outputfile,
                     env=ENVIRON,
                 )
+        # process output:
         time.sleep(0.02)
         # check if scf is converged:
-        if os.path.isfile(os.path.join(self.job["workdir"], "ridft.out")):
-            with open(
-                os.path.join(self.job["workdir"], "ridft.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
+        if os.path.isfile(fullpath):
+            with open(fullpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
                 if " ENERGY CONVERGED !\n" not in stor:
                     print(
@@ -453,36 +454,33 @@ class TmJob(QmJob):
                     self.job["energy"] = 0.0
                     self.job["energy2"] = 0.0
                     return
+                # get energy:
+                for line in stor:
+                    if "|  total energy      = " in line:
+                        try:
+                            self.job["energy"] = float(line.strip().split()[4])
+                            self.job["success"] = True
+                            if self.job["jobtype"] == "sp_implicit":
+                                self.job["energy2"] = 0.0
+                        except (ValueError, IndexError):
+                            print(
+                                f"{'ERROR:':{WARNLEN}}while converting energy "
+                                f"in: {last_folders(self.job['workdir'], 2):18}"
+                            )
+                            self.job["success"] = False
+                            self.job["energy"] = 0.0
+                            self.job["energy2"] = 0.0
+                            return
+                if not self.job["success"]:
+                    self.job["energy"] = 0.0
+                    self.job["energy2"] = 0.0
+                    return
         else:
-            print(
-                f"{'WARNING:':{WARNLEN}}"
-                f"{os.path.join(self.job['workdir'], 'ridft.out')} doesn't exist!"
-            )
+            print(f"{'WARNING:':{WARNLEN}}{fullpath} doesn't exist!")
             self.job["success"] = False
             self.job["energy"] = 0.0
             self.job["energy2"] = 0.0
             return
-        if os.path.isfile(os.path.join(self.job["workdir"], "energy")):
-            with open(
-                os.path.join(self.job["workdir"], "energy"),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as energy:
-                storage = energy.readlines()
-            try:
-                self.job["energy"] = float(storage[-2].split()[1])
-                self.job["success"] = True
-            except ValueError:
-                print(
-                    f"{'ERROR:':{WARNLEN}}while converting energy "
-                    f"in: {last_folders(self.job['workdir'], 2):18}"
-                )
-            if self.job["jobtype"] == "sp_implicit":
-                self.job["energy2"] = 0.0
-        else:
-            self.job["energy"] = 0.0
-            self.job["success"] = False
 
     # ****************************end _sp***************************************
 
@@ -503,7 +501,7 @@ class TmJob(QmJob):
                 f"{last_folders(self.job['workdir'], 3):18}"
             )
             # parametrisation
-            # ctd and database have to match fine -> fine  or non-fine -> nofine
+            # ctd and database have to match fine -> fine  or non-fine -> non-fine
             if self.job["ctd-param"] == "automatic":
                 if self.job["cosmorsparam"] == "fine":
                     if (
@@ -511,11 +509,23 @@ class TmJob(QmJob):
                         and "1201" not in self.job["cosmorssetup"]
                         and "1301" not in self.job["cosmorssetup"]
                     ):
-                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE")
-                    elif "FINE" not in self.job["cosmorssetup"] and "1201" in self.job["cosmorssetup"]:
-                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE_HB2012")
-                    elif "FINE" not in self.job["cosmorssetup"] and "1301" in self.job["cosmorssetup"]:
-                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace("BP_TZVP", "BP_TZVPD_FINE_HB2012")
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace(
+                            "BP_TZVP", "BP_TZVPD_FINE"
+                        )
+                    elif (
+                        "FINE" not in self.job["cosmorssetup"]
+                        and "1201" in self.job["cosmorssetup"]
+                    ):
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace(
+                            "BP_TZVP", "BP_TZVPD_FINE_HB2012"
+                        )
+                    elif (
+                        "FINE" not in self.job["cosmorssetup"]
+                        and "1301" in self.job["cosmorssetup"]
+                    ):
+                        self.job["cosmorssetup"] = self.job["cosmorssetup"].replace(
+                            "BP_TZVP", "BP_TZVPD_FINE_HB2012"
+                        )
                 elif self.job["cosmorsparam"] == "normal":
                     if "FINE" in self.job["cosmorssetup"]:
                         ## normal cosmors
@@ -537,6 +547,7 @@ class TmJob(QmJob):
                         tmp_new = tmp_new + " ".join(tmp_dat[tmp_dat.index(item) + 1 :])
                 self.job["cosmorssetup"] = tmp_new
             # run two single-points:
+            # copy mos first
             if self.job["copymos"]:
                 if self.job["unpaired"] > 0:
                     molist = ["alpha", "beta"]
@@ -575,6 +586,12 @@ class TmJob(QmJob):
                     f"{last_folders(self.job['workdir'], 3):18}"
                 )
                 return
+            # try:
+            #     tmp_from = os.path.join(self.job["workdir"], "ridft.out")
+            #     tmp_to = os.path.join(self.job["workdir"], "gas_"+ self.job["partx"] +".out")
+            #     shutil.copy(tmp_from, tmp_to)
+            # except (FileNotFoundError, KeyError):
+            #     pass
             with open(
                 os.path.join(self.job["workdir"], "out.energy"), "w", newline=None
             ) as out:
@@ -730,72 +747,72 @@ class TmJob(QmJob):
                     env=ENVIRON,
                 )
             time.sleep(0.1)
-            # get T and Gsolv for version > cosmothermX16
-            ## volumework:
-            R = 1.987203585e-03  # kcal/(mol*K)
-            videal = (
-                24.789561955 / 298.15
-            )  # molar volume for ideal gas at 298.15 K 100.0 kPa
-            gsolvt = {}
-            try:
-                with open(
-                    os.path.join(self.job["workdir"], "cosmotherm.tab"),
-                    "r",
-                    encoding=CODING,
-                    newline=None,
-                ) as inp:
-                    stor = inp.readlines()
-                for line in stor:
-                    if "T=" in line:
-                        T = float(line.split()[5])
-                        vwork = R * T * math.log(videal * T)
-                    elif " out " in line:
-                        gsolvt[T] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
-                self.job["erange1"] = gsolvt
-            except (FileNotFoundError, ValueError):
-                print(
-                    f"{'ERROR:':{WARNLEN}}cosmotherm.tab was not written, this error can be "
-                    "due to a missing licensefile information, or wrong path "
-                    "to the COSMO-RS Database."
-                )
-                self.job["energy"] = 0.0
-                self.job["energy2"] = 0.0
-                self.job["erange1"] = {}
+        # calculations done, get output
+        if self.job["onlyread"]:
+            # if self.job.get("partx", None) is None:
+            # get gas phase energy:
+            gaspath = os.path.join(self.job["workdir"], "out.energy")
+            if os.path.exists(gaspath) and os.path.getsize(gaspath) > 0:
+                with open(gaspath, "r", newline=None) as inp:
+                    try:
+                        gas_phase_energy = float(inp.readline().strip())
+                    except Exception:
+                        self.job["success"] = False
+                        return
+            else:
                 self.job["success"] = False
                 return
-            except IndexError:
-                print(f"{'ERROR:':{WARNLEN}}IndexERROR in cosmotherm.tab!")
-                self.job["energy"] = 0.0
-                self.job["energy2"] = 0.0
-                self.job["erange1"] = {}
-                self.job["success"] = False
-                return
-            # cosmothermrd
-            if (
-                os.stat(os.path.join(self.job["workdir"], "cosmotherm.tab")).st_size
-                == 0
-            ):
-                print(
-                    f"{'ERROR:':{WARNLEN}}cosmotherm.tab was not written, this error can be "
-                    "due to a missing licensefile information, or wrong path "
-                    "to the COSMO-RS Database."
-                )
-                self.job["energy"] = 0.0
-                self.job["energy2"] = 0.0
-                self.job["erange1"] = {}
-                self.job["success"] = False
-            gsolv_out = 0.0
-            for temp in gsolvt.keys():
-                if isclose(self.job["temperature"], temp, abs_tol=0.6):
-                    gsolv_out = gsolvt[temp]
-            temp = float(self.job["temperature"])
-            ## volumework:
-            R = 1.987203585e-03  # kcal/(mol*K)
-            videal = (
-                24.789561955 / 298.15
-            )  # molar volume for ideal gas at 298.15 K 100.0 kPa
-            volwork = R * temp * math.log(videal * temp)
 
+        # get T and Gsolv for version > cosmothermX16
+        ## volumework:
+        R = 1.987203585e-03  # kcal/(mol*K)
+        videal = (
+            24.789561955 / 298.15
+        )  # molar volume for ideal gas at 298.15 K 100.0 kPa
+        gsolvt = {}
+
+        cosmothermtab = os.path.join(self.job["workdir"], "cosmotherm.tab")
+        try:
+            with open(cosmothermtab, "r", encoding=CODING, newline=None) as inp:
+                stor = inp.readlines()
+            for line in stor:
+                if "T=" in line:
+                    T = float(line.split()[5])
+                    vwork = R * T * math.log(videal * T)
+                elif " out " in line:
+                    gsolvt[T] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
+            self.job["erange1"] = gsolvt
+        except (FileNotFoundError, ValueError):
+            print(
+                f"{'ERROR:':{WARNLEN}}cosmotherm.tab was not written, this error can be "
+                "due to a missing licensefile information, or wrong path "
+                "to the COSMO-RS Database."
+            )
+            self.job["energy"] = 0.0
+            self.job["energy2"] = 0.0
+            self.job["erange1"] = {}
+            self.job["success"] = False
+            return
+        except IndexError:
+            print(f"{'ERROR:':{WARNLEN}}IndexERROR in cosmotherm.tab!")
+            self.job["energy"] = 0.0
+            self.job["energy2"] = 0.0
+            self.job["erange1"] = {}
+            self.job["success"] = False
+            return
+        # cosmothermrd
+        gsolv_out = 0.0
+        for temp in gsolvt.keys():
+            if isclose(self.job["temperature"], temp, abs_tol=0.6):
+                gsolv_out = gsolvt[temp]
+        temp = float(self.job["temperature"])
+        ## volumework:
+        R = 1.987203585e-03  # kcal/(mol*K)
+        videal = (
+            24.789561955 / 298.15
+        )  # molar volume for ideal gas at 298.15 K 100.0 kPa
+        volwork = R * temp * math.log(videal * temp)
+        if not self.job["onlyread"]:
             with open(
                 os.path.join(os.path.dirname(self.job["workdir"]), "cosmors.out"),
                 "w",
@@ -820,10 +837,10 @@ class TmJob(QmJob):
                     )
                 )
             time.sleep(0.01)
-            self.job["energy"] = gas_phase_energy
-            self.job["energy2"] = gsolv_out  # VOLWORK INCLUDED
-            self.job["erange1"][self.job["temperature"]] = gsolv_out  # VOLWORK INCLUDED
-            self.job["success"] = True
+        self.job["energy"] = gas_phase_energy
+        self.job["energy2"] = gsolv_out  # VOLWORK INCLUDED
+        self.job["erange1"][self.job["temperature"]] = gsolv_out  # VOLWORK INCLUDED
+        self.job["success"] = True
 
     # ********************************end _cosmors***********************************
     def _xtbopt(self):
@@ -835,6 +852,7 @@ class TmJob(QmJob):
             output = "opt-part2.out"
         else:
             output = "opt-part1.out"
+        outputpath = os.path.join(self.job["workdir"], output)
         if not self.job["onlyread"]:
             print(f"Running optimization in {last_folders(self.job['workdir'], 2):18}")
             files = [
@@ -850,7 +868,7 @@ class TmJob(QmJob):
                     os.remove(os.path.join(self.job["workdir"], file))
 
             callargs = [
-                self.job["xtb_driver_path"],
+                external_paths["xtbpath"],
                 "coord",
                 "--opt",
                 self.job["optlevel"],
@@ -875,9 +893,7 @@ class TmJob(QmJob):
                 callargs.append("-I")
                 callargs.append("opt.inp")
             time.sleep(0.02)
-            with open(
-                os.path.join(self.job["workdir"], output), "w", newline=None
-            ) as outputfile:
+            with open(outputpath, "w", newline=None) as outputfile:
                 returncode = subprocess.call(
                     callargs,
                     shell=False,
@@ -895,14 +911,10 @@ class TmJob(QmJob):
                     f"{last_folders(self.job['workdir'], 2):18} not converged"
                 )
             time.sleep(0.02)
+        # read output:
         # check if converged:
-        if os.path.isfile(os.path.join(self.job["workdir"], output)):
-            with open(
-                os.path.join(self.job["workdir"], output),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
+        if os.path.isfile(outputpath):
+            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
                 for line in stor:
                     if (
@@ -923,23 +935,24 @@ class TmJob(QmJob):
                     elif "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
                         self.job["cycles"] += int(line.split()[5])
                         self.job["converged"] = True
-            with open(
-                os.path.join(self.job["workdir"], output),
-                "r",
-                encoding=CODING,
-                newline=None,
-            ) as inp:
-                for line in inp:
-                    if "av. E: " in line:
-                        # self.job["ecyc"].append(float(line.split("Eh")[0].split()[-1]))
-                        self.job["ecyc"].append(float(line.split("->")[-1]))
+                #####
+                for line in stor:
+                    if "av. E: " in line and "->" in line:
+                        try:
+                            self.job["ecyc"].append(float(line.split("->")[-1]))
+                        except ValueError as e:
+                            error_logical = True
+                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            break
                     if " :: gradient norm      " in line:
-                        self.job["grad_norm"] = float(line.split()[3])
+                        try:
+                            self.job["grad_norm"] = float(line.split()[3])
+                        except ValueError as e:
+                            error_logical = True
+                            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}")
+                            break
         else:
-            print(
-                f"{'WARNING:':{WARNLEN}}"
-                f"{os.path.join(self.job['workdir'], output)} doesn't exist!"
-            )
+            print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
             error_logical = True
         if not error_logical:
             try:
@@ -1108,50 +1121,49 @@ class TmJob(QmJob):
         print(
             f"Running couplings calculation in {last_folders(self.job['workdir'], 2)}"
         )
-        # escf doesnot allow for mgrids!
-        with open(
-            os.path.join(self.job["workdir"], "control"), "r", newline=None
-        ) as inp:
-            tmp = inp.readlines()
-        with open(
-            os.path.join(self.job["workdir"], "control"), "w", newline=None
-        ) as out:
-            for line in tmp:
-                if "gridsize" in line:
-                    out.write(f"   gridsize {5}   \n")
-                else:
-                    out.write(line + "\n")
+        outputpath = os.path.join(self.job["workdir"], "escf.out")
+        if not self.job["onlyread"]:
+            # escf doesnot allow for mgrids!
+            with open(
+                os.path.join(self.job["workdir"], "control"), "r", newline=None
+            ) as inp:
+                tmp = inp.readlines()
+            with open(
+                os.path.join(self.job["workdir"], "control"), "w", newline=None
+            ) as out:
+                for line in tmp:
+                    if "gridsize" in line:
+                        out.write(f"   gridsize {5}   \n")
+                    else:
+                        out.write(line + "\n")
 
-        with open(
-            os.path.join(self.job["workdir"], "escf.out"), "w", newline=None
-        ) as outputfile:
-            subprocess.call(
-                [self.job["progpath"], "-smpcpus", str(self.job["omp"])],
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-                env=ENVIRON,
-            )
-        time.sleep(0.02)
-        # check for convergence
-        with open(
-            os.path.join(self.job["workdir"], "escf.out"),
-            "r",
-            encoding=CODING,
-            newline=None,
-        ) as inp:
-            stor = inp.readlines()
-            if "   ****  escf : all done  ****\n" in stor:
-                self.job["success"] = True
-            else:
-                print(
-                    f"{'ERROR:':{WARNLEN}}coupling calculation failed in "
-                    f"{last_folders(self.job['workdir'], 1):18}"
+            with open(outputpath, "w", newline=None) as outputfile:
+                subprocess.call(
+                    [external_paths["escfpath"], "-smpcpus", str(self.job["omp"])],
+                    shell=False,
+                    stdin=None,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=False,
+                    cwd=self.job["workdir"],
+                    stdout=outputfile,
+                    env=ENVIRON,
                 )
-                self.job["success"] = False
+            time.sleep(0.02)
+        # check for convergence
+        if os.path.isfile(outputpath):
+            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
+                stor = inp.readlines()
+                if "   ****  escf : all done  ****\n" in stor:
+                    self.job["success"] = True
+                else:
+                    print(
+                        f"{'ERROR:':{WARNLEN}}coupling calculation failed in "
+                        f"{last_folders(self.job['workdir'], 1):18}"
+                    )
+                    self.job["success"] = False
+        else:
+            print(f"The file escf.out could not be found!")
+            self.job["success"] = False
 
     def _nmr_shielding(self):
         """
@@ -1162,44 +1174,40 @@ class TmJob(QmJob):
                 last_folders(self.job["workdir"], 2)
             )
         )
-        # update grid to m5!
-        with open(
-            os.path.join(self.job["workdir"], "control"), "r", newline=None
-        ) as inp:
-            tmp = inp.readlines()
-        with open(
-            os.path.join(self.job["workdir"], "control"), "w", newline=None
-        ) as out:
-            for line in tmp:
-                if "gridsize" in line:
-                    out.write(f"   gridsize {'m5'}   \n")
-                if "$disp" in line and self.job["func"] in ("kt2", "kt1"):
-                    pass
-                else:
-                    out.write(line + "\n")
-            time.sleep(0.02)
-
-        with open(
-            os.path.join(self.job["workdir"], "mpshift.out"), "w", newline=None
-        ) as outputfile:
-            subprocess.call(
-                [self.job["progpath"], "-smpcpus", str(self.job["omp"])],
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=self.job["workdir"],
-                stdout=outputfile,
-                env=ENVIRON,
-            )
-            time.sleep(0.02)
-            # check if shift calculation is converged:
+        outputpath = os.path.join(self.job["workdir"], "mpshift.out")
+        if not self.job["onlyread"]:
+            # update grid to m5!
             with open(
-                os.path.join(self.job["workdir"], "mpshift.out"),
-                "r",
-                encoding=CODING,
-                newline=None,
+                os.path.join(self.job["workdir"], "control"), "r", newline=None
             ) as inp:
+                tmp = inp.readlines()
+            with open(
+                os.path.join(self.job["workdir"], "control"), "w", newline=None
+            ) as out:
+                for line in tmp:
+                    if "gridsize" in line:
+                        out.write(f"   gridsize {'m5'}   \n")
+                    if "$disp" in line and self.job["func"] in ("kt2", "kt1"):
+                        pass
+                    else:
+                        out.write(line + "\n")
+                time.sleep(0.02)
+
+            with open(outputpath, "w", newline=None) as outputfile:
+                subprocess.call(
+                    [external_paths["mpshiftpath"], "-smpcpus", str(self.job["omp"])],
+                    shell=False,
+                    stdin=None,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=False,
+                    cwd=self.job["workdir"],
+                    stdout=outputfile,
+                    env=ENVIRON,
+                )
+                time.sleep(0.02)
+        # check if shift calculation is converged:
+        if os.path.isfile(outputpath):
+            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
                 found = False
                 for line in stor:
@@ -1212,6 +1220,9 @@ class TmJob(QmJob):
                         f"{last_folders(self.job['workdir'], 2):18}"
                     )
                     self.job["success"] = False
+        else:
+            print(f"The file mpshift.out could not be found!")
+            self.job["success"] = False
 
     def _genericoutput(self):
         """
@@ -1244,7 +1255,9 @@ class TmJob(QmJob):
             )
             self.job["success"] = False
         except ValueError:
-            print(f"{'ERROR:':{WARNLEN}}ValueError in generic_output, nmrprop.dat can be flawed !")
+            print(
+                f"{'ERROR:':{WARNLEN}}ValueError in generic_output, nmrprop.dat can be flawed !"
+            )
             self.job["success"] = False
         self.job["success"] = True
         fnamecoupl = "escf.out"
@@ -1278,7 +1291,9 @@ class TmJob(QmJob):
             )
             self.job["success"] = False
         except ValueError:
-            print(f"{'ERROR:':{WARNLEN}}ValueError in generic_output, nmrprop.dat can be flawed")
+            print(
+                f"{'ERROR:':{WARNLEN}}ValueError in generic_output, nmrprop.dat can be flawed"
+            )
             self.job["success"] = False
         self.job["success"] = True
         with open(
@@ -1304,6 +1319,7 @@ class TmJob(QmJob):
         calculate optical rotation
         """
         if not self.job["onlyread"]:
+            # update control file
             with open(
                 os.path.join(self.job["workdir"], "control"), "r", newline=None
             ) as inp:
@@ -1331,7 +1347,7 @@ class TmJob(QmJob):
                 os.path.join(self.job["workdir"], "escf.out"), "w", newline=None
             ) as outputfile:
                 subprocess.call(
-                    [self.job["progpath"]],
+                    [external_paths["escfpath"]],
                     shell=False,
                     stdin=None,
                     stderr=subprocess.STDOUT,
@@ -1340,7 +1356,8 @@ class TmJob(QmJob):
                     stdout=outputfile,
                     env=ENVIRON,
                 )
-        time.sleep(0.02)
+            time.sleep(0.02)
+        # Read output
         # check if scf is converged:
         if os.path.isfile(os.path.join(self.job["workdir"], "escf.out")):
             with open(
@@ -1356,18 +1373,7 @@ class TmJob(QmJob):
                 velocity_rep = False  # (velocity representation)
                 do_read_length = False
                 do_read_velocity = True
-                hybriddfa = (
-                    "pbe0",
-                    "pw6b95",
-                    "wb97x-d3",
-                    "cam-b3lyp",
-                    "b3-lyp",
-                    "pbeh-3c",
-                    "m06x",
-                    "bh-lyp",
-                    "tpssh",
-                )
-                if self.job["func2"] in hybriddfa:
+                if self.job["func2"] in hybrid_dfa:
                     do_read_length = True
                 dum = 0
                 frequencies = self.job["freq_or"]
@@ -1431,11 +1437,17 @@ class TmJob(QmJob):
         elif self.job["jobtype"] == "xtb_sp":
             self._xtb_sp()
         elif self.job["jobtype"] == "prep":
-            self._prep_cefine()
+            if not self.job["onlyread"]:
+                self._prep_cefine()
+            else:
+                self.job["success"] = True
         elif self.job["jobtype"] in ("sp", "sp_implicit"):
             if self.job["prepinfo"]:
                 # do cefine first
-                self._prep_cefine()
+                if not self.job["onlyread"]:
+                    self._prep_cefine()
+                else:
+                    self.job["success"] = True
                 if not self.job["success"]:
                     return
             self._sp()
@@ -1447,7 +1459,10 @@ class TmJob(QmJob):
             self._genericoutput()
         elif self.job["jobtype"] in ("couplings", "couplings_sp"):
             if self.job["prepinfo"]:
-                self._prep_cefine()
+                if not self.job["onlyread"]:
+                    self._prep_cefine()
+                else:
+                    self.job["success"] = True
                 if not self.job["success"]:
                     return
                 if self.job["jobtype"] == "couplings_sp":
@@ -1464,8 +1479,10 @@ class TmJob(QmJob):
             self._nmr_coupling()
         elif self.job["jobtype"] in ("shieldings", "shieldings_sp"):
             if self.job["prepinfo"]:
-                self._prep_cefine()
-                # print('performed cefine')
+                if not self.job["onlyread"]:
+                    self._prep_cefine()
+                else:
+                    self.job["success"] = True
                 if not self.job["success"]:
                     return
                 if self.job["copymos"]:
@@ -1489,7 +1506,10 @@ class TmJob(QmJob):
             if self.job["prepinfo"]:
                 tmp_solvent = self.job["solvent"]
                 self.job["solvent"] = "gas"
-                self._prep_cefine()
+                if not self.job["onlyread"]:
+                    self._prep_cefine()
+                else:
+                    self.job["success"] = True
                 if not self.job["success"]:
                     return
                 self._sp()
@@ -1499,7 +1519,10 @@ class TmJob(QmJob):
             self._xtb_gsolv()
         elif self.job["jobtype"] in ("opt-rot", "opt-rot_sp"):
             if self.job["prepinfo"]:
-                self._prep_cefine()
+                if not self.job["onlyread"]:
+                    self._prep_cefine()
+                else:
+                    self.job["success"] = True
                 if not self.job["success"]:
                     return
             if self.job["jobtype"] == "opt-rot_sp":

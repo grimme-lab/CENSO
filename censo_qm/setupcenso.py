@@ -6,15 +6,7 @@ import os
 import sys
 import json
 from collections import OrderedDict
-from .cfg import (
-    CODING,
-    PLENGTH,
-    DESCR,
-    WARNLEN,
-    censo_solvent_db,
-    __version__,
-    NmrRef,
-)
+from .cfg import CODING, PLENGTH, DESCR, WARNLEN, censo_solvent_db, __version__, NmrRef
 from .inputhandling import config_setup, internal_settings
 from .datastructure import MoleculeData
 from .qm_job import QmJob
@@ -57,7 +49,7 @@ def enso_startup(cwd, args):
 
     configfname = ".censorc"
     if args.writeconfig:
-        #check if .censorc in local or home dir and ask user it the program 
+        # check if .censorc in local or home dir and ask user it the program
         # paths should be copied
         tmp = None
         newconfigfname = "censorc_new"
@@ -67,14 +59,18 @@ def enso_startup(cwd, args):
             tmp = os.path.join(os.path.expanduser("~"), configfname)
         if tmp is not None:
             print(f"An existing .censorc has been found in {tmp}")
-            print(f"Do you want to copy existing program path information to the new remote configuration file?")
+            print(
+                f"Do you want to copy existing program path information to the new remote configuration file?"
+            )
             print("Please type 'yes' or 'no':")
             user_input = input()
-            if user_input.strip() in ('y', 'yes'):
+            if user_input.strip() in ("y", "yes"):
                 config.read_program_paths(tmp)
-                config.write_rcfile(os.path.join(config.cwd, newconfigfname), usepaths=True)
+                config.write_rcfile(
+                    os.path.join(config.cwd, newconfigfname), usepaths=True
+                )
                 print("")
-            elif user_input.strip() in ('n', 'no'):
+            elif user_input.strip() in ("n", "no"):
                 config.write_rcfile(os.path.join(config.cwd, newconfigfname))
         else:
             config.write_rcfile(os.path.join(config.cwd, newconfigfname))
@@ -96,9 +92,26 @@ def enso_startup(cwd, args):
             else:
                 raise FileNotFoundError
         except FileNotFoundError:
-            print(f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {configfname}.")
+            print(
+                f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {configfname}."
+            )
             print("\nGoing to exit!")
             sys.exit(1)
+    elif (
+        args.restart
+        and os.path.isfile(os.path.join(config.cwd, "enso.json"))
+        and os.path.isfile(
+            config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
+            .get("settings", {})
+            .get("configpath", "")
+        )
+    ):
+        # read configpath from previous enso.json if restart is requested
+        config.configpath = (
+            config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
+            .get("settings", {})
+            .get("configpath", "")
+        )
     elif os.path.isfile(os.path.join(config.cwd, configfname)):
         # local configuration file before remote configuration file
         config.configpath = os.path.join(config.cwd, configfname)
@@ -191,20 +204,25 @@ def enso_startup(cwd, args):
                 myfile.seek(0)  # reset reader
             except (ValueError, KeyError, AttributeError) as e:
                 print(e)
-                print(f"{'ERROR:':{WARNLEN}}Please create a new .censorc --> 'censo -newconfig'")
+                print(
+                    f"{'ERROR:':{WARNLEN}}Please create a new .censorc --> 'censo -newconfig'"
+                )
                 sys.exit(1)
             if not startread in myfile.read():
-                print(f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!")
+                print(
+                    f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!"
+                )
                 sys.exit(1)
         config.read_config(config.configpath, startread, args)
 
     if args.copyinput:
         config.read_program_paths(config.configpath)
         config.write_censo_inp(config.cwd)
-        print("The file censo.inp with the current settings has been written to the current working directory.")
+        print(
+            "The file censo.inp with the current settings has been written to the current working directory."
+        )
         print("\nGoing to exit!")
         sys.exit(1)
-
 
     # read inputfile:
     if os.path.isfile(os.path.join(config.cwd, "enso.json")):
@@ -278,9 +296,9 @@ def enso_startup(cwd, args):
     error_logical = config.check_logic()
 
     # printing parameters
-    config.print_parameters()
+    config.print_parameters(cmlcall=sys.argv)
     config.read_program_paths(config.configpath)
-    requirements = config.needed_external_programs(config)
+    requirements = config.needed_external_programs()
     error_logical = config.processQMpaths(requirements, error_logical)
 
     if error_logical and not args.debug and args.checkinput:
@@ -291,8 +309,7 @@ def enso_startup(cwd, args):
         print("\nGoing to exit!")
         sys.exit(1)
     elif error_logical and not args.debug:
-        print(f"\n{'ERROR:':{WARNLEN}}CENSO can not continue due to input errors!"
-        )
+        print(f"\n{'ERROR:':{WARNLEN}}CENSO can not continue due to input errors!")
         print("\nGoing to exit!")
         sys.exit(1)
 
@@ -403,7 +420,9 @@ def enso_startup(cwd, args):
                         id=save_data[conf].get("id"),
                         filename=save_data[conf].get("filename"),
                         part_info=save_data[conf].get("part_info"),
-                        previous_part_info=save_data[conf].get("previous_part_info", EnsembleData().previous_part_info),
+                        previous_part_info=save_data[conf].get(
+                            "previous_part_info", EnsembleData().previous_part_info
+                        ),
                         avGcorrection=save_data[conf].get("avGcorrection"),
                         comment=save_data[conf].get("comment"),
                         bestconf=save_data[conf].get("bestconf"),
@@ -427,8 +446,20 @@ def enso_startup(cwd, args):
                         rel_xtb_energy=save_data[conf].get("rel_xtb_energy"),
                         rel_xtb_free_energy=save_data[conf].get("rel_xtb_free_energy"),
                         sym=save_data[conf].get("sym", getattr(MoleculeData(0), "sym")),
-                        linear=save_data[conf].get("linear", getattr(MoleculeData(0), "linear")),
-                        symnum=save_data[conf].get("symnum", getattr(MoleculeData(0), "symnum")),
+                        linear=save_data[conf].get(
+                            "linear", getattr(MoleculeData(0), "linear")
+                        ),
+                        symnum=save_data[conf].get(
+                            "symnum",
+                            MoleculeData(0)._get_sym_num(
+                                sym=save_data[conf].get(
+                                    "sym", getattr(MoleculeData(0), "sym")
+                                ),
+                                linear=save_data[conf].get(
+                                    "linear", getattr(MoleculeData(0), "linear")
+                                ),
+                            ),
+                        ),
                         gi=save_data[conf].get("gi", getattr(MoleculeData(0), "sym")),
                         removed=save_data[conf].get(
                             "removed", getattr(MoleculeData(0), "removed")
@@ -665,35 +696,31 @@ def enso_startup(cwd, args):
                                 prog=config.prog,
                                 basis=config.basis_or,
                                 func=config.func_or,
+                                solvent=config.solvent,
+                                sm="cosmo",
                                 func2=config.func_or_scf,
                             )
                             molecule.load_prev("optical_rotation_info", method)
                         #####
-                        elif value and key in (
-                            "func_j",
-                            "basis_j",
-                            "sm4_j"
-                        ):
+                        elif value and key in ("func_j", "basis_j", "sm4_j"):
                             # reset to default, load is not available
-                            molecule.nmr_coupling_info=getattr(MoleculeData(0), "nmr_coupling_info")
-                        elif value and key in (
-                            "func_s",
-                            "basis_s",
-                            "sm4_s"
-                        ):
+                            molecule.nmr_coupling_info = getattr(
+                                MoleculeData(0), "nmr_coupling_info"
+                            )
+                        elif value and key in ("func_s", "basis_s", "sm4_s"):
                             # reset to default, load is not available
-                            molecule.nmr_shielding_info=getattr(MoleculeData(0), "nmr_shielding_info")
+                            molecule.nmr_shielding_info = getattr(
+                                MoleculeData(0), "nmr_shielding_info"
+                            )
                         #####
                         elif value and key in ("func3", "basis3"):
                             # save calculated to
                             molecule.save_prev(
                                 "highlevel_sp_info",
-                                getattr(molecule, "highlevel_sp_info").get(
-                                    "method"
-                                ),
+                                getattr(molecule, "highlevel_sp_info").get("method"),
                             )
                             # load new if available
-                            if config.smgsolv3 in ('cpcm', 'smd', 'cosmo', 'dcosmors'):
+                            if config.smgsolv3 in ("cpcm", "smd", "cosmo", "dcosmors"):
                                 expected = "sp_implicit"
                             else:
                                 expected = "sp"
@@ -702,7 +729,7 @@ def enso_startup(cwd, args):
                                 prog=config.prog3,
                                 basis=config.basis3,
                                 func=config.func3,
-                                sm=config.smgsolv3
+                                sm=config.smgsolv3,
                             )
                             molecule.load_prev("highlevel_sp_info", method)
                     # finally add molecule to list
@@ -724,7 +751,9 @@ def enso_startup(cwd, args):
         elif not args.checkinput:
             # don't create enso.json on checkinput
             #  enso.json does not exist, create new conformers
-            print(f"{'INFORMATION:':{WARNLEN}}No restart information exists and is created during this run!\n")
+            print(
+                f"{'INFORMATION:':{WARNLEN}}No restart information exists and is created during this run!\n"
+            )
             conformers = []
             for i in range(1, config.nconf + 1):
                 conformers.append(QmJob(i))
@@ -746,6 +775,7 @@ def enso_startup(cwd, args):
         print(f"{'ERROR:':{WARNLEN}}No conformers are considered!")
         print("\nGoing to exit!")
         sys.exit(1)
+
     # formatting information:
     config.lenconfx = max([len(str(i.id)) for i in conformers])
     conformers.sort(key=lambda x: int(x.id))

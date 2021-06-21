@@ -11,21 +11,22 @@ from .orca_job import OrcaJob
 from .utilities import print
 from .cfg import ENVIRON
 
-def balance_load(P,O,nconf, do_change):
+
+def balance_load(P, O, nconf, do_change):
     """Balance calculation load between threads (P) and number of cores per 
     thread (O)
     """
     changed = False
-    max_cores = P*O
+    max_cores = P * O
     if do_change:
         if nconf < P:
             try:
                 P = nconf
-                O=1
+                O = 1
                 while True:
-                    if P*O <= max_cores:
-                        if P*(O+1) <=max_cores:
-                            O+=1
+                    if P * O <= max_cores:
+                        if P * (O + 1) <= max_cores:
+                            O += 1
                         else:
                             break
                     else:
@@ -34,8 +35,11 @@ def balance_load(P,O,nconf, do_change):
             except Exception:
                 pass
         if changed:
-            print(f"Adjusting the number of threads (P) = {P} and number of cores per thread (O) = {O}")
+            print(
+                f"Adjusting the number of threads (P) = {P} and number of cores per thread (O) = {O}"
+            )
     return P, O, changed
+
 
 def execute_data(q, resultq):
     """
@@ -66,7 +70,16 @@ def execute_data(q, resultq):
 
 
 def run_in_parallel(
-    config, q, resultq, job, maxthreads, omp, loopover, instructdict, balance=False,foldername=""
+    config,
+    q,
+    resultq,
+    job,
+    maxthreads,
+    omp,
+    loopover,
+    instructdict,
+    balance=False,
+    foldername="",
 ):
     """Run jobs in parallel
     q = queue to put assemble tasks
@@ -105,7 +118,7 @@ def run_in_parallel(
     njobs = q.qsize()
     time.sleep(0.02)
     if changed:
-        ENVIRON['PARNODES'] = str(omp)
+        ENVIRON["PARNODES"] = str(omp)
 
     if instructdict.get("onlyread", False):
         print(f"\nReading data from {njobs} conformers calculated in previous run.")
@@ -166,5 +179,5 @@ def run_in_parallel(
         print(f"ERROR some conformers were lost!")
 
     if changed:
-        ENVIRON['PARNODES'] = str(omp_initial)
+        ENVIRON["PARNODES"] = str(omp_initial)
     return results
