@@ -79,7 +79,7 @@ def interactiv_doc():
     Up to now all calculations have been performed on the SQM/FF input geometries!
 
 
-    Part2 - Optimiation:
+    Part2 - Optimization:
 
     The relevant conformers/structures have to be optimized at DFT (r2SCAN-3c) level 
     in implicit solvation (DCOSMO-RS). An efficient ensemble optimizer has been 
