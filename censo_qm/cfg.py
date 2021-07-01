@@ -833,6 +833,14 @@ censo_solvent_db = {
         "smd": ["DICHLOROMETHANE", "DICHLOROMETHANE"],
         "DC": 9.1,
     },
+    "dichloroethane": {
+        "cosmors": ["1,2-dichloroethane_c0", "1,2-dichloroethane_c0"],
+        "dcosmors": [None, "chcl3"],
+        "xtb": [None, "ch2cl2"],
+        "cpcm": [None, "CH2Cl2"],
+        "smd": ["1,2-DICHLOROETHANE", "1,2-DICHLOROETHANE"],
+        "DC": 10.125,
+    },
     "dmso": {
         "cosmors": ["dimethylsulfoxide_c0", "dimethylsulfoxide_c0"],
         "dcosmors": ["dimethylsulfoxide", "dimethylsulfoxide"],
@@ -880,6 +888,14 @@ censo_solvent_db = {
         "cpcm": ["Octanol", "Octanol"],
         "smd": ["1-OCTANOL", "1-OCTANOL"],
         "DC": 9.9,
+    },
+    "octane": {
+        "cosmors": ["octane_c0", "octane_c0"],
+        "dcosmors": [None, "octanol"],
+        "xtb": [None, "hexane"],
+        "cpcm": [None, "hexane"],
+        "smd": ["N-OCTANE", "N-OCTANE"],
+        "DC": 1.94,
     },
     "woctanol": {
         "cosmors": [None, "woctanol"],
