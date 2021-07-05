@@ -4,6 +4,32 @@ Guide for setting up CENSO and performing a CENSO calculation
 from .cfg import DESCR, censo_solvent_db, dfa_settings
 from .inputhandling import internal_settings
 
+def make_block(strlist, width=80):
+    """Print all elements of strlist in block mode
+    e.g. within 80 characters then newline
+    - width [int] width of block
+    """
+    length = 4
+    stor = []
+    try:
+        maxlen = max([len(str(x)) for x in strlist])
+    except (ValueError, TypeError):
+        maxlen = 12
+    tmp = "    "
+    for item in strlist:
+        length += maxlen + 2
+        if length <= width:
+            tmp += f"{item}, "
+        else:
+            tmp += f"{item},\n"
+            stor.append(tmp)
+            tmp="    "
+            length=4
+    if tmp not in stor:
+        stor.append(tmp)
+    return stor
+
+
 
 def interactiv_doc():
     """Guide for interactive explaination of CENSO"""
@@ -660,41 +686,41 @@ def interactiv_doc():
     """
 
     functionals = f"""
-    Functionals that can be employed by TM for func0:
-    {', '.join(func_info.infos('func0', prog='tm'))}
+    Functionals that can be employed by TM for func0:\n
+{''.join(make_block(func_info.infos('func0', prog='tm'), width=120))}
 
-    Functionals that can be employed by TM for func:
-    {', '.join(func_info.infos('func', prog='tm'))}
+    Functionals that can be employed by TM for func:\n
+{''.join(make_block(func_info.infos('func', prog='tm'), width=120))}
 
-    Functionals that can be employed by TM for func3
-    {', '.join(func_info.infos('func3', prog='tm'))}
+    Functionals that can be employed by TM for func3:\n
+{''.join(make_block(func_info.infos('func3', prog='tm'), width=120))}
 
-    Functionals that can be employed by TM for funcJ
-    {', '.join(func_info.infos('func_j', prog='tm'))}
+    Functionals that can be employed by TM for funcJ:\n
+{''.join(make_block(func_info.infos('func_j', prog='tm'), width=120))}
 
-    Functionals that can be employed by TM for funcS
-    {', '.join(func_info.infos('func_s', prog='tm'))}
+    Functionals that can be employed by TM for funcS:\n
+{''.join(make_block(func_info.infos('func_s', prog='tm'), width=120))}
 
-    Functionals that can be employed by TM for funcOR
-    {', '.join(func_info.infos('func_or', prog='tm'))}
+    Functionals that can be employed by TM for funcOR:\n
+{''.join(make_block(func_info.infos('func_or', prog='tm'), width=120))}
 
-    Functionals that can be employed by TM for funcOR_SCF
-    {', '.join(func_info.infos('func_or_scf', prog='tm'))}
+    Functionals that can be employed by TM for funcOR_SCF:\n
+{''.join(make_block(func_info.infos('func_or_scf', prog='tm'), width=120))}
 
-    Functionals that can be employed by ORCA for func0:
-    {', '.join(func_info.infos('func0', prog='orca'))}
+    Functionals that can be employed by ORCA for func0:\n
+{''.join(make_block(func_info.infos('func0', prog='orca'), width=120))}
 
-    Functionals that can be employed by ORCA for func:
-    {', '.join(func_info.infos('func', prog='orca'))}
+    Functionals that can be employed by ORCA for func:\n
+{''.join(make_block(func_info.infos('func', prog='orca'), width=120))}
 
-    Functionals that can be employed by ORCA for func3
-    {', '.join(func_info.infos('func3', prog='orca'))}
+    Functionals that can be employed by ORCA for func3:\n
+{''.join(make_block(func_info.infos('func3', prog='orca'), width=120))}
 
-    Functionals that can be employed by ORCA for funcJ
-    {', '.join(func_info.infos('func_j', prog='orca'))}
+    Functionals that can be employed by ORCA for funcJ:\n
+{''.join(make_block(func_info.infos('func_j', prog='orca'), width=120))}
 
-    Functionals that can be employed by ORCA for funcS
-    {', '.join(func_info.infos('func_s', prog='orca'))}
+    Functionals that can be employed by ORCA for funcS:\n
+{''.join(make_block(func_info.infos('func_s', prog='orca'), width=120))}
     """
 
     # CONFORMER numbering kept from crest input

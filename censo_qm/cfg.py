@@ -6,7 +6,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 import os
 import sys
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 DESCR = f"""
          ______________________________________________________________
@@ -4143,6 +4143,20 @@ si_bib = {
         r"  url = {http://pubs.acs.org/doi/10.1021/jp511158y},",
         r"  volume = {119},",
         r"  year = {2015}",
+        r"}",
+    ],
+    "alpb": [
+        r"@article{ALPB,",
+        r"  author = {Ehlert, Sebastian and Stahn, Marcel and Spicher, Sebastian and Grimme, Stefan},",
+        r"  title = {Robust and Efficient Implicit Solvation Model for Fast Semiempirical Methods},",
+        r"  journal = {Journal of Chemical Theory and Computation},",
+        r"  volume = {0},",
+        r"  number = {0},",
+        r"  pages = {null},",
+        r"  year = {0},",
+        r"  doi = {10.1021/acs.jctc.1c00471},",
+        r"  note ={PMID: 34185531},",
+        r"  URL = {https://doi.org/10.1021/acs.jctc.1c00471},",
         r"}",
     ],
 }

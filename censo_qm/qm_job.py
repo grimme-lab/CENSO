@@ -90,6 +90,7 @@ class QmJob(MoleculeData):
             #
             "cosmorsparam": "",  # normal/fine
             "symnum": 1,
+            "vapor_pressure": False,
         }
 
     def _sp(self, silent=False):
