@@ -102,7 +102,7 @@ Requirements:
 
 * newest xtb (currently: https://github.com/grimme-lab/xtb/releases/tag/v6.4.0 )
 * newest cefine https://github.com/grimme-lab/cefine/releases
-* ORCA > version 4.1
+* ORCA > version 4.1 and below 5.0.0 !!!
 
 
 Further information (will be ordered later on):
@@ -165,6 +165,13 @@ holds for *maxcor* and/or *rpacor*.
     $ echo "ricore  4000" > .cefinerc
     $ echo "maxcor  4000" >> .cefinerc
     $ echo "rpacor  4000" >> .cefinerc
+
+For ORCA user:
+--------------
+
+CENSO currently does not work with the new ORCA 5.x release. In the new ORCA release
+changes to the input have been introduced (e.g. DFT grids) and the input creation 
+inside CENSO has to be updated.
 
 Available solvation models:
 ---------------------------

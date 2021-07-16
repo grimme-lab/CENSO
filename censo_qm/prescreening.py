@@ -227,6 +227,8 @@ def part1(config, conformers, store_confs, ensembledata):
                     "cosmothermversion": config.external_paths["cosmothermversion"],
                     "ctd-param": config.cosmorsparam,
                 }
+                if config.vapor_pressure:
+                    tmp["vapor_pressure"] = True
                 instruction.update(tmp)
                 instruction["method"], instruction["method2"] = config.get_method_name(
                     "cosmors",

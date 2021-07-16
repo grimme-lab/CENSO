@@ -200,7 +200,7 @@ def cml(startup_description, options, argv=None):
         "-solvent",
         "--solvent",
         dest="solvent",
-        choices=options.value_options["solvent"],
+        #choices=options.value_options["solvent"],
         metavar="",
         action="store",
         required=False,
@@ -877,6 +877,16 @@ def cml(startup_description, options, argv=None):
         metavar="",
         help="scaling factor for frequencies  (e.g. 1.0)",
     )
+    group12 = parser.add_argument_group("SPECIAL PURPOSE")
+    group12.add_argument(
+        "--vapor_pressure",
+        "-vp",
+        dest="vapor_pressure",
+        choices=["on", "off"],
+        action="store",
+        help="Gsolv is evaluated for the input molecule in its solution (same). Only possible with COSMO-RS.",
+    )
+
     group8 = parser.add_argument_group("CREATION/DELETION OF FILES")
     group8.add_argument(
         "--debug",
@@ -1564,7 +1574,7 @@ class internal_settings:
             "opt_spearman": ["on", "off"],
             "evaluate_rrho": ["on", "off"],
             "consider_sym": ["on", "off"],
-            "prog_rrho": ["xtb", "prog"],
+            "prog_rrho": ["xtb",],
             "part0_gfnv": self.impgfnv,
             "part1_gfnv": self.impgfnv,
             "part2_gfnv": self.impgfnv,
@@ -1786,6 +1796,8 @@ class config_setup(internal_settings):
         self.func_or_scf = "r2scan-3c"
         self.basis_or = "def2-SVPD"
         self.freq_or = [589]
+        # special
+        self.vapor_pressure = False
 
         # settings the program operates with updated to the defaults
         for key in self.internal_defaults.keys():
@@ -1810,6 +1822,7 @@ class config_setup(internal_settings):
             "run",
             "configpath",
             "fixed_temperature",
+            "vapor_pressure",
         ]
         self.onlyread = False
         self.fixed_temperature = None
@@ -2485,6 +2498,13 @@ class config_setup(internal_settings):
             self.sm4_j = "gas-phase"
             self.sm4_s = "gas-phase"
         else:
+            if self.vapor_pressure:
+                self.save_errors.append(
+                    f"{'INFORMATION:':{WARNLEN}}The vapor_pressure flag only affects "
+                    f"settings for COSMO-RS!\n"
+                    f"{'':{WARNLEN}}Information on solvents with properties similar "
+                    f"to the input molecule must be provided for other solvent models!"
+                )
             if self.part2:
                 # Handle sm2 --> solvent model in optimization:
                 exchange_sm = {
@@ -2701,6 +2721,7 @@ class config_setup(internal_settings):
                     check_for["cosmors"] = True
                 elif solventmodel in ("dcosmors",):
                     check_for["dcosmors"] = True
+                    check_for["DC"] = True
                 elif solventmodel in ("cosmo",):
                     check_for["DC"] = True
                 elif solventmodel in ("cpcm",):
@@ -2720,67 +2741,81 @@ class config_setup(internal_settings):
             # check if solvent in censo_solvent_db
             if censo_solvent_db.get(self.solvent, "not_found") == "not_found":
                 self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The solvent {self.solvent} is not found!"
+                    f"{'ERROR:':{WARNLEN}}The solvent '{self.solvent}'' is not found in your file "
+                    f"{os.path.expanduser(os.path.join('~/.censo_assets/', 'censo_solvents.json'))}!"
+                    f"\n{'':{WARNLEN}}Check your input!"
                 )
                 error_logical = True
-            for key, value in check_for.items():
-                if value:
-                    if (
-                        censo_solvent_db[self.solvent].get(key, "nothing_found")
-                        == "nothing_found"
-                    ):
-                        self.save_errors.append(
-                            f"{'ERROR:':{WARNLEN}}The solvent for solventmodel in "
-                            "{key} is not found!"
-                        )
-                        error_logical = True
-                    if key == "DC":
-                        try:
-                            if not (
-                                float(
-                                    censo_solvent_db[self.solvent].get(
-                                        key, "nothing_found"
-                                    )
-                                )
-                                > 0.0
-                                and float(
-                                    censo_solvent_db[self.solvent].get(
-                                        key, "nothing_found"
-                                    )
-                                )
-                                < 150.0
-                            ):
-                                self.save_errors.append(
-                                    f"{'ERROR:':{WARNLEN}}The dielectric constant "
-                                    "can not be converted."
-                                )
-                                error_logical = True
-                        except ValueError:
+            else:
+                for key, value in check_for.items():
+                    if value:
+                        if (
+                            censo_solvent_db[self.solvent].get(key, "nothing_found")
+                            == "nothing_found"
+                        ):
                             self.save_errors.append(
-                                f"{'ERROR:':{WARNLEN}}The dielectric constant can "
-                                "not be converted."
+                                f"{'ERROR:':{WARNLEN}}The solvent for solventmodel in "
+                                "{key} is not found!"
                             )
                             error_logical = True
-                    elif key in ("smd", "cpcm"):
-                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
-                            1
-                        ].lower() not in getattr(self, lookup[key]):
-                            self.save_errors.append(
-                                f"{'WARNING:':{WARNLEN}}The solvent "
-                                f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}"
-                                f" for solventmodel/program {key} can not be checked "
-                                "but is used anyway."
-                            )
-                    else:
-                        if censo_solvent_db[self.solvent].get(key, "nothing_found")[
-                            1
-                        ] not in getattr(self, lookup[key]):
-                            self.save_errors.append(
-                                f"{'WARNING:':{WARNLEN}}The solvent "
-                                f"{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]} "
-                                f"for solventmodel/program {key} can not be checked "
-                                "but is used anyway."
-                            )
+                        if key == "DC":
+                            try:
+                                if censo_solvent_db[self.solvent].get(key, None) is not None:
+                                    _ = float(censo_solvent_db[self.solvent].get(key, None))
+                                else:
+                                    self.save_errors.append(
+                                        f"{'ERROR:':{WARNLEN}}The dielectric constant for the solvent '{self.solvent}' "
+                                        f"is not provided for the solventmodel {'cosmo / dcosmors'}!"
+                                    )
+                                    error_logical = True
+                            except ValueError:
+                                self.save_errors.append(
+                                    f"{'ERROR:':{WARNLEN}}The dielectric constant can "
+                                    "not be converted."
+                                )
+                                error_logical = True
+                        elif key in ("smd", "cpcm"):
+                            if (censo_solvent_db[self.solvent].get(key, ['', 'nothing_found'])[1].lower() 
+                                not in getattr(self, lookup[key]) and
+                                censo_solvent_db[self.solvent].get(key, ['', None])[1]):
+                                self.save_errors.append(
+                                    f"{'WARNING:':{WARNLEN}}The solvent "
+                                    f"'{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}'"
+                                    f" for solventmodel/program {key} can not be checked "
+                                    "but is used anyway."
+                                )
+                        else:
+                            if (censo_solvent_db[self.solvent].get(key, ['', 'nothing_found'])[1]
+                                not in getattr(self, lookup[key]) and
+                                censo_solvent_db[self.solvent].get(key, ['', None])[1]):
+                                self.save_errors.append(
+                                    f"{'WARNING:':{WARNLEN}}The solvent "
+                                    f"'{censo_solvent_db[self.solvent].get(key, 'nothing_found')[1]}' "
+                                    f"for solventmodel/program {key} can not be checked "
+                                    "but is used anyway."
+                                )
+                        if (key != "DC" and 
+                            censo_solvent_db[self.solvent].get(key, ["",""])[0] is None and
+                            censo_solvent_db[self.solvent].get(key, "nothing_found") != "nothing_found"
+                            ):
+                            if key == 'xtb':
+                                tmp_sm = 'alpb'
+                            else:
+                                tmp_sm = key
+                            if censo_solvent_db[self.solvent].get(key, ["",None])[1] is None:
+                                self.save_errors.append(
+                                    f"{'ERROR:':{WARNLEN}}The solvent '{self.solvent}' "
+                                    f"is not parameterized for the solventmodel {tmp_sm}, and "
+                                    f"no replacement is available!!!"
+                                )
+                                error_logical = True
+                            else:
+                                self.save_errors.append(
+                                    f"{'WARNING:':{WARNLEN}}The solvent '{self.solvent}' "
+                                    f"is not parameterized for the solventmodel {tmp_sm}, therefore"
+                                    f" '{censo_solvent_db[self.solvent].get(key, ['',''])[1]}' is used!!!"
+                                )
+
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle optlevel2:
         # sm2 needs to be set (not default!)
@@ -2933,6 +2968,14 @@ class config_setup(internal_settings):
                     "printoption",
                     "onlyread",
                     {True: "on"}.get(self.onlyread, self.onlyread),
+                ]
+            )
+        if self.vapor_pressure in ("on", True):
+            info.append(
+                [
+                    "printoption",
+                    "vapor_pressure",
+                    {True: "on"}.get(self.vapor_pressure, self.vapor_pressure),
                 ]
             )
 
@@ -3445,6 +3488,13 @@ class config_setup(internal_settings):
                 out_bib.extend(si_bib.get(item, []))
         if self.evaluate_rrho and self.bhess:
             out_bib.extend(si_bib.get("sph", []))
+        if (self.solvent != 'gas' and 
+            any(
+                [x in ('alpb', 'alpb_gsolv', 'gbsa', 'gbsa_gsolv') 
+                for x in (self.sm_rrho, self.smgsolv1, self.smgsolv2, self.smgsolv3)]
+                )
+            ):
+            out_bib.extend(si_bib.get("alpb", []))
         print("\nBib entries:")
         for line in out_bib:
             print(line)

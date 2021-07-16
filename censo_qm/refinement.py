@@ -281,6 +281,8 @@ def part3(config, conformers, store_confs, ensembledata):
                     "cosmorsparam": exc_fine.get(config.smgsolv3, "normal"),
                     "ctd-param": config.cosmorsparam,
                 }
+                if config.vapor_pressure:
+                    tmp["vapor_pressure"] = True
                 instruction.update(tmp)
                 instruction["method"], instruction["method2"] = config.get_method_name(
                     "cosmors",

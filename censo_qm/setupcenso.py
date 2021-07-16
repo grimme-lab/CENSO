@@ -1,6 +1,6 @@
 """
 Contains enso_startup for the initialization of all parameters set for the
-suseqent calculation.
+subsequent calculation.
 """
 import os
 import sys
@@ -108,11 +108,11 @@ def enso_startup(cwd, args):
         )
     ):
         # read configpath from previous enso.json if restart is requested
-        config.configpath = (
-            config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
-            .get("settings", {})
-            .get("configpath", "")
-        )
+        # additionally check for vapor pressure
+        tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
+        config.configpath = tmp.get("settings", {}).get("configpath", "")
+        if not args.vapor_pressure:
+            args.vapor_pressure = tmp.get("settings", {}).get("vapor_pressure", False)
     elif os.path.isfile(os.path.join(config.cwd, configfname)):
         # local configuration file before remote configuration file
         config.configpath = os.path.join(config.cwd, configfname)
@@ -147,10 +147,34 @@ def enso_startup(cwd, args):
         except (ValueError, TypeError, FileNotFoundError):
             print(
                 f"{'ERROR:':{WARNLEN}}Your censo_solvents.json file in {solvent_user_path} is corrupted!\n"
-                f"{'':{WARNLEN}}You can delete your corrupted file and a new censo_solvents.json will be created on the next start of CENSO."
+                f"{'':{WARNLEN}}You can delete your corrupted file and a new "
+                f"censo_solvents.json will be created on the next start of CENSO."
             )
-            raise
+            print("\nGoing to exit!")
+            sys.exit(1)
 
+        #vapor_pressure
+        if args.vapor_pressure:
+            config.vapor_pressure = True
+            if os.path.isfile(os.path.join(config.cwd, "same_solvent.json")):
+                try:
+                    with open(os.path.join(config.cwd, "same_solvent.json"), "r", encoding=CODING, newline=None) as inp:
+                        censo_solvent_db.update(json.load(inp, object_pairs_hook=OrderedDict))
+                except (ValueError, TypeError, FileNotFoundError):
+                    print(f"{'ERROR:':{WARNLEN}}Your file same_solvents.json is corrupted!")
+                    print("\nGoing to exit!")
+                    sys.exit(1)
+            # censo_solvent_db.update({
+            #     "same":{
+            #         "cosmors": ["same", "same"], # should not be used 
+            #         "dcosmors": [None, None], # has to be provided
+            #         "xtb": [None, None], # has to be provided
+            #         "cpcm": [None, None], # has to be provided
+            #         "smd": [None, None], # has to be provided
+            #         "DC": None, # has to be provided
+            #         }
+            #     }
+            # )
     else:
         with open(solvent_user_path, "w") as out:
             json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
@@ -398,7 +422,8 @@ def enso_startup(cwd, args):
             prev_temp = getattr(previousrun, "temperature", None)
             if prev_temp != getattr(config, "temperature"):
                 print(
-                    f"{'INFORMATION:':{WARNLEN}}The temperature has been changed from (previous) {prev_temp} K to (current) {getattr(config, 'temperature')} K."
+                    f"{'INFORMATION:':{WARNLEN}}The temperature has been changed "
+                    f"from (previous) {prev_temp} K to (current) {getattr(config, 'temperature')} K."
                 )
                 # check multitemp on in previous
                 if getattr(previousrun, "multitemp", None):
@@ -408,7 +433,8 @@ def enso_startup(cwd, args):
                         config, "trange"
                     ):
                         print(
-                            f"{'ERROR:':{WARNLEN}}The temperature range has been changed together with the temperature which is not allowed."
+                            f"{'ERROR:':{WARNLEN}}The temperature range has been "
+                            f"changed together with the temperature which is not allowed."
                         )
                         print("\nGoing to exit!")
                         sys.exit(1)
@@ -423,16 +449,20 @@ def enso_startup(cwd, args):
                         )
                     else:
                         print(
-                            f"{'ERROR:':{WARNLEN}}Temperature has not been previously calculated, e.g. not in temperature range (trange). Change of temperature not possible!"
+                            f"{'ERROR:':{WARNLEN}}Temperature has not been previously "
+                            f"calculated, e.g. not in temperature range (trange). "
+                            f"Change of temperature not possible!"
                         )
                         print(
-                            f"{'INFORMATION:':{WARNLEN}}Temperatures in trange are: {[i for i in frange(prev_trange[0], prev_trange[1], prev_trange[2])]}"
+                            f"{'INFORMATION:':{WARNLEN}}Temperatures in trange "
+                            f"are: {[i for i in frange(prev_trange[0], prev_trange[1], prev_trange[2])]}"
                         )
                         print("\nGoing to exit!")
                         sys.exit(1)
                 else:
                     print(
-                        f"{'ERROR:':{WARNLEN}}Temperature change is requested, but no previous other temperatures have been calculated!"
+                        f"{'ERROR:':{WARNLEN}}Temperature change is requested, "
+                        f"but no previous other temperatures have been calculated!"
                     )
                     print("\nGoing to exit!")
                     sys.exit(1)

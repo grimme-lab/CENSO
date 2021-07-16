@@ -718,20 +718,21 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
             out.write(
                 "{:20.8f}        !{}\n".format(
                     getattr(conf, "optimization_info")["energy"], "CONF" + str(conf.id)
+                    #getattr(conf, "lowlevel_sp_info")["energy"], "CONF" + str(conf.id)
                 )
             )
             for line in conf_xyz:
                 out.write(line + "\n")
-        for conf in allconfs:
-            conf_xyz, nat = t2x(os.path.join(config.cwd, "CONF" + str(conf.id), func))
-            out.write("  {}\n".format(nat))  ### number of atoms
-            out.write(
-                "{:20.8f}        !{}\n".format(
-                    getattr(conf, "optimization_info")["energy"], "CONF" + str(conf.id)
-                )
-            )
-            for line in conf_xyz:
-                out.write(line + "\n")
+        # for conf in allconfs:
+        #     conf_xyz, nat = t2x(os.path.join(config.cwd, "CONF" + str(conf.id), func))
+        #     out.write("  {}\n".format(nat))  ### number of atoms
+        #     out.write(
+        #         "{:20.8f}        !{}\n".format(
+        #             getattr(conf, "optimization_info")["energy"], "CONF" + str(conf.id)
+        #         )
+        #     )
+        #     for line in conf_xyz:
+        #         out.write(line + "\n")
     time.sleep(0.01)
 
     crestcall = [

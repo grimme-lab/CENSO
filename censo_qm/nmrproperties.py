@@ -1034,7 +1034,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 )
                 line = (
                     f"Coupling constant calculation {check[True]}"
-                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}: "
+                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}"
                 )
                 print(line)
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))
@@ -1191,7 +1191,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 )
                 line = (
                     f"Shielding constant calculation {check[True]}"
-                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}: "
+                    f" for {last_folders(conf.job['workdir'], 2):>{pl}}"
                 )
                 print(line)
                 calculate.append(prev_calculated.pop(prev_calculated.index(conf)))

@@ -571,7 +571,7 @@ class OrcaJob(QmJob):
                 newcoord.write("$external\n")
                 newcoord.write("   orca input file= inp\n")
                 newcoord.write(
-                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')}"
+                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
                 )
                 newcoord.write("$end")
 

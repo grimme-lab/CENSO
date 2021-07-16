@@ -1011,6 +1011,8 @@ def part2(config, conformers, store_confs, ensembledata):
                     "ctd-param": config.cosmorsparam,
                     "copymos": str(instruction_gsolv["func"]),
                 }
+                if config.vapor_pressure:
+                    tmp["vapor_pressure"] = True
                 instruction_gsolv.update(tmp)
                 instruction_gsolv["method"], instruction_gsolv[
                     "method2"

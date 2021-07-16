@@ -712,6 +712,8 @@ class TmJob(QmJob):
                     cosmors_solv = {
                         "woctanol": ["f = h2o.cosmo ", "f = 1-octanol.cosmo "]
                     }
+                elif self.job['vapor_pressure']:
+                    cosmors_solv = {f"{self.job['solvent']}": [f"f = {'out.cosmo'} "]}
                 else:
                     tmp_1 = os.path.splitext(
                         censo_solvent_db[self.job["solvent"]]["cosmors"][1]
@@ -757,12 +759,17 @@ class TmJob(QmJob):
                         out.write(line + "fdir=" + solv_data + " autoc \n")
                 elif len(cosmors_solv[self.job["solvent"]]) == 1:
                     mix = "1.0 0.0"
-                    out.write(
-                        cosmors_solv[self.job["solvent"]][0]
-                        + " fdir="
-                        + solv_data
-                        + " autoc \n"
-                    )
+                    if self.job['vapor_pressure']:
+                        out.write(
+                            cosmors_solv[self.job["solvent"]][0]
+                            + " \n")
+                    else:
+                        out.write(
+                            cosmors_solv[self.job["solvent"]][0]
+                            + " fdir="
+                            + solv_data
+                            + " autoc \n"
+                        )
                 out.write("f = out.cosmo \n")
 
                 if self.job["trange"]:
