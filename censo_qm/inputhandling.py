@@ -1574,7 +1574,7 @@ class internal_settings:
             "opt_spearman": ["on", "off"],
             "evaluate_rrho": ["on", "off"],
             "consider_sym": ["on", "off"],
-            "prog_rrho": ["xtb", "prog"],
+            "prog_rrho": ["xtb",],
             "part0_gfnv": self.impgfnv,
             "part1_gfnv": self.impgfnv,
             "part2_gfnv": self.impgfnv,
