@@ -464,6 +464,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 for conf in list(calculate):
                     if not conf.job["success"]:
                         print(f"removing CONF{conf.id} because optimization crashed.")
+                        save_errors.append(f"removed CONF{conf.id} because crashed optimization.")
                         conf.optimization_info["info"] = "failed"
                         conf.optimization_info["convergence"] = "not_converged"
                         conf.optimization_info["method"] = instruction_opt["method"]
