@@ -154,7 +154,7 @@ def enso_startup(cwd, args):
             sys.exit(1)
 
         #vapor_pressure
-        if args.vapor_pressure:
+        if args.vapor_pressure == "on" or args.vapor_pressure is True:
             config.vapor_pressure = True
             if os.path.isfile(os.path.join(config.cwd, "same_solvent.json")):
                 try:
