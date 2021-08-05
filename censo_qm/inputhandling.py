@@ -2235,6 +2235,9 @@ class config_setup(internal_settings):
             orcaversion = int(self.external_paths['orcaversion'].split('.')[0])
         except (ValueError, AttributeError):
             orcaversion = 0
+        print("orcaversion", orcaversion)
+        print(self.external_paths['orcaversion'])
+        print(external_paths['orcaversion'])
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func0
         # available with QM code
@@ -3529,11 +3532,14 @@ class config_setup(internal_settings):
         for line in out_bib:
             print(line)
 
-    def read_program_paths(self, configpath):
+    def read_program_paths(self, configpath, silent=False):
         """
         Get absolute paths of external programs employed in enso
         Read from the configuration file .censorc
         """
+        if silent:
+            stor = self.save_errors
+
         with open(configpath, "r") as inp:
             stor = inp.readlines()
         for line in stor:
@@ -3541,7 +3547,7 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["cosmorssetup"] = str(line.rstrip(os.linesep))
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from .censorc!"
                     )
                 try:
@@ -3557,8 +3563,8 @@ class config_setup(internal_settings):
                         tmp_path, normal
                     )
                 except Exception as e:
-                    print(e)
-                    print(
+                    self.save_errors.append(e)
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from "
                         f".censorc!\n{'':{WARNLEN}}Most probably there is a user "
                         "input error."
@@ -3567,7 +3573,7 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!."
                     )
             if "ORCA version:" in line:
@@ -3578,49 +3584,52 @@ class config_setup(internal_settings):
                     tmp = "".join(tmp)
                     self.external_paths["orcaversion"] = tmp
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!"
                     )
             if "GFN-xTB:" in line:
                 try:
                     self.external_paths["xtbpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!"
                     )
                     if shutil.which("xtb") is not None:
                         self.external_paths["xtbpath"] = shutil.which("xtb")
-                        print(
+                        self.save_errors.append(
                             f"{'':{WARNLEN}}Going to use {self.external_paths['xtbpath']} instead."
                         )
             if "CREST:" in line:
                 try:
                     self.external_paths["crestpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!"
                     )
                     if shutil.which("crest") is not None:
                         self.external_paths["crestpath"] = shutil.which("crest")
-                        print(
+                        self.save_errors.append(
                             f"{'':{WARNLEN}}Going to use {self.external_paths['crestpath']} instead."
                         )
             if "mpshift:" in line:
                 try:
                     self.external_paths["mpshiftpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!"
                     )
             if "escf:" in line:
                 try:
                     self.external_paths["escfpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!"
                     )
             if "$ENDPROGRAMS" in line:
                 break
+
+            if silent:
+                self.save_errors = stor
 
     def needed_external_programs(self):
         """
