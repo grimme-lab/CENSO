@@ -154,7 +154,7 @@ class OrcaJob(QmJob):
                     # --> decide cosx or RIJK
                     if orca5:
                         orcainput["RI-approx"] = [
-                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX DEFGRID2"
+                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX"
                         ]
                     else:
                         orcainput["RI-approx"] = [
@@ -222,7 +222,7 @@ class OrcaJob(QmJob):
         }
         extension5 = {
             "low": {"grid": ["! DEFGRID1"], "scfconv": ["! loosescf"]},
-            "low+": {"grid": ["! DEFGRID1"], "scfconv": ["! scfconv6"]},
+            "low+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv6"]},
             "high": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
             "high+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
         }
