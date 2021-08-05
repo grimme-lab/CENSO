@@ -331,7 +331,7 @@ def part5(config, conformers, store_confs, ensembledata):
         conf.rel_free_energy = (conf.free_energy - minfree) * AU2KCAL
     calculate.sort(key=lambda x: int(x.id))
 
-    # printout for part4 -------------------------------------------------------
+    # printout for part5 -------------------------------------------------------
     print("\n" + "".ljust(int(PLENGTH / 2), "-"))
     print("* Gibbs free energies used in part5 *".center(int(PLENGTH / 2), " "))
     print("".ljust(int(PLENGTH / 2), "-") + "\n")

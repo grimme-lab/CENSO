@@ -2230,6 +2230,8 @@ class config_setup(internal_settings):
         self.func_or_scf = self.func_info.relay_functionals.get(
             self.func_or_scf, self.func_or_scf
         )
+        # extracheck for r2scan-3c and ORCA
+
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func0
         # available with QM code
@@ -2240,6 +2242,10 @@ class config_setup(internal_settings):
                     f"(func0) {self.func0} is not implemented with the {self.prog} program package.\n"
                 )
                 error_logical = True
+            if (self.func0 == "r2scan-3c" and self.prog == "orca" and 
+                int(external_paths['orcaversion'].split('.')[0]) < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part0
             if self.func0 not in self.func_info.infos("func0"):
                 self.save_errors.append(
@@ -2290,6 +2296,10 @@ class config_setup(internal_settings):
                     f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
                 )
                 error_logical = True
+            if (self.func == "r2scan-3c" and self.prog == "orca" and 
+                int(external_paths['orcaversion'].split('.')[0]) < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part1 / part2
             if self.func not in self.func_info.infos("func"):
                 self.save_errors.append(
@@ -2387,6 +2397,10 @@ class config_setup(internal_settings):
                     f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
                 )
                 error_logical = True
+            if (self.func3 == "r2scan-3c" and self.prog3 == "orca" and 
+                int(external_paths['orcaversion'].split('.')[0]) < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part3
             if self.func3 not in self.func_info.infos("func3"):
                 self.save_errors.append(
@@ -2408,6 +2422,10 @@ class config_setup(internal_settings):
                     "program package.\n"
                 )
                 error_logical = True
+            if (self.func_j == "r2scan-3c" and self.prog4_j == "orca" and 
+                int(external_paths['orcaversion'].split('.')[0]) < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part4
             if self.func_j not in self.func_info.infos("func_j"):
                 self.save_errors.append(
@@ -2449,6 +2467,10 @@ class config_setup(internal_settings):
                     "program package.\n"
                 )
                 error_logical = True
+            if (self.func_s == "r2scan-3c" and self.prog4_s == "orca" and 
+                int(external_paths['orcaversion'].split('.')[0]) < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part4
             if self.func_s not in self.func_info.infos("func_s"):
                 self.save_errors.append(
