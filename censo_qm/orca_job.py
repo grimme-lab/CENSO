@@ -87,10 +87,13 @@ class OrcaJob(QmJob):
 
 
         # check ORCA5 or older versions:
-        if int(external_paths['orcaversion'].split('.')[0]) < 5:
-            orca5=False
-        else:
-            orca5=True
+        try:
+            if int(external_paths['orcaversion'].split('.')[0]) >= 5:
+                orca5=True
+            else:
+                orca5=False
+        except:
+            print(f"{'ERROR:':{WARNLEN}}Can not convert the orcaversion, needed for input generation!")
 
         # build up call:
         orcainput = orcainput_start.copy()
@@ -154,7 +157,7 @@ class OrcaJob(QmJob):
                     # --> decide cosx or RIJK
                     if orca5:
                         orcainput["RI-approx"] = [
-                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX DEFGRID2"
+                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX"
                         ]
                     else:
                         orcainput["RI-approx"] = [
@@ -164,7 +167,7 @@ class OrcaJob(QmJob):
                 else:
                     if orca5:
                         orcainput["RI-approx"] = [
-                            f"! def2/J def2-TZVPP/C RIJCOSX DEFGRID2"
+                            f"! def2/J def2-TZVPP/C RIJCOSX"
                         ]
                         # call.append(f"! RIJK def2/JK def2-TZVPP/C ")                    
                     else:
@@ -222,7 +225,7 @@ class OrcaJob(QmJob):
         }
         extension5 = {
             "low": {"grid": ["! DEFGRID1"], "scfconv": ["! loosescf"]},
-            "low+": {"grid": ["! DEFGRID1"], "scfconv": ["! scfconv6"]},
+            "low+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv6"]},
             "high": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
             "high+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
         }
