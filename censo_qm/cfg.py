@@ -6,7 +6,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 import os
 import sys
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 DESCR = f"""
          ______________________________________________________________
@@ -206,7 +206,7 @@ class dfa_settings:
         },
         "r2scan-3c": {
             "tm": "r2scan-3c",
-            "orca": None,
+            "orca": "r2scan-3c",
             "disp": "composite",
             "part": [
                 "func0",
@@ -630,6 +630,13 @@ class dfa_settings:
         "wb97x-d3bj": {
             "tm": None,
             "orca": "wb97x-d3bj",
+            "disp": "included",
+            "part": ["func0", "func", "func3", "func_j", "func_s"],
+            "type": "rsh_hybrid",
+        },
+        "wb97x-d4": {
+            "tm": None,
+            "orca": "wb97x-d4",
             "disp": "included",
             "part": ["func0", "func", "func3", "func_j", "func_s"],
             "type": "rsh_hybrid",

@@ -100,9 +100,9 @@ Explainations on the commandline arguments can be printed by:
 Requirements:
 -------------
 
-* newest xtb (currently: https://github.com/grimme-lab/xtb/releases/tag/v6.4.0 )
+* newest xtb >= v6.4.0
 * newest cefine https://github.com/grimme-lab/cefine/releases
-* ORCA > version 4.1 and below 5.0.0 !!!
+* ORCA > version 4.1 
 
 
 Further information (will be ordered later on):
@@ -112,8 +112,8 @@ Further information (will be ordered later on):
 * a folder ~/.censo_assets/ will be created upon usage of censo
 * ORCA has not been tested extensively so please be careful, test calculations
   and report possible "bad" settings
-* To be efficient COSMO-RS calculations are not performed with BP86 but whith the functionals
-  for energy evaluation.
+* To save computational cost COSMO-RS calculations are not performed with BP86 but whith the 
+  density functionals for energy evaluation.
 
 
 Usage:
@@ -134,23 +134,23 @@ The molecule numbering from the input structure ensemble is kept throughout the
 entire program. There are several program parts which can be used to filter a structure 
 ensemble:
 
-0) Cheap prescreening (part0): Very fast DFT energies in order to improve upon the energy
+1) Cheap prescreening (part0): Very fast DFT energies in order to improve upon the energy
     description of the SQM method used to generate the input structure ensemble.
     The (free) energies are evaluated on the input geometries (DFT unoptimized).
 
-1) Prescreening (part1): Improved DFT energies and accurate solvation energies (if needed).
+2) Prescreening (part1): Improved DFT energies and accurate solvation energies (if needed).
     The free energies are evaluated on the input geometries (DFT unoptimized).
 
-2) Optimization (part2): efficient structure ensemble optimization and 
+3) Optimization (part2): efficient structure ensemble optimization and 
     free energy calculation on DFT optimized geometries.
 
-3) Refinement (part3): Optional free energy refinement (on DFT optimized geometries).
+4) Refinement (part3): Optional free energy refinement (on DFT optimized geometries).
     E.g. using hybrid DFA with large basis set.
 
-4) NMR properties (part4): Optional calculation of shielding and coupling constants on 
+5) NMR properties (part4): Optional calculation of shielding and coupling constants on 
     populated conformers.
 
-5) Optical Rotation (part5): Optional calculation of optical rotatory dispersion 
+6) Optical Rotation (part5): Optional calculation of optical rotatory dispersion 
     for the populated ensemble.
 
 
@@ -169,9 +169,15 @@ holds for *maxcor* and/or *rpacor*.
 For ORCA user:
 --------------
 
-CENSO currently does not work with the new ORCA 5.x release. In the new ORCA release
-changes to the input have been introduced (e.g. DFT grids) and the input creation 
-inside CENSO has to be updated.
+CENSO has been updated to work with the new ORCA 5.0.1 release. The user has to provide the matching
+ORCA version number in the `.cefinerc` file in order for the correct ORCA input generation 
+to work, e.g. 
+
+.. code::
+
+    ORCA: /tmp1/orca_5_0_1_linux_x86-64_openmpi411
+    ORCA version: 5.0.1
+
 
 Available solvation models:
 ---------------------------

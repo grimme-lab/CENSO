@@ -332,6 +332,7 @@ def enso_startup(cwd, args):
         config.nconf = config.maxconf
 
     # check settings-combination and show error:
+    config.read_program_paths(config.configpath, silent=True)
     error_logical = config.check_logic()
 
     if getattr(args, "onlyread", None) is not None:
