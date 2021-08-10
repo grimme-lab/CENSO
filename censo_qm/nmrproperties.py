@@ -406,7 +406,6 @@ def write_anmrrc(config):
                     ][tmp_func][tmp_func_s][config.basis_s][config.solvent]
                 )
             except KeyError as e:
-                print(f"The KeyError is: {e}")
                 try:
                     ref_decision[element]["sigma"] = "{:4.3f}".format(
                         getattr(nmrref, ref_decision[element].get(config.prog4_s))[
@@ -418,13 +417,14 @@ def write_anmrrc(config):
                         f"for {config.func_s}/{config.basis_s} and element {element:3} could "
                         f"not be found, using {'pbe0/def2-TZVP'} reference instead!"
                     )
+                    print(f"{'INFORMATION:':{WARNLEN}}The KeyError is: {e}")
                 except KeyError as e:
-                    print(f"The KeyError is: {e}")
                     print(
                         f"{'ERROR:':{WARNLEN}}The reference absolute shielding constant for "
                         f"element {element} could not be found!\n"
                         f"{'':{WARNLEN}}You have to edit the file .anmrrc by hand!"
                     )
+                    print(f"{'INFORMATION:':{WARNLEN}}The KeyError is: {e}")
                     ref_decision[element]["sigma"] = f"{0.0 :4.3f}"
 
     # for elementactive
