@@ -1355,6 +1355,7 @@ class internal_settings:
         "ethylacetate_c0",
         "furane_c0",
         "phenol_c0",
+        "1,2-dichloroethane_c0",
     ]
 
     # only using the dielectric constant (DC) for cosmo
@@ -2230,6 +2231,11 @@ class config_setup(internal_settings):
         self.func_or_scf = self.func_info.relay_functionals.get(
             self.func_or_scf, self.func_or_scf
         )
+        # extracheck for r2scan-3c and ORCA
+        try:
+            orcaversion = int(self.external_paths['orcaversion'].split('.')[0])
+        except (ValueError, AttributeError):
+            orcaversion = 2
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func0
         # available with QM code
@@ -2240,6 +2246,11 @@ class config_setup(internal_settings):
                     f"(func0) {self.func0} is not implemented with the {self.prog} program package.\n"
                 )
                 error_logical = True
+            if (self.func0 == "r2scan-3c" and 
+                self.prog == "orca" and 
+                orcaversion < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part0
             if self.func0 not in self.func_info.infos("func0"):
                 self.save_errors.append(
@@ -2290,6 +2301,11 @@ class config_setup(internal_settings):
                     f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
                 )
                 error_logical = True
+            if (self.func == "r2scan-3c" and
+                self.prog == "orca" and 
+                orcaversion < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part1 / part2
             if self.func not in self.func_info.infos("func"):
                 self.save_errors.append(
@@ -2387,6 +2403,11 @@ class config_setup(internal_settings):
                     f"(func3) {self.func3} is not implemented with the {self.prog3} program package.\n"
                 )
                 error_logical = True
+            if (self.func3 == "r2scan-3c" and 
+                self.prog3 == "orca" and 
+                orcaversion< 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part3
             if self.func3 not in self.func_info.infos("func3"):
                 self.save_errors.append(
@@ -2408,6 +2429,11 @@ class config_setup(internal_settings):
                     "program package.\n"
                 )
                 error_logical = True
+            if (self.func_j == "r2scan-3c" and 
+                self.prog4_j == "orca" and 
+                orcaversion < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part4
             if self.func_j not in self.func_info.infos("func_j"):
                 self.save_errors.append(
@@ -2449,6 +2475,11 @@ class config_setup(internal_settings):
                     "program package.\n"
                 )
                 error_logical = True
+            if (self.func_s == "r2scan-3c" and 
+                self.prog4_s == "orca" and 
+                orcaversion < 5):
+                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
             # check if available for part4
             if self.func_s not in self.func_info.infos("func_s"):
                 self.save_errors.append(
@@ -3499,11 +3530,14 @@ class config_setup(internal_settings):
         for line in out_bib:
             print(line)
 
-    def read_program_paths(self, configpath):
+    def read_program_paths(self, configpath, silent=False):
         """
         Get absolute paths of external programs employed in enso
         Read from the configuration file .censorc
         """
+        if silent:
+            keep = self.save_errors
+
         with open(configpath, "r") as inp:
             stor = inp.readlines()
         for line in stor:
@@ -3511,7 +3545,7 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["cosmorssetup"] = str(line.rstrip(os.linesep))
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from .censorc!"
                     )
                 try:
@@ -3527,8 +3561,8 @@ class config_setup(internal_settings):
                         tmp_path, normal
                     )
                 except Exception as e:
-                    print(e)
-                    print(
+                    self.save_errors.append(e)
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from "
                         f".censorc!\n{'':{WARNLEN}}Most probably there is a user "
                         "input error."
@@ -3537,7 +3571,7 @@ class config_setup(internal_settings):
                 try:
                     self.external_paths["orcapath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!."
                     )
             if "ORCA version:" in line:
@@ -3548,49 +3582,52 @@ class config_setup(internal_settings):
                     tmp = "".join(tmp)
                     self.external_paths["orcaversion"] = tmp
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!"
                     )
             if "GFN-xTB:" in line:
                 try:
                     self.external_paths["xtbpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!"
                     )
                     if shutil.which("xtb") is not None:
                         self.external_paths["xtbpath"] = shutil.which("xtb")
-                        print(
+                        self.save_errors.append(
                             f"{'':{WARNLEN}}Going to use {self.external_paths['xtbpath']} instead."
                         )
             if "CREST:" in line:
                 try:
                     self.external_paths["crestpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!"
                     )
                     if shutil.which("crest") is not None:
                         self.external_paths["crestpath"] = shutil.which("crest")
-                        print(
+                        self.save_errors.append(
                             f"{'':{WARNLEN}}Going to use {self.external_paths['crestpath']} instead."
                         )
             if "mpshift:" in line:
                 try:
                     self.external_paths["mpshiftpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!"
                     )
             if "escf:" in line:
                 try:
                     self.external_paths["escfpath"] = str(line.split()[1])
                 except Exception:
-                    print(
+                    self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!"
                     )
             if "$ENDPROGRAMS" in line:
                 break
+
+            if silent:
+                self.save_errors = keep
 
     def needed_external_programs(self):
         """
@@ -3739,7 +3776,7 @@ class config_setup(internal_settings):
                 self.external_paths["crestpath"] is None
                 or shutil.which(self.external_paths["crestpath"]) is None
             ):
-                print(f"{'ERROR:':{WARNLEN}}path for CREST is not correct!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}path for CREST is not correct!")
                 error_logical = True
         # xTB
         if requirements.get("needxtb", False):
@@ -3747,12 +3784,12 @@ class config_setup(internal_settings):
                 self.external_paths["xtbpath"] is None
                 or shutil.which(self.external_paths["xtbpath"]) is None
             ):
-                print(f"{'ERROR:':{WARNLEN}}path for xTB is not correct!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}path for xTB is not correct!")
                 error_logical = True
             try:
                 ENVIRON["OMP_NUM_THREADS"] = "{:d}".format(self.omp)
             except Exception:
-                print(f"{'ERROR:':{WARNLEN}}can not set omp for xTB calculation!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}can not set omp for xTB calculation!")
         # ORCA
         if requirements.get("needorca", False):
             if (
@@ -3760,7 +3797,7 @@ class config_setup(internal_settings):
                 or shutil.which(os.path.join(self.external_paths["orcapath"], "orca"))
                 is None
             ):
-                print(f"{'ERROR:':{WARNLEN}}path for ORCA is not correct!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}path for ORCA is not correct!")
                 error_logical = True
         # cefine
         if requirements.get("needcefine", False):
@@ -3780,10 +3817,10 @@ class config_setup(internal_settings):
                 print("    Using cefine from {}".format(path_to_cefine))
                 self.external_paths["cefinepath"] = path_to_cefine
             else:
-                print(
+                self.save_errors.append(
                     f"{'ERROR:':{WARNLEN}}cefine (the commandline program for define) has not been found!"
                 )
-                print(f"{'':{WARNLEN}}all programs needing TM can not start!")
+                self.save_errors.append(f"{'':{WARNLEN}}all programs needing TM can not start!")
                 error_logical = True
         # TM
         if requirements.get("needtm", False):
@@ -3802,14 +3839,14 @@ class config_setup(internal_settings):
                         error_logical = True
                         raise
                 else:
-                    print(
+                    self.save_errors.append(
                         f"{'ERROR:':{WARNLEN}}PARA_ARCH has to be set to SMP for parallel TM "
                         "calculations!"
                     )
                     if self.run:
                         error_logical = True
             except Exception:
-                print(
+                self.save_errors.append(
                     f"{'ERROR:':{WARNLEN}}PARA_ARCH has to be set to SMP and PARNODES have to "
                     f"be set\n{'':{WARNLEN}}for parallel TM calculations!."
                 )
@@ -3821,31 +3858,31 @@ class config_setup(internal_settings):
                 self.external_paths["escfpath"] is None
                 or shutil.which(self.external_paths["escfpath"]) is None
             ):
-                print(f"{'ERROR:':{WARNLEN}}path for escf is not correct!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}path for escf is not correct!")
                 error_logical = True
         if requirements.get("needmpshift", False):
             if (
                 self.external_paths["mpshiftpath"] is None
                 or shutil.which(self.external_paths["mpshiftpath"]) is None
             ):
-                print(f"{'ERROR:':{WARNLEN}}path for mpshift is not correct!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}path for mpshift is not correct!")
                 error_logical = True
         # COSMORS
         if requirements.get("needcosmors", False):
             if self.external_paths["cosmorssetup"] is None:
-                print(
+                self.save_errors.append(
                     f"{'ERROR:':{WARNLEN}}Set up for COSMO-RS has to be written to .censorc!"
                 )
                 error_logical = True
             if self.external_paths["cosmothermversion"] is None:
-                print(
+                self.save_errors.append(
                     f"{'ERROR:':{WARNLEN}}Version of COSMO-RS has to be written to .censorc!"
                 )
                 error_logical = True
             if shutil.which("cosmotherm") is not None:
                 print("    Using COSMOtherm from {}".format(shutil.which("cosmotherm")))
             else:
-                print(f"{'ERROR:':{WARNLEN}}COSMOtherm has not been found!")
+                self.save_errors.append(f"{'ERROR:':{WARNLEN}}COSMOtherm has not been found!")
                 error_logical = True
         # update cfg.external paths
         external_paths.update(self.external_paths)

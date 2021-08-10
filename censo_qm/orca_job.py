@@ -85,6 +85,16 @@ class OrcaJob(QmJob):
         else:
             nmrprop = False
 
+
+        # check ORCA5 or older versions:
+        try:
+            if int(external_paths['orcaversion'].split('.')[0]) >= 5:
+                orca5=True
+            else:
+                orca5=False
+        except:
+            print(f"{'ERROR:':{WARNLEN}}Can not convert the orcaversion, needed for input generation!")
+
         # build up call:
         orcainput = orcainput_start.copy()
         # set functional
@@ -145,15 +155,26 @@ class OrcaJob(QmJob):
                 def2cbasis = ("Def2-SVP", "Def2-TZVP", "Def2-TZVPP", "Def2-QZVPP")
                 if str(self.job["basis"]).upper() in def2cbasis:
                     # --> decide cosx or RIJK
-                    orcainput["RI-approx"] = [
-                        f"! def2/J {str(self.job['basis'])}/C RIJCOSX GRIDX7 NOFINALGRIDX"
-                    ]
+                    if orca5:
+                        orcainput["RI-approx"] = [
+                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX"
+                        ]
+                    else:
+                        orcainput["RI-approx"] = [
+                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX GRIDX7 NOFINALGRIDX"
+                        ]
                     # call.append(f"! RIJK def2/JK {str(self.job['basis'])}/C")
                 else:
-                    orcainput["RI-approx"] = [
-                        f"! def2/J def2-TZVPP/C RIJCOSX GRIDX7 NOFINALGRIDX"
-                    ]
-                    # call.append(f"! RIJK def2/JK def2-TZVPP/C ")
+                    if orca5:
+                        orcainput["RI-approx"] = [
+                            f"! def2/J def2-TZVPP/C RIJCOSX"
+                        ]
+                        # call.append(f"! RIJK def2/JK def2-TZVPP/C ")                    
+                    else:
+                        orcainput["RI-approx"] = [
+                            f"! def2/J def2-TZVPP/C RIJCOSX GRIDX7 NOFINALGRIDX"
+                        ]
+                        # call.append(f"! RIJK def2/JK def2-TZVPP/C ")
                 if nmrprop:
                     orcainput["mp2"] = [
                         "%mp2",
@@ -167,7 +188,10 @@ class OrcaJob(QmJob):
                 self.job["func"] in dfa_settings().hybrid_dfa()
                 and self.job["func"] != "pbeh-3c"
             ):
-                orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
+                if orca5:
+                    orcainput["RI-approx"] = [f"! def2/J RIJCOSX"]
+                else:
+                    orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
             elif self.job["func"] in dfa_settings.composite_method_basis.keys():
                 pass
             else:  # essentially gga
@@ -177,9 +201,15 @@ class OrcaJob(QmJob):
             self.job["func"] in dfa_settings().dh_dfa()
             or self.job["func"] in dfa_settings().hybrid_dfa()
         ):
-            orcainput["grid"] = ["! grid5 nofinalgrid"]
+            if orca5:
+                orcainput["grid"] = ["! DEFGRID2"]
+            else:
+                orcainput["grid"] = ["! grid5 nofinalgrid"]
         else:
-            orcainput["grid"] = ["! grid4 nofinalgrid"]
+            if orca5:
+                orcainput["grid"] = ["! DEFGRID1"]
+            else:
+                orcainput["grid"] = ["! grid4 nofinalgrid"]
         if self.job["moread"] is not None:
             #! MORead
             #%moinp "jobname2.gbw"
@@ -193,11 +223,21 @@ class OrcaJob(QmJob):
             "high": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! scfconv7"]},
             "high+": {"grid": ["! grid5 nofinalgrid"], "scfconv": ["! scfconv7"]},
         }
+        extension5 = {
+            "low": {"grid": ["! DEFGRID1"], "scfconv": ["! loosescf"]},
+            "low+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv6"]},
+            "high": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
+            "high+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
+        }
         if self.job["prepinfo"]:
             if isinstance(self.job["prepinfo"], list):
                 if self.job["prepinfo"][0] in extension.keys():
-                    orcainput["grid"] = extension[self.job["prepinfo"][0]]["grid"]
-                    orcainput["scfconv"] = extension[self.job["prepinfo"][0]]["scfconv"]
+                    if orca5:
+                        orcainput["grid"] = extension5[self.job["prepinfo"][0]]["grid"]
+                        orcainput["scfconv"] = extension5[self.job["prepinfo"][0]]["scfconv"]
+                    else:
+                        orcainput["grid"] = extension[self.job["prepinfo"][0]]["grid"]
+                        orcainput["scfconv"] = extension[self.job["prepinfo"][0]]["scfconv"]
 
         # add dispersion
         # dispersion correction information
@@ -214,7 +254,10 @@ class OrcaJob(QmJob):
             orcainput["disp"] = ["! D4"]
         elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "nl":
             # b3lyp NL
-            orcainput["disp"] = ["! NL vdwgrid3"]
+            if orca5:
+                orcainput["disp"] = ["! NL "]
+            else:
+                orcainput["disp"] = ["! NL vdwgrid3"]
         elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "novdw":
             pass
         elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "included":

@@ -316,22 +316,26 @@ def write_anmrrc(config):
             refsm2 = "DCOSMO-RS"
         elif config.prog == "orca":
             refsm2 = "SMD"
-    if config.prog4_s == "tm":
-        refsm4 = "DCOSMO-RS"
+        if config.prog4_s == "tm":
+            refsm4 = "DCOSMO-RS"
+            refbasisS = "def2-TZVP"
+            if config.sm4_s != "dcosmors":
+                refwarnings.append(
+                    f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
+                    "DCOSMORS (sm4_s)!"
+                )
+        elif config.prog4_s == "orca":
+            refsm4 = "SMD"
+            refbasisS = "def2-TZVP"
+            if config.sm4_s != "smd":
+                refwarnings.append(
+                    f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
+                    "SMD (sm4_s)!"
+                )
+    else:
+        refsm2 = ""
+        refsm4 = ""
         refbasisS = "def2-TZVP"
-        if config.sm4_s != "dcosmors":
-            refwarnings.append(
-                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
-                "DCOSMORS (sm4_s)!"
-            )
-    elif config.prog4_s == "orca":
-        refsm4 = "SMD"
-        refbasisS = "def2-TZVP"
-        if config.sm4_s != "smd":
-            refwarnings.append(
-                f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with "
-                "SMD (sm4_s)!"
-            )
     if config.basis_s != "def2-TZVP":
         refwarnings.append(
             f"{'WARNING:':{WARNLEN}}The reference shielding constant was calculated with the "
@@ -401,7 +405,7 @@ def write_anmrrc(config):
                         ref_decision[element]["ref_mol"]
                     ][tmp_func][tmp_func_s][config.basis_s][config.solvent]
                 )
-            except KeyError:
+            except KeyError as e:
                 try:
                     ref_decision[element]["sigma"] = "{:4.3f}".format(
                         getattr(nmrref, ref_decision[element].get(config.prog4_s))[
@@ -413,12 +417,14 @@ def write_anmrrc(config):
                         f"for {config.func_s}/{config.basis_s} and element {element:3} could "
                         f"not be found, using {'pbe0/def2-TZVP'} reference instead!"
                     )
-                except KeyError:
+                    print(f"{'INFORMATION:':{WARNLEN}}The KeyError is: {e}")
+                except KeyError as e:
                     print(
                         f"{'ERROR:':{WARNLEN}}The reference absolute shielding constant for "
                         f"element {element} could not be found!\n"
                         f"{'':{WARNLEN}}You have to edit the file .anmrrc by hand!"
                     )
+                    print(f"{'INFORMATION:':{WARNLEN}}The KeyError is: {e}")
                     ref_decision[element]["sigma"] = f"{0.0 :4.3f}"
 
     # for elementactive
