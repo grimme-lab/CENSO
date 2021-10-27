@@ -139,9 +139,10 @@ class TmJob(QmJob):
         if int(self.job["charge"]) != 0:
             call = call + ["-chrg", str(self.job["charge"])]
 
+        broken = False
         # call cefine:
         for _ in range(2):
-            # print(call)
+            #print(call)
             tmp = subprocess.check_output(
                 call,
                 shell=False,
@@ -155,18 +156,35 @@ class TmJob(QmJob):
             for line in output:
                 if "define ended abnormally" in line:
                     self.job["success"] = False
-                    return
+                    broken = True
                 elif "define_huge" in line:
                     print(f"{'ERROR:':{WARNLEN}}define_huge: not found!")
                     self.job["success"] = False
-                    return
+                    broken = True
+                elif "Could not find the beginning of the MO-eigenvalue data" in line:
+                    self.job["success"] = False
+                    broken = True
             # check if wrong functional was written by cefine
             if not os.path.isfile(os.path.join(self.job["workdir"], "control")):
                 line = (
-                    f"{'ERROR:':{WARNLEN}}The control file was not generated"
+                    f"{'ERROR:':{WARNLEN}}CONF{self.id}: The control file was not generated"
                     " by cefine! Can not proceed with calculation!"
                 )
                 self.job["internal_error"].append(line)
+                self.job["success"] = False
+                broken = True
+            if broken:
+                path_to_define = shutil.which("define")
+                with open(os.path.join(self.job["workdir"], "cefine.out"),
+                        "w",
+                        encoding=CODING,
+                        newline=None,
+                    ) as out:
+                    for line in output:
+                        out.write(line+'\n')
+                    out.write("define path: "+ path_to_define+'\n')
+                    out.write("cefine path: "+ external_paths["cefinepath"]+'\n')
+                return
             # check if wrong functional was written by cefine
             with open(
                 os.path.join(self.job["workdir"], "control"),

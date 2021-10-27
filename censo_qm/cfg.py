@@ -6,7 +6,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 import os
 import sys
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 DESCR = f"""
          ______________________________________________________________
@@ -721,6 +721,8 @@ class dfa_settings:
                 ):
                     tmp.append(func)
             return list(set(tmp))
+        elif prog not in ("tm", "orca"):
+            pass
         else:
             print(f"request {request} not known!")
 

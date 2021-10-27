@@ -197,6 +197,7 @@ def enso_startup(cwd, args):
         )
     ### END NMR reference shielding constant database adjustable by user
 
+
     ### if restart read all settings from previous run (enso.json)
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
         tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
@@ -333,13 +334,34 @@ def enso_startup(cwd, args):
 
     # check settings-combination and show error:
     config.read_program_paths(config.configpath, silent=True)
-    error_logical = config.check_logic()
+    try:
+        error_logical = config.check_logic()
+    except KeyboardInterrupt:
+        sys.exit(0)
+    except (AttributeError, IndexError, KeyError, NameError, ValueError, TypeError) as error:
+        if config.save_errors:
+            print("")
+            print("".ljust(PLENGTH, "*"))
+            for _ in list(config.save_errors):
+                print(config.save_errors.pop(0))
+            print("".ljust(PLENGTH, "*"))
+            print("")
+            print("")
+            print("Resulting python error:", error)
+        else:
+            print(error)
+        sys.exit(1)
 
     if getattr(args, "onlyread", None) is not None:
         if getattr(args, "onlyread") == "on":
             setattr(config, "onlyread", True)
         elif getattr(args, "onlyread") == "off":
             setattr(config, "onlyread", False)
+
+     ### option to consider removed conformers from previous run (optimization: "stopped_before_converged")
+    if args.consider_unconverged == "on" or args.consider_unconverged:
+        config.consider_unconverged = True
+    ###
 
     # printing parameters
     config.print_parameters(cmlcall=sys.argv)
@@ -476,11 +498,17 @@ def enso_startup(cwd, args):
                 )
             for flag in config.restart_unchangeable:
                 if getattr(config, flag, "None") != getattr(previousrun, flag, "None2"):
-                    print(
-                        f"{'ERROR:':{WARNLEN}}setting {flag} was changed from "
-                        f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
-                    )
-                    error_logical = True
+                    if flag == 'basis' and 'automatic' in (getattr(config, flag, 'None'), getattr(previousrun, flag, 'None')):
+                        print(
+                            f"{'INFORMATION:':{WARNLEN}}setting {flag} was changed from "
+                            f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
+                        )                 
+                    else:
+                        print(
+                            f"{'ERROR:':{WARNLEN}}setting {flag} was changed from "
+                            f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
+                        )
+                        error_logical = True
             if (
                 getattr(config, "evaluate_rrho", "None")
                 != getattr(previousrun, "evaluate_rrho", "None2")
@@ -909,7 +937,7 @@ def enso_startup(cwd, args):
             )
 
     if (args.checkinput and not error_logical) or (args.debug and args.checkinput):
-        print("\nInput check is finished. The ENSO program can be executed.\n")
+        print("\nInput check is finished. The CENSO program can be executed.\n")
         sys.exit(0)
     if not conformers:
         print(f"{'ERROR:':{WARNLEN}}No conformers are considered!")

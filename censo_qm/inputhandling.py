@@ -13,6 +13,7 @@ import sys
 import glob
 from copy import deepcopy
 from collections import OrderedDict
+from typing import Text
 from .cfg import (
     PLENGTH,
     DIGILEN,
@@ -26,7 +27,7 @@ from .cfg import (
     dfa_settings,
     knownbasissets,
 )
-from .utilities import frange, format_line, print
+from .utilities import frange, format_line, print, print_block
 
 
 def cml(startup_description, options, argv=None):
@@ -398,6 +399,16 @@ def cml(startup_description, options, argv=None):
         help="Option to turn the geometry optimization (part2) 'on' or 'off'.",
     )
     group4.add_argument(
+        "-prog2opt",
+        "--prog2opt",
+        dest="prog2opt",
+        choices=options.value_options["prog"],
+        action="store",
+        required=False,
+        metavar="",
+        help="QM program used only for the optimization in part2. Either 'tm' or 'orca'.",
+    )
+    group4.add_argument(
         "-sm2",
         "--solventmodel2",
         choices=options.value_options.get("sm2"),
@@ -532,6 +543,18 @@ def cml(startup_description, options, argv=None):
         metavar="",
         type=int,
         help=("Radsize used in the optimization and only for r2scan-3c!"),
+    )
+    group4.add_argument(
+        "-consider_unconverged",
+        "--consider_unconverged",
+        choices=["on", "off"],
+        dest="consider_unconverged",
+        metavar="",
+        required=False,
+        help=("Expert user option for including conformers, which were removed "
+             "in a previous run ('stopped_before_converged'), "
+             "in the (current) optimization. Choices: 'on' or 'off'."
+        ),
     )
     group5 = parser.add_argument_group("CRE REFINEMENT - PART3")
     group5.add_argument(
@@ -1019,6 +1042,7 @@ class internal_settings:
         "temperature": "temperature",
         "multitemp": "multitemp",
         "trange": "trange",
+        "prog2opt": "prog2opt",
         "prog3": "prog3",
         "prog4_j": "prog4_j",
         "prog4_s": "prog4_s",
@@ -1462,6 +1486,7 @@ class internal_settings:
         self.defaults_refine_ensemble_part2 = [
             # part2
             ("part2", {"default": True, "type": bool}),
+            ("prog2opt", {"default": "prog", "type": str}),
             ("opt_limit", {"default": 2.5, "type": float}),
             ("sm2", {"default": "default", "type": str}),
             ("smgsolv2", {"default": "cosmors", "type": str}),
@@ -1564,6 +1589,7 @@ class internal_settings:
             "unpaired": ["number e.g. 0"],
             "solvent": ["gas"] + sorted([i for i in censo_solvent_db.keys()]),
             "prog": ["tm", "orca"],
+            "prog2opt": ["tm", "orca", "prog", "automatic"],
             "part0": ["on", "off"],
             "part1": ["on", "off"],
             "part2": ["on", "off"],
@@ -1669,6 +1695,7 @@ class internal_settings:
             "charge",
             "solvent",
             "prog",
+            "prog2opt",
             "ancopt",
             "opt_spearman",
             "optlevel2",
@@ -1824,6 +1851,7 @@ class config_setup(internal_settings):
             "configpath",
             "fixed_temperature",
             "vapor_pressure",
+            "consider_unconverged",
         ]
         self.onlyread = False
         self.fixed_temperature = None
@@ -1832,6 +1860,7 @@ class config_setup(internal_settings):
         self.maxconf = 0
         self.run = True
         self.nmrmode = False
+        self.consider_unconverged = False
 
         # pathsdefaults: --> read_program_paths
         self.external_paths = {}
@@ -2153,6 +2182,25 @@ class config_setup(internal_settings):
         if silent:
             store_errors = self.save_errors
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # check prog
+        if self.prog not in self.value_options["prog"]:
+            self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}Prog can only be chosen from "
+                    f"{self.value_options['prog']} and not --> {self.prog}!"
+                )
+            error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Handle prog2opt:
+        if self.prog2opt in ("prog", "automatic"):
+            if self.prog2opt in self.value_options["prog2opt"]:
+                self.prog2opt = self.prog
+            else:
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}Prog2opt can only be chosen from "
+                    "('tm', 'orca', 'prog')!"
+                )
+                error_logical = True
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle prog3:
         if self.prog3 == "prog" and self.prog in self.value_options["prog"]:
             self.prog3 = self.prog
@@ -2293,55 +2341,121 @@ class config_setup(internal_settings):
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func
-        # available with QM code
-        if self.part1 or self.part2:
-            if self.func not in self.func_info.infos("func", prog=self.prog):
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The functional "
-                    f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
-                )
-                error_logical = True
-            if (self.func == "r2scan-3c" and
-                self.prog == "orca" and 
-                orcaversion < 5):
-                self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
-                "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
-            # check if available for part1 / part2
-            if self.func not in self.func_info.infos("func"):
-                self.save_errors.append(
-                    f"{'ERROR:':{WARNLEN}}The functional "
-                    f"{self.func} is not available for part1 / part2.\n"
-                )
-                error_logical = True
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Handle basis for func:
-        if self.part1 or self.part2:
-            if self.basis == "None" or self.basis is None or self.basis == "automatic":
-                if self.prog == "tm":
-                    default = self.internal_defaults_tm.get(
-                        "basis", {"default": "def2-TZVP"}
-                    )["default"]
-                elif self.prog == "orca":
-                    default = self.internal_defaults_orca.get(
-                        "basis", {"default": "def2-TZVP"}
-                    )["default"]
-                else:
-                    default = "def2-TZVP"
-                self.basis = self.func_info.composite_method_basis.get(
-                    self.func, default
-                )
-            if self.basis not in knownbasissets:
-                if self.basis == "def2-TZVP(-f)" and self.prog == "tm":
-                    self.basis = "def2-TZVP"
+        # now stuff gets fun:
+        if self.prog != self.prog2opt:
+            if self.part1 or self.part2:
+                # check if func is available in both QM codes
+                if self.func not in self.func_info.infos("func"):
                     self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} "
-                        f"is used instead of {'def2-TZVP(-f)'}"
+                        f"{'ERROR:':{WARNLEN}}The functional "
+                        f"{self.func} is not available for part1 / part2.\n"
                     )
-                else:
+                    error_logical = True
+                if (self.func not in self.func_info.infos("func", prog=self.prog) or
+                    self.func not in self.func_info.infos("func", prog=self.prog2opt)):
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}The functional "
+                        f"{self.func} is not available in both QM codes prog= {self.prog}"
+                        f" and prog2opt= {self.prog2opt} !\n"
+                        f"{'':{WARNLEN}}You can choose a functional for 'func' from:"
+                    )
+                    self.save_errors.append(print_block(sorted(list(set(self.func_info.infos("func", prog=self.prog)) &
+                        set(self.func_info.infos("func", prog=self.prog2opt)))), redirect=True)
+                    )
+                    error_logical = True
+                elif (self.func in self.func_info.infos("func", prog=self.prog) and
+                    self.func in self.func_info.infos("func", prog=self.prog2opt)):
+                    self.save_errors.append(
+                        f"{'INFORMATION:':{WARNLEN}}The functional "
+                        f"{self.func} is available in both QM codes prog= {self.prog}"
+                        f" and prog2opt= {self.prog2opt} !\n"
+                        f"{'':{WARNLEN}}Using func '{dfa_settings.functionals.get(self.func).get(self.prog)}' with prog {self.prog} and\n"
+                        f"{'':{WARNLEN}}using func '{dfa_settings.functionals.get(self.func).get(self.prog2opt)}' with prog2opt {self.prog2opt} ."
+                    )
+                if self.func == "r2scan-3c" and orcaversion < 5:
+                    self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                    "functional r2scan-3c is only available in ORCA since version 5.0.0 !"
+                    )
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Handle basis for func:
+            if self.part1 or self.part2:
+                if self.basis == "None" or self.basis is None or self.basis == "automatic":
+                    if self.prog == "tm":
+                        default = self.internal_defaults_tm.get(
+                            "basis", {"default": "def2-TZVP"}
+                        )["default"]
+                    elif self.prog == "orca":
+                        default = self.internal_defaults_orca.get(
+                            "basis", {"default": "def2-TZVP"}
+                        )["default"]
+                    else:
+                        default = "def2-TZVP"
+                    self.basis = self.func_info.composite_method_basis.get(
+                        self.func, default
+                    )
+                    if self.basis == "def2-TZVP(-f)":
+                        self.basis = "def2-TZVP"
+                        self.save_errors.append(
+                            f"{'INFORMATION:':{WARNLEN}}The basis set basis: {self.basis} "
+                            f"is used instead of {'def2-TZVP(-f)'}"
+                        )
+                if self.basis not in knownbasissets:
                     self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} could not be "
                         + f"checked, but is used anyway!"
                     )
+        else:
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Handle func
+            # available with QM code
+            if self.part1 or self.part2:
+                if self.func not in self.func_info.infos("func", prog=self.prog):
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}The functional "
+                        f"(func) {self.func} is not implemented with the {self.prog} program package.\n"
+                    )
+                    error_logical = True
+                if (self.func == "r2scan-3c" and
+                    self.prog == "orca" and 
+                    orcaversion < 5):
+                    self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
+                    "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
+                # check if available for part1 / part2
+                if self.func not in self.func_info.infos("func"):
+                    self.save_errors.append(
+                        f"{'ERROR:':{WARNLEN}}The functional "
+                        f"{self.func} is not available for part1 / part2.\n"
+                    )
+                    error_logical = True
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Handle basis for func:
+            if self.part1 or self.part2:
+                if self.basis == "None" or self.basis is None or self.basis == "automatic":
+                    if self.prog == "tm":
+                        default = self.internal_defaults_tm.get(
+                            "basis", {"default": "def2-TZVP"}
+                        )["default"]
+                    elif self.prog == "orca":
+                        default = self.internal_defaults_orca.get(
+                            "basis", {"default": "def2-TZVP"}
+                        )["default"]
+                    else:
+                        default = "def2-TZVP"
+                    self.basis = self.func_info.composite_method_basis.get(
+                        self.func, default
+                    )
+                if self.basis not in knownbasissets:
+                    if self.basis == "def2-TZVP(-f)" and self.prog == "tm":
+                        self.basis = "def2-TZVP"
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} "
+                            f"is used instead of {'def2-TZVP(-f)'}"
+                        )
+                    else:
+                        self.save_errors.append(
+                            f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} could not be "
+                            + f"checked, but is used anyway!"
+                        )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3 dsd-blyp with basis
         if (
@@ -2549,20 +2663,20 @@ class config_setup(internal_settings):
                         f"{'ERROR:':{WARNLEN}}The solvent model {self.sm2} is not implemented!"
                     )
                     error_logical = True
-                if self.prog == "orca":
+                if self.prog2opt == "orca":
                     if self.sm2 in self.sm2_tm:
                         self.save_errors.append(
                             f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
-                            f"{self.prog}! Therefore {exchange_sm[self.sm2]} is used!"
+                            f"{self.prog2opt}! Therefore {exchange_sm[self.sm2]} is used!"
                         )
                         self.sm2 = exchange_sm[self.sm2]
                     elif self.sm2 == "default":
                         self.sm2 = self.internal_defaults_orca["sm2"]["default"]
-                if self.prog == "tm":
+                if self.prog2opt == "tm":
                     if self.sm2 in self.sm2_orca:
                         self.save_errors.append(
                             f"{'WARNING:':{WARNLEN}}{self.sm2} is not available with "
-                            f"{self.prog}! Therefore { exchange_sm[self.sm2]} is used!"
+                            f"{self.prog2opt}! Therefore { exchange_sm[self.sm2]} is used!"
                         )
                         self.sm2 = exchange_sm[self.sm2]
                     elif self.sm2 == "default":
@@ -3120,6 +3234,7 @@ class config_setup(internal_settings):
             info.append(["justprint", "".ljust(int(PLENGTH / 2), "-")])
             info.append(["part2", "part2"])
             info.append(["prog", "program"])
+            info.append(["prog2opt", "QM program employed only in the geometry opt."])
             info.append(["func", "functional for part2"])
             info.append(["basis", "basis set for part2"])
             info.append(["ancopt", "using xTB-optimizer for optimization"])
@@ -3162,6 +3277,9 @@ class config_setup(internal_settings):
                         )
                     if self.solvent != "gas":
                         info.append(["sm_rrho", "solvent model applied with xTB"])
+            if self.consider_unconverged:
+                info.append(["consider_unconverged", 
+                "consider (unconverged) conformers from previous run"])            
             # shortnotation:
             tmp_rrho_method, _ = self.get_method_name(
                 "rrhoxtb",
@@ -3532,7 +3650,7 @@ class config_setup(internal_settings):
 
     def read_program_paths(self, configpath, silent=False):
         """
-        Get absolute paths of external programs employed in enso
+        Get absolute paths of external programs employed in censo
         Read from the configuration file .censorc
         """
         if silent:
@@ -3678,6 +3796,7 @@ class config_setup(internal_settings):
         # ORCA
         if (
             self.prog == "orca"
+            or self.prog2opt == "orca"
             or self.prog3 == "orca"
             or self.prog4_j == "orca"
             or self.prog4_s == "orca"

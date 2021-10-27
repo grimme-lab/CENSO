@@ -587,7 +587,10 @@ class MoleculeData:
             f = 0.0
             if e is not None:
                 if e in ("xtb_energy", "xtb_energy_unbiased"):
-                    f += getattr(self, e, 0.0)
+                    if getattr(self, e, 0.0) is not None:
+                        f += getattr(self, e, 0.0)
+                    else:
+                        f += 0.0
                 else:
                     f += getattr(self, e)["energy"]
             if solv is not None:
