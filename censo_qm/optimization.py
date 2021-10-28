@@ -91,7 +91,7 @@ def part2(config, conformers, store_confs, ensembledata):
             ]
         )
     info.append(
-        ["part2_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
+        ["part2_P_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
     )
     info.append(["evaluate_rrho", "calculate mRRHO contribution"])
     if config.evaluate_rrho:
@@ -350,6 +350,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 "Geometry"
             ].replace("m3", "m4")
     elif config.prog2opt == "orca":
+        ensembledata.si["part2"]["QM code Optimization"] = str(config.prog2opt).upper()
         ensembledata.si["part2"]["Geometry"] = (
             instruction_opt["method"]
             + f" @optlevel: {config.optlevel2} using {' '.join(qm_prepinfo['orca'][instruction_opt['prepinfo'][0]])}"
@@ -363,7 +364,6 @@ def part2(config, conformers, store_confs, ensembledata):
             config.cwd, calculate, config.func, save_errors, store_confs
         )
         if config.consider_unconverged:
-            print(len(calculate))
             tmp = []
             for conf in list(calculate):
                 if conf.optimization_info["convergence"] == "stopped_before_converged":
@@ -385,7 +385,6 @@ def part2(config, conformers, store_confs, ensembledata):
             if tmp:
                 for conf in list(tmp):
                     calculate.append(tmp.pop(tmp.index(conf)))
-            print(len(calculate))
 
         # parallel prep execution
         calculate = run_in_parallel(
@@ -1356,7 +1355,7 @@ def part2(config, conformers, store_confs, ensembledata):
     # Threshold:
     ensembledata.si["part2"][
         "Threshold"
-    ] = f"Opt_limit: {config.opt_limit} kcal/mol, Boltzmann sum threshold: {config.part2_threshold} %"
+    ] = f"part2_threshold: {config.opt_limit} kcal/mol, Boltzmann sum threshold: {config.part2_P_threshold} %"
     # END SI generation --------------------------------------------------------
 
     # reset
@@ -2077,8 +2076,8 @@ def part2(config, conformers, store_confs, ensembledata):
     sumup = 0.0
     for conf in list(calculate):
         sumup += conf.bm_weight
-        if sumup >= (config.part2_threshold / 100):
-            if conf.bm_weight < (1 - (config.part2_threshold / 100)):
+        if sumup >= (config.part2_P_threshold / 100):
+            if conf.bm_weight < (1 - (config.part2_P_threshold / 100)):
                 mol = calculate.pop(calculate.index(conf))
                 mol.part_info["part2"] = "refused"
                 store_confs.append(mol)
@@ -2091,7 +2090,7 @@ def part2(config, conformers, store_confs, ensembledata):
     if calculate:
         print(
             f"\nConformers that are below the Boltzmann threshold G_thr(2) "
-            f"of {config.part2_threshold}%:"
+            f"of {config.part2_P_threshold}%:"
         )
         print_block(["CONF" + str(i.id) for i in calculate])
     else:

@@ -46,9 +46,9 @@ def part5(config, conformers, store_confs, ensembledata):
     if config.part3:
         info.append(["part3_threshold", "Boltzmann sum threshold employed"])
     elif config.part2:
-        info.append(["part2_threshold", "Boltzmann sum threshold employed"])
+        info.append(["part2_P_threshold", "Boltzmann sum threshold employed"])
     elif config.part1:
-        info.append(["part2_threshold", "Boltzmann sum threshold employed"])
+        info.append(["part2_P_threshold", "Boltzmann sum threshold employed"])
     if config.solvent != "gas":
         info.append(["solvent", "solvent"])
         if config.prog == "tm":
@@ -136,15 +136,15 @@ def part5(config, conformers, store_confs, ensembledata):
             energy = "lowlevel_sp_info"
             rrho = "lowlevel_grrho_info"
             gsolv = "lowlevel_gsolv_info"
-            boltzmannthr = config.part2_threshold
+            boltzmannthr = config.part2_P_threshold
         elif config.part1:
             # part2 is not calculated use boltzmann weights directly from part1
-            # --> misappropriate config.part2_threshold
+            # --> misappropriate config.part2_P_threshold
             # This means starting from not DFT optimized geometries!
             energy = "prescreening_sp_info"
             rrho = "prescreening_grrho_info"
             gsolv = "prescreening_gsolv_info"
-            boltzmannthr = config.part2_threshold
+            boltzmannthr = config.part2_P_threshold
         else:
             print("UNEXPECTED BEHAVIOUR")
         mol = conformers.pop(conformers.index(conf))

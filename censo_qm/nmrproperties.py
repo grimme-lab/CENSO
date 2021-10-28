@@ -608,15 +608,15 @@ def part4(config, conformers, store_confs, ensembledata):
             energy = "lowlevel_sp_info"
             rrho = "lowlevel_grrho_info"
             gsolv = "lowlevel_gsolv_info"
-            boltzmannthr = config.part2_threshold
+            boltzmannthr = config.part2_P_threshold
         elif config.part1:
             # part2 is not calculated use Boltzmann weights directly from part1
-            # --> misappropriate config.part2_threshold
+            # --> misappropriate config.part2_P_threshold
             # This means starting from not DFT optimized geometries!
             energy = "prescreening_sp_info"
             rrho = "prescreening_grrho_info"
             gsolv = "prescreening_gsolv_info"
-            boltzmannthr = config.part2_threshold
+            boltzmannthr = config.part2_P_threshold
         else:
             print("UNEXPECTED BEHAVIOUR")
 

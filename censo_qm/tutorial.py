@@ -139,7 +139,7 @@ def interactiv_doc():
     
     In part4 NMR properties can be calculated for the populated conformers. The 
     Boltzmann weights are taken from either part1, part2 or part3 if they are available.
-    All populated conformers up to the population part2_threshold or part3_threshold
+    All populated conformers up to the population part2_P_threshold or part3_threshold
     are considered. Coupling and shielding constants are calculated separately 
     and can be calculated for the elements H, C, F, Si, P, or all elements.
     Files for further processing with ANMR are created.
@@ -240,7 +240,7 @@ def interactiv_doc():
     $PART2 - OPTIMIZATION - SETTINGS:
 
     part2           = Option to turn the "optimization part" on or off.
-    opt_limit       = Threshold/Energy-window (kcal/mol) within which all conformers
+    part2_threshold = Threshold/Energy-window (kcal/mol) within which all conformers
                       are fully optimized.
     sm2             = Implicit solvation model used in the optimization.
     smgsolv2        = Additive solvation model used for calculation of dG_solv
@@ -250,7 +250,7 @@ def interactiv_doc():
     ancopt          = Using ANCoptimizer implemented in xTB for geometry optimization.
     hlow            = Lowest force constant in ANC generation, used with ancopt.
     opt_spearman    = Using the new "ensemble-optimizer".
-    part2_threshold = Boltzmann threshold in '%' within which all conformers
+    part2_P_threshold = Boltzmann threshold in '%' within which all conformers
                       are considered further. E.g. 90 --> all conformers up to 
                       a sum of 90 '%' are considered.
     optlevel2       = Optimization threshold in the geometry optimization. If set to
@@ -532,16 +532,16 @@ def interactiv_doc():
             geometry optimization and one Boltzmann sum threshold.
 
             threshold applied during optimization G_thr(opt,2):
-            cml:      -opt_limit
-            censorc:  opt_limit
+            cml:      -thrpart2
+            censorc:  part2_threshold
 
             Spearman-threshold for testing for parallel PES:
             cml:      -spearmanthr
             censorc:  spearmanthr
 
             Boltzmann sum threshold G_thr(2):
-            cml:      -thrpart2
-            censorc:  part2_threshold
+            cml:      -part2_Pthreshold
+            censorc:  part2_P_threshold
 
             The internal default for G_thr(opt,2) is set to {default_settings.internal_defaults.get("opt_limit",{})["default"]} kcal/mol. During 
             the geometry optimization the initial threshold G_thr(opt,2) is
@@ -559,8 +559,8 @@ def interactiv_doc():
             In part3 a Boltzmann sum threshold is employed.
             
             Boltzmann sum threshold G_thr(3):
-            cml:      -thrpart2
-            censorc:  part2_threshold
+            cml:      -thrpart3
+            censorc:  part3_threshold
             
             Based on high level free energies Boltzmann weights are calculated 
             and all conformers up to the Boltzmann sum threshold (in %) are 

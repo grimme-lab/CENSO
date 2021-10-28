@@ -224,7 +224,7 @@ class OrcaJob(QmJob):
             "high+": {"grid": ["! grid5 nofinalgrid"], "scfconv": ["! scfconv7"]},
         }
         extension5 = {
-            "low": {"grid": ["! DEFGRID1"], "scfconv": ["! loosescf"]},
+            "low": {"grid": ["! DEFGRID2"], "scfconv": ["! loosescf"]},
             "low+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv6"]},
             "high": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
             "high+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},

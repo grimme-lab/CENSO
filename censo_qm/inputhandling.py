@@ -505,8 +505,11 @@ def cml(startup_description, options, argv=None):
         "employed in the ensemlbe optimizer",
     )
     group4.add_argument(
-        "-opt_limit",
-        "--opt_limit",
+        #"-opt_limit",
+        #"--opt_limit",
+        "-thrpart2",
+        "--thresholdpart2",
+        "-part2_threshold",
         dest="opt_limit",
         action="store",
         required=False,
@@ -520,10 +523,12 @@ def cml(startup_description, options, argv=None):
         ),
     )
     group4.add_argument(
-        "-thrpart2",
-        "--thresholdpart2",
-        "-part2_threshold",
-        dest="part2_threshold",
+        #"-thrpart2",
+        #"--thresholdpart2",
+        #"-part2_threshold",
+        "-part2_Pthreshold",
+        "--part2_Pthreshold",
+        dest="part2_P_threshold",
         action="store",
         required=False,
         metavar="",
@@ -1067,9 +1072,11 @@ class internal_settings:
         "basisS": "basis_s",
         "part0_threshold": "part0_threshold",
         "part1_threshold": "part1_threshold",
-        "part2_threshold": "part2_threshold",
         "part3_threshold": "part3_threshold",
-        "opt_limit": "opt_limit",
+        #"part2_threshold": "part2_threshold",
+        #"opt_limit": "opt_limit",
+        "part2_threshold": "opt_limit",            # updated to avoid confusion???
+        "part2_P_threshold": "part2_P_threshold",     # updated to avoid confusion???
         "smgsolv1": "smgsolv1",
         "sm2": "sm2",
         "smgsolv2": "smgsolv2",
@@ -1494,7 +1501,7 @@ class internal_settings:
             ("ancopt", {"default": True, "type": bool}),
             ("hlow", {"default": 0.01, "type": float}),
             ("opt_spearman", {"default": True, "type": bool}),
-            ("part2_threshold", {"default": 99, "type": float}),
+            ("part2_P_threshold", {"default": 99, "type": float}),
             ("optlevel2", {"default": "automatic", "type": str}),
             ("optcycles", {"default": 8, "type": int}),
             ("spearmanthr", {"default": -4.0, "type": float}),
@@ -1625,7 +1632,7 @@ class internal_settings:
             "part0_threshold": ["number e.g. 4.0"],
             "part1_threshold": ["number e.g. 5.0"],
             "opt_limit": ["number e.g. 4.0"],
-            "part2_threshold": [
+            "part2_P_threshold": [
                 "Boltzmann sum threshold in %. e.g. 95 (between 1 and 100)"
             ],
             "part3_threshold": [
@@ -1782,7 +1789,7 @@ class config_setup(internal_settings):
         self.part1_threshold = 1.0
         # part2
         self.part2 = True
-        self.part2_threshold = 90
+        self.part2_P_threshold = 90
         self.sm2 = "default"
         self.smgsolv2 = "sm2"
         self.part2_gfnv = "gfnff"
@@ -3256,7 +3263,7 @@ class config_setup(internal_settings):
             info.append(["multitemp", "evaluate at different temperatures"])
             info.append(
                 [
-                    "part2_threshold",
+                    "part2_P_threshold",
                     "Boltzmann sum threshold G_thr(2) for sorting in part2",
                 ]
             )
@@ -3456,7 +3463,7 @@ class config_setup(internal_settings):
             info.append(["func_or", "functional for optical rotation"])
             info.append(["basis_or", "basis set for optical rotation"])
             if not self.part3:
-                info.append(["part2_threshold", "Boltzmann sum threshold employed"])
+                info.append(["part2_P_threshold", "Boltzmann sum threshold employed"])
             elif self.part3:
                 info.append(["part3_threshold", "Boltzmann sum threshold employed"])
 
