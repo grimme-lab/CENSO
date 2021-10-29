@@ -224,7 +224,7 @@ class OrcaJob(QmJob):
             "high+": {"grid": ["! grid5 nofinalgrid"], "scfconv": ["! scfconv7"]},
         }
         extension5 = {
-            "low": {"grid": ["! DEFGRID1"], "scfconv": ["! loosescf"]},
+            "low": {"grid": ["! DEFGRID2"], "scfconv": ["! loosescf"]},
             "low+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv6"]},
             "high": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
             "high+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
@@ -616,7 +616,7 @@ class OrcaJob(QmJob):
                 newcoord.write(
                     f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
                 )
-                newcoord.write("$end")
+                newcoord.write("$end\n")
 
             with open(
                 os.path.join(self.job["workdir"], "inp"), "w", newline=None
@@ -651,7 +651,7 @@ class OrcaJob(QmJob):
                 out.write("$external\n")
                 out.write("   orca input file= inp\n")
                 out.write(
-                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')}"
+                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
                 )
                 out.write("$end \n")
             time.sleep(0.02)
