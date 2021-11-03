@@ -150,6 +150,7 @@ class TmJob(QmJob):
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
                 cwd=self.job["workdir"],
+                env=ENVIRON,
             )
             time.sleep(0.08)
             output = tmp.decode("utf-8").splitlines()

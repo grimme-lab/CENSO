@@ -463,6 +463,7 @@ class OrcaJob(QmJob):
                     universal_newlines=False,
                     cwd=self.job["workdir"],
                     stdout=outputfile,
+                    env=ENVIRON,
                 )
             time.sleep(0.05)
         # read output
@@ -766,6 +767,7 @@ class OrcaJob(QmJob):
                     universal_newlines=False,
                     cwd=self.job["workdir"],
                     stdout=outputfile,
+                    env=ENVIRON,
                 )
             time.sleep(0.1)
         # check if calculation was successfull:
@@ -823,6 +825,7 @@ class OrcaJob(QmJob):
                     universal_newlines=False,
                     cwd=self.job["workdir"],
                     stdout=outputfile,
+                    env=ENVIRON,
                 )
             time.sleep(0.1)
         # check if calculation was successfull:
