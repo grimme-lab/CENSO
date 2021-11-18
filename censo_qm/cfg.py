@@ -368,6 +368,19 @@ class dfa_settings:
             "part": ["func", "func3", "func_j", "func_s", "func_or", "func_or_scf"],
             "type": "mGGA",
         },
+        "revtpss-novdw": {
+            "tm": "revtpss",
+            "orca": "revTPSS",
+            "disp": "novdw",
+            "part": [
+                "func0",
+                "func",
+                "func3",
+                "func_j",
+                "func_s",
+            ],
+            "type": "mGGA",
+        },
         "b97-d3": {
             "tm": "b97-d",
             "orca": "b97-d3",

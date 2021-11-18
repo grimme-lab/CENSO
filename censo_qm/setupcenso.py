@@ -133,7 +133,14 @@ def enso_startup(cwd, args):
     ### solvent database adjustable by user
     censo_assets_path = os.path.expanduser("~/.censo_assets")
     if not os.path.isdir(censo_assets_path):
-        mkdir_p(censo_assets_path)
+        try:
+            mkdir_p(censo_assets_path)
+        except OSError as error:
+            print(f"{'WARNING:':{WARNLEN}}The folder '~/.censo_assets/' designed for additional "
+                   "remote configuration files can not be created!\n"
+                  f"{'':{WARNLEN}}This is not a problem and in this case CENSO will simply apply internally defined settings!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error output is: {error}.")
     solvent_user_path = os.path.expanduser(
         os.path.join("~/.censo_assets/", "censo_solvents.json")
     )
@@ -176,25 +183,35 @@ def enso_startup(cwd, args):
             #     }
             # )
     else:
-        with open(solvent_user_path, "w") as out:
-            json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
-        config.save_infos.append(
-            "Creating file: {}".format(os.path.basename(solvent_user_path))
-        )
+        try:
+            with open(solvent_user_path, "w") as out:
+                json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
+            config.save_infos.append(
+                "Creating file: {}".format(os.path.basename(solvent_user_path))
+            )
+        except OSError as error:
+            print(f"{'WARNING:':{WARNLEN}}The file {solvent_user_path} could not be "
+                    "created and internal defaults will be applied!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
     ### END solvent database adjustable by user
     ### NMR reference shielding constant database adjustable by user
-    if not os.path.isdir(censo_assets_path):
-        mkdir_p(censo_assets_path)
     nmr_ref_user_path = os.path.expanduser(
         os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
     )
     if not os.path.isfile(nmr_ref_user_path):
-        with open(nmr_ref_user_path, "w") as out:
-            tmp = NmrRef()
-            json.dump(tmp, out, default=NmrRef.NMRRef_to_dict, indent=4, sort_keys=True)
-        config.save_infos.append(
-            "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
-        )
+        try:
+            with open(nmr_ref_user_path, "w") as out:
+                tmp = NmrRef()
+                json.dump(tmp, out, default=NmrRef.NMRRef_to_dict, indent=4, sort_keys=True)
+            config.save_infos.append(
+                "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
+            )
+        except OSError as error:
+            print(f"{'WARNING:':{WARNLEN}}The file {nmr_ref_user_path} could not be "
+                    "created and internal defaults will be applied!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
     ### END NMR reference shielding constant database adjustable by user
 
 
