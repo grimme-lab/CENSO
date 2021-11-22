@@ -290,7 +290,8 @@ def cml(startup_description, options, argv=None):
         required=False,
         metavar="",
         help="Option to turn the CHEAP prescreening evaluation (part0) which "
-        "improves description of ΔE compared to the input from semiempirical methods 'on' or 'off'.",
+        "improves description of ΔE compared to the input from semi-empirical "
+        "methods 'on' or 'off'.",
     )
     group10.add_argument(
         "-func0",
@@ -912,7 +913,8 @@ def cml(startup_description, options, argv=None):
         dest="vapor_pressure",
         choices=["on", "off"],
         action="store",
-        help="Gsolv is evaluated for the input molecule in its solution (same). Only possible with COSMO-RS.",
+        help="Gsolv is evaluated for the input molecule in its solution (same). "
+        "Only possible with COSMO-RS.",
     )
 
     group8 = parser.add_argument_group("CREATION/DELETION OF FILES")
@@ -2301,8 +2303,8 @@ class config_setup(internal_settings):
                     f"(func0) {self.func0} is not implemented with the {self.prog} program package.\n"
                 )
                 error_logical = True
-            if (self.func0 == "r2scan-3c" and 
-                self.prog == "orca" and 
+            if (self.func0 == "r2scan-3c" and
+                self.prog == "orca" and
                 orcaversion < 5):
                 self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
                 "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
@@ -2344,7 +2346,7 @@ class config_setup(internal_settings):
                 else:
                     self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis0} could not be "
-                        + f"checked, but is used anyway!"
+                        + "checked, but is used anyway!"
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func
@@ -2409,7 +2411,7 @@ class config_setup(internal_settings):
                 if self.basis not in knownbasissets:
                     self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} could not be "
-                        + f"checked, but is used anyway!"
+                        + "checked, but is used anyway!"
                     )
         else:
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2423,7 +2425,7 @@ class config_setup(internal_settings):
                     )
                     error_logical = True
                 if (self.func == "r2scan-3c" and
-                    self.prog == "orca" and 
+                    self.prog == "orca" and
                     orcaversion < 5):
                     self.save_errors.append(f"{'WARNING:':{WARNLEN}}The composite "+
                     "functional r2scan-3c is only available in ORCA since version 5.0.0 !")
@@ -2461,7 +2463,7 @@ class config_setup(internal_settings):
                     else:
                         self.save_errors.append(
                             f"{'WARNING:':{WARNLEN}}The basis set basis: {self.basis} could not be "
-                            + f"checked, but is used anyway!"
+                            + "checked, but is used anyway!"
                         )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3 dsd-blyp with basis
@@ -2505,7 +2507,7 @@ class config_setup(internal_settings):
                 else:
                     self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}The basis set basis3: {self.basis3} could not be "
-                        + f"checked, but is used anyway!"
+                        + "checked, but is used anyway!"
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func3
@@ -2583,7 +2585,7 @@ class config_setup(internal_settings):
                 else:
                     self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis_j} "
-                        "could not be " + f"checked, but is used anyway!"
+                        "could not be checked, but is used anyway!"
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle func_s
@@ -2629,7 +2631,7 @@ class config_setup(internal_settings):
                 else:
                     self.save_errors.append(
                         f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis0} could not be "
-                        + f"checked, but is used anyway!"
+                        + "checked, but is used anyway!"
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # no unpaired electrons in coupling or shielding calculations!
@@ -3519,12 +3521,12 @@ class config_setup(internal_settings):
         """Automatically create a supporting information block"""
         si_out = []
         l_length = 25
-        si_out.append(f"\nAutomatic CENSO-SI creation:\n")
+        si_out.append("\nAutomatic CENSO-SI creation:\n")
         si_out.append(
             "The preparation of this supporting information (SI) is by no means complete and "
             + "does not relieve the\nuser of the responsibility to verify/complete the SI."
         )
-        si_out.append(f"In this CENSO run the following settings were employed:\n")
+        si_out.append("In this CENSO run the following settings were employed:\n")
         # General information:
         tmp = {
             "CENSO Version": __version__,
@@ -3771,23 +3773,24 @@ class config_setup(internal_settings):
         # TM
         if (
             self.prog == "tm"
-            or self.prog3 == "tm"
-            or self.prog4_j == "tm"
-            or self.prog4_s == "tm"
-            or self.smgsolv1 in ("cosmors", "cosmors-fine")
-            or self.smgsolv2 in ("cosmors", "cosmors-fine")
-            or self.smgsolv3 in ("cosmors", "cosmors-fine")
+            or (self.prog2opt == "tm" and self.part2)
+            or (self.prog3 == "tm" and self.part3)
+            or (self.prog4_j == "tm" and self.part4 and self.couplings)
+            or (self.prog4_s == "tm" and self.part4 and self.couplings)
+            or (self.smgsolv1 in ("cosmors", "cosmors-fine") and self.part1)
+            or (self.smgsolv2 in ("cosmors", "cosmors-fine") and self.part2)
+            or (self.smgsolv3 in ("cosmors", "cosmors-fine") and self.part3)
         ):
             requirements["needtm"] = True
             requirements["needcefine"] = True
-        if self.part4 and (self.prog4_j == "tm" or self.prog4_s == "tm"):
-            if self.couplings:
+        if self.part4:
+            if self.couplings and self.prog4_j == "tm":
                 requirements["needescf"] = True
-            if self.shieldings:
+            if self.shieldings and self.prog4_s == "tm":
                 requirements["needmpshift"] = True
         # COSMORS
         if (
-            (self.part1 and self.smgsolv1 == "cosmors")
+            (self.part1 and self.smgsolv1 in  "cosmors")
             or (self.part2 and self.smgsolv2 == "cosmors")
             or (self.part3 and self.smgsolv3 == "cosmors")
         ):
@@ -3803,13 +3806,13 @@ class config_setup(internal_settings):
         # ORCA
         if (
             self.prog == "orca"
-            or self.prog2opt == "orca"
-            or self.prog3 == "orca"
-            or self.prog4_j == "orca"
-            or self.prog4_s == "orca"
-            or self.smgsolv1 == "smd_gsolv"
-            or self.smgsolv2 == "smd_gsolv"
-            or self.smgsolv3 == "smd_gsolv"
+            or (self.prog2opt == "orca" and self.part2)
+            or (self.prog3 == "orca" and self.part3)
+            or (self.prog4_j == "orca" and self.part4 and self.couplings)
+            or (self.prog4_s == "orca" and self.part4 and self.shieldings)
+            or (self.smgsolv1 == "smd_gsolv" and self.part1)
+            or (self.smgsolv2 == "smd_gsolv" and self.part2)
+            or (self.smgsolv3 == "smd_gsolv" and self.part3)
         ):
             requirements["needorca"] = True
         if self.run:
