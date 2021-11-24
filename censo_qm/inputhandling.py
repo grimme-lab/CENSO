@@ -2584,7 +2584,7 @@ class config_setup(internal_settings):
                     )
                 else:
                     self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis_j} "
+                        f"{'WARNING:':{WARNLEN}}The basis set basisJ: {self.basis_j} "
                         "could not be checked, but is used anyway!"
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2630,7 +2630,7 @@ class config_setup(internal_settings):
                     )
                 else:
                     self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}The basis set basis0: {self.basis0} could not be "
+                        f"{'WARNING:':{WARNLEN}}The basis set basisS: {self.basis_s} could not be "
                         + "checked, but is used anyway!"
                     )
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
