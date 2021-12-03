@@ -440,6 +440,7 @@ def part2(config, conformers, store_confs, ensembledata):
         nconf_cycle = []  # number of conformers at end of each cycle
 
         if config.opt_spearman:
+            nconf_start = len(calculate)
             run = 1
             do_increase = 0.6
             if config.opt_limit * do_increase >= 1.5:
@@ -883,6 +884,21 @@ def part2(config, conformers, store_confs, ensembledata):
                 #
                 maxecyc_prev = maxecyc
                 run += 1
+                if (run >= 3 or
+                    ( (nconf_start -len(calculate)) >= 5 )):
+                    print(f"{'INFORMATION:':{WARNLEN}}Saving enso.json to update optimization information.")
+                    # save current data to jsonfile
+                    # safety measure for runs with thousands of conformers to keep
+                    # information on optimized structures and make restart easier
+                    # in case of a crash or cluster stop in part2
+                    config.write_json(
+                        config.cwd,
+                        [i.provide_runinfo() for i in calculate]
+                        + [i.provide_runinfo() for i in prev_calculated]
+                        + [i.provide_runinfo() for i in store_confs]
+                        + [ensembledata],
+                        config.provide_runinfo(),
+                    )
             # END while loop
         else:
             # use standard optimization!

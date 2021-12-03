@@ -57,6 +57,7 @@ def enso_startup(cwd, args):
             tmp = os.path.join(config.cwd, configfname)
         elif os.path.isfile(os.path.join(os.path.expanduser("~"), configfname)):
             tmp = os.path.join(os.path.expanduser("~"), configfname)
+        usepaths=False
         if tmp is not None:
             print(f"An existing .censorc has been found in {tmp}")
             print(
@@ -66,17 +67,22 @@ def enso_startup(cwd, args):
             print("Please type 'yes' or 'no':")
             user_input = input()
             if user_input.strip() in ("y", "yes"):
-                config.read_program_paths(tmp)
-                config.write_rcfile(
-                    os.path.join(config.cwd, newconfigfname), usepaths=True
-                )
-                print("")
+                usepaths=True
             elif user_input.strip() in ("n", "no"):
-                config.write_rcfile(os.path.join(config.cwd, newconfigfname))
-        else:
-            config.write_rcfile(os.path.join(config.cwd, newconfigfname))
+                usepaths=False
+        print("\nPlease chose your QM code applied in parts 0-2 either TURBOMOLE (TM) or ORCA (ORCA) or decide later (later):")
+        user_input = input()
+        if user_input.strip() in ('TM', 'tm', 'ORCA', 'orca'):
+            if user_input.strip() in ('TM', 'tm'):
+                config = config_setup(path=os.path.abspath(cwd), **{'prog':'tm'})
+            elif user_input.strip() in ('ORCA', 'orca'):
+                config = config_setup(path=os.path.abspath(cwd), **{'prog':'orca'})
+            update=True
+        if usepaths:
+            config.read_program_paths(tmp)
+        config.write_rcfile(os.path.join(config.cwd, newconfigfname), usepaths=usepaths, update=update)
         print(
-            "A new ensorc was written into the current directory file: "
+            "\nA new ensorc was written into the current directory file: "
             f"{newconfigfname}!\nYou have to adjust the settings to your needs"
             " and it is mandatory to correctly set the program paths!\n"
             "Additionally move the file to the correct filename: '.censorc'\n"
@@ -620,8 +626,7 @@ def enso_startup(cwd, args):
                             )
                     molecule = QmJob(
                         save_data[conf].get("id"),
-                        chrg=save_data[conf].get("chrg"),
-                        uhf=save_data[conf].get("uhf"),
+
                         xtb_energy=save_data[conf].get("xtb_energy"),
                         xtb_energy_unbiased=save_data[conf].get("xtb_energy_unbiased"),
                         xtb_free_energy=save_data[conf].get("xtb_free_energy"),

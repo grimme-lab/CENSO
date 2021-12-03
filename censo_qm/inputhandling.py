@@ -1434,7 +1434,7 @@ class internal_settings:
     imppref = ["TMP", "PH3"]
     impsiref = ["TMS"]
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.func_info = dfa_settings()
         self.impsm2 = list(set(self.sm2_orca + self.sm2_tm + ["default"]))
         self.impsmgsolv1 = list(
@@ -1567,31 +1567,56 @@ class internal_settings:
         # update internal defaults specific to QM package
         # orca
         self.internal_defaults_orca = deepcopy(self.internal_defaults)
+        self.internal_defaults_orca["func0"]["default"] = "b97-d3"
         self.internal_defaults_orca["sm2"]["default"] = "smd"
         self.internal_defaults_orca["smgsolv1"]["default"] = "smd"
         self.internal_defaults_orca["smgsolv2"]["default"] = "smd"
         self.internal_defaults_orca["smgsolv3"]["default"] = "smd"
         self.internal_defaults_orca["sm4_j"]["default"] = "smd"
         self.internal_defaults_orca["sm4_s"]["default"] = "smd"
+        # when basis == automatic and not "-3c"
         self.internal_defaults_orca["basis0"]["default"] = "def2-SV(P)"
         self.internal_defaults_orca["basis"]["default"] = "def2-TZVP(-f)"
         self.internal_defaults_orca["basis3"]["default"] = "def2-TZVP(-f)"
         self.internal_defaults_orca["basis_s"]["default"] = "def2-TZVP"
         self.internal_defaults_orca["basis_j"]["default"] = "def2-TZVP"
+
         # tm
         self.internal_defaults_tm = deepcopy(self.internal_defaults)
         self.internal_defaults_tm["sm2"]["default"] = "dcosmors"
-        self.internal_defaults_tm["smgsolv1"]["default"] = "dcosmors"
-        self.internal_defaults_tm["smgsolv2"]["default"] = "dcosmors"
-        self.internal_defaults_tm["smgsolv3"]["default"] = "dcosmors"
+        self.internal_defaults_tm["smgsolv1"]["default"] = "cosmors"
+        self.internal_defaults_tm["smgsolv2"]["default"] = "cosmors"
+        self.internal_defaults_tm["smgsolv3"]["default"] = "cosmors"
         self.internal_defaults_tm["sm4_j"]["default"] = "dcosmors"
         self.internal_defaults_tm["sm4_s"]["default"] = "dcosmors"
+        # when basis == automatic and not "-3c"
         self.internal_defaults_tm["basis0"]["default"] = "def2-SV(P)"
         self.internal_defaults_tm["basis"]["default"] = "def2-TZVP"
         self.internal_defaults_tm["basis3"]["default"] = "def2-TZVP"
         self.internal_defaults_tm["basis_s"]["default"] = "def2-TZVP"
         self.internal_defaults_tm["basis_j"]["default"] = "def2-TZVP"
         self.internal_defaults_tm["basis_or"]["default"] = "def2-SVPD"
+
+        for key, value in kwargs.items():
+            if key == 'prog':
+                update = list(self.internal_defaults.keys())
+                for item in list(update):
+                    if 'basis' in item:
+                        # dont overwrite "automatic" 
+                        update.remove(item)
+                if value == 'tm':
+                    tmp = {}
+                    for key, value in self.internal_defaults_tm.items():
+                        if key in update:
+                            tmp[key] = value
+                    self.internal_defaults.update(tmp)
+                elif value == 'orca':
+                    tmp = {}
+                    for key, value in self.internal_defaults_orca.items():
+                        if key in update:
+                            tmp[key] = value
+                    self.internal_defaults.update(tmp)
+
         self.value_options = {
             "nconf": ["all", "number e.g. 10 up to all conformers"],
             "charge": ["number e.g. 0"],
@@ -1838,7 +1863,7 @@ class config_setup(internal_settings):
 
         # settings the program operates with updated to the defaults
         for key in self.internal_defaults.keys():
-            setattr(self, key, self.internal_defaults[key]["default"])
+            setattr(self, key, self.internal_defaults[key]["default"])       
 
         # workingdirectory
         self.cwd = path
@@ -2026,7 +2051,7 @@ class config_setup(internal_settings):
     def provide_runinfo(self, extend=True):
         """
         Write dictionary structured like internal defaults.
-        And extenden with startup information.
+        And extended with startup information.
         """
         runinfo = []
         keys = list(self.internal_defaults.keys())
@@ -4017,11 +4042,15 @@ class config_setup(internal_settings):
         external_paths.update(self.external_paths)
         return error_logical
 
-    def write_rcfile(self, pathtofile, usepaths=False):
+    def write_rcfile(self, pathtofile, usepaths=False, update=False):
         """
         write new global configruation file into the current directroy.
         """
         args_key = {v: k for k, v in self.key_args_dict.items()}
+        if update:
+            data = self.provide_runinfo(extend=False)
+        else:
+            data = {}
         with open(pathtofile, "w", newline=None) as outdata:
             outdata.write("$CENSO global configuration file: .censorc\n")
             outdata.write(f"$VERSION:{__version__} \n")
@@ -4058,7 +4087,12 @@ class config_setup(internal_settings):
             outdata.write("$GENERAL SETTINGS:\n")
             for key in OrderedDict(self.defaults_refine_ensemble_general):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_refine_ensemble_general)[key]["default"],
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_general)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
@@ -4069,7 +4103,12 @@ class config_setup(internal_settings):
             outdata.write("\n$PART0 - CHEAP-PRESCREENING - SETTINGS:\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part0):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_refine_ensemble_part0)[key]["default"],
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part0)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
@@ -4079,7 +4118,12 @@ class config_setup(internal_settings):
             outdata.write("# func and basis is set under GENERAL SETTINGS\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part1):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_refine_ensemble_part1)[key]["default"],
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part1)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
@@ -4089,7 +4133,12 @@ class config_setup(internal_settings):
             outdata.write("# func and basis is set under GENERAL SETTINGS\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part2):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_refine_ensemble_part2)[key]["default"],
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part2)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
@@ -4098,7 +4147,12 @@ class config_setup(internal_settings):
             outdata.write("\n$PART3 - REFINEMENT - SETTINGS:\n")
             for key in OrderedDict(self.defaults_refine_ensemble_part3):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_refine_ensemble_part3)[key]["default"],
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_refine_ensemble_part3)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
@@ -4108,7 +4162,9 @@ class config_setup(internal_settings):
             outdata.write("$PART4 SETTINGS:\n")
             for key in OrderedDict(self.defaults_nmrprop_part4):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_nmrprop_part4)[key]["default"],
+                    data.get(
+                        key, OrderedDict(self.defaults_nmrprop_part4)[key]["default"]
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
@@ -4118,7 +4174,12 @@ class config_setup(internal_settings):
             outdata.write("$PART5 SETTINGS:\n")
             for key in OrderedDict(self.defaults_optical_rotation_part5):
                 value = self._exchange_onoff(
-                    OrderedDict(self.defaults_optical_rotation_part5)[key]["default"],
+                    data.get(
+                        key,
+                        OrderedDict(self.defaults_optical_rotation_part5)[key][
+                            "default"
+                        ],
+                    ),
                     reverse=True,
                 )
                 options = self.value_options.get(key, "possibilities")
