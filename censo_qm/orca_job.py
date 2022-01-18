@@ -3,6 +3,7 @@ Contains OrcaJob class for calculating ORCA related properties of conformers.
 """
 from collections import OrderedDict
 import os
+import sys
 import time
 import subprocess
 from .cfg import (
@@ -12,6 +13,7 @@ from .cfg import (
     censo_solvent_db,
     external_paths,
     dfa_settings,
+    editable_ORCA_input,
 )
 from .utilities import last_folders, t2x, x2t, print
 from .qm_job import QmJob
@@ -60,6 +62,7 @@ class OrcaJob(QmJob):
                 ("mp2", None),
                 (
                     "default",
+                    editable_ORCA_input.get('default',
                     [
                         "! smallprint printgap noloewdin",
                         "! NOSOSCF",
@@ -69,7 +72,7 @@ class OrcaJob(QmJob):
                         "       print[P_Mayer] 1",
                         "       print[P_basis] 2",
                         "end",
-                    ],
+                    ]),
                 ),
                 ("job", None),
                 ("optthreshold", None),
@@ -944,38 +947,43 @@ class OrcaJob(QmJob):
         xtbopt --> opt with xtb as driver
         rrhoxtb --> _rrho()
         """
-        if self.job["jobtype"] == "prep":
-            self.job["success"] = True
-        elif self.job["jobtype"] == "xtb_sp":
-            self._xtb_sp()
-        elif self.job["jobtype"] in ("sp", "sp_implicit"):
-            self._sp()
-        elif self.job["jobtype"] == "opt":
-            print("RUNNING xtbopt!!!")
-            # self._opt()
-            self._xtbopt()
-        elif self.job["jobtype"] == "xtbopt":
-            self._xtbopt()
-        elif self.job["jobtype"] == "rrhoxtb":
-            self._xtbrrho()
-        # elif self.job['jobtype'] == "rrhoorca":
-        #     self._rrho()
-        elif self.job["jobtype"] == "smd_gsolv":
-            self._smd_gsolv()
-        elif self.job["jobtype"] == "couplings_sp":
-            self._nmrJ()
-        elif self.job["jobtype"] in ("shieldings_sp", "shieldings"):
-            self._nmrS()
-        elif self.job["jobtype"] == "genericout":
-            self._genericoutput()
-        elif self.job["jobtype"] in ("gbsa_gsolv", "alpb_gsolv"):
-            if self.job["prepinfo"]:
-                tmp_solvent = self.job["solvent"]
-                self.job["solvent"] = "gas"
+        try:
+            if self.job["jobtype"] == "prep":
+                self.job["success"] = True
+            elif self.job["jobtype"] == "xtb_sp":
+                self._xtb_sp()
+            elif self.job["jobtype"] in ("sp", "sp_implicit"):
                 self._sp()
-                if not self.job["success"]:
-                    return
-                self.job["solvent"] = tmp_solvent
-            self._xtb_gsolv()
-        else:
-            print(f"JOBTYPE {self.job['jobtype']} UNKNOWN!")
+            elif self.job["jobtype"] == "opt":
+                print("RUNNING xtbopt!!!")
+                # self._opt()
+                self._xtbopt()
+            elif self.job["jobtype"] == "xtbopt":
+                self._xtbopt()
+            elif self.job["jobtype"] == "rrhoxtb":
+                self._xtbrrho()
+            # elif self.job['jobtype'] == "rrhoorca":
+            #     self._rrho()
+            elif self.job["jobtype"] == "smd_gsolv":
+                self._smd_gsolv()
+            elif self.job["jobtype"] == "couplings_sp":
+                self._nmrJ()
+            elif self.job["jobtype"] in ("shieldings_sp", "shieldings"):
+                self._nmrS()
+            elif self.job["jobtype"] == "genericout":
+                self._genericoutput()
+            elif self.job["jobtype"] in ("gbsa_gsolv", "alpb_gsolv"):
+                if self.job["prepinfo"]:
+                    tmp_solvent = self.job["solvent"]
+                    self.job["solvent"] = "gas"
+                    self._sp()
+                    if not self.job["success"]:
+                        return
+                    self.job["solvent"] = tmp_solvent
+                self._xtb_gsolv()
+            else:
+                print(f"JOBTYPE {self.job['jobtype']} UNKNOWN!")
+        except OSError as error:
+            self.job["success"] = False
+            print(f"{'IO-ERROR:':{WARNLEN}}in CONF{self.id} calculation")
+            print(error, file=sys.stderr)

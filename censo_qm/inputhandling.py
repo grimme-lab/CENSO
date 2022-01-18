@@ -1722,6 +1722,8 @@ class internal_settings:
             "sthr": ["automatic or e.g., 50     # in cm-1"],
             "scale": ["automatic or e.g., 1.0 "],
             "cosmorsparam": ["automatic"] + sorted(list(cosmors_param.keys())),
+            "balance": ["on", "off"],
+            "progress": ["on", "off"],
         }
         # must not be changed if restart(concerning optimization)
         self.restart_unchangeable = [
@@ -3967,7 +3969,7 @@ class config_setup(internal_settings):
                 # print('running in a normal Python process')
                 path_to_cefine = shutil.which("cefine")
 
-            if os.path.exists(path_to_cefine):
+            if path_to_cefine is not None and os.path.exists(path_to_cefine):
                 print("    Using cefine from {}".format(path_to_cefine))
                 self.external_paths["cefinepath"] = path_to_cefine
             else:

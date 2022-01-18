@@ -56,6 +56,23 @@ BOHR2ANG = 0.52917721067
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
 
+#### TEST user editable ORCA input, which is supplied in each CENSO generated ORCA input!
+editable_ORCA_input = {     
+                    "default":[
+                        "! smallprint printgap noloewdin",
+                        "! NOSOSCF",
+                        "%MaxCore 8000",
+                        "%output",
+                        "       print[P_BondOrder_M] 1",
+                        "       print[P_Mayer] 1",
+                        "       print[P_basis] 2",
+                        "end",
+                    ],
+                    }
+
+#### END TEST user editabel ORCA input
+
+
 class dfa_settings:
     """Contains information on available functionals, per part, qm code, dispersion
     correction..."""

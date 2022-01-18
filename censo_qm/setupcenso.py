@@ -6,7 +6,16 @@ import os
 import sys
 import json
 from collections import OrderedDict
-from .cfg import CODING, PLENGTH, DESCR, WARNLEN, censo_solvent_db, __version__, NmrRef
+from .cfg import (
+    CODING,
+    PLENGTH,
+    DESCR,
+    WARNLEN,
+    censo_solvent_db,
+    __version__,
+    NmrRef,
+    editable_ORCA_input,
+)
 from .inputhandling import config_setup, internal_settings
 from .datastructure import MoleculeData
 from .qm_job import QmJob
@@ -220,6 +229,45 @@ def enso_startup(cwd, args):
             print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
     ### END NMR reference shielding constant database adjustable by user
 
+    ### ORCA user editable input
+    orcaeditablepath = os.path.expanduser(
+        os.path.join("~/.censo_assets/", "censo_orca_editable.dat")
+    )
+    if not os.path.isfile(orcaeditablepath):
+        try:
+            with open(orcaeditablepath, "w", newline=None) as out:
+                for line in editable_ORCA_input.get("default", []):
+                    out.write(line+'\n')
+            config.save_infos.append(
+                "Creating file: {}".format(os.path.basename(orcaeditablepath))
+            )
+        except OSError as error:
+            print(f"{'INFORMATION:':{WARNLEN}}The file {orcaeditablepath} could not be "
+                    "created and internal defaults will be applied!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
+    else: 
+        if os.path.isfile(orcaeditablepath):
+            try:
+                config.save_infos.append(
+                "Reading file: {}\n".format(os.path.basename(orcaeditablepath))
+                )
+                tmp_orca = []
+                with open(orcaeditablepath, "r", encoding=CODING) as inp:
+                    for line in inp:
+                        if '#' in line:
+                            tmp_orca.append(line.split("#")[0].rstrip())
+                        else:
+                            tmp_orca.append(line.rstrip())
+                    editable_ORCA_input.update({'default':tmp_orca})
+            except (ValueError, TypeError, FileNotFoundError, OSError):
+                print(
+                    f"{'INFORMATION:':{WARNLEN}}Your {os.path.basename(orcaeditablepath)} file in "
+                    f"{orcaeditablepath} is corrupted and internal defaults will be applied!\n"
+                    f"{'':{WARNLEN}}You can delete your corrupted file and a new "
+                    f"one will be created on the next start of CENSO."
+                )
+    ### END ORCA user editable input
 
     ### if restart read all settings from previous run (enso.json)
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
