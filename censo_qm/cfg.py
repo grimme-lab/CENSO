@@ -1013,7 +1013,7 @@ censo_solvent_db = {
         "dcosmors": ["nitromethane", "nitromethane"],
         "xtb": ["nitromethane", "nitromethane"],
         "cpcm": [None, "methanol"],
-        "smd": "",
+        "smd": ["NITROMETHANE", "NITROMETHANE"],
         "DC": 38.2,
     },
     "benzaldehyde": {
