@@ -240,6 +240,10 @@ def interactiv_doc():
     $PART2 - OPTIMIZATION - SETTINGS:
 
     part2           = Option to turn the "optimization part" on or off.
+    prog2opt        = QM program used only for the optimization in part2.
+                      Either 'tm' or 'orca'. It is implemented mainly for the following use case
+                      optimization of polar molecules with ORCA/SMD instead of TM/DCOSMO-RS and 
+                      still be able to calculated GSolv and the Electronic energy with TM.
     part2_threshold = Threshold/Energy-window (kcal/mol) within which all conformers
                       are fully optimized.
     sm2             = Implicit solvation model used in the optimization.
@@ -390,7 +394,7 @@ def interactiv_doc():
 
     ## TM
     export PARA_ARCH=SMP
-    source /home/bohle/bin/.turbo751
+    source /home/$USER/bin/.turbo751
     export PARNODES=4  ## omp 
     export TM_PAR_FORK=1
 

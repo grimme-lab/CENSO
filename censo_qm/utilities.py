@@ -2,7 +2,6 @@
 Utility functions which are used in the CENSO modules. From creating folders to
 printout routines.
 """
-from io import StringIO
 import os
 import sys
 import shutil

@@ -13,7 +13,6 @@ import sys
 import glob
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Text
 from .cfg import (
     PLENGTH,
     DIGILEN,
@@ -1567,6 +1566,7 @@ class internal_settings:
         # update internal defaults specific to QM package
         # orca
         self.internal_defaults_orca = deepcopy(self.internal_defaults)
+        self.internal_defaults_orca["prog"]["default"] = "orca"
         self.internal_defaults_orca["func0"]["default"] = "b97-d3"
         self.internal_defaults_orca["sm2"]["default"] = "smd"
         self.internal_defaults_orca["smgsolv1"]["default"] = "smd"
@@ -1583,6 +1583,7 @@ class internal_settings:
 
         # tm
         self.internal_defaults_tm = deepcopy(self.internal_defaults)
+        self.internal_defaults_tm["prog"]["default"] = "tm"
         self.internal_defaults_tm["sm2"]["default"] = "dcosmors"
         self.internal_defaults_tm["smgsolv1"]["default"] = "cosmors"
         self.internal_defaults_tm["smgsolv2"]["default"] = "cosmors"
@@ -1606,15 +1607,15 @@ class internal_settings:
                         update.remove(item)
                 if value == 'tm':
                     tmp = {}
-                    for key, value in self.internal_defaults_tm.items():
-                        if key in update:
-                            tmp[key] = value
+                    for tmkey, tmvalue in self.internal_defaults_tm.items():
+                        if tmkey in update:
+                            tmp[tmkey] = tmvalue
                     self.internal_defaults.update(tmp)
                 elif value == 'orca':
                     tmp = {}
-                    for key, value in self.internal_defaults_orca.items():
-                        if key in update:
-                            tmp[key] = value
+                    for orcakey, orcavalue in self.internal_defaults_orca.items():
+                        if orcakey in update:
+                            tmp[orcakey] = orcavalue
                     self.internal_defaults.update(tmp)
 
         self.value_options = {
@@ -1692,8 +1693,8 @@ class internal_settings:
             ],
             "spearmanthr": ["value between -1 and 1, if outside set automatically"],
             "couplings": ["on", "off"],
-            "prog4_j": ["tm", "orca", "adf", "prog"],
-            "prog4_s": ["tm", "orca", "adf", "prog"],
+            "prog4_j": ["tm", "orca", "prog"],
+            "prog4_s": ["tm", "orca", "prog"],
             "func_j": sorted(self.func_info.infos("func_j", prog=None)),
             "basis_j": sorted(knownbasissets),
             "func_s": sorted(self.func_info.infos("func_s", prog=None)),
