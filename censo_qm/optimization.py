@@ -508,7 +508,7 @@ def part2(config, conformers, store_confs, ensembledata):
                             # don't optimize further:
                             print(
                                 f"Geometry optimization converged for: "
-                                f"CONF{conf.id} within {conf.job['cycles']:>3} cycles"
+                                f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
                             )
                             conf.optimization_info["info"] = "calculated"
                             conf.optimization_info["energy"] = conf.job["energy"]
@@ -867,7 +867,7 @@ def part2(config, conformers, store_confs, ensembledata):
                         print(
                             f"!!! Geometry optimization STOPPED because of "
                             f"optcycle limit of {stopcycle} cycles reached for: "
-                            f"CONF{conf.id} within {conf.job['cycles']:>3} cycles"
+                            f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
                         )
                         conf.optimization_info["info"] = "calculated"
                         conf.optimization_info["energy"] = conf.job["energy"]
@@ -905,7 +905,6 @@ def part2(config, conformers, store_confs, ensembledata):
             # update instruct_opt
             tic = time.perf_counter()
             del instruction_opt["optcycles"]
-            # calculate first round
             calculate = run_in_parallel(
                 config,
                 q,
