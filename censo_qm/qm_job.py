@@ -18,7 +18,6 @@ from .cfg import (
     WARNLEN,
     censo_solvent_db,
     rot_sym_num, external_paths,
-    LENCONFX,
 )
 from .utilities import last_folders, print
 from .datastructure import MoleculeData
@@ -236,7 +235,7 @@ class QmJob(MoleculeData):
             return
         if not silent:
             print(
-                f"{self.job['gfn_version']}-xTB energy for {last_folders(self.job['workdir'], 2):{len(last_folders(self.job['workdir'], 1))+LENCONFX+4}}"
+                f"{self.job['gfn_version']}-xTB energy for {last_folders(self.job['workdir'], 2)}"
                 f" = {self.job['energy']: >.7f}"
             )
 

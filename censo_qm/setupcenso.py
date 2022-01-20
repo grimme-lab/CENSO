@@ -15,7 +15,6 @@ from .cfg import (
     __version__,
     NmrRef,
     editable_ORCA_input,
-    LENCONFX,
 )
 from .inputhandling import config_setup, internal_settings
 from .datastructure import MoleculeData
@@ -1017,6 +1016,5 @@ def enso_startup(cwd, args):
 
     # formatting information:
     config.lenconfx = max([len(str(i.id)) for i in conformers])
-    LENCONFX = config.lenconfx
     conformers.sort(key=lambda x: int(x.id))
     return args, config, conformers, ensembledata

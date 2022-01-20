@@ -55,10 +55,6 @@ AU2KCAL = 627.50947428
 BOHR2ANG = 0.52917721067
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
-#
-LENCONFX = 3 # string length of max conf number
-
-
 #### TEST user editable ORCA input, which is supplied in each CENSO generated ORCA input!
 editable_ORCA_input = {     
                     "default":[
