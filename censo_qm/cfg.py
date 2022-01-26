@@ -855,6 +855,14 @@ censo_solvent_db = {
         "smd": ["CHLOROFORM", "CHLOROFORM"],
         "DC": 4.8,
     },
+    "chbr3": {
+        "cosmors": ["chbr3_c0", "chbr3_c0"],
+        "dcosmors": [None, "chcl3"],
+        "xtb": [None, "chcl3"],
+        "cpcm": [None, "chloroform"],
+        "smd": ["BROMOFORM", "BROMOFORM"],
+        "DC": 4.25,
+    },
     "acetonitrile": {
         "cosmors": ["acetonitrile_c0", "acetonitrile_c0"],
         "dcosmors": ["acetonitrile", "acetonitrile"],
@@ -878,6 +886,14 @@ censo_solvent_db = {
         "cpcm": [None, "CH2Cl2"],
         "smd": ["1,2-DICHLOROETHANE", "1,2-DICHLOROETHANE"],
         "DC": 10.125,
+    },
+    "dibromoethane": {
+        "cosmors": ["1,2-dibromoethane_c0", "1,2-dibromoethane_c0"],
+        "dcosmors": [None, "chcl3"],
+        "xtb": [None, "ch2cl2"],
+        "cpcm": [None, "CH2Cl2"],
+        "smd": ["1,2-DIBROMOETHANE", "1,2-DIBROMOETHANE"],
+        "DC": 4.9,
     },
     "dmso": {
         "cosmors": ["dimethylsulfoxide_c0", "dimethylsulfoxide_c0"],
