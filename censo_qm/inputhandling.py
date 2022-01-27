@@ -877,7 +877,7 @@ def cml(startup_description, options, argv=None):
         action="store",
         metavar="",
         help="Automatically balance the number of threads and cores when a low number"
-        "of conformers is left. (never exceed O*P cores).",
+        "of conformers is left. (never exceed O*P cores). Options are: 'on' or 'off'.",
     )
     group11 = parser.add_argument_group("Concerning overall GmRRHO calculations")
     group11.add_argument(
