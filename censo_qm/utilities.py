@@ -68,11 +68,16 @@ def mkdir_p(path):
             raise e
 
 
-def print_block(strlist, width=80):
+def print_block(strlist, width=80, redirect=False):
     """Print all elements of strlist in block mode
     e.g. within 80 characters then newline
     - width [int] width of block
     """
+    if redirect:
+        from io import StringIO
+        old_stdout = sys.stdout
+        result = StringIO()
+        sys.stdout = result
     length = 0
     try:
         maxlen = max([len(str(x)) for x in strlist])
@@ -90,6 +95,9 @@ def print_block(strlist, width=80):
             length = 0
     if length != 0:
         print("\n")
+    if redirect:
+        sys.stdout = old_stdout
+        return result.getvalue()
 
 
 def t2x(path, writexyz=False, outfile="original.xyz"):

@@ -6,7 +6,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 import os
 import sys
 
-__version__ = "1.1.2"
+__version__ = "1.2.0"
 
 DESCR = f"""
          ______________________________________________________________
@@ -54,6 +54,22 @@ R = 1.987203585e-03  # kcal/(mol*K)
 AU2KCAL = 627.50947428
 BOHR2ANG = 0.52917721067
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
+
+#### TEST user editable ORCA input, which is supplied in each CENSO generated ORCA input!
+editable_ORCA_input = {     
+                    "default":[
+                        "! smallprint printgap noloewdin",
+                        "! NOSOSCF",
+                        "%MaxCore 8000",
+                        "%output",
+                        "       print[P_BondOrder_M] 1",
+                        "       print[P_Mayer] 1",
+                        "       print[P_basis] 2",
+                        "end",
+                    ],
+                    }
+
+#### END TEST user editabel ORCA input
 
 
 class dfa_settings:
@@ -366,6 +382,19 @@ class dfa_settings:
             "orca": None,
             "disp": "nl",
             "part": ["func", "func3", "func_j", "func_s", "func_or", "func_or_scf"],
+            "type": "mGGA",
+        },
+        "revtpss-novdw": {
+            "tm": "revtpss",
+            "orca": "revTPSS",
+            "disp": "novdw",
+            "part": [
+                "func0",
+                "func",
+                "func3",
+                "func_j",
+                "func_s",
+            ],
             "type": "mGGA",
         },
         "b97-d3": {
@@ -721,6 +750,8 @@ class dfa_settings:
                 ):
                     tmp.append(func)
             return list(set(tmp))
+        elif prog not in ("tm", "orca"):
+            pass
         else:
             print(f"request {request} not known!")
 
@@ -824,6 +855,14 @@ censo_solvent_db = {
         "smd": ["CHLOROFORM", "CHLOROFORM"],
         "DC": 4.8,
     },
+    "chbr3": {
+        "cosmors": ["chbr3_c0", "chbr3_c0"],
+        "dcosmors": [None, "chcl3"],
+        "xtb": [None, "chcl3"],
+        "cpcm": [None, "chloroform"],
+        "smd": ["BROMOFORM", "BROMOFORM"],
+        "DC": 4.25,
+    },
     "acetonitrile": {
         "cosmors": ["acetonitrile_c0", "acetonitrile_c0"],
         "dcosmors": ["acetonitrile", "acetonitrile"],
@@ -847,6 +886,14 @@ censo_solvent_db = {
         "cpcm": [None, "CH2Cl2"],
         "smd": ["1,2-DICHLOROETHANE", "1,2-DICHLOROETHANE"],
         "DC": 10.125,
+    },
+    "dibromoethane": {
+        "cosmors": ["1,2-dibromoethane_c0", "1,2-dibromoethane_c0"],
+        "dcosmors": [None, "chcl3"],
+        "xtb": [None, "ch2cl2"],
+        "cpcm": [None, "CH2Cl2"],
+        "smd": ["1,2-DIBROMOETHANE", "1,2-DIBROMOETHANE"],
+        "DC": 4.9,
     },
     "dmso": {
         "cosmors": ["dimethylsulfoxide_c0", "dimethylsulfoxide_c0"],
@@ -981,7 +1028,7 @@ censo_solvent_db = {
         "dcosmors": ["nitromethane", "nitromethane"],
         "xtb": ["nitromethane", "nitromethane"],
         "cpcm": [None, "methanol"],
-        "smd": "",
+        "smd": ["NITROMETHANE", "NITROMETHANE"],
         "DC": 38.2,
     },
     "benzaldehyde": {

@@ -9,7 +9,7 @@ from .qm_job import QmJob
 from .tm_job import TmJob
 from .orca_job import OrcaJob
 from .utilities import print
-from .cfg import ENVIRON
+from .cfg import ENVIRON, WARNLEN
 
 
 def balance_load(P, O, nconf, do_change):
@@ -115,39 +115,42 @@ def run_in_parallel(
             # put item on queue
             q.put(item)
             time.sleep(0.02)
-    njobs = q.qsize()
     time.sleep(0.02)
+    njobs = q.qsize()
     if changed:
         ENVIRON["PARNODES"] = str(omp)
-
+    if njobs != nconf:
+        print(f"{'WARNING':{WARNLEN}}Number of conformers submitted to queue ({nconf}) and in queue ({njobs}) do not match,"
+              f"{'':{WARNLEN}}but this can also be due to an approximate number of conformers from q.qsize() in python!"
+            )
     if instructdict.get("onlyread", False):
         print(f"\nReading data from {njobs} conformers calculated in previous run.")
     else:
         response = {
-            "prep": f"\nPreparing {q.qsize()} calculations.",
-            "sp": f"\nStarting {q.qsize()} single-point calculations.",
-            "xtb_sp": f"\nStarting {q.qsize()} xTB - single-point calculations.",
-            "lax_sp": f"\nStarting {q.qsize()} lax-single-point calculations.",
-            "cosmors": f"\nStarting {q.qsize()} COSMO-RS-Gsolv calculations.",
-            "gbsa_gsolv": f"\nStarting {q.qsize()} GBSA-Gsolv calculations",
-            "alpb_gsolv": f"\nStarting {q.qsize()} ALPB-Gsolv calculations",
-            "smd_gsolv": f"\nStarting {q.qsize()} SMD-Gsolv calculations",
-            "rrhoxtb": f"\nStarting {q.qsize()} G_RRHO calculations.",
-            "rrhoorca": f"\nStarting {q.qsize()} G_RRHO calculations.",
-            "rrhotm": f"\nStarting {q.qsize()} G_RRHO calculations.",
-            "opt": f"\nStarting {q.qsize()} optimizations.",
-            "xtbopt": f"\nStarting {q.qsize()} optimizations.",
-            "couplings": f"\nStarting {q.qsize()} coupling constants calculations",
-            "couplings_sp": f"\nStarting {q.qsize()} coupling constants calculations",
-            "shieldings": f"\nStarting {q.qsize()} shielding constants calculations",
-            "shieldings_sp": f"\nStarting {q.qsize()} shielding constants calculations",
-            "genericoutput": f"\nWriting {q.qsize()} generic outputs.",
-            "opt-rot": f"\nStarting {q.qsize()} optical-rotation calculations.",
-            "opt-rot_sp": f"\nStarting {q.qsize()} optical-rotation calculations.",
+            "prep": f"\nPreparing {njobs} calculations.",
+            "sp": f"\nStarting {njobs} single-point calculations.",
+            "xtb_sp": f"\nStarting {njobs} xTB - single-point calculations.",
+            "lax_sp": f"\nStarting {njobs} lax-single-point calculations.",
+            "cosmors": f"\nStarting {njobs} COSMO-RS-Gsolv calculations.",
+            "gbsa_gsolv": f"\nStarting {njobs} GBSA-Gsolv calculations",
+            "alpb_gsolv": f"\nStarting {njobs} ALPB-Gsolv calculations",
+            "smd_gsolv": f"\nStarting {njobs} SMD-Gsolv calculations",
+            "rrhoxtb": f"\nStarting {njobs} G_RRHO calculations.",
+            "rrhoorca": f"\nStarting {njobs} G_RRHO calculations.",
+            "rrhotm": f"\nStarting {njobs} G_RRHO calculations.",
+            "opt": f"\nStarting {njobs} optimizations.",
+            "xtbopt": f"\nStarting {njobs} optimizations.",
+            "couplings": f"\nStarting {njobs} coupling constants calculations",
+            "couplings_sp": f"\nStarting {njobs} coupling constants calculations",
+            "shieldings": f"\nStarting {njobs} shielding constants calculations",
+            "shieldings_sp": f"\nStarting {njobs} shielding constants calculations",
+            "genericoutput": f"\nWriting {njobs} generic outputs.",
+            "opt-rot": f"\nStarting {njobs} optical-rotation calculations.",
+            "opt-rot_sp": f"\nStarting {njobs} optical-rotation calculations.",
         }
         if instructdict["jobtype"] in response:
             print(response[instructdict["jobtype"]])
-
+    time.sleep(0.04)
     # start working in parallel
     for _ in range(int(maxthreads)):
         worker = Process(target=execute_data, args=(q, resultq))
@@ -170,14 +173,17 @@ def run_in_parallel(
         if getattr(results[-1], "hugeERROR", False):
             print(getattr(results[-1], "tb"))
             raise getattr(results[-1], "hugeERROR")
-        time.sleep(0.01)  # sleep is important don't remove it!!!
+        time.sleep(0.02)  # sleep is important don't remove it!!!
         # seriously don't remove it!
 
     time.sleep(0.02)
     results.sort(key=lambda x: int(x.id))
-    if njobs != len(results):
-        print(f"ERROR some conformers were lost!")
-
+    if nconf != len(results):
+        print(f"{'ERROR':{WARNLEN}}number of confs before ({nconf}) and after ({len(results)}) run_in_parallel do not match !")
+    elif njobs != len(results):
+        print(f"{'WARNING':{WARNLEN}}number some conformers do not match ({njobs} / {len(results)}) it appears as if some conformers were lost,"
+              f"{'':{WARNLEN}}but this can also be due to an approximate number of conformers from q.qsize() in python!"
+              )
     if changed:
         ENVIRON["PARNODES"] = str(omp_initial)
     return results

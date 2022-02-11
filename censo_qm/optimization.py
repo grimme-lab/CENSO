@@ -55,6 +55,7 @@ def part2(config, conformers, store_confs, ensembledata):
     # print flags for part2
     info = []
     info.append(["prog", "program"])
+    info.append(["prog2opt", "QM program employed only in the geometry opt."])
     info.append(["func", "functional for part2"])
     info.append(["basis", "basis set for part2"])
     info.append(["ancopt", "using the xTB-optimizer for optimization"])
@@ -90,7 +91,7 @@ def part2(config, conformers, store_confs, ensembledata):
             ]
         )
     info.append(
-        ["part2_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
+        ["part2_P_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
     )
     info.append(["evaluate_rrho", "calculate mRRHO contribution"])
     if config.evaluate_rrho:
@@ -104,6 +105,9 @@ def part2(config, conformers, store_confs, ensembledata):
                         "Apply constraint to input geometry during mRRHO calculation",
                     ]
                 )
+    if config.consider_unconverged:
+        info.append(["consider_unconverged", "consider (unconverged) conformers from previous run"])
+
     max_len_digilen = 0
     for item in info:
         if item[0] == "justprint":
@@ -167,9 +171,9 @@ def part2(config, conformers, store_confs, ensembledata):
     q = Queue()
     resultq = Queue()
 
-    if config.prog == "tm":
+    if config.prog2opt == "tm":
         job = TmJob
-    elif config.prog == "orca":
+    elif config.prog2opt == "orca":
         job = OrcaJob
 
     for conf in list(conformers):
@@ -192,7 +196,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 f"Preparation for the optimization of CONF{conf.id} failed in the "
                 "previous run and is tried again!"
             )
-            conf = conformers.pop(conformers.index(conf))
+            calculate.append(conformers.pop(conformers.index(conf)))
         elif conf.optimization_info["info"] == "calculated":
             conf = conformers.pop(conformers.index(conf))
             if conf.optimization_info["convergence"] == "converged":
@@ -207,8 +211,16 @@ def part2(config, conformers, store_confs, ensembledata):
                         f"CONF{conf.id} has been sorted out by CREGEN in a previous run."
                     )
                     store_confs.append(conf)
+            elif (config.consider_unconverged and 
+                 conf.optimization_info["convergence"] == "stopped_before_converged"):
+                print(
+                    f"CONF{conf.id} has been sorted out in a previous run, but "
+                    "is reconsidered in the current optimization run."
+                )
+                # has already been optimized (at least some cycles)
+                calculate.append(conf)
             else:
-                # "not_converged" or "stopped_before_converged"
+                # "not_converged" 
                 store_confs.append(conf)
     if not calculate and not prev_calculated:
         print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
@@ -326,7 +338,8 @@ def part2(config, conformers, store_confs, ensembledata):
         sm=instruction_opt["sm"],
     )
     # SI
-    if config.prog == "tm":
+    if config.prog2opt == "tm":
+        ensembledata.si["part2"]["QM code Optimization"] = str(config.prog2opt).upper()
         ensembledata.si["part2"]["Geometry"] = (
             instruction_opt["method"]
             + f" @optlevel: {config.optlevel2} using {' '.join(qm_prepinfo['tm'][instruction_opt['prepinfo'][0]]).replace('-', '')}"
@@ -336,7 +349,8 @@ def part2(config, conformers, store_confs, ensembledata):
             ensembledata.si["part2"]["Geometry"] = ensembledata.si["part2"][
                 "Geometry"
             ].replace("m3", "m4")
-    elif config.prog == "orca":
+    elif config.prog2opt == "orca":
+        ensembledata.si["part2"]["QM code Optimization"] = str(config.prog2opt).upper()
         ensembledata.si["part2"]["Geometry"] = (
             instruction_opt["method"]
             + f" @optlevel: {config.optlevel2} using {' '.join(qm_prepinfo['orca'][instruction_opt['prepinfo'][0]])}"
@@ -349,10 +363,28 @@ def part2(config, conformers, store_confs, ensembledata):
         save_errors, store_confs, calculate = new_folders(
             config.cwd, calculate, config.func, save_errors, store_confs
         )
+        if config.consider_unconverged:
+            tmp = []
+            for conf in list(calculate):
+                if conf.optimization_info["convergence"] == "stopped_before_converged":
+                    # check if coord file exists
+                    outpath = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
+                    if os.path.isfile(outpath):
+                        print(f"Using CONF{conf.id} coordinates from a previous run.")
+                        conf = calculate.pop(calculate.index(conf))
+                        conf.optimization_info["convergence"] = "not_converged"
+                        conf.optimization_info["info"] = "not_calculated"
+                        conf.optimization_info["info_rrho"] = "not_calculated"
+                        tmp.append(conf)
+
         # write coord to folder
         calculate, store_confs, save_errors = ensemble2coord(
             config, config.func, calculate, store_confs, save_errors
         )
+        if config.consider_unconverged:
+            if tmp:
+                for conf in list(tmp):
+                    calculate.append(tmp.pop(tmp.index(conf)))
 
         # parallel prep execution
         calculate = run_in_parallel(
@@ -376,6 +408,7 @@ def part2(config, conformers, store_confs, ensembledata):
                     f"{check[conf.job['success']]}."
                 )
                 if not conf.job["success"]:
+                    print(line)
                     save_errors.append(line)
                     conf.optimization_info["info"] = "prep-failed"
                     store_confs.append(calculate.pop(calculate.index(conf)))
@@ -407,6 +440,7 @@ def part2(config, conformers, store_confs, ensembledata):
         nconf_cycle = []  # number of conformers at end of each cycle
 
         if config.opt_spearman:
+            nconf_start = len(calculate)
             run = 1
             do_increase = 0.6
             if config.opt_limit * do_increase >= 1.5:
@@ -474,7 +508,7 @@ def part2(config, conformers, store_confs, ensembledata):
                             # don't optimize further:
                             print(
                                 f"Geometry optimization converged for: "
-                                f"CONF{conf.id} within {conf.job['cycles']:>3} cycles"
+                                f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
                             )
                             conf.optimization_info["info"] = "calculated"
                             conf.optimization_info["energy"] = conf.job["energy"]
@@ -811,7 +845,7 @@ def part2(config, conformers, store_confs, ensembledata):
                             "convergence"
                         ] = "stopped_before_converged"
                         print(
-                            f"CONF{conf.id} is above threshold, dont optimize "
+                            f"CONF{conf.id} is above threshold, don't optimize "
                             f"further and remove conformer."
                         )
                         store_confs.append(calculate.pop(calculate.index(conf)))
@@ -833,7 +867,7 @@ def part2(config, conformers, store_confs, ensembledata):
                         print(
                             f"!!! Geometry optimization STOPPED because of "
                             f"optcycle limit of {stopcycle} cycles reached for: "
-                            f"CONF{conf.id} within {conf.job['cycles']:>3} cycles"
+                            f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
                         )
                         conf.optimization_info["info"] = "calculated"
                         conf.optimization_info["energy"] = conf.job["energy"]
@@ -850,13 +884,27 @@ def part2(config, conformers, store_confs, ensembledata):
                 #
                 maxecyc_prev = maxecyc
                 run += 1
+                if (run >= 3 or
+                    ( (nconf_start -len(calculate)) >= 5 )):
+                    print(f"{'INFORMATION:':{WARNLEN}}Saving enso.json to update optimization information.")
+                    # save current data to jsonfile
+                    # safety measure for runs with thousands of conformers to keep
+                    # information on optimized structures and make restart easier
+                    # in case of a crash or cluster stop in part2
+                    config.write_json(
+                        config.cwd,
+                        [i.provide_runinfo() for i in calculate]
+                        + [i.provide_runinfo() for i in prev_calculated]
+                        + [i.provide_runinfo() for i in store_confs]
+                        + [ensembledata],
+                        config.provide_runinfo(),
+                    )
             # END while loop
         else:
             # use standard optimization!
             # update instruct_opt
             tic = time.perf_counter()
             del instruction_opt["optcycles"]
-            # calculate first round
             calculate = run_in_parallel(
                 config,
                 q,
@@ -949,6 +997,10 @@ def part2(config, conformers, store_confs, ensembledata):
             config, calculate, config.func, store_confs
         )
 
+    if config.prog == "tm":
+        job = TmJob
+    elif config.prog == "orca":
+        job = OrcaJob
     # reset
     for conf in calculate:
         conf.reset_job_info()
@@ -1318,7 +1370,7 @@ def part2(config, conformers, store_confs, ensembledata):
     # Threshold:
     ensembledata.si["part2"][
         "Threshold"
-    ] = f"Opt_limit: {config.opt_limit} kcal/mol, Boltzmann sum threshold: {config.part2_threshold} %"
+    ] = f"part2_threshold: {config.opt_limit} kcal/mol, Boltzmann sum threshold: {config.part2_P_threshold} %"
     # END SI generation --------------------------------------------------------
 
     # reset
@@ -2039,8 +2091,8 @@ def part2(config, conformers, store_confs, ensembledata):
     sumup = 0.0
     for conf in list(calculate):
         sumup += conf.bm_weight
-        if sumup >= (config.part2_threshold / 100):
-            if conf.bm_weight < (1 - (config.part2_threshold / 100)):
+        if sumup >= (config.part2_P_threshold / 100):
+            if conf.bm_weight < (1 - (config.part2_P_threshold / 100)):
                 mol = calculate.pop(calculate.index(conf))
                 mol.part_info["part2"] = "refused"
                 store_confs.append(mol)
@@ -2053,7 +2105,7 @@ def part2(config, conformers, store_confs, ensembledata):
     if calculate:
         print(
             f"\nConformers that are below the Boltzmann threshold G_thr(2) "
-            f"of {config.part2_threshold}%:"
+            f"of {config.part2_P_threshold}%:"
         )
         print_block(["CONF" + str(i.id) for i in calculate])
     else:

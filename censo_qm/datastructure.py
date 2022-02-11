@@ -17,8 +17,7 @@ class MoleculeData:
     def __init__(
         self,
         rank,
-        chrg=0,
-        uhf=0,
+
         xtb_energy=None,
         xtb_energy_unbiased=None,
         xtb_free_energy=None,
@@ -202,8 +201,6 @@ class MoleculeData:
          - temperature [float] --> evaluation at this temperature
          - trange [list(float)] --> list of temperatures for evaluation at 
                                 multiple temperatures
-         - chrg [int] --> charge of the molecule
-         - uhf  [int] --> number of unpaired electrons
          - xtb_energy [float] a.u.-->  initial energy taken from the input ensemble
          - rel_xtb_energy [float] kcal/mol --> relative initial energy taken 
                                         from the input ensemble
@@ -320,12 +317,7 @@ class MoleculeData:
             raise ValueError("Please provide a list with temperatures!")
         elif any([type(i) != float for i in temperature_info.get("range")]):
             raise TypeError("Please provide temperatures as float!")
-        if not isinstance(chrg, int):
-            raise TypeError("Please provide charge as integer!")
-        if not isinstance(uhf, int):
-            raise TypeError(
-                "Please provide number of unpaired electrons as " "integer!"
-            )
+
         if not isinstance(xtb_energy, float):
             raise TypeError("Please provide energy from input ensemble as float!")
         if not isinstance(rel_xtb_energy, float):
@@ -382,8 +374,6 @@ class MoleculeData:
         # assignment:
         self.id = rank  # this is the rank from the input ensemble
         self.temperature_info = temperature_info  # temperature for general evaluation
-        self.chrg = chrg
-        self.uhf = uhf
         self.xtb_energy = xtb_energy
         self.xtb_energy_unbiased = xtb_energy_unbiased
         self.xtb_free_energy = xtb_free_energy
@@ -587,7 +577,10 @@ class MoleculeData:
             f = 0.0
             if e is not None:
                 if e in ("xtb_energy", "xtb_energy_unbiased"):
-                    f += getattr(self, e, 0.0)
+                    if getattr(self, e, 0.0) is not None:
+                        f += getattr(self, e, 0.0)
+                    else:
+                        f += 0.0
                 else:
                     f += getattr(self, e)["energy"]
             if solv is not None:

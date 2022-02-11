@@ -12,7 +12,13 @@ except ImportError:
 import time
 import subprocess
 import json
-from .cfg import ENVIRON, CODING, WARNLEN, censo_solvent_db, rot_sym_num, external_paths
+from .cfg import (
+    ENVIRON,
+    CODING,
+    WARNLEN,
+    censo_solvent_db,
+    rot_sym_num, external_paths,
+)
 from .utilities import last_folders, print
 from .datastructure import MoleculeData
 

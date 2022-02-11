@@ -6,7 +6,16 @@ import os
 import sys
 import json
 from collections import OrderedDict
-from .cfg import CODING, PLENGTH, DESCR, WARNLEN, censo_solvent_db, __version__, NmrRef
+from .cfg import (
+    CODING,
+    PLENGTH,
+    DESCR,
+    WARNLEN,
+    censo_solvent_db,
+    __version__,
+    NmrRef,
+    editable_ORCA_input,
+)
 from .inputhandling import config_setup, internal_settings
 from .datastructure import MoleculeData
 from .qm_job import QmJob
@@ -57,6 +66,7 @@ def enso_startup(cwd, args):
             tmp = os.path.join(config.cwd, configfname)
         elif os.path.isfile(os.path.join(os.path.expanduser("~"), configfname)):
             tmp = os.path.join(os.path.expanduser("~"), configfname)
+        usepaths=False
         if tmp is not None:
             print(f"An existing .censorc has been found in {tmp}")
             print(
@@ -66,17 +76,22 @@ def enso_startup(cwd, args):
             print("Please type 'yes' or 'no':")
             user_input = input()
             if user_input.strip() in ("y", "yes"):
-                config.read_program_paths(tmp)
-                config.write_rcfile(
-                    os.path.join(config.cwd, newconfigfname), usepaths=True
-                )
-                print("")
+                usepaths=True
             elif user_input.strip() in ("n", "no"):
-                config.write_rcfile(os.path.join(config.cwd, newconfigfname))
-        else:
-            config.write_rcfile(os.path.join(config.cwd, newconfigfname))
+                usepaths=False
+        print("\nPlease chose your QM code applied in parts 0-2 either TURBOMOLE (TM) or ORCA (ORCA) or decide later (later):")
+        user_input = input()
+        if user_input.strip() in ('TM', 'tm', 'ORCA', 'orca'):
+            if user_input.strip() in ('TM', 'tm'):
+                config = config_setup(path=os.path.abspath(cwd), **{'prog':'tm'})
+            elif user_input.strip() in ('ORCA', 'orca'):
+                config = config_setup(path=os.path.abspath(cwd), **{'prog':'orca'})
+            update=True
+        if usepaths:
+            config.read_program_paths(tmp)
+        config.write_rcfile(os.path.join(config.cwd, newconfigfname), usepaths=usepaths, update=update)
         print(
-            "A new ensorc was written into the current directory file: "
+            "\nA new ensorc was written into the current directory file: "
             f"{newconfigfname}!\nYou have to adjust the settings to your needs"
             " and it is mandatory to correctly set the program paths!\n"
             "Additionally move the file to the correct filename: '.censorc'\n"
@@ -133,7 +148,14 @@ def enso_startup(cwd, args):
     ### solvent database adjustable by user
     censo_assets_path = os.path.expanduser("~/.censo_assets")
     if not os.path.isdir(censo_assets_path):
-        mkdir_p(censo_assets_path)
+        try:
+            mkdir_p(censo_assets_path)
+        except OSError as error:
+            print(f"{'WARNING:':{WARNLEN}}The folder '~/.censo_assets/' designed for additional "
+                   "remote configuration files can not be created!\n"
+                  f"{'':{WARNLEN}}This is not a problem and in this case CENSO will simply apply internally defined settings!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error output is: {error}.")
     solvent_user_path = os.path.expanduser(
         os.path.join("~/.censo_assets/", "censo_solvents.json")
     )
@@ -176,26 +198,76 @@ def enso_startup(cwd, args):
             #     }
             # )
     else:
-        with open(solvent_user_path, "w") as out:
-            json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
-        config.save_infos.append(
-            "Creating file: {}".format(os.path.basename(solvent_user_path))
-        )
+        try:
+            with open(solvent_user_path, "w") as out:
+                json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
+            config.save_infos.append(
+                "Creating file: {}".format(os.path.basename(solvent_user_path))
+            )
+        except OSError as error:
+            print(f"{'WARNING:':{WARNLEN}}The file {solvent_user_path} could not be "
+                    "created and internal defaults will be applied!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
     ### END solvent database adjustable by user
     ### NMR reference shielding constant database adjustable by user
-    if not os.path.isdir(censo_assets_path):
-        mkdir_p(censo_assets_path)
     nmr_ref_user_path = os.path.expanduser(
         os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
     )
     if not os.path.isfile(nmr_ref_user_path):
-        with open(nmr_ref_user_path, "w") as out:
-            tmp = NmrRef()
-            json.dump(tmp, out, default=NmrRef.NMRRef_to_dict, indent=4, sort_keys=True)
-        config.save_infos.append(
-            "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
-        )
+        try:
+            with open(nmr_ref_user_path, "w") as out:
+                tmp = NmrRef()
+                json.dump(tmp, out, default=NmrRef.NMRRef_to_dict, indent=4, sort_keys=True)
+            config.save_infos.append(
+                "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
+            )
+        except OSError as error:
+            print(f"{'WARNING:':{WARNLEN}}The file {nmr_ref_user_path} could not be "
+                    "created and internal defaults will be applied!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
     ### END NMR reference shielding constant database adjustable by user
+
+    ### ORCA user editable input
+    orcaeditablepath = os.path.expanduser(
+        os.path.join("~/.censo_assets/", "censo_orca_editable.dat")
+    )
+    if not os.path.isfile(orcaeditablepath):
+        try:
+            with open(orcaeditablepath, "w", newline=None) as out:
+                for line in editable_ORCA_input.get("default", []):
+                    out.write(line+'\n')
+            config.save_infos.append(
+                "Creating file: {}".format(os.path.basename(orcaeditablepath))
+            )
+        except OSError as error:
+            print(f"{'INFORMATION:':{WARNLEN}}The file {orcaeditablepath} could not be "
+                    "created and internal defaults will be applied!"
+            )
+            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
+    else: 
+        if os.path.isfile(orcaeditablepath):
+            try:
+                config.save_infos.append(
+                "Reading file: {}\n".format(os.path.basename(orcaeditablepath))
+                )
+                tmp_orca = []
+                with open(orcaeditablepath, "r", encoding=CODING) as inp:
+                    for line in inp:
+                        if '#' in line:
+                            tmp_orca.append(line.split("#")[0].rstrip())
+                        else:
+                            tmp_orca.append(line.rstrip())
+                    editable_ORCA_input.update({'default':tmp_orca})
+            except (ValueError, TypeError, FileNotFoundError, OSError):
+                print(
+                    f"{'INFORMATION:':{WARNLEN}}Your {os.path.basename(orcaeditablepath)} file in "
+                    f"{orcaeditablepath} is corrupted and internal defaults will be applied!\n"
+                    f"{'':{WARNLEN}}You can delete your corrupted file and a new "
+                    f"one will be created on the next start of CENSO."
+                )
+    ### END ORCA user editable input
 
     ### if restart read all settings from previous run (enso.json)
     if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
@@ -333,13 +405,34 @@ def enso_startup(cwd, args):
 
     # check settings-combination and show error:
     config.read_program_paths(config.configpath, silent=True)
-    error_logical = config.check_logic()
+    try:
+        error_logical = config.check_logic()
+    except KeyboardInterrupt:
+        sys.exit(0)
+    except (AttributeError, IndexError, KeyError, NameError, ValueError, TypeError) as error:
+        if config.save_errors:
+            print("")
+            print("".ljust(PLENGTH, "*"))
+            for _ in list(config.save_errors):
+                print(config.save_errors.pop(0))
+            print("".ljust(PLENGTH, "*"))
+            print("")
+            print("")
+            print("Resulting python error:", error)
+        else:
+            print(error)
+        sys.exit(1)
 
     if getattr(args, "onlyread", None) is not None:
         if getattr(args, "onlyread") == "on":
             setattr(config, "onlyread", True)
         elif getattr(args, "onlyread") == "off":
             setattr(config, "onlyread", False)
+
+     ### option to consider removed conformers from previous run (optimization: "stopped_before_converged")
+    if args.consider_unconverged == "on" or args.consider_unconverged:
+        config.consider_unconverged = True
+    ###
 
     # printing parameters
     config.print_parameters(cmlcall=sys.argv)
@@ -476,11 +569,17 @@ def enso_startup(cwd, args):
                 )
             for flag in config.restart_unchangeable:
                 if getattr(config, flag, "None") != getattr(previousrun, flag, "None2"):
-                    print(
-                        f"{'ERROR:':{WARNLEN}}setting {flag} was changed from "
-                        f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
-                    )
-                    error_logical = True
+                    if flag == 'basis' and 'automatic' in (getattr(config, flag, 'None'), getattr(previousrun, flag, 'None')):
+                        print(
+                            f"{'INFORMATION:':{WARNLEN}}setting {flag} was changed from "
+                            f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
+                        )                 
+                    else:
+                        print(
+                            f"{'ERROR:':{WARNLEN}}setting {flag} was changed from "
+                            f"{getattr(config, flag, 'None')} to {getattr(previousrun, flag, 'None')}!"
+                        )
+                        error_logical = True
             if (
                 getattr(config, "evaluate_rrho", "None")
                 != getattr(previousrun, "evaluate_rrho", "None2")
@@ -575,8 +674,7 @@ def enso_startup(cwd, args):
                             )
                     molecule = QmJob(
                         save_data[conf].get("id"),
-                        chrg=save_data[conf].get("chrg"),
-                        uhf=save_data[conf].get("uhf"),
+
                         xtb_energy=save_data[conf].get("xtb_energy"),
                         xtb_energy_unbiased=save_data[conf].get("xtb_energy_unbiased"),
                         xtb_free_energy=save_data[conf].get("xtb_free_energy"),
@@ -909,7 +1007,7 @@ def enso_startup(cwd, args):
             )
 
     if (args.checkinput and not error_logical) or (args.debug and args.checkinput):
-        print("\nInput check is finished. The ENSO program can be executed.\n")
+        print("\nInput check is finished. The CENSO program can be executed.\n")
         sys.exit(0)
     if not conformers:
         print(f"{'ERROR:':{WARNLEN}}No conformers are considered!")

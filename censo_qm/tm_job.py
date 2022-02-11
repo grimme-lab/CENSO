@@ -3,6 +3,7 @@ Contains TmJob class for calculating TM related properties of conformers.
 """
 import os
 import math
+import sys
 
 try:
     from math import isclose
@@ -139,9 +140,10 @@ class TmJob(QmJob):
         if int(self.job["charge"]) != 0:
             call = call + ["-chrg", str(self.job["charge"])]
 
+        broken = False
         # call cefine:
         for _ in range(2):
-            # print(call)
+            #print(call)
             tmp = subprocess.check_output(
                 call,
                 shell=False,
@@ -149,24 +151,42 @@ class TmJob(QmJob):
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
                 cwd=self.job["workdir"],
+                env=ENVIRON,
             )
             time.sleep(0.08)
             output = tmp.decode("utf-8").splitlines()
             for line in output:
                 if "define ended abnormally" in line:
                     self.job["success"] = False
-                    return
+                    broken = True
                 elif "define_huge" in line:
                     print(f"{'ERROR:':{WARNLEN}}define_huge: not found!")
                     self.job["success"] = False
-                    return
+                    broken = True
+                elif "Could not find the beginning of the MO-eigenvalue data" in line:
+                    self.job["success"] = False
+                    broken = True
             # check if wrong functional was written by cefine
             if not os.path.isfile(os.path.join(self.job["workdir"], "control")):
                 line = (
-                    f"{'ERROR:':{WARNLEN}}The control file was not generated"
+                    f"{'ERROR:':{WARNLEN}}CONF{self.id}: The control file was not generated"
                     " by cefine! Can not proceed with calculation!"
                 )
                 self.job["internal_error"].append(line)
+                self.job["success"] = False
+                broken = True
+            if broken:
+                path_to_define = shutil.which("define")
+                with open(os.path.join(self.job["workdir"], "cefine.out"),
+                        "w",
+                        encoding=CODING,
+                        newline=None,
+                    ) as out:
+                    for line in output:
+                        out.write(line+'\n')
+                    out.write("define path: "+ path_to_define+'\n')
+                    out.write("cefine path: "+ external_paths["cefinepath"]+'\n')
+                return
             # check if wrong functional was written by cefine
             with open(
                 os.path.join(self.job["workdir"], "control"),
@@ -1500,103 +1520,108 @@ class TmJob(QmJob):
         """
         Choose what to execute for the jobtype
         """
-        if self.job["jobtype"] == "rrhoxtb":
-            self._xtbrrho()
-        elif self.job["jobtype"] == "xtb_sp":
-            self._xtb_sp()
-        elif self.job["jobtype"] == "prep":
-            if not self.job["onlyread"]:
-                self._prep_cefine()
-            else:
-                self.job["success"] = True
-        elif self.job["jobtype"] in ("sp", "sp_implicit"):
-            if self.job["prepinfo"]:
-                # do cefine first
+        try:
+            if self.job["jobtype"] == "rrhoxtb":
+                self._xtbrrho()
+            elif self.job["jobtype"] == "xtb_sp":
+                self._xtb_sp()
+            elif self.job["jobtype"] == "prep":
                 if not self.job["onlyread"]:
                     self._prep_cefine()
                 else:
                     self.job["success"] = True
-                if not self.job["success"]:
-                    return
-            self._sp()
-        elif self.job["jobtype"] == "cosmors":
-            self._cosmors()
-        elif self.job["jobtype"] == "xtbopt":
-            self._xtbopt()
-        elif self.job["jobtype"] == "genericout":
-            self._genericoutput()
-        elif self.job["jobtype"] in ("couplings", "couplings_sp"):
-            if self.job["prepinfo"]:
-                if not self.job["onlyread"]:
-                    self._prep_cefine()
-                else:
-                    self.job["success"] = True
-                if not self.job["success"]:
-                    return
-                if self.job["jobtype"] == "couplings_sp":
-                    self._sp(silent=False)
+            elif self.job["jobtype"] in ("sp", "sp_implicit"):
+                if self.job["prepinfo"]:
+                    # do cefine first
+                    if not self.job["onlyread"]:
+                        self._prep_cefine()
+                    else:
+                        self.job["success"] = True
                     if not self.job["success"]:
                         return
+                self._sp()
+            elif self.job["jobtype"] == "cosmors":
+                self._cosmors()
+            elif self.job["jobtype"] == "xtbopt":
+                self._xtbopt()
+            elif self.job["jobtype"] == "genericout":
+                self._genericoutput()
+            elif self.job["jobtype"] in ("couplings", "couplings_sp"):
+                if self.job["prepinfo"]:
+                    if not self.job["onlyread"]:
+                        self._prep_cefine()
                     else:
+                        self.job["success"] = True
+                    if not self.job["success"]:
+                        return
+                    if self.job["jobtype"] == "couplings_sp":
+                        self._sp(silent=False)
+                        if not self.job["success"]:
+                            return
+                        else:
+                            try:
+                                tmp_from = os.path.join(self.job["workdir"], "mos")
+                                tmp_to = os.path.join(self.job["workdir"], "mos_J")
+                                shutil.copy(tmp_from, tmp_to)
+                            except FileNotFoundError:
+                                pass
+                self._nmr_coupling()
+            elif self.job["jobtype"] in ("shieldings", "shieldings_sp"):
+                if self.job["prepinfo"]:
+                    if not self.job["onlyread"]:
+                        self._prep_cefine()
+                    else:
+                        self.job["success"] = True
+                    if not self.job["success"]:
+                        return
+                    if self.job["copymos"]:
+                        # use mos as starting mos if basisJ == basisS but
+                        # funcJ != funcS
                         try:
-                            tmp_from = os.path.join(self.job["workdir"], "mos")
-                            tmp_to = os.path.join(self.job["workdir"], "mos_J")
+                            tmp_from = os.path.join(self.job["workdir"], "mos_J")
+                            tmp_to = os.path.join(self.job["workdir"], "mos")
                             shutil.copy(tmp_from, tmp_to)
                         except FileNotFoundError:
                             pass
-            self._nmr_coupling()
-        elif self.job["jobtype"] in ("shieldings", "shieldings_sp"):
-            if self.job["prepinfo"]:
-                if not self.job["onlyread"]:
-                    self._prep_cefine()
-                else:
-                    self.job["success"] = True
-                if not self.job["success"]:
-                    return
-                if self.job["copymos"]:
-                    # use mos as starting mos if basisJ == basisS but
-                    # funcJ != funcS
-                    try:
-                        tmp_from = os.path.join(self.job["workdir"], "mos_J")
-                        tmp_to = os.path.join(self.job["workdir"], "mos")
-                        shutil.copy(tmp_from, tmp_to)
-                    except FileNotFoundError:
-                        pass
-                    # print("copied mos")
-                if self.job["jobtype"] == "shieldings_sp":
-                    self._sp(silent=False)
-                    # print("ran sp")
+                        # print("copied mos")
+                    if self.job["jobtype"] == "shieldings_sp":
+                        self._sp(silent=False)
+                        # print("ran sp")
+                        if not self.job["success"]:
+                            return
+                # print("running shieldings")
+                self._nmr_shielding()
+            elif self.job["jobtype"] in ("gbsa_gsolv", "alpb_gsolv"):
+                if self.job["prepinfo"]:
+                    tmp_solvent = self.job["solvent"]
+                    self.job["solvent"] = "gas"
+                    if not self.job["onlyread"]:
+                        self._prep_cefine()
+                    else:
+                        self.job["success"] = True
                     if not self.job["success"]:
                         return
-            # print("running shieldings")
-            self._nmr_shielding()
-        elif self.job["jobtype"] in ("gbsa_gsolv", "alpb_gsolv"):
-            if self.job["prepinfo"]:
-                tmp_solvent = self.job["solvent"]
-                self.job["solvent"] = "gas"
-                if not self.job["onlyread"]:
-                    self._prep_cefine()
-                else:
-                    self.job["success"] = True
-                if not self.job["success"]:
-                    return
-                self._sp()
-                if not self.job["success"]:
-                    return
-                self.job["solvent"] = tmp_solvent
-            self._xtb_gsolv()
-        elif self.job["jobtype"] in ("opt-rot", "opt-rot_sp"):
-            if self.job["prepinfo"]:
-                if not self.job["onlyread"]:
-                    self._prep_cefine()
-                else:
-                    self.job["success"] = True
-                if not self.job["success"]:
-                    return
-            if self.job["jobtype"] == "opt-rot_sp":
-                self._sp()
-                if not self.job["success"]:
-                    return
-            self._optrot()
-        else:
-            print(f"JOBTYPE {self.job['jobtype']} UNKNOWN!")
+                    self._sp()
+                    if not self.job["success"]:
+                        return
+                    self.job["solvent"] = tmp_solvent
+                self._xtb_gsolv()
+            elif self.job["jobtype"] in ("opt-rot", "opt-rot_sp"):
+                if self.job["prepinfo"]:
+                    if not self.job["onlyread"]:
+                        self._prep_cefine()
+                    else:
+                        self.job["success"] = True
+                    if not self.job["success"]:
+                        return
+                if self.job["jobtype"] == "opt-rot_sp":
+                    self._sp()
+                    if not self.job["success"]:
+                        return
+                self._optrot()
+            else:
+                print(f"JOBTYPE {self.job['jobtype']} UNKNOWN!")
+        except OSError as error:
+            self.job["success"] = False
+            print(f"{'IO-ERROR:':{WARNLEN}}in CONF{self.id} calculation")
+            print(error, file=sys.stderr)
