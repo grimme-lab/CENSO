@@ -955,7 +955,7 @@ class TmJob(QmJob):
                 callargs = callargs + ["--uhf", str(self.job["unpaired"])]
             # update charge:
             if int(self.job["charge"]) != 0:
-            callargs = callargs + ["--chrg", str(self.job["charge"])]
+                callargs = callargs + ["--chrg", str(self.job["charge"])]
 
             with open(
                 os.path.join(self.job["workdir"], "opt.inp"), "w", newline=None
