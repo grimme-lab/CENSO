@@ -1088,6 +1088,7 @@ class internal_settings:
         "crestcheck": "crestcheck",
         "maxthreads": "maxthreads",
         "omp": "omp",
+        "maxoptcycles": "maxoptcycles",
         "1H_active": "h_active",
         "13C_active": "c_active",
         "19F_active": "f_active",
@@ -1475,6 +1476,7 @@ class internal_settings:
             ("omp", {"default": 1, "type": int}),
             ("balance", {"default": False, "type": bool}),
             ("cosmorsparam", {"default": "automatic", "type": str}),
+            ("maxoptcycles", {"default": "old", "type": str}),
         ]
         self.defaults_refine_ensemble_part0 = [
             # part0
@@ -1674,6 +1676,7 @@ class internal_settings:
             "crestcheck": ["on", "off"],
             "maxthreads": ["number of threads e.g. 2"],
             "omp": ["number cores per thread e.g. 4"],
+            "maxoptcycles": ["old", "automatic", "number of maximum cycles e.g. 200"],
             "smgsolv1": sorted(self.impsmgsolv1),
             "smgsolv2": sorted(self.impsmgsolv2),
             "bhess": ["on", "off"],
@@ -1805,6 +1808,7 @@ class config_setup(internal_settings):
         self.omp = 1
         self.balance = False
         self.cosmorsparam = "automatic"
+        self.maxoptcycles = "old"
 
         # part0
         self.part0 = False
@@ -3143,6 +3147,7 @@ class config_setup(internal_settings):
         info.append(["crestcheck", "checking the DFT-ensemble using CREST"])
         info.append(["maxthreads", "maxthreads"])
         info.append(["omp", "omp"])
+        info.append(["maxoptcycles", "maxoptcycles"])
         info.append(["balance", "automatically balance maxthreads and omp"])
         if self.onlyread in ("on", True):
             info.append(
