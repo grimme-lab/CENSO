@@ -2675,6 +2675,17 @@ class config_setup(internal_settings):
                 )
                 error_logical = True
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Chosen maximum opt cycles should be an integer number, if it is not automatic
+        if self.maxoptcycles not in ['old','automatic']:
+            try:
+                int(self.maxoptcycles)
+            except ValueError:
+                error_logical = True
+                self.save_errors.append(
+                    f"{'ERROR:':{WARNLEN}}{self.maxoptcycles} is neither an integer "
+                    "nor a known method to determine max cycles for part 2."
+                )
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Solvation:
         if self.solvent == "gas":
             self.smgsolv1 = "gas-phase"
