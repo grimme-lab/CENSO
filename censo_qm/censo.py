@@ -10,6 +10,7 @@ CENSO run code:
 - run refinement   --> part3()
 - run nmrproperties --> part4() or
 - run optical_rotation --part5()
+- run ... --> part6()
 """
 from os import getcwd
 from time import perf_counter
@@ -32,7 +33,7 @@ def main(argv=None):
     """
     Execute the CENSO code.
     """
-    # get commandline input:
+    # parse command line into args (arg: object with attributes named after options)
     args = cml(DESCR, internal_settings(), argv)
     if args.version:
         print(__version__)
@@ -43,7 +44,12 @@ def main(argv=None):
         sys.exit(0)
 
     # setup conformers and process input: cml >> configfile > internal defaults
+    # initialise with settings given via args, otherwise default settings
+    # TODO - why does enso_startup() already return results if it's only startup?
     args, config, conformers, ensembledata = enso_startup(getcwd(), args)
+
+    ### default: part1 - 3
+    # TODO - reduce copy/paste code
 
     # RUNNING PART0
     if config.part0:
@@ -139,6 +145,7 @@ def main(argv=None):
             print("Going to exit!")
             sys.exit(1)
         toc = perf_counter()
+        # TODO - change name from part_info to part_time
         ensembledata.part_info["part3"] = toc - tic
         ensembledata.previous_part_info["part3"] += ensembledata.part_info["part3"]
         print(f"Ran part3 in {ensembledata.part_info['part3']:0.4f} seconds")

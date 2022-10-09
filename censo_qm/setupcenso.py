@@ -43,6 +43,7 @@ def enso_startup(cwd, args):
     """
 
     print(DESCR)
+    # config: object of class config_setup (TODO - name change!!!) with settings as attributes
     config = config_setup(path=os.path.abspath(cwd))
 
     if args.cleanup:
@@ -57,8 +58,9 @@ def enso_startup(cwd, args):
         sys.exit(0)
 
     configfname = ".censorc"
+    # get settings for further use from .censorc file or write a new one
     if args.writeconfig:
-        # check if .censorc in local or home dir and ask user it the program
+        # check if .censorc in local or home dir and ask user if the program
         # paths should be copied
         tmp = None
         newconfigfname = "censorc_new"
@@ -89,6 +91,7 @@ def enso_startup(cwd, args):
             update=True
         if usepaths:
             config.read_program_paths(tmp)
+        # write new censorc
         config.write_rcfile(os.path.join(config.cwd, newconfigfname), usepaths=usepaths, update=update)
         print(
             "\nA new ensorc was written into the current directory file: "
@@ -781,6 +784,7 @@ def enso_startup(cwd, args):
                             "optical_rotation_info",
                             getattr(MoleculeData(0), "optical_rotation_info"),
                         ),
+                        # TODO - add UV/Vis
                     )
 
                     # adjust to restart changeable data:

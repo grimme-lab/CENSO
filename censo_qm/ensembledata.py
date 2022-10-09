@@ -37,6 +37,7 @@ class EnsembleData:
             "part4": None,
             "part5": None,
         },
+        # TODO - reduce copy/paste code
         supporting_info={
             "part0": {
                 "Energy": None,

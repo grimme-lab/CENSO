@@ -126,7 +126,8 @@ def part3(config, conformers, store_confs, ensembledata):
     print("")
     # end print
 
-    calculate = []  # has to be calculated in this run
+    # TODO - fix the mess
+    calculate = []  # has to be calculated in this run, list of QmJobs
     prev_calculated = []  # was already calculated in a previous run
     try:
         store_confs
@@ -252,7 +253,7 @@ def part3(config, conformers, store_confs, ensembledata):
         "success": False,
         "onlyread": config.onlyread,
     }
-    tmp_SI = None
+    tmp_SI = None # ???
     if config.multitemp:
         instruction["trange"] = [
             i for i in frange(config.trange[0], config.trange[1], config.trange[2])
@@ -847,6 +848,7 @@ def part3(config, conformers, store_confs, ensembledata):
             config.provide_runinfo(),
         )
     # printout for part3 -------------------------------------------------------
+    # TODO - grab uvvis results if calculated
     print("\n" + "".ljust(int(PLENGTH / 2), "-"))
     print("* Gibbs free energies of part3 *".center(int(PLENGTH / 2), " "))
     print("".ljust(int(PLENGTH / 2), "-") + "\n")

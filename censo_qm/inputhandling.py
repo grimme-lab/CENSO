@@ -1015,6 +1015,7 @@ def cml(startup_description, options, argv=None):
         action="store_true",
         help="Start automatic SI generation after CENSO run. (Work in progress)",
     )
+    # TODO - check if arg needed for uv/vis
     args = parser.parse_args(argv)
 
     if args.part3only:
@@ -1118,6 +1119,7 @@ class internal_settings:
         "cosmorsparam": "cosmorsparam",
         "progress": "progress",
         "balance": "balance",
+        # TODO - add keywords for uv/vis if necessary
     }
 
     impgfnv = ["gfn1", "gfn2", "gfnff"]
@@ -1448,6 +1450,7 @@ class internal_settings:
         self.impsm4_j = list(set(self.sm4_j_orca + self.sm4_j_tm))
         self.impsm4_s = list(set(self.sm4_s_orca + self.sm4_s_tm))
 
+        # TODO - add default settings for uv/vis
         self.defaults_refine_ensemble_general = [
             # general settings
             ("nconf", {"default": None, "type": int}),
@@ -1913,7 +1916,7 @@ class config_setup(internal_settings):
 
     def _set_fixed_temperature(self):
         """Initialize the temperature employed in part0 part1 and crude_rrho in the
-        optimization (part2). This temperature is keept fixed for all restarts, to be able
+        optimization (part2). This temperature is kept fixed for all restarts, to be able
         to compare the same (free) energies."""
         if self.fixed_temperature is None:
             setattr(self, "fixed_temperature", float(getattr(self, "temperature")))
@@ -2216,6 +2219,7 @@ class config_setup(internal_settings):
         Checks settings for impossible setting-comibinations, also checking
         if calculations are possible with the requested qm_codes.
         """
+        # TODO - check for uv/vis args
         if silent:
             store_errors = self.save_errors
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3496,6 +3500,8 @@ class config_setup(internal_settings):
                 info.append(["part2_P_threshold", "Boltzmann sum threshold employed"])
             elif self.part3:
                 info.append(["part3_threshold", "Boltzmann sum threshold employed"])
+
+        # TODO - if-branch for uv/vis
 
         max_len_digilen = 0
         for item in info:

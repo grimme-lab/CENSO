@@ -84,6 +84,8 @@ class QmJob(MoleculeData):
             "si_active": False,
             # optical rotation related:
             "freq_or": [],
+            # uv/vis related:
+            "uvvis_plot": False,
             # return values which can be updated:
             "success": False,
             "energy": 0.0,

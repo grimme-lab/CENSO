@@ -46,7 +46,6 @@ class OrcaJob(QmJob):
 
         # understood commands in prepinfo:
         # DOGCP = uses gcp if basis known for gcp
-        #
 
         orcainput_start = OrderedDict(
             [
@@ -81,6 +80,7 @@ class OrcaJob(QmJob):
                 ("geom", None),
                 ("couplings", None),
                 ("shieldings", None),
+                ("uvvis", None)
             ]
         )
         if "nmrJ" or "nmrS" in self.job["prepinfo"]:
@@ -101,9 +101,7 @@ class OrcaJob(QmJob):
         # build up call:
         orcainput = orcainput_start.copy()
         # set functional
-        if self.job["func"] in dfa_settings.composite_method_basis.keys() and self.job[
-            "basis"
-        ] == dfa_settings.composite_method_basis.get(self.job["func"], "NONE"):
+        if self.job["func"] in dfa_settings.composite_method_basis.keys() and self.job["basis"] == dfa_settings.composite_method_basis.get(self.job["func"], "NONE"):
             if self.job["func"] == "b3lyp-3c":
                 orcainput["functional"] = [f"! {'b3lyp'}"]
                 orcainput["basis"] = [f"! {self.job['basis']}"]
@@ -416,6 +414,14 @@ class OrcaJob(QmJob):
             tmp.append(" giao_1el giao_1el_analytic")
             tmp.append("end")
             orcainput["shieldings"] = tmp
+
+        # uvvis
+        if self.job["uvvis_plot"]:
+            orcainput["uvvis"] = [
+                "%tddft",
+                "  nroots 20"
+                "end",
+            ]
 
         error_logical = False
         if not orcainput["functional"]:
