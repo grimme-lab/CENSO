@@ -5,6 +5,7 @@ code. (xTB always available)
 """
 import os
 
+# TODO - create subclasses for xTB and orca jobs?
 try:
     from math import isclose
 except ImportError:
@@ -36,6 +37,7 @@ class QmJob(MoleculeData):
         """
         Clear information/instructions from the previous job
         """
+        # TODO - split settings to separate xTB and orca - specific setting, only keep general settings here
         self.job = {
             "jobtype": "",
             "prepinfo": [],  # additional info for cefine
@@ -85,7 +87,9 @@ class QmJob(MoleculeData):
             # optical rotation related:
             "freq_or": [],
             # uv/vis related:
-            "uvvis_plot": False,
+            "calc_uvvis": False,
+            "nroots": 20, # TODO - hardcoded for now
+            "excitations": [], # list of dicts
             # return values which can be updated:
             "success": False,
             "energy": 0.0,

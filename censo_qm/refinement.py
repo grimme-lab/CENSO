@@ -750,7 +750,7 @@ def part3(config, conformers, store_confs, ensembledata):
                         save_errors.append(
                             f"CONF{conf.id} was removed, because IO failed!"
                         )
-            # parallel execution:
+            # parallel execution (calculate: list of qm_jobs)
             calculate = run_in_parallel(
                 config,
                 q,
@@ -766,6 +766,7 @@ def part3(config, conformers, store_confs, ensembledata):
             check = {True: "was successful", False: "FAILED"}
             # check if too many calculations failed
 
+            # TODO - grab uvvis results if calculated
             ###
             for conf in list(calculate):
                 print(
@@ -801,7 +802,9 @@ def part3(config, conformers, store_confs, ensembledata):
                     conf.highlevel_hrrho_info["range"] = conf.job["erange2"]
                     conf.highlevel_hrrho_info["info"] = "calculated"
                     conf.highlevel_hrrho_info["method"] = instruction_rrho["method"]
-            # save current data to jsonfile
+                    conf.uvvis_info["nroots"] = conf.job["nroots"]
+                    conf.uvvis_info["excitations"] = conf.job["excitations"]
+            # save current data to jsonfile (get settings via config_setup.provide_runinfo())
             config.write_json(
                 config.cwd,
                 [i.provide_runinfo() for i in calculate]
@@ -848,7 +851,6 @@ def part3(config, conformers, store_confs, ensembledata):
             config.provide_runinfo(),
         )
     # printout for part3 -------------------------------------------------------
-    # TODO - grab uvvis results if calculated
     print("\n" + "".ljust(int(PLENGTH / 2), "-"))
     print("* Gibbs free energies of part3 *".center(int(PLENGTH / 2), " "))
     print("".ljust(int(PLENGTH / 2), "-") + "\n")
@@ -967,6 +969,7 @@ def part3(config, conformers, store_confs, ensembledata):
             ensembledata.bestconf["part3"] = conf.id
 
     ################################################################################
+    # TODO - plot uvvis spectra
     # calculate average G correction
     print("\nCalculating Boltzmann averaged free energy of ensemble!\n")
     avGcorrection = {"avG": {}, "avE": {}, "avGsolv": {}, "avGRRHO": {}}

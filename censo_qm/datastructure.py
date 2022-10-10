@@ -185,6 +185,10 @@ class MoleculeData:
             "part4": None,
             "part5": None,
         },
+        uvvis_info={
+            "nroots": None,
+            "excitations": [],
+        },
         comment=[],
         optical_rotation_info={
             "range": None,

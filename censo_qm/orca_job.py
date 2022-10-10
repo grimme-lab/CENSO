@@ -80,7 +80,8 @@ class OrcaJob(QmJob):
                 ("geom", None),
                 ("couplings", None),
                 ("shieldings", None),
-                ("uvvis", None)
+                ("uvvis", None),
+                ("uvvis_nroots", None)
             ]
         )
         if "nmrJ" or "nmrS" in self.job["prepinfo"]:
@@ -92,9 +93,9 @@ class OrcaJob(QmJob):
         # check ORCA5 or older versions:
         try:
             if int(external_paths['orcaversion'].split('.')[0]) >= 5:
-                orca5=True
+                orca5 = True
             else:
-                orca5=False
+                orca5 = False
         except:
             print(f"{'ERROR:':{WARNLEN}}Can not convert the orcaversion, needed for input generation!")
 
@@ -416,10 +417,10 @@ class OrcaJob(QmJob):
             orcainput["shieldings"] = tmp
 
         # uvvis
-        if self.job["uvvis_plot"]:
+        if self.job["calc_uvvis"]:
             orcainput["uvvis"] = [
                 "%tddft",
-                "  nroots 20"
+                f"  nroots {self.job['nroots']}",
                 "end",
             ]
 
@@ -480,14 +481,23 @@ class OrcaJob(QmJob):
         if os.path.isfile(outputpath):
             with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
-                for line in stor:
+                for i, line in enumerate(stor):
                     if "FINAL SINGLE POINT ENERGY" in line:
                         self.job["energy"] = float(line.split()[4])
                     if "ORCA TERMINATED NORMALLY" in line:
                         self.job["success"] = True
+                    # read uvvis excitation energies and oscillator strengths
+                    if self.job["calc_uvvis"] and "ABSORPTION SPECTRUM" in line:
+                        # offset of 5 because of text in orca output
+                        uvvis_table = stor[i+5:i+5+self.job["nroots"]]
+                        for row in uvvis_table:
+                            tmp = {"wavelength": None, "osc_str": None}
+                            tmp["wavelength"] = row.split()[2]
+                            tmp["osc_str"] = row.split()[3]
+                            self.job["excitations"].append(tmp)
             if not self.job["success"]:
                 self.job["energy"] = 0.0
-                self.job["success"] = False
+                self.job["success"] = False # FIXME - redundant?
                 print(
                     f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.job['workdir'], 2)} "
                     "not converged!"
@@ -942,6 +952,7 @@ class OrcaJob(QmJob):
         time.sleep(0.02)
         return
 
+    # FIXME - redundant because of if conditions?
     def execute(self):
         """
         Choose what to execute for the jobtype
