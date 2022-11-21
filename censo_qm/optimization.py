@@ -463,11 +463,17 @@ def part2(config, conformers, store_confs, ensembledata):
             maxecyc_prev = 1
             maxecyc = 0
             converged_run1 = []
-            if config.nat > 200:
-                # stopcycle = don't optimize more than stopcycle cycles
-                stopcycle = config.nat * 2
+
+            if config.maxoptcycles == "old":
+                if config.nat > 200:
+                    # stopcycle = don't optimize more than stopcycle cycles
+                    stopcycle = config.nat * 2
+                else:
+                    stopcycle = 200
+            elif config.maxoptcycles == "automatic":
+                stopcycle = config.nat * 3 + 50
             else:
-                stopcycle = 200
+                stopcycle = int(config.maxoptcycles)
             # start batch calculations:
             while calculate:
                 tic = time.perf_counter()
