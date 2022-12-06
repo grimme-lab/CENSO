@@ -2,417 +2,56 @@
 Contains enso_startup for the initialization of all parameters set for the
 subsequent calculation.
 """
+from argparse import Namespace
 import os
 import sys
-import json
-from collections import OrderedDict
-from .cfg import (
-    CODING,
+
+from censo.core import CensoCore
+from censo.cfg import (
     PLENGTH,
-    DESCR,
     WARNLEN,
-    censo_solvent_db,
     __version__,
-    NmrRef,
-    editable_ORCA_input,
 )
-from .inputhandling import config_setup, internal_settings
-from .datastructure import MoleculeData
-from .qm_job import QmJob
-from .utilities import (
-    mkdir_p,
+from censo.datastructure import MoleculeData
+from censo.qm_job import QmJob
+from censo.utilities import (
     do_md5,
     t2x,
     move_recursively,
     get_energy_from_ensemble,
     frange,
     print,
+    timeit
 )
-from .ensembledata import EnsembleData
+from censo.ensembledata import EnsembleData
 
+core: CensoCore
+cwd: str
+args: Namespace
 
-def enso_startup(cwd, args):
+@timeit
+@CensoCore.check_instance
+def enso_startup():
     """
-    1) read cml input,
-    2) print header
-    3) read or create enso control file '.censorc'
     4) read or write flags.dat control file
     5) check for crest_conformers.xyz
     6) check program settings
     7) read or write enso.json
     """
 
-    print(DESCR)
-    # config: object of class config_setup (TODO - name change!!!) with settings as attributes
-    config = config_setup(path=os.path.abspath(cwd))
+    global core, cwd, args, part_settings
 
-    if args.cleanup:
-        print("Cleaning up the directory from unneeded files!")
-        config.cleanup_run()
-        print("Removed files and going to exit!")
-        sys.exit(0)
-    elif args.cleanup_all:
-        print("Cleaning up the directory from ALL unneeded files!")
-        config.cleanup_run(True)
-        print("Removed files and going to exit!")
-        sys.exit(0)
-
-    configfname = ".censorc"
-    # get settings for further use from .censorc file or write a new one
-    if args.writeconfig:
-        # check if .censorc in local or home dir and ask user if the program
-        # paths should be copied
-        tmp = None
-        newconfigfname = "censorc_new"
-        if os.path.isfile(os.path.join(config.cwd, configfname)):
-            tmp = os.path.join(config.cwd, configfname)
-        elif os.path.isfile(os.path.join(os.path.expanduser("~"), configfname)):
-            tmp = os.path.join(os.path.expanduser("~"), configfname)
-        usepaths=False
-        if tmp is not None:
-            print(f"An existing .censorc has been found in {tmp}")
-            print(
-                f"Do you want to copy existing program path information to the "
-                f"new remote configuration file?"
-            )
-            print("Please type 'yes' or 'no':")
-            user_input = input()
-            if user_input.strip() in ("y", "yes"):
-                usepaths=True
-            elif user_input.strip() in ("n", "no"):
-                usepaths=False
-        print("\nPlease chose your QM code applied in parts 0-2 either TURBOMOLE (TM) or ORCA (ORCA) or decide later (later):")
-        user_input = input()
-        if user_input.strip() in ('TM', 'tm', 'ORCA', 'orca'):
-            if user_input.strip() in ('TM', 'tm'):
-                config = config_setup(path=os.path.abspath(cwd), **{'prog':'tm'})
-            elif user_input.strip() in ('ORCA', 'orca'):
-                config = config_setup(path=os.path.abspath(cwd), **{'prog':'orca'})
-            update=True
-        if usepaths:
-            config.read_program_paths(tmp)
-        # write new censorc
-        config.write_rcfile(os.path.join(config.cwd, newconfigfname), usepaths=usepaths, update=update)
-        print(
-            "\nA new ensorc was written into the current directory file: "
-            f"{newconfigfname}!\nYou have to adjust the settings to your needs"
-            " and it is mandatory to correctly set the program paths!\n"
-            "Additionally move the file to the correct filename: '.censorc'\n"
-            "and place it either in your /home/$USER/ or current directory.\n"
-            "\nAll done!"
-        )
-        sys.exit(0)
-
-    if args.inprcpath:
-        try:
-            tmp_path = os.path.abspath(os.path.expanduser(args.inprcpath))
-            if os.path.isfile(tmp_path):
-                config.configpath = tmp_path
-            else:
-                raise FileNotFoundError
-        except FileNotFoundError:
-            print(
-                f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {configfname}."
-            )
-            print("\nGoing to exit!")
-            sys.exit(1)
-    elif (
-        args.restart
-        and os.path.isfile(os.path.join(config.cwd, "enso.json"))
-        and os.path.isfile(
-            config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
-            .get("settings", {})
-            .get("configpath", "")
-        )
-    ):
-        # read configpath from previous enso.json if restart is requested
-        # additionally check for vapor pressure
-        tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
-        config.configpath = tmp.get("settings", {}).get("configpath", "")
-        if not args.vapor_pressure:
-            args.vapor_pressure = tmp.get("settings", {}).get("vapor_pressure", False)
-    elif os.path.isfile(os.path.join(config.cwd, configfname)):
-        # local configuration file before remote configuration file
-        config.configpath = os.path.join(config.cwd, configfname)
-    elif os.path.isfile(os.path.join(os.path.expanduser("~"), configfname)):
-        # remote configuration file
-        config.configpath = os.path.join(os.path.expanduser("~"), configfname)
-    else:
-        print(
-            f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {configfname}.\n"
-            f"{'':{WARNLEN}}The file has to be either in /home/$USER/ or the current "
-            "working directory!\n"
-            "The configurationfile can be otherwise directly referenced using: "
-            "'censo -inprc /path/to/.censorc'"
-        )
-        print("\nGoing to exit!")
-        sys.exit(1)
-
-    ### solvent database adjustable by user
-    censo_assets_path = os.path.expanduser("~/.censo_assets")
-    if not os.path.isdir(censo_assets_path):
-        try:
-            mkdir_p(censo_assets_path)
-        except OSError as error:
-            print(f"{'WARNING:':{WARNLEN}}The folder '~/.censo_assets/' designed for additional "
-                   "remote configuration files can not be created!\n"
-                  f"{'':{WARNLEN}}This is not a problem and in this case CENSO will simply apply internally defined settings!"
-            )
-            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error output is: {error}.")
-    solvent_user_path = os.path.expanduser(
-        os.path.join("~/.censo_assets/", "censo_solvents.json")
-    )
-    if os.path.isfile(solvent_user_path):
-        config.save_infos.append(
-            "Reading file: {}\n".format(os.path.basename(solvent_user_path))
-        )
-        try:
-            with open(solvent_user_path, "r", encoding=CODING, newline=None) as inp:
-                censo_solvent_db.update(json.load(inp, object_pairs_hook=OrderedDict))
-        except (ValueError, TypeError, FileNotFoundError):
-            print(
-                f"{'ERROR:':{WARNLEN}}Your censo_solvents.json file in {solvent_user_path} is corrupted!\n"
-                f"{'':{WARNLEN}}You can delete your corrupted file and a new "
-                f"censo_solvents.json will be created on the next start of CENSO."
-            )
-            print("\nGoing to exit!")
-            sys.exit(1)
-
-        #vapor_pressure
-        if args.vapor_pressure == "on" or args.vapor_pressure is True:
-            config.vapor_pressure = True
-            if os.path.isfile(os.path.join(config.cwd, "same_solvent.json")):
-                try:
-                    with open(os.path.join(config.cwd, "same_solvent.json"), "r", encoding=CODING, newline=None) as inp:
-                        censo_solvent_db.update(json.load(inp, object_pairs_hook=OrderedDict))
-                except (ValueError, TypeError, FileNotFoundError):
-                    print(f"{'ERROR:':{WARNLEN}}Your file same_solvents.json is corrupted!")
-                    print("\nGoing to exit!")
-                    sys.exit(1)
-            # censo_solvent_db.update({
-            #     "same":{
-            #         "cosmors": ["same", "same"], # should not be used 
-            #         "dcosmors": [None, None], # has to be provided
-            #         "xtb": [None, None], # has to be provided
-            #         "cpcm": [None, None], # has to be provided
-            #         "smd": [None, None], # has to be provided
-            #         "DC": None, # has to be provided
-            #         }
-            #     }
-            # )
-    else:
-        try:
-            with open(solvent_user_path, "w") as out:
-                json.dump(censo_solvent_db, out, indent=4, sort_keys=True)
-            config.save_infos.append(
-                "Creating file: {}".format(os.path.basename(solvent_user_path))
-            )
-        except OSError as error:
-            print(f"{'WARNING:':{WARNLEN}}The file {solvent_user_path} could not be "
-                    "created and internal defaults will be applied!"
-            )
-            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
-    ### END solvent database adjustable by user
-    ### NMR reference shielding constant database adjustable by user
-    nmr_ref_user_path = os.path.expanduser(
-        os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
-    )
-    if not os.path.isfile(nmr_ref_user_path):
-        try:
-            with open(nmr_ref_user_path, "w") as out:
-                tmp = NmrRef()
-                json.dump(tmp, out, default=NmrRef.NMRRef_to_dict, indent=4, sort_keys=True)
-            config.save_infos.append(
-                "Creating file: {}".format(os.path.basename(nmr_ref_user_path))
-            )
-        except OSError as error:
-            print(f"{'WARNING:':{WARNLEN}}The file {nmr_ref_user_path} could not be "
-                    "created and internal defaults will be applied!"
-            )
-            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
-    ### END NMR reference shielding constant database adjustable by user
-
-    ### ORCA user editable input
-    orcaeditablepath = os.path.expanduser(
-        os.path.join("~/.censo_assets/", "censo_orca_editable.dat")
-    )
-    if not os.path.isfile(orcaeditablepath):
-        try:
-            with open(orcaeditablepath, "w", newline=None) as out:
-                for line in editable_ORCA_input.get("default", []):
-                    out.write(line+'\n')
-            config.save_infos.append(
-                "Creating file: {}".format(os.path.basename(orcaeditablepath))
-            )
-        except OSError as error:
-            print(f"{'INFORMATION:':{WARNLEN}}The file {orcaeditablepath} could not be "
-                    "created and internal defaults will be applied!"
-            )
-            print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
-    else: 
-        if os.path.isfile(orcaeditablepath):
-            try:
-                config.save_infos.append(
-                "Reading file: {}\n".format(os.path.basename(orcaeditablepath))
-                )
-                tmp_orca = []
-                with open(orcaeditablepath, "r", encoding=CODING) as inp:
-                    for line in inp:
-                        if '#' in line:
-                            tmp_orca.append(line.split("#")[0].rstrip())
-                        else:
-                            tmp_orca.append(line.rstrip())
-                    editable_ORCA_input.update({'default':tmp_orca})
-            except (ValueError, TypeError, FileNotFoundError, OSError):
-                print(
-                    f"{'INFORMATION:':{WARNLEN}}Your {os.path.basename(orcaeditablepath)} file in "
-                    f"{orcaeditablepath} is corrupted and internal defaults will be applied!\n"
-                    f"{'':{WARNLEN}}You can delete your corrupted file and a new "
-                    f"one will be created on the next start of CENSO."
-                )
-    ### END ORCA user editable input
-
-    ### if restart read all settings from previous run (enso.json)
-    if args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
-        tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
-        previous_settings = tmp.get("settings")
-        for key, value in previous_settings.items():
-            if vars(args).get(key, "unKn_own") == "unKn_own":
-                # print(key, 'not_known')
-                continue
-            if getattr(args, key, "unKn_own") is None:
-                setattr(args, key, value)
-    ### END if restart
-
-    if config.configpath:
-        # combine args und comandline
-        # check if startread in file:
-        startread = "$CRE SORTING SETTINGS:"
-        with open(config.configpath, "r") as myfile:
-            try:
-                data = myfile.readlines()
-                censorc_version = "0.0.0"
-                for line in data:
-                    if "$VERSION" in line:
-                        censorc_version = line.split(":")[1]
-                if int(censorc_version.split(".")[1]) < int(
-                    __version__.split(".")[1]
-                ) or int(censorc_version.split(".")[0]) < int(
-                    __version__.split(".")[0]
-                ):
-                    print(
-                        f"{'ERROR:':{WARNLEN}}There has been an API break and you have to "
-                        f"create a new .censorc.\n{'':{WARNLEN}}E.g. 'censo -newconfig'"
-                    )
-                    print(
-                        f"{'INFORMATION:':{WARNLEN}}Due to the API break data in ~/.censo_assets/ might need updating.\n"
-                        f"{'':{WARNLEN}}Therefore delete the files {'censo_nmr_ref.json'} and {'censo_solvents.json'} so "
-                        "that they can be re-created upon the next censo call."
-                    )
-                    sys.exit(1)
-                myfile.seek(0)  # reset reader
-            except (ValueError, KeyError, AttributeError) as e:
-                print(e)
-                print(
-                    f"{'ERROR:':{WARNLEN}}Please create a new .censorc --> 'censo -newconfig'"
-                )
-                sys.exit(1)
-            if not startread in myfile.read():
-                print(
-                    f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!"
-                )
-                sys.exit(1)
-        # combine commandline and .censorc
-        config.read_config(config.configpath, startread, args)
-
-    if args.copyinput:
-        config.read_program_paths(config.configpath)
-        config.write_censo_inp(config.cwd)
-        print(
-            "The file censo.inp with the current settings has been written to "
-            "the current working directory."
-        )
-        print("\nGoing to exit!")
-        sys.exit(1)
-
-    # read ensemble input file (e.g. crest_conformers.xyz)
-    if os.path.isfile(os.path.join(config.cwd, "enso.json")):
-        tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
-        if "ensemble_info" in tmp and args.inp is None:
-            inpfile = os.path.basename(tmp["ensemble_info"].get("filename"))
-            if os.path.isfile(inpfile):
-                args.inp = inpfile
-            if args.debug:
-                print(f"Using Input file from: {inpfile}")
-    if args.inp is None:
-        args.inp = "crest_conformers.xyz"
-    if os.path.isfile(args.inp):
-        config.ensemblepath = args.inp
-        # identify coord or xyz trajectory
-        config.md5 = do_md5(config.ensemblepath)
-        with open(config.ensemblepath, "r", encoding=CODING, newline=None) as inp:
-            foundcoord = False
-            for line in inp:
-                if "$coord" in line:
-                    foundcoord = True
-                    break
-        if foundcoord:
-            _, config.nat = t2x(
-                config.ensemblepath, writexyz=True, outfile="converted.xyz"
-            )
-            config.ensemblepath = os.path.join(config.cwd, "converted.xyz")
-            config.maxconf = 1
-            config.nconf = 1
-        else:
-            with open(
-                config.ensemblepath, "r", encoding=CODING, newline=None
-            ) as infile:
-                try:
-                    config.nat = int(infile.readline().strip().split()[0])
-                    filelen = 1
-                except (ValueError, TypeError, IndexError) as e:
-                    print(
-                        f"{'ERROR:':{WARNLEN}}Could not get the number of atoms or the "
-                        "number of conformers from the inputfile "
-                        f"{os.path.basename(args.inp)}"
-                    )
-                    sys.exit(1)
-                for line in infile:
-                    filelen += 1
-                try:
-                    config.maxconf = int(filelen / (config.nat + 2))
-                    if filelen % (config.nat + 2) != 0:
-                        raise ValueError
-                except ValueError:
-                    print(
-                        f"{'ERROR:':{WARNLEN}}Could not get the number of atoms or the "
-                        "number of conformers from the inputfile "
-                        f"{os.path.basename(args.inp)}"
-                    )
-                    sys.exit(1)
-    else:
-        print(f"{'ERROR:':{WARNLEN}}The input file can not be found!")
-        sys.exit(1)
-
-    # determine number of conformers:
-    if args.nconf:
-        if args.nconf > config.maxconf:
-            config.nconf = config.maxconf
-        else:
-            config.nconf = args.nconf
-    elif isinstance(config.nconf, int):
-        pass
-        # keep from .censorc
-    else:
-        config.nconf = config.maxconf
+    core = CensoCore.core()
+    cwd = core.cwd
+    args = core.args
 
     # check settings-combination and show error:
-    config.read_program_paths(config.configpath, silent=True)
+    # TODO - show all errors collectively
     try:
-        error_logical = config.check_logic()
+        core.internal_settings.check_logic()
     except KeyboardInterrupt:
-        sys.exit(0)
-    except (AttributeError, IndexError, KeyError, NameError, ValueError, TypeError) as error:
+        sys.exit(1)
+    except Exception as error:
         if config.save_errors:
             print("")
             print("".ljust(PLENGTH, "*"))
@@ -426,23 +65,19 @@ def enso_startup(cwd, args):
             print(error)
         sys.exit(1)
 
-    if getattr(args, "onlyread", None) is not None:
+
+    """ if getattr(args, "onlyread", None) is not None:
         if getattr(args, "onlyread") == "on":
             setattr(config, "onlyread", True)
         elif getattr(args, "onlyread") == "off":
-            setattr(config, "onlyread", False)
-
-     ### option to consider removed conformers from previous run (optimization: "stopped_before_converged")
-    if args.consider_unconverged == "on" or args.consider_unconverged:
-        config.consider_unconverged = True
-    ###
+            setattr(config, "onlyread", False) """
 
     # printing parameters
     config.print_parameters(cmlcall=sys.argv)
-    config.read_program_paths(config.configpath)
-    requirements = config.needed_external_programs()
-    error_logical = config.processQMpaths(requirements, error_logical)
-    # print errors
+
+    # TODO - check for the paths of needed programs
+    
+    """ # print errors
     if config.save_errors:
         print("")
         print("".ljust(PLENGTH, "*"))
@@ -457,9 +92,10 @@ def enso_startup(cwd, args):
             + f"{'':{WARNLEN}}It can only succeed if exactly the same "
             + f"input commands (.censorc + command line) are supplied!"
         )
-    # END print error
+    # END print error """
 
-    if error_logical and not args.debug and args.checkinput:
+    # TODO - debug stuff
+    """ if error_logical and not args.debug and args.checkinput:
         print(
             f"\n{'ERROR:':{WARNLEN}}CENSO can not continue due to input errors!\n"
             f"{'':{WARNLEN}}Fix errors and run censo -checkinput again!"
@@ -469,14 +105,17 @@ def enso_startup(cwd, args):
     elif error_logical and not args.debug:
         print(f"\n{'ERROR:':{WARNLEN}}CENSO can not continue due to input errors!")
         print("\nGoing to exit!")
-        sys.exit(1)
+        sys.exit(1) """
 
-    if not error_logical or args.debug:
+    # BEGIN - normal run without errors
+    #if not error_logical or args.debug:
+    if True:
         print("\n" + "".ljust(PLENGTH, "-"))
         print(" Processing data from previous run (enso.json)".center(PLENGTH, " "))
         print("".ljust(PLENGTH, "-") + "\n")
+        # BEGIN - restart stuff
         # read enso.json
-        if os.path.isfile(os.path.join(config.cwd, "enso.json")):
+        """ if os.path.isfile(os.path.join(config.cwd, "enso.json")):
             config.jsonpath = os.path.join(config.cwd, "enso.json")
             save_data = config.read_json(config.jsonpath)
             # Check if settings and "ensemble_info" are present else end!
@@ -986,8 +625,12 @@ def enso_startup(cwd, args):
                     newconfs.append(QmJob(i))
             if newconfs:
                 conformers.extend(newconfs)
-                get_energy_from_ensemble(config.ensemblepath, config, conformers)
-        elif not args.checkinput:
+                get_energy_from_ensemble(config.ensemblepath, config, conformers) """
+        # END - restart stuff
+        
+        # was elif:
+        if not args.checkinput:
+            # if input not to be checked dump conformer info etc. into new json
             # enso.json does not exist, create new conformers
             # don't create enso.json on checkinput
             # this is essentially the first start of CENSO
@@ -995,24 +638,34 @@ def enso_startup(cwd, args):
                 f"{'INFORMATION:':{WARNLEN}}No restart information exists and is created during this run!\n"
             )
             conformers = []
-            for i in range(1, config.nconf + 1):
+            # create QmJobs of rank i
+            for i in range(1, core.internal_settings.runinfo["nconf"] + 1):
                 conformers.append(QmJob(i))
             # read energy from input_file and calculate rel_energy
-            get_energy_from_ensemble(config.ensemblepath, config, conformers)
-            # set fixed temperature for this and all following runs
-            config._set_fixed_temperature()
+            get_energy_from_ensemble(
+                core.ensemble_path, 
+                core.internal_settings.runinfo["nat"], 
+                core.internal_settings.runinfo["nconf"], 
+                core.internal_settings.runinfo["maxconf"],
+                conformers
+            )
+            
             ensembledata = EnsembleData()
             ensembledata.filename = args.inp
-            ensembledata.nconfs_per_part["starting"] = config.nconf
-            config.write_json(
-                config.cwd,
-                [i.provide_runinfo() for i in conformers] + [ensembledata],
-                config.provide_runinfo(),
-            )
+            ensembledata.nconfs_per_part["starting"] = core.internal_settings.runinfo["nconf"]
+            
+            # TODO
+            try:
+                core.write_json(
+                    [i.provide_runinfo() for i in conformers] + [ensembledata]
+                )
+            except Exception:
+                """something TODO"""
 
-    if (args.checkinput and not error_logical) or (args.debug and args.checkinput):
+    if args.checkinput:
         print("\nInput check is finished. The CENSO program can be executed.\n")
         sys.exit(0)
+        
     if not conformers:
         print(f"{'ERROR:':{WARNLEN}}No conformers are considered!")
         print("\nGoing to exit!")
@@ -1021,4 +674,4 @@ def enso_startup(cwd, args):
     # formatting information:
     config.lenconfx = max([len(str(i.id)) for i in conformers])
     conformers.sort(key=lambda x: int(x.id))
-    return args, config, conformers, ensembledata
+    return conformers, ensembledata

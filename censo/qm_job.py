@@ -4,30 +4,40 @@ Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
 import os
+import weakref
 
-# TODO - create subclasses for xTB and orca jobs?
+# TODO - create subclass for xTB?
 try:
     from math import isclose
 except ImportError:
-    from .utilities import isclose
+    from censo.utilities import isclose
 import time
 import subprocess
 import json
-from .cfg import (
+from censo.cfg import (
     ENVIRON,
     CODING,
     WARNLEN,
     censo_solvent_db,
     rot_sym_num, external_paths,
 )
-from .utilities import last_folders, print
-from .datastructure import MoleculeData
+from censo.utilities import last_folders, print
+from censo.datastructure import MoleculeData
 
+# TODO - add factory method
 
 class QmJob(MoleculeData):
     """
     QmJob base class for calculating QM related properties of conformers.
     """
+
+    instances_orca = weakref.WeakValueDictionary()
+    instances_tm = weakref.WeakValueDictionary()
+    instances_xtb = weakref.WeakValueDictionary()
+
+    @staticmethod
+    def factory(type):
+        """loop over all types and return a respective instance, add it to the respective register"""
 
     def __init__(self, rank, *args, **kwargs):
         MoleculeData.__init__(self, rank, *args, **kwargs)
@@ -38,6 +48,7 @@ class QmJob(MoleculeData):
         Clear information/instructions from the previous job
         """
         # TODO - split settings to separate xTB and orca - specific setting, only keep general settings here
+        # G => general setting (quasi static, doesn't have to be local)
         self.job = {
             "jobtype": "",
             "prepinfo": [],  # additional info for cefine
@@ -87,9 +98,10 @@ class QmJob(MoleculeData):
             # optical rotation related:
             "freq_or": [],
             # uv/vis related:
-            "calc_uvvis": False,
-            "nroots": 20, # TODO - hardcoded for now
+            "calc_uvvis": False, # G
+            "nroots": 20, # TODO - hardcoded for now # G
             "excitations": [], # list of dicts
+            "sigma": 0.00016131, # gaussian width for uvvis plot # G
             # return values which can be updated:
             "success": False,
             "energy": 0.0,

@@ -16,25 +16,50 @@ from os import getcwd
 from time import perf_counter
 import sys
 from traceback import print_exc
-from .cfg import PLENGTH, DESCR, __version__
-from .inputhandling import cml, internal_settings
-from .setupcenso import enso_startup
-from .cheapscreening import part0
-from .prescreening import part1
-from .optimization import part2
-from .refinement import part3
-from .nmrproperties import part4
-from .opticalrotation import part5
-from .utilities import print
-from .tutorial import interactiv_doc
+from censo.cfg import PLENGTH, DESCR, __version__
+from censo.inputhandling import cml
+from censo.startup import enso_startup
+from censo.cheapscreening import part0
+from censo.screening import part1
+from censo.optimization import part2
+from censo.refinement import part3
+from censo.nmrproperties import part4
+from censo.opticalrotation import part5
+from censo.utilities import print, timeit
+from censo.tutorial import interactiv_doc
+from censo.core import CensoCore
 
+# TODO - use generators for reduced memory usage?
+# TODO - dict.setdefault()
+# TODO - join dicts with merged_dict = {**d1, **d2}
+# TODO - remove all mutable defaults in functions
+# TODO - MAJOR - sort attributes/properties in InternalSettings to reduce redundancy
+# TODO - MAJOR - fix compatibility with old json and censorc files
+# TODO - MAJOR - introduce option to return all user customizable dbs to default
+# TODO - more stringent folder naming (not part1, part2, part3, nmr..., etc.)
+# TODO - rename functions, change respective variables and assure backwards compatibility
+# TODO - reuse gbw files for orca calculations
+# TODO - test performance of orca vs tm (same results?)
+# TODO - improve thread management
+# TODO - give meaningful help messages e.g. to avoid pitfalls for repeated calculations (too high threshold etc.)
+# TODO - ask if CENSO should do an automatic cleanup for every run?
+# TODO - assign meaning to different return values of main
+# TODO - MAJOR - make censo available as package to be easily installed via pip
+# TODO - are there settings which shouldn't be changed by the user under normal circumstances?
+# TODO - define custom error types
+# TODO - MAJOR - why are all the options available for commandline input? isn't censorc/other input files for that?
+# -> setup_config.read_config
+# TODO - MAJOR - remove most arguments and handle settings input exclusively via local/global config files
+# TODO - restore coverage of cml args and settings_options
+# TODO - what is the purpose of the two identical lines in censo_solvents_db.json???
 
 def main(argv=None):
     """
     Execute the CENSO code.
     """
+    # FIXME
     # parse command line into args (arg: object with attributes named after options)
-    args = cml(DESCR, internal_settings(), argv)
+    args = cml(DESCR, argv)
     if args.version:
         print(__version__)
         sys.exit(0)
@@ -43,15 +68,21 @@ def main(argv=None):
         interactiv_doc()
         sys.exit(0)
 
-    # setup conformers and process input: cml >> configfile > internal defaults
-    # initialise with settings given via args, otherwise default settings
-    # TODO - why does enso_startup() already return results if it's only startup?
-    args, config, conformers, ensembledata = enso_startup(getcwd(), args)
+    # initialize new core for current run
+    core = CensoCore.factory(getcwd(), args)
+
+    # go through args and execute respective actions (general, not run specific)
+    # for normal censo run:
+    core.setup_censo()
+
+    # sets up data storage for current run and prepares QmJobs for all given conformers
+    conformers, ensembledata = enso_startup()
 
     ### default: part1 - 3
-    # TODO - reduce copy/paste code
+    # TODO - reduce copy/paste code with list of functions which is iterated over
 
     # RUNNING PART0
+    # cheap prescreening
     if config.part0:
         tic = perf_counter()
         try:
@@ -72,6 +103,7 @@ def main(argv=None):
         print(f"Ran part0 in {ensembledata.part_info['part0']:0.4f} seconds")
 
     # RUNNING PART1
+    # prescreening
     if config.part1:
         tic = perf_counter()
         try:
@@ -99,6 +131,7 @@ def main(argv=None):
         print(f"Ran part1 in {ensembledata.part_info['part1']:0.4f} seconds")
 
     # RUNNING PART2
+    # optimization
     if config.part2:
         tic = perf_counter()
         try:
@@ -126,6 +159,7 @@ def main(argv=None):
         print(f"Ran part2 in {ensembledata.part_info['part2']:0.4f} seconds")
 
     # RUNNING PART3
+    # refinement
     if config.part3:
         tic = perf_counter()
         try:

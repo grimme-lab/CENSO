@@ -276,23 +276,23 @@ def last_folders(path, number=1):
     return folder
 
 
-def get_energy_from_ensemble(path, config, conformers):
+def get_energy_from_ensemble(path, nat, nconf, maxconf, conformers):
     """
     Get energies from the ensemble inputfile and assign xtb_energy and
     rel_xtb_energy
     """
     with open(path, "r", encoding=CODING, newline=None) as inp:
         data = inp.readlines()
-    if config.maxconf * (config.nat + 2) > len(data):
+    if maxconf * (nat + 2) > len(data):
         print(
-            f"{'ERROR:':{WARNLEN}}Either the number of conformers ({config.nconf}) "
-            f"or the number of atoms ({config.nat}) is wrong!"
+            f"{'ERROR:':{WARNLEN}}Either the number of conformers ({nconf}) "
+            f"or the number of atoms ({nat}) is wrong!"
         )
     # calc energy and rel energy:
     e = {}
     conformers.sort(key=lambda x: int(x.id))
     for conf in conformers:
-        e[conf.id] = check_for_float(data[(conf.id - 1) * (config.nat + 2) + 1])
+        e[conf.id] = check_for_float(data[(conf.id - 1) * (nat + 2) + 1])
     try:
         lowest = float(min([i for i in e.values() if i is not None]))
     except (ValueError, TypeError):
@@ -494,6 +494,7 @@ def do_md5(path):
     """
     Calculate md5 of file to identifly if restart happend on the same file!
     Input is buffered into smaller sizes to ease on memory consumption.
+    Hashes entire content of ensemble input file to compare later
     """
     BUF_SIZE = 65536
     md5 = hashlib.md5()
@@ -954,3 +955,14 @@ def conf_in_interval(conformers, full_free_energy=True, bm=True):
     out.append("".ljust(int(45), "-"))
     for line in out:
         print(line)
+
+
+def timeit(f):
+    """time function execution"""
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        res = f(*args, **kwargs)
+        end = time.perf_counter()
+        return res, end - start
+    
+    return wrapper

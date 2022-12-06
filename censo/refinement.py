@@ -7,8 +7,8 @@ from multiprocessing import JoinableQueue as Queue
 import shutil
 import os
 import sys
-from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN, qm_prepinfo
-from .utilities import (
+from censo.cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN, qm_prepinfo
+from censo.utilities import (
     check_for_folder,
     print_block,
     new_folders,
@@ -24,10 +24,10 @@ from .utilities import (
     ensemble2coord,
     conf_in_interval,
 )
-from .parallel import run_in_parallel
-from .orca_job import OrcaJob
-from .tm_job import TmJob
-from .datastructure import MoleculeData
+from censo.parallel import run_in_parallel
+from censo.orca_job import OrcaJob
+from censo.tm_job import TmJob
+from censo.datastructure import MoleculeData
 
 
 def part3(config, conformers, store_confs, ensembledata):

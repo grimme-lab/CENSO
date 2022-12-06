@@ -38,6 +38,9 @@ class TmJob(QmJob):
     - writing of generic output for shielding and coupling constants
     """
 
+    smgsolv = ("cosmors", "cosmors-fine")
+    sm = ("cosmo", "dcosmors")
+
     def __init__(self, rank, *args, **kwargs):
         QmJob.__init__(self, rank, *args, **kwargs)
 

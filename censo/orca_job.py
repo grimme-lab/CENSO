@@ -6,7 +6,7 @@ import os
 import sys
 import time
 import subprocess
-from .cfg import (
+from censo.cfg import (
     CODING,
     ENVIRON,
     WARNLEN,
@@ -14,9 +14,11 @@ from .cfg import (
     external_paths,
     dfa_settings,
     editable_ORCA_input,
+    PLANCK,
+    C
 )
-from .utilities import last_folders, t2x, x2t, print
-from .qm_job import QmJob
+from censo.utilities import last_folders, t2x, x2t, print
+from censo.qm_job import QmJob
 
 
 class OrcaJob(QmJob):
@@ -30,6 +32,9 @@ class OrcaJob(QmJob):
     - coupling constant calculations
     - writing of generic output for shielding and coupling constants
     """
+
+    smgsolv = ("gbsa_gsolv", "alpb_gsolv", "smd_gsolv")
+    sm = ("cpcm", "smd")
 
     def __init__(self, rank, *args, **kwargs):
         QmJob.__init__(self, rank, *args, **kwargs)
@@ -489,11 +494,13 @@ class OrcaJob(QmJob):
                     # read uvvis excitation energies and oscillator strengths
                     if self.job["calc_uvvis"] and "ABSORPTION SPECTRUM" in line:
                         # offset of 5 because of text in orca output
+                        # TODO - catch error in reading uvvis data
                         uvvis_table = stor[i+5:i+5+self.job["nroots"]]
                         for row in uvvis_table:
-                            tmp = {"wavelength": None, "osc_str": None}
-                            tmp["wavelength"] = row.split()[2]
-                            tmp["osc_str"] = row.split()[3]
+                            tmp = {"wavelength": 0.0, "energy": 0.0, "osc_str": 0.0}
+                            tmp["energy"] = float(row.split()[1]) * PLANCK * C
+                            tmp["wavelength"] = float(row.split()[2])
+                            tmp["osc_str"] = float(row.split()[3])
                             self.job["excitations"].append(tmp)
             if not self.job["success"]:
                 self.job["energy"] = 0.0
