@@ -15,10 +15,10 @@ from censo.cfg import (
 from censo.datastructure import MoleculeData
 from censo.qm_job import QmJob
 from censo.utilities import (
+    check_for_float,
     do_md5,
     t2x,
     move_recursively,
-    get_energy_from_ensemble,
     frange,
     print,
     timeit
@@ -44,6 +44,10 @@ def enso_startup():
     core = CensoCore.core()
     cwd = core.cwd
     args = core.args
+
+    # FIXME - remove later
+    conformers = None
+    ensembledata = None
 
     # check settings-combination and show error:
     # TODO - show all errors collectively
@@ -76,7 +80,6 @@ def enso_startup():
     config.print_parameters(cmlcall=sys.argv)
 
     # TODO - check for the paths of needed programs
-    
     """ # print errors
     if config.save_errors:
         print("")
@@ -637,41 +640,29 @@ def enso_startup():
             print(
                 f"{'INFORMATION:':{WARNLEN}}No restart information exists and is created during this run!\n"
             )
-            conformers = []
-            # create QmJobs of rank i
-            for i in range(1, core.internal_settings.runinfo["nconf"] + 1):
-                conformers.append(QmJob(i))
-            # read energy from input_file and calculate rel_energy
-            get_energy_from_ensemble(
-                core.ensemble_path, 
-                core.internal_settings.runinfo["nat"], 
-                core.internal_settings.runinfo["nconf"], 
-                core.internal_settings.runinfo["maxconf"],
-                conformers
-            )
             
-            ensembledata = EnsembleData()
-            ensembledata.filename = args.inp
-            ensembledata.nconfs_per_part["starting"] = core.internal_settings.runinfo["nconf"]
-            
-            # TODO
-            try:
+            core.conformers = setup_conformers()
+            core.ensembledata.nconfs_per_part["starting"] = core.internal_settings.runinfo["nconf"]
+            core.ensembledata.bestconf["starting"] = core.conformers[0]
+
+            # TODO - important for restart capability
+            """ try:
                 core.write_json(
                     [i.provide_runinfo() for i in conformers] + [ensembledata]
                 )
             except Exception:
-                """something TODO"""
+                 """
 
     if args.checkinput:
         print("\nInput check is finished. The CENSO program can be executed.\n")
         sys.exit(0)
         
-    if not conformers:
+    if not conformers or not ensembledata:
         print(f"{'ERROR:':{WARNLEN}}No conformers are considered!")
         print("\nGoing to exit!")
         sys.exit(1)
 
     # formatting information:
-    config.lenconfx = max([len(str(i.id)) for i in conformers])
-    conformers.sort(key=lambda x: int(x.id))
+    # unused?
+    # config.lenconfx = max([len(str(i.id)) for i in conformers])
     return conformers, ensembledata

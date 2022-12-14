@@ -9,8 +9,10 @@ import json
 import shutil
 from argparse import Namespace
 from collections import OrderedDict
-from typing import Dict, Union
+from typing import Dict
 import weakref
+from censo.datastructure import MoleculeData
+from censo.ensembledata import EnsembleData
 from numpy import exp
 
 
@@ -21,9 +23,9 @@ from censo.cfg import (
 )
 from censo.orca_job import OrcaJob
 from censo.settings import InternalSettings
-from censo.inputhandling import config_setup
 from censo.tm_job import TmJob
 from censo.utilities import (
+    check_for_float,
     mkdir_p,
     do_md5,
     t2x,
@@ -34,7 +36,7 @@ from censo.utilities import (
 class CensoCore:
     _instance_ref = weakref.WeakValueDictionary()
     
-    prog_job: dict[str, type] = {"tm": TmJob, "orca": OrcaJob}
+    prog_job: Dict[str, type] = {"tm": TmJob, "orca": OrcaJob}
 
     @staticmethod
     def factory(cwd, args: Namespace):
@@ -84,21 +86,30 @@ class CensoCore:
         """initialize core"""
         self.args: Namespace = args
         self.cwd: str = cwd
+        # TODO - remove hardcoding here
         self.censorc_name = ".censorc"
         
-        # looks for censorc file (global configuration file, might be omitted)
-        self.censorc_path: Union[str, None] = self.find_rcfile()
+        # looks for censorc file (global configuration file)
+        # if there is no rcfile, CENSO exits
+        # looks for custom path and standard paths:
+        # cwd and home dir
+        self.censorc_path: str = self.find_rcfile()
         
         # if no path is found, CENSO exits (assets are essential for functionality)
+        # checks standard path first:
+        # "~/.censo_assets"
+        # TODO - add option for cml input
         self.assets_path: str = self.find_assets()
         
         # if no input ensemble is found, CENSO exits
+        # path has to be given via cml or the default path will be used:
+        # "{cwd}/crest_conformers.xyz"
         self.ensemble_path: str = self.find_ensemble()
 
-        self.internal_settings = InternalSettings(self.args)
+        self.internal_settings = InternalSettings(self, self.args)
 
         # pathsdefaults: --> read_program_paths
-        self.external_paths: dict[str, str] = {}
+        self.external_paths: Dict[str, str] = {}
         self.external_paths["orcapath"] = ""
         self.external_paths["orcaversion"] = ""
         self.external_paths["xtbpath"] = ""
@@ -109,9 +120,14 @@ class CensoCore:
         self.external_paths["mpshiftpath"] = ""
         self.external_paths["escfpath"] = ""
         
+        self.conformers: list[MoleculeData] = []
+        self.ensembledata: EnsembleData = EnsembleData()
+        
 
-    def setup_censo(self) -> None:
-        """setup external and internal settings"""
+    def run_args(self) -> None:
+        """
+        setup external and internal settings
+        """
         try:
             self.args
             self.cwd
@@ -135,15 +151,6 @@ class CensoCore:
             self.write_config(True)
             sys.exit(0)
 
-        if self.args.inprcpath:
-            try:
-                self.find_rcfile(os.path.abspath(os.path.expanduser(self.args.inprcpath)))
-            except FileNotFoundError:
-                print(
-                    f"{'ERROR:':{WARNLEN}}Could not find the configuration file: {self.censorc_name}."
-                )
-                print("\nGoing to exit!")
-                sys.exit(1)
         # TODO - leave until compatibility is fixed
         elif (
             self.args.restart
@@ -284,19 +291,7 @@ class CensoCore:
                     )
         ### END ORCA user editable input"""
 
-        # TODO - wait for fix for compatibility
-        ### if restart read all settings from previous run (enso.json)
-        if self.args.restart and os.path.isfile(os.path.join(config.cwd, "enso.json")):
-            tmp = config.read_json(os.path.join(config.cwd, "enso.json"), silent=True)
-            previous_settings = tmp.get("settings")
-            for key, value in previous_settings.items():
-                if vars(self.args).get(key, "unKn_own") == "unKn_own":
-                    # print(key, 'not_known')
-                    continue
-                if getattr(self.args, key, "unKn_own") is None:
-                    setattr(self.args, key, value)
-        ### END if restart
-
+        
         # TODO - fix compatibility here
         # read censorc for settings
         if config.configpath:
@@ -340,19 +335,6 @@ class CensoCore:
             # combine commandline and .censorc
             config.read_config(config.configpath, startread, args)
 
-        if self.args.copyinput:
-            self.read_program_paths()
-            self.write_config(global_config=False, usepaths=True)
-            print(
-                "The file censo.inp with the current settings has been written to "
-                "the current working directory."
-            )
-            print("\nGoing to exit!")
-            sys.exit(0)
-
-        self.read_program_paths(silent=True)
-        self.read_input()
-
         # FIXME - temporary place for remaining settings
         if not self.args.spearmanthr:
             # set spearmanthr by number of atoms:
@@ -361,23 +343,93 @@ class CensoCore:
         self.internal_settings.runinfo["consider_unconverged"] = False
 
 
-    def find_rcfile(self, path=None) -> Union[str, None]:
+    def setup_conformers(self) -> None:
+        """
+        open ensemble input
+        split into conformers
+        create MoleculeData objects out of coord input
+        read out energy from xyz file if possible
+        """
+        # open ensemble input
+        with open(self.ensemble_path, "r") as file:
+            lines = file.readlines()
+            nconf = self.internal_settings.runinfo["nconf"]
+            nat = self.internal_settings.runinfo["nat"]
+            
+            # check for correct line count
+            if len(lines) != nconf * (nat + 2):
+                raise Exception # TODO
+            
+            # get precalculated energies if possible
+            for i in range(nconf):
+                self.conformers.append(MoleculeData(i, lines[i*nat+2:(i+1)*nat+2]))
+                self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1])
+            
+            # also works, if xtb_energy is None (None is put first)    
+            self.conformers.sort(key=lambda x: x.xtb_energy)
+
+    def find_rcfile(self) -> str:
         """check for existing censorc"""
 
-        if not path:
-            # check if .censorc in local or home dir
-            if os.path.isfile(os.path.join(self.cwd, self.censorc_name)):
-                censorc_path = os.path.join(self.cwd, self.censorc_name)
-            elif os.path.isfile(os.path.join(os.path.expanduser("~"), self.censorc_name)):
-                censorc_path = os.path.join(os.path.expanduser("~"), self.censorc_name)
-            else:
-                censorc_path = None
-        else:
-            censorc_path = path
-            if not os.path.isfile(censorc_path):
-                raise FileNotFoundError
+        tmp = [
+            os.path.join(self.cwd, self.censorc_name),
+            os.path.join(os.path.expanduser("~"), self.censorc_name)
+        ]
 
-        return censorc_path
+        check = {
+            os.path.isfile(tmp[0]): tmp[0],
+            os.path.isfile(tmp[1]): tmp[1],
+        }
+
+        # FIXME - not the best solution to ensure code safety
+        rcpath = ""
+
+        # check for .censorc in standard locations if no path is given
+        if not self.args.inprcpath:
+            if all(list(check.keys())):
+                # which one to use if both are found
+                print(
+                    f"Configuration files have been found, {tmp[0]} and "
+                    f"{tmp[1]}. Which one to use? (cwd/home)"
+                )
+                
+                user_input = ""
+                while user_input.strip().lower() not in ("cwd", "home"):
+                    print("Please type 'cwd' or 'home':")
+                    user_input = input()
+                
+                if user_input.strip().lower() in ("cwd"):
+                    rcpath = tmp[0]
+                elif user_input.strip().lower() in ("home"):
+                    rcpath = tmp[1]
+                    
+            elif any(list(check.keys())):
+                """take the one found"""
+                rcpath = check[True]
+        else:
+            if os.path.isfile(self.args.inprcpath):
+                rcpath = self.args.inprcpath
+        
+        # no censorc found at standard dest./given dest., want to create one?
+        print(
+            f"No rcfile has been found. Do you want to create a new one?\n"
+        )
+
+        user_input = ""
+        while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+            print("Please type 'yes/y' or 'no/n':")
+            user_input = input()
+        
+        if user_input.strip().lower() in ("y", "yes"):
+            rcpath = self.write_config(new=True)
+        elif user_input.strip().lower() in ("n", "no"):
+            print(
+                "Configuration file needed to run CENSO!\n"
+                "Going to exit!"
+            )
+            sys.exit(1)
+            
+        return rcpath
 
     
     def find_assets(self) -> str:
@@ -423,7 +475,8 @@ class CensoCore:
         look for enso.json and load if found
         """
         
-        if os.path.isfile(os.path.join(self.cwd, "enso.json")):
+        # restart capability
+        if self.args.restart and os.path.isfile(os.path.join(self.cwd, "enso.json")):
             tmp = config.read_json(os.path.join(self.cwd, "enso.json"), silent=True)
             if "ensemble_info" in tmp and self.args.inp is None:
                 inpfile = os.path.basename(tmp["ensemble_info"].get("filename"))
@@ -434,67 +487,57 @@ class CensoCore:
                 if self.args.debug:
                     print(f"Using Input file from: {inpfile}")
 
-        if self.ensemble_path:
-            # store md5 hash for quick comparison of inputs later
-            self.internal_settings.runinfo["md5"] = do_md5(self.ensemble_path)
-            with open(self.ensemble_path, "r", encoding=CODING, newline=None) as inp:
-                foundcoord = False
-                for line in inp:
-                    if "$coord" in line:
-                        foundcoord = True
-                        break
-            # if $coord in file => tm format
-            if foundcoord:
-                _, self.internal_settings.runinfo["nat"] = t2x(
-                    self.ensemble_path, writexyz=True, outfile="converted.xyz"
-                )
-                self.ensemble_path = os.path.join(self.cwd, "converted.xyz")
-                self.internal_settings.runinfo["maxconf"] = 1
-                self.internal_settings.runinfo["nconf"] = 1
-            # else xyz format (hopefully)
-            else:
-                with open(
-                    self.ensemble_path, "r", encoding=CODING, newline=None
-                ) as infile:
-                    try:
-                        self.internal_settings.runinfo["nat"] = int(infile.readline().split()[0])
-                        filelen = 1
-                    except (ValueError, TypeError, IndexError) as e:
-                        print(
-                            f"{'ERROR:':{WARNLEN}}Could not get the number of atoms or the "
-                            "number of conformers from the inputfile "
-                            f"{os.path.basename(self.args.inp)}"
-                        )
-                        sys.exit(1)
-                    for line in infile:
-                        filelen += 1
-
-                    # check if coords and nat are given in proper xyz format for all conformers
-                    try:
-                        self.internal_settings.runinfo["maxconf"] = int(filelen / (self.internal_settings.runinfo["nat"] + 2))
-                        if filelen % (self.internal_settings.runinfo["nat"] + 2) != 0:
-                            raise ValueError
-                    except ValueError:
-                        print(
-                            f"{'ERROR:':{WARNLEN}}Could not get the number of atoms or the "
-                            "number of conformers from the inputfile "
-                            f"{os.path.basename(self.args.inp)}"
-                        )
-                        sys.exit(1)
-        else:
-            print(f"{'ERROR:':{WARNLEN}}The input file can not be found!")
+        # store md5 hash for quick comparison of inputs later
+        self.internal_settings.runinfo["md5"] = do_md5(self.ensemble_path)
+        with open(self.ensemble_path, "r", encoding=CODING, newline=None) as inp:
+            foundcoord = False
+            for line in inp:
+                if "$coord" in line:
+                    foundcoord = True
+                    break
+        # if $coord in file => tm format
+        if foundcoord:
+            _, self.internal_settings.runinfo["nat"] = t2x(
+                self.ensemble_path, writexyz=True, outfile="converted.xyz"
+            )
+            self.ensemble_path = os.path.join(self.cwd, "converted.xyz")
+            self.internal_settings.runinfo["maxconf"] = 1
+            self.internal_settings.runinfo["nconf"] = 1
+        # else xyz format (hopefully)
+        
+        try:
+            self.setup_conformers()
+        except Exception as error: # TODO
+            print(error)
             sys.exit(1)
+        
+        """ else:
+            print(f"{'ERROR:':{WARNLEN}}The input file can not be found!")
+            sys.exit(1) """
 
 
     # FIXME - new arg needed?
-    def write_config(self, new=False, global_config=True, usepaths=False, update=False) -> None:
+    def write_config(self, new=False, global_config=True, path=None, usepaths=False, update=False) -> str:
         """
         write new local or global configuration file into either the local or .censorc directory.
         """
 
+        # FIXME - is this legal
+        if self.args.copyinput:
+            self.write_config(global_config=False, usepaths=True)
+            print(
+                "The file censo.inp with the current settings has been written to "
+                "the current working directory."
+            )
+            print("\nGoing to exit!")
+            sys.exit(0)
+
+        if not path:
+            path = self.cwd
+
         if new and global_config:
             if self.censorc_path is not None:
-                print(f"An existing .censorc has been found in {self.censorc_path}")
+                print(f"An existing {self.censorc_name} has been found in {self.censorc_path}")
                 print(
                     f"Do you want to copy existing program path information to the "
                     f"new remote configuration file?"
@@ -551,7 +594,7 @@ class CensoCore:
             pathtofile = os.path.join(self.cwd, "censo.inp")
 
         with open(pathtofile, "w", newline=None) as outdata:
-            outdata.write("$CENSO global configuration file: .censorc\n")
+            outdata.write(f"$CENSO global configuration file: {self.censorc_name}\n")
             outdata.write(f"$VERSION:{__version__} \n")
             outdata.write("\n")
             if usepaths:
@@ -688,6 +731,9 @@ class CensoCore:
                 key = args_key.get(key, key)
                 outdata.write(format_line(key, value, options))
             outdata.write("$END CENSORC\n")
+
+        return path
+
 
     def write_censo_inp(self, path=None):
         """
@@ -847,106 +893,108 @@ class CensoCore:
             json.dump(data, out, indent=4, sort_keys=False)
 
 
-    def read_program_paths(self, silent=False):
+    def read_program_paths(self):
         """
         Get absolute paths of external programs employed in censo
         Read from the configuration file .censorc
         """
-        # FIXME
-        if silent:
-            keep = self.save_errors
-
+        # TODO - make this nicer?
         # TODO - fix this with readrcfile decorator
         with open(self.censorc_path, "r") as inp:
-            stor = inp.readlines()
-        for line in stor:
-            if "ctd =" in line:
-                try:
-                    self.external_paths["cosmorssetup"] = str(line.rstrip(os.linesep))
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from .censorc!"
-                    )
-                try:
-                    normal = "DATABASE-COSMO/BP-TZVP-COSMO"
-                    fine = "DATABASE-COSMO/BP-TZVPD-FINE"
-                    tmp_path = self.external_paths["cosmorssetup"].split()[5].strip('"')
-                    if "OLDPARAM" in tmp_path:
+            for line in inp.readlines():
+                if "ctd =" in line:
+                    try:
+                        self.external_paths["cosmorssetup"] = str(line.rstrip(os.linesep))
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from .censorc!"
+                        )
+                    try:
+                        normal = "DATABASE-COSMO/BP-TZVP-COSMO"
+                        fine = "DATABASE-COSMO/BP-TZVPD-FINE"
+                        tmp_path = self.external_paths["cosmorssetup"].split()[5].strip('"')
+                        if "OLDPARAM" in tmp_path:
+                            tmp_path = os.path.split(tmp_path)[0]
                         tmp_path = os.path.split(tmp_path)[0]
-                    tmp_path = os.path.split(tmp_path)[0]
-                    self.external_paths["dbpath"] = tmp_path
-                    self.external_paths["dbpath_fine"] = os.path.join(tmp_path, fine)
-                    self.external_paths["dbpath_normal"] = os.path.join(
-                        tmp_path, normal
-                    )
-                except Exception as e:
-                    self.save_errors.append(e)
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from "
-                        f".censorc!\n{'':{WARNLEN}}Most probably there is a user "
-                        "input error."
-                    )
-            if "ORCA:" in line:
-                try:
-                    self.external_paths["orcapath"] = str(line.split()[1])
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!."
-                    )
-            if "ORCA version:" in line:
-                try:
-                    tmp = line.split()[2]
-                    tmp = tmp.split(".")
-                    tmp.insert(1, ".")
-                    tmp = "".join(tmp)
-                    self.external_paths["orcaversion"] = tmp
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!"
-                    )
-            if "GFN-xTB:" in line:
-                try:
-                    self.external_paths["xtbpath"] = str(line.split()[1])
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!"
-                    )
-                    if shutil.which("xtb") is not None:
-                        self.external_paths["xtbpath"] = shutil.which("xtb")
-                        self.save_errors.append(
+                        self.external_paths["dbpath"] = tmp_path
+                        self.external_paths["dbpath_fine"] = os.path.join(tmp_path, fine)
+                        self.external_paths["dbpath_normal"] = os.path.join(
+                            tmp_path, normal
+                        )
+                    except Exception as e:
+                        print(e)
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read settings for COSMO-RS from "
+                            f".censorc!\n{'':{WARNLEN}}Most probably there is a user "
+                            "input error."
+                        )
+                if "ORCA:" in line:
+                    try:
+                        self.external_paths["orcapath"] = str(line.split()[1])
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read path for ORCA from .censorc!."
+                        )
+                if "ORCA version:" in line:
+                    try:
+                        tmp = line.split()[2]
+                        tmp = tmp.split(".")
+                        tmp.insert(1, ".")
+                        tmp = "".join(tmp)
+                        self.external_paths["orcaversion"] = tmp
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read ORCA version from .censorc!"
+                        )
+                if "GFN-xTB:" in line:
+                    try:
+                        self.external_paths["xtbpath"] = str(line.split()[1])
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read path for GFNn-xTB from .censorc!"
+                        )
+                        
+                        xtbpath = shutil.which("xtb")
+                        if not xtbpath:
+                            raise Exception # TODO
+                            
+                        self.external_paths.update({"xtbpath": xtbpath})
+                        print(
                             f"{'':{WARNLEN}}Going to use {self.external_paths['xtbpath']} instead."
                         )
-            if "CREST:" in line:
-                try:
-                    self.external_paths["crestpath"] = str(line.split()[1])
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!"
-                    )
-                    if shutil.which("crest") is not None:
-                        self.external_paths["crestpath"] = shutil.which("crest")
-                        self.save_errors.append(
-                            f"{'':{WARNLEN}}Going to use {self.external_paths['crestpath']} instead."
+                            
+                if "CREST:" in line:
+                    try:
+                        self.external_paths["crestpath"] = str(line.split()[1])
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read path for CREST from .censorc!"
                         )
-            if "mpshift:" in line:
-                try:
-                    self.external_paths["mpshiftpath"] = str(line.split()[1])
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!"
-                    )
-            if "escf:" in line:
-                try:
-                    self.external_paths["escfpath"] = str(line.split()[1])
-                except Exception:
-                    self.save_errors.append(
-                        f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!"
-                    )
-            if "$ENDPROGRAMS" in line:
-                break
-
-            if silent:
-                self.save_errors = keep
+                        if shutil.which("crest") is not None:
+                            crestpath = shutil.which("crest")
+                            if not crestpath:
+                                raise Exception # TODO
+                            
+                            self.external_paths.update({"crestpath": crestpath})
+                            print(
+                                f"{'':{WARNLEN}}Going to use {self.external_paths['crestpath']} instead."
+                            )
+                if "mpshift:" in line:
+                    try:
+                        self.external_paths["mpshiftpath"] = str(line.split()[1])
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read path for mpshift from .censorc!"
+                        )
+                if "escf:" in line:
+                    try:
+                        self.external_paths["escfpath"] = str(line.split()[1])
+                    except Exception:
+                        print(
+                            f"{'WARNING:':{WARNLEN}}Could not read path for escf from .censorc!"
+                        )
+                if "$ENDPROGRAMS" in line:
+                    break
 
 
     def cleanup_run(self, complete=False):

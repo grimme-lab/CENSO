@@ -1,8 +1,12 @@
+"""
+Contains info regarding the ensemble such as energies etc., best conf per part,
+number of confs per part, timings (remove)
+"""
+
 class EnsembleData:
     def __init__(
         self,
         id="ensemble_info",
-        filename=None,
         part_info={
             "part0": None,
             "part1_firstsort": None,
@@ -99,7 +103,6 @@ class EnsembleData:
        ensemble_data: Creates an object where data
                        concerning the entire ensemble is stored.
         Input:
-        filename = e.g. crest_conformers.xyz
         part_info --> time passed to calculate part
         avGcorrection --> information of higher lying conformers
         bestconf --> id of best conf per part
@@ -111,7 +114,6 @@ class EnsembleData:
         if comment is None:
             comment = []
         self.id = id
-        self.filename = filename
         self.part_info = part_info
         self.previous_part_info = previous_part_info
         self.avGcorrection = avGcorrection

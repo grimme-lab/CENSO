@@ -18,22 +18,20 @@ import sys
 from traceback import print_exc
 from censo.cfg import PLENGTH, DESCR, __version__
 from censo.inputhandling import cml
-from censo.startup import enso_startup
-from censo.cheapscreening import part0
+from censo.prescreening import part0
 from censo.screening import part1
 from censo.optimization import part2
 from censo.refinement import part3
 from censo.nmrproperties import part4
 from censo.opticalrotation import part5
-from censo.utilities import print, timeit
+from censo.utilities import print
 from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
 
-# TODO - use generators for reduced memory usage?
-# TODO - dict.setdefault()
-# TODO - join dicts with merged_dict = {**d1, **d2}
-# TODO - remove all mutable defaults in functions
-# TODO - MAJOR - sort attributes/properties in InternalSettings to reduce redundancy
+# use generators for reduced memory usage?
+# dict.setdefault()
+# join dicts with merged_dict = {**d1, **d2}
+# remove all mutable defaults in functions
 # TODO - MAJOR - fix compatibility with old json and censorc files
 # TODO - MAJOR - introduce option to return all user customizable dbs to default
 # TODO - more stringent folder naming (not part1, part2, part3, nmr..., etc.)
@@ -45,20 +43,15 @@ from censo.core import CensoCore
 # TODO - ask if CENSO should do an automatic cleanup for every run?
 # TODO - assign meaning to different return values of main
 # TODO - MAJOR - make censo available as package to be easily installed via pip
-# TODO - are there settings which shouldn't be changed by the user under normal circumstances?
 # TODO - define custom error types
-# TODO - MAJOR - why are all the options available for commandline input? isn't censorc/other input files for that?
-# -> setup_config.read_config
-# TODO - MAJOR - remove most arguments and handle settings input exclusively via local/global config files
 # TODO - restore coverage of cml args and settings_options
-# TODO - what is the purpose of the two identical lines in censo_solvents_db.json???
-
+# TODO - error handling
 def main(argv=None):
     """
     Execute the CENSO code.
     """
-    # FIXME
     # parse command line into args (arg: object with attributes named after options)
+    # (can only be loaded AFTER core has been initialized) 
     args = cml(DESCR, argv)
     if args.version:
         print(__version__)
@@ -68,15 +61,18 @@ def main(argv=None):
         interactiv_doc()
         sys.exit(0)
 
-    # initialize new core for current run
+    # initialize blank core
     core = CensoCore.factory(getcwd(), args)
+    
+    # read input to setup conformers
+    core.read_input()
+    
+    # read paths for external programs (definition in rcfile?)
+    core.read_program_paths()
 
-    # go through args and execute respective actions (general, not run specific)
-    # for normal censo run:
-    core.setup_censo()
-
-    # sets up data storage for current run and prepares QmJobs for all given conformers
-    conformers, ensembledata = enso_startup()
+    ### END of setup
+    # -> core.conformers contains all conformers with their info from input (sorted)
+    # -> core.ensembledata is blank
 
     ### default: part1 - 3
     # TODO - reduce copy/paste code with list of functions which is iterated over

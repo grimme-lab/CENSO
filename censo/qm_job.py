@@ -39,6 +39,7 @@ class QmJob(MoleculeData):
     def factory(type):
         """loop over all types and return a respective instance, add it to the respective register"""
 
+    # FIXME - wtf
     def __init__(self, rank, *args, **kwargs):
         MoleculeData.__init__(self, rank, *args, **kwargs)
         self.reset_job_info()

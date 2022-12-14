@@ -11,6 +11,7 @@ import time
 import subprocess
 from copy import deepcopy
 from builtins import print as print_orig
+from typing import Union
 from .cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
 
 
@@ -240,18 +241,16 @@ def write_trj(
         )
 
 
-def check_for_float(line):
+def check_for_float(line: str) -> Union[float, None]:
     """ Go through line and check for float, return first float"""
     elements = line.strip().split()
     value = None
     for element in elements:
         try:
             value = float(element)
-            found = True
         except ValueError:
-            found = False
             value = None
-        if found:
+        if value:
             break
     return value
 
@@ -284,6 +283,7 @@ def get_energy_from_ensemble(path, nat, nconf, maxconf, conformers):
     with open(path, "r", encoding=CODING, newline=None) as inp:
         data = inp.readlines()
     if maxconf * (nat + 2) > len(data):
+        # FIXME - error or not error
         print(
             f"{'ERROR:':{WARNLEN}}Either the number of conformers ({nconf}) "
             f"or the number of atoms ({nat}) is wrong!"

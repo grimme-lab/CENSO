@@ -3,7 +3,7 @@ import os
 import sys
 import json
 from types import MappingProxyType
-from typing import Any, Callable, Union
+from typing import Any, Callable, Dict, Union
 
 from censo.core import CensoCore
 from censo.cfg import WARNLEN
@@ -11,9 +11,18 @@ from censo.errors import LogicError
 from censo.orca_job import OrcaJob
 
 PARTS = ("prescreening", "screening", "optimization", "refinement", "nmr", "optrot", "uvvis")
+Settings = Dict[
+            type, Dict[
+                str, Dict[
+                    str, Union[
+                        int, float, str, bool, list
+                    ]
+                ]
+            ]
+        ]
 
 class DfaSettings:
-    def __init__(self, obj: dict[str, dict[str, dict]]):
+    def __init__(self, obj: Dict[str, Dict[str, Dict]]):
         self.dfa_dict = obj
 
     
@@ -107,7 +116,6 @@ class InternalSettings:
 
     # load up all resources to set value options in settings_options
     # TODO - catch error if dfa_settings cannot be created
-    # FIXME - dfa_settings unbound?
     try:
         with open(os.path.join(assets_path, "censo_dfa_settings.json"), "r") as dfa_file:
             dfa_settings = DfaSettings(json.load(dfa_file))
@@ -118,7 +126,7 @@ class InternalSettings:
         with open(os.path.join(assets_path, "censo_solvents_db.json"), "r") as solv_file:
             solvents_db = json.load(solv_file)
     except FileNotFoundError:
-        print(f"{'ERROR:':{WARNLEN}}Could not find dfa/basis/solvents file!")
+        print(f"{'ERROR:':{WARNLEN}}Could not find DFA/basis/solvents file!")
         print("\nGoing to exit!")
         sys.exit(1)
 
@@ -286,7 +294,7 @@ class InternalSettings:
             }),
             "optimization": MappingProxyType({
                 "run": {"default": True},
-                "ancopt": {"default": True},
+                # "ancopt": {"default": True},
                 "opt_spearman": {"default": True},
                 "crestcheck": {"default": False},
             }),
@@ -327,24 +335,18 @@ class InternalSettings:
     })
 
         
-    def __init__(self, args):
+    def __init__(self, core, args):
 
-        self._settings_current: dict[
-            type, dict[
-                str, dict[
-                    str, Union[
-                        int, float, str, bool, list
-                    ]
-                ]
-            ]
-        ] = {}
+        self._settings_current: Settings = {}
+
+        self.parent: CensoCore = core
 
         self.settings_current = args
 
         self.onlyread = False # FIXME - basically only used to print error???
 
         # contains run-specific info that may change during runtime
-        # declared here for readability, initialized in CensoCore.setup_censo
+        # declared here for readability, initialized in CensoCore.read_input
         self.runinfo = {
             "nconf": int,
             "nat": int,
@@ -424,8 +426,20 @@ class InternalSettings:
         iterate over all settings and set according to cml args, else set to default 
         throw error if setting not allowed in options
         """
+        # TODO - wait for fix for compatibility
+        """ ### if restart read all settings from previous run (enso.json)
+        if args.restart and os.path.isfile(os.path.join(self.parent.cwd, "enso.json")):
+            tmp = config.read_json(os.path.join(self.parent.cwd, "enso.json"), silent=True)
+            previous_settings = tmp.get("settings")
+            for key, value in previous_settings.items():
+                if vars(self.args).get(key, "unKn_own") == "unKn_own":
+                    # print(key, 'not_known')
+                    continue
+                if getattr(self.args, key, "unKn_own") is None:
+                    setattr(self.args, key, value)
+        ### END if restart """
         
-        # create settigs_current iteratively
+        # create settings_current iteratively
         for type_t, val in InternalSettings.settings_options.items():
             self._settings_current[type_t] = {}
             for part, settings in val.items():
@@ -468,10 +482,10 @@ class InternalSettings:
                 ) """
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if not self.settings_current(settings="gas-phase"):
-            with open(os.path.join(CensoCore.core().assets_path, "solvents.json"), "r") as file:
+            with open(os.path.join(self.parent.assets_path, "solvents.json"), "r") as file:
                 solvents = json.load(file)
                 
-            with open(os.path.join(CensoCore.core().assets_path, "solvents_dc.json"), "r") as file:
+            with open(os.path.join(self.parent.assets_path, "solvents_dc.json"), "r") as file:
                 solvents_dc = json.load(file)
             
             if self.settings_current(settings="vapor_pressure"):
@@ -484,6 +498,7 @@ class InternalSettings:
             
             # check availability of solvent model for given program in parts 1-3
             # check for solvent availability for given solvent model
+            # TODO - what about "replacements" for solvents
             tmp = self.settings_current(
                 types=str, 
                 parts=PARTS[1:4], 
@@ -709,7 +724,7 @@ class InternalSettings:
                     elif (
                         tmp_settings["func"] == "r2scan-3c" 
                         and tmp_settings["prog"] == "orca"
-                        and int(CensoCore.core().external_paths["orcaversion"].split(".")[0]) < 5
+                        and int(self.parent.external_paths["orcaversion"].split(".")[0]) < 5
                     ):
                         """r2scan-3c is only available since orca5.x.x"""
                         raise LogicError 

@@ -8,6 +8,8 @@ from .cfg import R, AU2KCAL, rot_sym_num
 from math import log
 
 
+# TODO - give information regarding status in the run in attributes e.g. above or below threshold
+# TODO - devide into "mutable" and "immutable" attributes
 class MoleculeData:
     """
     molecule_data contains all thermodynamic properties of a conformer e.g.
@@ -16,7 +18,8 @@ class MoleculeData:
 
     def __init__(
         self,
-        rank,
+        id,
+        xyz,
 
         xtb_energy=None,
         xtb_energy_unbiased=None,
@@ -307,6 +310,7 @@ class MoleculeData:
         self._initialize(optical_rotation_info)
 
         # exceptions:
+        # FIXME - !!!! wtf
         if not isinstance(rank, int):
             raise TypeError(
                 "Please input an integer. The id is the rank of the "
@@ -376,7 +380,8 @@ class MoleculeData:
         if any([type(i) != str for i in part_info.values()]):
             raise TypeError("Please provide part_info settings as str!")
         # assignment:
-        self.id = rank  # this is the rank from the input ensemble
+        self.id = id  # this is the rank from the input ensemble
+        self.xyz = xyz
         self.temperature_info = temperature_info  # temperature for general evaluation
         self.xtb_energy = xtb_energy
         self.xtb_energy_unbiased = xtb_energy_unbiased
@@ -409,6 +414,7 @@ class MoleculeData:
         self.part_info = part_info
         self.comment = comment
         self.optical_rotation_info = optical_rotation_info
+        # END of wtf code
 
     def _initialize(self, attr=None):
         """
