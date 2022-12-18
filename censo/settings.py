@@ -423,7 +423,8 @@ class InternalSettings:
     @settings_current.setter
     def settings_current(self, args: Namespace):
         """
-        iterate over all settings and set according to cml args, else set to default 
+        iterate over all settings and set according to rcfile first, then cml args, 
+        else set to default 
         throw error if setting not allowed in options
         """
         # TODO - wait for fix for compatibility
@@ -445,6 +446,7 @@ class InternalSettings:
             for part, settings in val.items():
                 self._settings_current[type_t][part] = {}
                 if settings:
+                    # set the value of the settings according to cml if given
                     for setting, definition in settings.items():
                         if getattr(args, setting):
                             self._settings_current[type_t][part][setting] = getattr(args, setting)

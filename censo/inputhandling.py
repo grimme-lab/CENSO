@@ -28,6 +28,7 @@ def cml(startup_description, argv=None):
 
     ### RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
+    # TODO - add option to run only certain parts via cml?
     groups[0].add_argument(
         "-inp",
         "--input",
@@ -176,7 +177,7 @@ def cml(startup_description, argv=None):
         "--inprc",
         dest="inprcpath",
         required=False,
-        help="Path to the destination of the configuration file .censorc "
+        help="Path to the configuration file .censorc "
         "The default is ~/.censorc",
     )
     groups[0].add_argument(
@@ -540,14 +541,15 @@ def cml(startup_description, argv=None):
         required=False,
         type=float,
         metavar="",
-        help="Frequencies to evaluate specific rotation at in nm. E.g. 589 "
-        "Or 589 700 to evaluate at 598 nm and 700 nm.",
+        help="Frequencies to evaluate specific rotation at in nm, e.g. 589 "
+        "or 589 700 to evaluate at 598 nm and 700 nm.",
     )
     
     ### UVVIS SETTINGS
     groups.append(parser.add_argument_group("UVVIS SETTINGS"))
     
     # TODO - split this into func for all different parts
+    # leave these options out for now, implementation for cml complicated
     """ group1.add_argument(
         "-func",
         "--functional",

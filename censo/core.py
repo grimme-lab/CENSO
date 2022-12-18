@@ -22,7 +22,7 @@ from censo.cfg import (
     __version__,
 )
 from censo.orca_job import OrcaJob
-from censo.settings import InternalSettings
+from censo.settings import InternalSettings, PARTS
 from censo.tm_job import TmJob
 from censo.utilities import (
     check_for_float,
@@ -86,7 +86,7 @@ class CensoCore:
         """initialize core"""
         self.args: Namespace = args
         self.cwd: str = cwd
-        # TODO - remove hardcoding here
+        # TODO - remove hardcoding here, also remove os.path.join uses with this
         self.censorc_name = ".censorc"
         
         # looks for censorc file (global configuration file)
@@ -387,7 +387,7 @@ class CensoCore:
         # check for .censorc in standard locations if no path is given
         if not self.args.inprcpath:
             if all(list(check.keys())):
-                # which one to use if both are found
+                # ask which one to use if both are found
                 print(
                     f"Configuration files have been found, {tmp[0]} and "
                     f"{tmp[1]}. Which one to use? (cwd/home)"
@@ -404,30 +404,31 @@ class CensoCore:
                     rcpath = tmp[1]
                     
             elif any(list(check.keys())):
-                """take the one found"""
+                # take the one file found
                 rcpath = check[True]
         else:
             if os.path.isfile(self.args.inprcpath):
                 rcpath = self.args.inprcpath
         
-        # no censorc found at standard dest./given dest., want to create one?
-        print(
-            f"No rcfile has been found. Do you want to create a new one?\n"
-        )
-
-        user_input = ""
-        while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
-            print("Please type 'yes/y' or 'no/n':")
-            user_input = input()
-        
-        if user_input.strip().lower() in ("y", "yes"):
-            rcpath = self.write_config(new=True)
-        elif user_input.strip().lower() in ("n", "no"):
+        # no censorc found at standard dest./given dest.
+        if rcpath == "":
             print(
-                "Configuration file needed to run CENSO!\n"
-                "Going to exit!"
+                f"No rcfile has been found. Do you want to create a new one?\n"
             )
-            sys.exit(1)
+
+            user_input = ""
+            while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+                print("Please type 'yes/y' or 'no/n':")
+                user_input = input()
+            
+            if user_input.strip().lower() in ("y", "yes"):
+                rcpath = self.write_config()
+            elif user_input.strip().lower() in ("n", "no"):
+                print(
+                    "Configuration file needed to run CENSO!\n"
+                    "Going to exit!"
+                )
+                sys.exit(1)
             
         return rcpath
 
@@ -476,7 +477,7 @@ class CensoCore:
         """
         
         # restart capability
-        if self.args.restart and os.path.isfile(os.path.join(self.cwd, "enso.json")):
+        """ if self.args.restart and os.path.isfile(os.path.join(self.cwd, "enso.json")):
             tmp = config.read_json(os.path.join(self.cwd, "enso.json"), silent=True)
             if "ensemble_info" in tmp and self.args.inp is None:
                 inpfile = os.path.basename(tmp["ensemble_info"].get("filename"))
@@ -485,7 +486,7 @@ class CensoCore:
                     self.args.inp = inpfile
 
                 if self.args.debug:
-                    print(f"Using Input file from: {inpfile}")
+                    print(f"Using Input file from: {inpfile}") """
 
         # store md5 hash for quick comparison of inputs later
         self.internal_settings.runinfo["md5"] = do_md5(self.ensemble_path)
@@ -516,88 +517,54 @@ class CensoCore:
             sys.exit(1) """
 
 
-    # FIXME - new arg needed?
-    def write_config(self, new=False, global_config=True, path=None, usepaths=False, update=False) -> str:
+    def write_config(self) -> str:
         """
-        write new local or global configuration file into either the local or .censorc directory.
+        write new configuration file with default settings into 
+        either the local or ~/.censorc directory.
         """
 
         # FIXME - is this legal
-        if self.args.copyinput:
+        """ if self.args.copyinput:
             self.write_config(global_config=False, usepaths=True)
             print(
                 "The file censo.inp with the current settings has been written to "
                 "the current working directory."
             )
             print("\nGoing to exit!")
-            sys.exit(0)
+            sys.exit(0) """
 
-        if not path:
-            path = self.cwd
-
-        if new and global_config:
-            if self.censorc_path is not None:
-                print(f"An existing {self.censorc_name} has been found in {self.censorc_path}")
-                print(
-                    f"Do you want to copy existing program path information to the "
-                    f"new remote configuration file?"
-                )
-
-                user_input = ""
-                while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
-                    print("Please type 'yes/y' or 'no/n':")
-                    user_input = input()
-                
-                if user_input.strip().lower() in ("y", "yes"):
-                    usepaths=True
-                elif user_input.strip().lower() in ("n", "no"):
-                    usepaths=False
-
-            print("\nPlease chose your QM code applied in parts 0-2 either TURBOMOLE (TM) or ORCA (ORCA) or decide later (later):") # FIXME - decide later option where?
-            user_input = ""
-            while user_input.strip().lower() not in ["tm", "orca"]:
-                user_input = input()
-
-            if user_input.strip().lower() in ('tm', 'orca'):
-                # TODO - manage this via internal_settings instance
-                if user_input.strip().lower() in ('tm'):
-                    config = config_setup(path=os.path.abspath(self.cwd), **{'prog':'tm'})
-                elif user_input.strip().lower() in ('orca'):
-                    config = config_setup(path=os.path.abspath(self.cwd), **{'prog':'orca'})
-
-            if usepaths:
-                self.read_program_paths()
-            # write new censorc
-            new_censorc_name = "censorc_new"
-            # TODO - merge with write_rcfile
-            config.write_rcfile(os.path.join(config.cwd, new_censorc_name), usepaths=usepaths, update=True)
+        # what to do if there is an existing configuration file
+        if not (self.censorc_path or self.censorc_path == ""):
             print(
-                "\nA new ensorc was written into the current directory file: "
-                f"{new_censorc_name}!\nYou have to adjust the settings to your needs"
-                " and it is mandatory to correctly set the program paths!\n"
-                "Additionally move the file to the correct filename: '.censorc'\n"
-                "and place it either in your /home/$USER/ or current directory.\n"
-                "\nAll done!"
+                f"An existing configuration file ({self.censorc_name})" 
+                f"has been found in {self.censorc_path}"
+                f"Do you want to copy existing program path information to the "
+                f"new remote configuration file?"
             )
+            
+            user_input = ""
+            while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+                print("Please type 'yes/y' or 'no/n':")
+                user_input = input()
+            
+            if user_input.strip().lower() in ("y", "yes"):
+                self.read_program_paths()
 
-        # TODO - avoid passing censorc_path = None
-
-        args_key = {v: k for k, v in self.internal_settings.key_args_dict.items()}
-        if update:
-            data = self.internal_settings.provide_runinfo(extend=False) # TODO - fix provide_runinfo
+        # write new censorc
+        if self.args.inprcpath:
+            path = self.args.inprcpath
+        # (path is never unbound)
         else:
-            data = {}
-
-        if global_config:
-            pathtofile = self.censorc_path
-        else:
-            pathtofile = os.path.join(self.cwd, "censo.inp")
-
-        with open(pathtofile, "w", newline=None) as outdata:
+            path = os.path.join(self.cwd, "censorc_new")
+            
+        print(f"Writing configuration file to {path} ...")
+        with open(path, "w", newline=None) as outdata:
             outdata.write(f"$CENSO global configuration file: {self.censorc_name}\n")
             outdata.write(f"$VERSION:{__version__} \n")
             outdata.write("\n")
-            if usepaths:
+            
+            # if ALL program paths are set, write the paths to the new rcfile
+            if all([s != "" for s in self.external_paths.values()]):
                 # write stored program paths to file
                 outdata.write(f"ORCA: {self.external_paths['orcapath']}\n")
                 outdata.write(f"ORCA version: {self.external_paths['orcaversion']}\n")
@@ -608,9 +575,9 @@ class CensoCore:
                 outdata.write("\n")
                 outdata.write("#COSMO-RS\n")
                 outdata.write(f"{self.external_paths['cosmorssetup']}\n")
-                # outdata.write("cosmothermversion: 16\n")
             else:
                 # TODO - why is this set up like that (including/excluding binary)??
+                # TODO - write some other default (e.g. "") instead of paths
                 outdata.write("ORCA: /path/excluding/binary/\n")
                 outdata.write("ORCA version: 4.2.1\n")
                 outdata.write("GFN-xTB: /path/including/binary/xtb-binary\n")
@@ -624,237 +591,45 @@ class CensoCore:
                     '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES" ldir = '
                     '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"\n'
                 )
-                # outdata.write("cosmothermversion: 16\n")
             outdata.write("$ENDPROGRAMS\n\n")
             outdata.write("$CRE SORTING SETTINGS:\n")
-            outdata.write("$GENERAL SETTINGS:\n")
 
-            # FIXME - fix copy/paste code, fix function calls
-            for key in OrderedDict(self.internal_settings.defaults_refine_ensemble_general):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.internal_settings.defaults_refine_ensemble_general)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                if key == "nconf" and value is None:
-                    value = "all"
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
-            outdata.write("\n$PART0 - CHEAP-PRESCREENING - SETTINGS:\n")
-            for key in OrderedDict(self.internal_settings.defaults_refine_ensemble_part0):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.internal_settings.defaults_refine_ensemble_part0)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
-            outdata.write("\n$PART1 - PRESCREENING - SETTINGS:\n")
-            outdata.write("# func and basis is set under GENERAL SETTINGS\n")
-            for key in OrderedDict(self.internal_settings.defaults_refine_ensemble_part1):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.internal_settings.defaults_refine_ensemble_part1)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
-            outdata.write("\n$PART2 - OPTIMIZATION - SETTINGS:\n")
-            outdata.write("# func and basis is set under GENERAL SETTINGS\n")
-            for key in OrderedDict(self.internal_settings.defaults_refine_ensemble_part2):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.internal_settings.defaults_refine_ensemble_part2)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
-            outdata.write("\n$PART3 - REFINEMENT - SETTINGS:\n")
-            for key in OrderedDict(self.internal_settings.defaults_refine_ensemble_part3):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.internal_settings.defaults_refine_ensemble_part3)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
-            outdata.write("\n$NMR PROPERTY SETTINGS:\n")
-            outdata.write("$PART4 SETTINGS:\n")
-            for key in OrderedDict(self.internal_settings.defaults_nmrprop_part4):
-                value = self._exchange_onoff(
-                    data.get(
-                        key, OrderedDict(self.internal_settings.defaults_nmrprop_part4)[key]["default"]
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
-            outdata.write("\n$OPTICAL ROTATION PROPERTY SETTINGS:\n")
-            outdata.write("$PART5 SETTINGS:\n")
-            for key in OrderedDict(self.internal_settings.defaults_optical_rotation_part5):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.internal_settings.defaults_optical_rotation_part5)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                options = self.value_options.get(key, "possibilities")
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, options))
+            ### three loops to write settings to rcfile (TODO - make this into one?)
+            # first, create headers and setup temporary storage of settings
+            headers = []
+            tmpsettings = {}
+            for tmppart in PARTS:
+                headers.append(f"${tmppart.upper()} SETTINGS\n")
+                tmpsettings[tmppart] = {}
+                
+            # second, get default for each setting and store it
+            for parts in InternalSettings.settings_options.values():
+                for part, settings in parts.items():
+                    if settings:
+                        for setting, definition in settings.items():
+                            tmpsettings[part][setting] = definition["default"]
+              
+            # third, write everything to outdata
+            for header in headers:
+                outdata.write(header)
+                outdata.write("\n")
+                for tmppart, tmpsett in tmpsettings.items():
+                    for s, v in tmpsett.items():
+                        outdata.write(f"{s}: {v}\n")
+                        
             outdata.write("$END CENSORC\n")
 
+        print(
+            "\nA new configuration file was written into the current directory file:\n"
+            "censorc_new\n"
+            "You have to adjust the settings to your needs"
+            " and it is mandatory to correctly set the program paths!\n"
+            "Additionally move the file to the correct filename: '.censorc'\n"
+            "and place it either in your /home/$USER/ or current directory.\n"
+            "\nAll done!"
+        )
+
         return path
-
-
-    def write_censo_inp(self, path=None):
-        """
-         Write file "censo.inp" which stores current settings in the .censorc format
-         """
-        if path is None:
-            path = self.cwd
-        args_key = {v: k for k, v in self.key_args_dict.items()}
-        data = self.provide_runinfo(extend=False)
-        with open(os.path.join(path, "censo.inp"), "w", newline=None) as outdata:
-            outdata.write("$File: censo.inp settings of current calculation\n")
-            outdata.write(f"$VERSION:{__version__} \n")
-            outdata.write("\n")
-            # write stored program paths to file
-            outdata.write(f"ORCA: {self.external_paths['orcapath']}\n")
-            outdata.write(f"ORCA version: {self.external_paths['orcaversion']}\n")
-            outdata.write(f"GFN-xTB: {self.external_paths['xtbpath']}\n")
-            outdata.write(f"CREST: {self.external_paths['crestpath']}\n")
-            outdata.write(f"mpshift: {self.external_paths['mpshiftpath']}\n")
-            outdata.write(f"escf: {self.external_paths['escfpath']}\n")
-            outdata.write("\n")
-            outdata.write("#COSMO-RS\n")
-            outdata.write(f"{self.external_paths['cosmorssetup']}\n")
-            # outdata.write("cosmothermversion: 16\n")
-            outdata.write("$ENDPROGRAMS\n\n")
-            outdata.write("$CRE SORTING SETTINGS:\n")
-            outdata.write("$GENERAL SETTINGS:\n")
-            for key in OrderedDict(self.defaults_refine_ensemble_general):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.defaults_refine_ensemble_general)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                if key == "nconf" and value is None:
-                    value = "all"
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$PART0 - CHEAP-PRESCREENING - SETTINGS:\n")
-            for key in OrderedDict(self.defaults_refine_ensemble_part0):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.defaults_refine_ensemble_part0)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$PART1 - PRESCREENING - SETTINGS:\n")
-            outdata.write("# func and basis is set under GENERAL SETTINGS\n")
-            for key in OrderedDict(self.defaults_refine_ensemble_part1):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.defaults_refine_ensemble_part1)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$PART2 - OPTIMIZATION - SETTINGS:\n")
-            outdata.write("# func and basis is set under GENERAL SETTINGS\n")
-            for key in OrderedDict(self.defaults_refine_ensemble_part2):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.defaults_refine_ensemble_part2)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$PART3 - REFINEMENT - SETTINGS:\n")
-            for key in OrderedDict(self.defaults_refine_ensemble_part3):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.defaults_refine_ensemble_part3)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$NMR PROPERTY SETTINGS:\n")
-            outdata.write("$PART4 SETTINGS:\n")
-            for key in OrderedDict(self.defaults_nmrprop_part4):
-                value = self._exchange_onoff(
-                    data.get(
-                        key, OrderedDict(self.defaults_nmrprop_part4)[key]["default"]
-                    ),
-                    reverse=True,
-                )
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$OPTICAL ROTATION PROPERTY SETTINGS:\n")
-            outdata.write("$PART5 SETTINGS:\n")
-            for key in OrderedDict(self.defaults_optical_rotation_part5):
-                value = self._exchange_onoff(
-                    data.get(
-                        key,
-                        OrderedDict(self.defaults_optical_rotation_part5)[key][
-                            "default"
-                        ],
-                    ),
-                    reverse=True,
-                )
-                key = args_key.get(key, key)
-                outdata.write(format_line(key, value, ""))
-            outdata.write("\n$END censo.inp\n")
 
 
     def read_json(self, path, silent=False):

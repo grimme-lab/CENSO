@@ -46,12 +46,12 @@ from censo.core import CensoCore
 # TODO - define custom error types
 # TODO - restore coverage of cml args and settings_options
 # TODO - error handling
+# TODO - function for user input?
 def main(argv=None):
     """
     Execute the CENSO code.
     """
-    # parse command line into args (arg: object with attributes named after options)
-    # (can only be loaded AFTER core has been initialized) 
+    # parse command line into args
     args = cml(DESCR, argv)
     if args.version:
         print(__version__)
