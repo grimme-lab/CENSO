@@ -42,11 +42,16 @@ from censo.core import CensoCore
 # TODO - give meaningful help messages e.g. to avoid pitfalls for repeated calculations (too high threshold etc.)
 # TODO - ask if CENSO should do an automatic cleanup for every run?
 # TODO - assign meaning to different return values of main
-# TODO - MAJOR - make censo available as package to be easily installed via pip
+# TODO - MAJOR - make censo available as package to be easily installed via pip?
 # TODO - define custom error types
 # TODO - restore coverage of cml args and settings_options
 # TODO - error handling
 # TODO - function for user input?
+# TODO - add option to read out only specific conformers from input (e.g. 1, 3, 4)
+# TODO - introduce uniform formatting for print (utilities print redundant?)
+# TODO - fix all paths
+# TODO - MAJOR - introduce class for all parts and write parts as extensions of this class
+# TODO - maybe CensoCore as an extension to Parts class?
 def main(argv=None):
     """
     Execute the CENSO code.
@@ -64,7 +69,7 @@ def main(argv=None):
     # initialize blank core
     core = CensoCore.factory(getcwd(), args)
     
-    # read input to setup conformers
+    # read input and setup conformers
     core.read_input()
     
     # read paths for external programs (definition in rcfile?)

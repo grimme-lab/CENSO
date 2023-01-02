@@ -8,7 +8,6 @@ import os
 from censo.cfg import (
     __version__,
 )
-from censo.utilities import frange, format_line, print, print_block
 
 # TODO - lineup args with settings_options
 # TODO - arg for assets_path?

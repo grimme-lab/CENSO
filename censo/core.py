@@ -15,14 +15,13 @@ from censo.datastructure import MoleculeData
 from censo.ensembledata import EnsembleData
 from numpy import exp
 
-
 from censo.cfg import (
     CODING,
     WARNLEN,
     __version__,
 )
 from censo.orca_job import OrcaJob
-from censo.settings import InternalSettings, PARTS
+from censo.settings import InternalSettings, PARTS, Settings
 from censo.tm_job import TmJob
 from censo.utilities import (
     check_for_float,
@@ -123,6 +122,20 @@ class CensoCore:
         self.conformers: list[MoleculeData] = []
         self.ensembledata: EnsembleData = EnsembleData()
         
+        # run actions for which no complete setup is needed (FIXME - works?)
+        if self.args.cleanup:
+            self.cleanup_run()
+            print("Removed files and going to exit!")
+            sys.exit(0)
+        elif self.args.cleanup_all:
+            self.cleanup_run(True)
+            print("Removed files and going to exit!")
+            sys.exit(0)
+
+        if self.args.writeconfig:
+            self.write_config()
+            sys.exit(0)
+        
 
     def run_args(self) -> None:
         """
@@ -138,21 +151,10 @@ class CensoCore:
 
         # TODO - collapse if conditions to function calls by iteration over args attributes
 
-        if self.args.cleanup:
-            self.cleanup_run()
-            print("Removed files and going to exit!")
-            sys.exit(0)
-        elif self.args.cleanup_all:
-            self.cleanup_run(True)
-            print("Removed files and going to exit!")
-            sys.exit(0)
-
-        if self.args.writeconfig:
-            self.write_config(True)
-            sys.exit(0)
+        
 
         # TODO - leave until compatibility is fixed
-        elif (
+        """ elif (
             self.args.restart
             and os.path.isfile(os.path.join(config.cwd, "enso.json"))
             and os.path.isfile(
@@ -182,7 +184,7 @@ class CensoCore:
                 "'censo -inprc /path/to/.censorc'"
             )
             print("\nGoing to exit!")
-            sys.exit(1)
+            sys.exit(1) """
         
         # TODO - how to manage user customizable solvent db?
         """
@@ -292,49 +294,6 @@ class CensoCore:
         ### END ORCA user editable input"""
 
         
-        # TODO - fix compatibility here
-        # read censorc for settings
-        if config.configpath:
-            # combine args und commandline
-            # check if startread in file:
-            startread = "$CRE SORTING SETTINGS:"
-            with open(config.configpath, "r") as myfile:
-                try:
-                    data = myfile.readlines()
-                    censorc_version = "0.0.0"
-                    for line in data:
-                        if "$VERSION" in line:
-                            censorc_version = line.split(":")[1]
-                    if int(censorc_version.split(".")[1]) < int(
-                        __version__.split(".")[1]
-                    ) or int(censorc_version.split(".")[0]) < int(
-                        __version__.split(".")[0]
-                    ):
-                        print(
-                            f"{'ERROR:':{WARNLEN}}There has been an API break and you have to "
-                            f"create a new .censorc.\n{'':{WARNLEN}}E.g. 'censo -newconfig'"
-                        )
-                        print(
-                            f"{'INFORMATION:':{WARNLEN}}Due to the API break data in ~/.censo_assets/ might need updating.\n"
-                            f"{'':{WARNLEN}}Therefore delete the files {'censo_nmr_ref.json'} and {'censo_solvents.json'} so "
-                            "that they can be re-created upon the next censo call."
-                        )
-                        sys.exit(1)
-                    myfile.seek(0)  # reset reader
-                except (ValueError, KeyError, AttributeError) as e:
-                    print(e)
-                    print(
-                        f"{'ERROR:':{WARNLEN}}Please create a new .censorc --> 'censo -newconfig'"
-                    )
-                    sys.exit(1)
-                if not startread in myfile.read():
-                    print(
-                        f"{'ERROR:':{WARNLEN}}You are using a corrupted .censorc. Create a new one!"
-                    )
-                    sys.exit(1)
-            # combine commandline and .censorc
-            config.read_config(config.configpath, startread, args)
-
         # FIXME - temporary place for remaining settings
         if not self.args.spearmanthr:
             # set spearmanthr by number of atoms:
@@ -342,31 +301,6 @@ class CensoCore:
 
         self.internal_settings.runinfo["consider_unconverged"] = False
 
-
-    def setup_conformers(self) -> None:
-        """
-        open ensemble input
-        split into conformers
-        create MoleculeData objects out of coord input
-        read out energy from xyz file if possible
-        """
-        # open ensemble input
-        with open(self.ensemble_path, "r") as file:
-            lines = file.readlines()
-            nconf = self.internal_settings.runinfo["nconf"]
-            nat = self.internal_settings.runinfo["nat"]
-            
-            # check for correct line count
-            if len(lines) != nconf * (nat + 2):
-                raise Exception # TODO
-            
-            # get precalculated energies if possible
-            for i in range(nconf):
-                self.conformers.append(MoleculeData(i, lines[i*nat+2:(i+1)*nat+2]))
-                self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1])
-            
-            # also works, if xtb_energy is None (None is put first)    
-            self.conformers.sort(key=lambda x: x.xtb_energy)
 
     def find_rcfile(self) -> str:
         """check for existing censorc"""
@@ -469,7 +403,6 @@ class CensoCore:
         """get the version of orca given via the program paths"""
 
 
-    # TODO - optimize
     def read_input(self) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
@@ -490,21 +423,15 @@ class CensoCore:
 
         # store md5 hash for quick comparison of inputs later
         self.internal_settings.runinfo["md5"] = do_md5(self.ensemble_path)
+        
+        # if $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r", encoding=CODING, newline=None) as inp:
-            foundcoord = False
             for line in inp:
                 if "$coord" in line:
-                    foundcoord = True
+                    _, self.internal_settings.runinfo["nat"], self.ensemble_path = t2x(
+                        self.ensemble_path, writexyz=True, outfile="converted.xyz"
+                    )
                     break
-        # if $coord in file => tm format
-        if foundcoord:
-            _, self.internal_settings.runinfo["nat"] = t2x(
-                self.ensemble_path, writexyz=True, outfile="converted.xyz"
-            )
-            self.ensemble_path = os.path.join(self.cwd, "converted.xyz")
-            self.internal_settings.runinfo["maxconf"] = 1
-            self.internal_settings.runinfo["nconf"] = 1
-        # else xyz format (hopefully)
         
         try:
             self.setup_conformers()
@@ -512,9 +439,40 @@ class CensoCore:
             print(error)
             sys.exit(1)
         
-        """ else:
-            print(f"{'ERROR:':{WARNLEN}}The input file can not be found!")
-            sys.exit(1) """
+
+    def setup_conformers(self) -> None:
+        """
+        open ensemble input
+        split into conformers
+        create MoleculeData objects out of coord input
+        read out energy from xyz file if possible
+        """
+        # open ensemble input
+        with open(self.ensemble_path, "r") as file:
+            lines = file.readlines()
+            nat = self.internal_settings.runinfo["nat"]
+            
+            # check for correct line count in input 
+            # assuming consecutive xyz-format coordinates
+            if len(lines) % (nat + 2):
+                nconf = min(self.args.nconf, len(lines) / (nat + 2))
+                if self.args.nconf > nconf:
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Given nconf is larger than max. number"
+                        "of conformers in input file. Setting to the max. amount automatically."
+                    )
+                    
+                self.internal_settings.runinfo["nconf"] = nconf
+            else:
+                raise Exception # TODO
+            
+            # get precalculated energies if possible
+            for i in range(nconf):
+                self.conformers.append(MoleculeData(i, lines[i*nat+2:(i+1)*nat+2]))
+                self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1])
+            
+            # also works, if xtb_energy is None (None is put first)    
+            self.conformers.sort(key=lambda x: x.xtb_energy)
 
 
     def write_config(self) -> str:
@@ -592,7 +550,7 @@ class CensoCore:
                     '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"\n'
                 )
             outdata.write("$ENDPROGRAMS\n\n")
-            outdata.write("$CRE SORTING SETTINGS:\n")
+            #outdata.write("$CRE SORTING SETTINGS:\n")
 
             ### three loops to write settings to rcfile (TODO - make this into one?)
             # first, create headers and setup temporary storage of settings
@@ -630,6 +588,52 @@ class CensoCore:
         )
 
         return path
+
+
+    def read_config(self) -> Settings:
+        """
+        Read from config data from file (here enso.inp or .censorc),
+        cml > .censorc > internal defaults
+        every part has to be in rcfile
+        """
+        rcdata: Settings = {}
+        with open(self.censorc_path, "r") as csvfile:
+            # skip header
+            line = csvfile.readline()
+            while not line.startswith("$PRESCREENING SETTINGS"):
+                line = csvfile.readline()
+            
+            # split file into settings sections
+            """
+            sections begin with $
+            part stated in this line is first word without $
+            read lines until next $ line
+            repeat until line is $END CENSORC
+            """
+            part = "prescreening" # FIXME - cheeky workaround, user input may be problematic
+            # mind the ordering of csvfile.readline(), should not lead to EOF errors
+            while True:
+                while not line.startswith("$"):
+                    spl = line.strip().split(":")
+                    sett_type = InternalSettings.get_type(spl[0])
+                    if sett_type and sett_type not in rcdata.keys():
+                        try:
+                            rcdata[sett_type] = {}
+                            rcdata[sett_type][part] = {}
+                            rcdata[sett_type][part][spl[0]] = sett_type(spl[1])
+                        except Exception:
+                            """casting failed"""
+                            # TODO
+                    
+                    line = csvfile.readline()
+                    
+                if line.startswith("$END CENSORC"):
+                    break
+                
+                part = line.split()[0][1:].lower()
+                line = csvfile.readline()
+            
+        return rcdata
 
 
     def read_json(self, path, silent=False):

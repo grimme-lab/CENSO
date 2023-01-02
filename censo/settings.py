@@ -334,10 +334,24 @@ class InternalSettings:
         }),
     })
 
+
+    @staticmethod
+    def get_type(setting) -> Union[type, None]:
+        """
+        returns the type of a given setting
+        """
+        for type_t, parts in InternalSettings.settings_options.items():
+            for settings in parts.values():
+                if settings:
+                    if setting in settings.keys():
+                        return type_t
+
+        return None
+
         
     def __init__(self, core, args):
 
-        self._settings_current: Settings = {}
+        self._settings_current: Settings
 
         self.parent: CensoCore = core
 
@@ -440,13 +454,15 @@ class InternalSettings:
                     setattr(self.args, key, value)
         ### END if restart """
         
-        # create settings_current iteratively
+        # get settings from rcfile first
+        self._settings_current = self.parent.read_config()
+        
+        # overwrite settings
         for type_t, val in InternalSettings.settings_options.items():
-            self._settings_current[type_t] = {}
             for part, settings in val.items():
-                self._settings_current[type_t][part] = {}
                 if settings:
                     # set the value of the settings according to cml if given
+                    # else according to rcfile or default
                     for setting, definition in settings.items():
                         if getattr(args, setting):
                             self._settings_current[type_t][part][setting] = getattr(args, setting)
@@ -464,7 +480,8 @@ class InternalSettings:
         # TODO - check for uv/vis args
         # TODO - pass parts to be checked via arg
         # TODO - divide into sections
-
+        # TODO - collect all errors and return them
+        
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle prog_rrho
         # TODO - keep?

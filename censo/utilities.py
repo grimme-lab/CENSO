@@ -11,7 +11,7 @@ import time
 import subprocess
 from copy import deepcopy
 from builtins import print as print_orig
-from typing import Union
+from typing import Tuple, Union
 from .cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
 
 
@@ -101,7 +101,7 @@ def print_block(strlist, width=80, redirect=False):
         return result.getvalue()
 
 
-def t2x(path, writexyz=False, outfile="original.xyz"):
+def t2x(path, writexyz=False, outfile="original.xyz") -> Tuple[list, int, str]:
     """convert TURBOMOLE coord file to xyz data and/or write *.xyz ouput
 
      - path [abs. path] does not need to include the filename coord
@@ -150,7 +150,7 @@ def t2x(path, writexyz=False, outfile="original.xyz"):
             out.write(str(len(coordxyz)) + "\n\n")
             for line in coordxyz:
                 out.write(line + "\n")
-    return coordxyz, int(len(coordxyz))
+    return coordxyz, int(len(coordxyz)), os.path.join(path, outfile)
 
 
 def x2t(path, infile="inp.xyz"):
