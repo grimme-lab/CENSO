@@ -18,7 +18,6 @@ import sys
 from traceback import print_exc
 from censo.cfg import PLENGTH, DESCR, __version__
 from censo.inputhandling import cml
-from censo.prescreening import part0
 from censo.screening import part1
 from censo.optimization import part2
 from censo.refinement import part3
@@ -27,6 +26,7 @@ from censo.opticalrotation import part5
 from censo.utilities import print
 from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
+from censo.prescreening import Prescreening
 
 # use generators for reduced memory usage?
 # dict.setdefault()
@@ -51,7 +51,7 @@ from censo.core import CensoCore
 # TODO - introduce uniform formatting for print (utilities print redundant?)
 # TODO - fix all paths
 # TODO - MAJOR - introduce class for all parts and write parts as extensions of this class
-# TODO - maybe CensoCore as an extension to Parts class?
+# TODO - output data in an easily processable format
 def main(argv=None):
     """
     Execute the CENSO code.
@@ -68,10 +68,10 @@ def main(argv=None):
 
     # initialize blank core
     core = CensoCore.factory(getcwd(), args)
-    
+
     # read input and setup conformers
     core.read_input()
-    
+
     # read paths for external programs (definition in rcfile?)
     core.read_program_paths()
 
@@ -81,7 +81,11 @@ def main(argv=None):
 
     ### default: part1 - 3
     # TODO - reduce copy/paste code with list of functions which is iterated over
+    run = [Prescreening, ]
 
+    for part in run:
+        part(core).run()
+        
     # RUNNING PART0
     # cheap prescreening
     if config.part0:

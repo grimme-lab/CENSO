@@ -135,26 +135,18 @@ class CensoCore:
         if self.args.writeconfig:
             self.write_config()
             sys.exit(0)
+            
+        # FIXME - temporary place for remaining settings
+        if not self.args.spearmanthr:
+            # set spearmanthr by number of atoms:
+            self.spearmanthr = 1 / (exp(0.03 * (self.internal_settings.runinfo["nat"] ** (1 / 4))))
+
+        self.internal_settings.runinfo["consider_unconverged"] = False
         
 
-    def run_args(self) -> None:
-        """
-        setup external and internal settings
-        """
-        try:
-            self.args
-            self.cwd
-        except AttributeError:
-            print(f"{'ERROR:':{WARNLEN}}Error while accessing cml arguments!")
-            print("\nGoing to exit!")
-            sys.exit(1)
-
-        # TODO - collapse if conditions to function calls by iteration over args attributes
-
-        
-
+    """ def run_args(self) -> None:
         # TODO - leave until compatibility is fixed
-        """ elif (
+        elif (
             self.args.restart
             and os.path.isfile(os.path.join(config.cwd, "enso.json"))
             and os.path.isfile(
@@ -184,10 +176,10 @@ class CensoCore:
                 "'censo -inprc /path/to/.censorc'"
             )
             print("\nGoing to exit!")
-            sys.exit(1) """
+            sys.exit(1)
         
         # TODO - how to manage user customizable solvent db?
-        """
+       
         solvent_user_path = os.path.expanduser(
             os.path.join("~/.censo_assets/", "censo_solvents.json")
         )
@@ -231,9 +223,9 @@ class CensoCore:
                         "created and internal defaults will be applied!"
                 )
                 print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
-        ### END solvent database adjustable by user"""
+        ### END solvent database adjustable by user
         # TODO - same here
-        """### NMR reference shielding constant database adjustable by user
+        ### NMR reference shielding constant database adjustable by user
         nmr_ref_user_path = os.path.expanduser(
             os.path.join("~/.censo_assets/", "censo_nmr_ref.json")
         )
@@ -250,10 +242,10 @@ class CensoCore:
                         "created and internal defaults will be applied!"
                 )
                 print(f"{'INFORMATION:':{WARNLEN}}The corresponding python error is: {error}.")
-        ### END NMR reference shielding constant database adjustable by user"""
+        ### END NMR reference shielding constant database adjustable by user
 
         # TODO - again similar thing
-        """### ORCA user editable input
+        ### ORCA user editable input
         orcaeditablepath = os.path.expanduser(
             os.path.join("~/.censo_assets/", "censo_orca_editable.dat")
         )
@@ -291,17 +283,9 @@ class CensoCore:
                         f"{'':{WARNLEN}}You can delete your corrupted file and a new "
                         f"one will be created on the next start of CENSO."
                     )
-        ### END ORCA user editable input"""
+        ### END ORCA user editable input """
 
         
-        # FIXME - temporary place for remaining settings
-        if not self.args.spearmanthr:
-            # set spearmanthr by number of atoms:
-            self.spearmanthr = 1 / (exp(0.03 * (self.internal_settings.runinfo["nat"] ** (1 / 4))))
-
-        self.internal_settings.runinfo["consider_unconverged"] = False
-
-
     def find_rcfile(self) -> str:
         """check for existing censorc"""
 
@@ -636,11 +620,9 @@ class CensoCore:
         return rcdata
 
 
-    def read_json(self, path, silent=False):
-        """
+    """ def read_json(self, path, silent=False):
         Reading stored data on conformers and information on settings of
         previous run.
-        """
         if os.path.isfile(path):
             if not silent:
                 print("Reading file: {}\n".format(os.path.basename(path)))
@@ -655,9 +637,7 @@ class CensoCore:
 
 
     def write_json(self, conformers, outfile="enso.json", path=None):
-        """
         Dump conformer data and settings information of current run to json file
-        """
         if not path:
             path = self.cwd
         
@@ -670,7 +650,7 @@ class CensoCore:
             
         with open(os.path.join(path, outfile), "w") as out:
             json.dump(data, out, indent=4, sort_keys=False)
-
+ """
 
     def read_program_paths(self):
         """
@@ -825,20 +805,3 @@ class CensoCore:
                         deleted += os.path.getsize(os.path.join(subdir, file))
 
             print(f"Removed {deleted / (1024 * 1024): .2f} MB")
-
-            """ # deprecated
-            files_in_cwd = [
-                f for f in os.listdir(self.cwd) if os.path.isfile(os.path.join(self.cwd, f))
-            ]
-                
-            # get files like amat.tmp from COSMO calculation (can be several Mb)
-            files_in_sub_cwd = glob.glob(self.cwd + "/**/**/**/*mat.tmp", recursive=True)
-            size = 0
-            for tmpfile in files_in_sub_cwd:
-                if any(x in tmpfile for x in ["a3mat.tmp", "a2mat.tmp", "amat.tmp"]):
-                    if os.path.isfile(tmpfile):
-                        size += os.path.getsize(tmpfile)
-                        # print(f"Removing {tmpfile} {os.path.getsize(tmpfile)} byte")
-                        os.remove(tmpfile)
-            print(f"Removed {size/(1024*1024): .2f} Mb")
-                # ask if CONF folders should be removed """

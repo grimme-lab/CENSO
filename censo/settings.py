@@ -3,7 +3,7 @@ import os
 import sys
 import json
 from types import MappingProxyType
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, List, Union
 
 from censo.core import CensoCore
 from censo.cfg import WARNLEN
@@ -356,6 +356,13 @@ class InternalSettings:
         self.parent: CensoCore = core
 
         self.settings_current = args
+        
+        # print errors and exit if there are any conflicting settings
+        errors = self.check_logic()
+        if errors:
+            for e in errors:
+                print(e)
+            sys.exit(1)
 
         self.onlyread = False # FIXME - basically only used to print error???
 
@@ -471,7 +478,7 @@ class InternalSettings:
                             self._settings_current[type_t][part][setting] = definition["default"]
 
 
-    def check_logic(self):
+    def check_logic(self) -> Union[List[LogicError], None]:
         """
         Checks internal settings for impossible setting-combinations
         also checking if calculations are possible with the requested qm_codes.
@@ -481,6 +488,8 @@ class InternalSettings:
         # TODO - pass parts to be checked via arg
         # TODO - divide into sections
         # TODO - collect all errors and return them
+        
+        errors = []
         
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle prog_rrho
@@ -507,12 +516,13 @@ class InternalSettings:
             with open(os.path.join(self.parent.assets_path, "solvents_dc.json"), "r") as file:
                 solvents_dc = json.load(file)
             
+            # FIXME - ???
             if self.settings_current(settings="vapor_pressure"):
-                self.save_errors.append(
-                    f"{'INFORMATION:':{WARNLEN}}The vapor_pressure flag only affects "
-                    f"settings for COSMO-RS!\n"
-                    f"{'':{WARNLEN}}Information on solvents with properties similar "
-                    f"to the input molecule must be provided for other solvent models!"
+                errors.append(LogicError(
+                        "vapor_pressure",
+                        "The vapor_pressure flag only affect settings for COSMO-RS.",
+                        "Information on solvents with properties similar to the input molecule must be provided for other solvent models!"
+                    )
                 )
             
             # check availability of solvent model for given program in parts 1-3
@@ -533,10 +543,20 @@ class InternalSettings:
                     sm not in CensoCore.prog_job[prog].sm
                     or smgsolv not in CensoCore.prog_job[prog].smgsolv
                 ):
-                    """solvent model (normal or gsolv) not available with given program"""
+                    errors.append(LogicError(
+                            "sm/smgsolv",
+                            f"{sm} or {smgsolv} not available with given program {prog} in part {part}.",
+                            "Choose a different solvent model!"
+                        )
+                    )
                 # availability in solvent model
                 elif self.settings_current(settings="solvent") not in solvents[sm]:
-                    """solvent not available in solvent model"""
+                    errors.append(LogicError(
+                            "solvent",
+                            f"Solvent {self.settings_current(settings='solvent')} not available for solvent model {sm} in part {part}.",
+                            "Choose a different solvent!"
+                        )
+                    )
                     # TODO - check for dielectric constant for cosmo -> dc only needed for dcosmors?
                     
                 # there is no multitemp support for any orca smgsolv
@@ -544,9 +564,11 @@ class InternalSettings:
                     self.settings_current(parts=part, settings="smgsolv") in OrcaJob.smgsolv
                     and self.settings_current(settings="multitemp")
                 ):
-                    self.save_errors.append(
-                        f"{'INFORMATION:':{WARNLEN}}{self.smgsolv1} does not provide "
-                        "information at different temperatures!"
+                    errors.append(LogicError(
+                            "smgsolv",
+                            "There is no multitemp support for any solvent models in ORCA.",
+                            "Disable multitemp!"                  
+                        )
                     )
 
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -732,32 +754,53 @@ class InternalSettings:
             if tmp_settings[bool][part] and tmp_stroptions[part]:
                 # FIXME - again incorrect error because pylance is too stupid
                 if not tmp_settings["func"] in tmp_stroptions[part]["func"]["options"]:
-                    """functional isn't available for this part in any software package"""
+                    errors.append(LogicError(
+                            "func",
+                            f"The functional {tmp_settings['func']} is not available for any software package in part {part}.",
+                            "Choose a different functional!"
+                        )
+                    )
                 else:
                     # FIXME - doesn't work properly yet for part4_j/s
                     tmp_prog_funcname = InternalSettings.dfa_settings.dfa_dict["functionals"][tmp_settings["func"]][tmp_settings["prog"]]
                     if not tmp_prog_funcname:
-                        """functional isn't available for chosen software package"""
-                        raise LogicError 
+                        errors.append(LogicError(
+                                "func",
+                                f"The functional {tmp_settings['func']} is not available for the software package {tmp_settings['prog']} in part {part}.",
+                                "Choose a different functional or change the software package!"
+                            )
+                        )
                     # extra check for r2scan-3c
                     elif (
                         tmp_settings["func"] == "r2scan-3c" 
                         and tmp_settings["prog"] == "orca"
                         and int(self.parent.external_paths["orcaversion"].split(".")[0]) < 5
                     ):
-                        """r2scan-3c is only available since orca5.x.x"""
-                        raise LogicError 
+                        errors.append(LogicError(
+                                "func",
+                                f"The functional r2scan-3c is only available from ORCA version 5 in part {part}.",
+                                "Choose a different functional or use a newer version of ORCA!"    
+                            )
+                        )
                     # extra check for dsd-blyp
                     elif (
                         tmp_settings["func"] in ("dsd-blyp", "dsd-blyp-d3")
                         and tmp_settings["basis"] != "def2-TZVPP"
                     ):
-                        """dsd-blyp only available with def2-TZVPP"""
-                        raise LogicError 
+                        errors.append(LogicError(
+                                "func",
+                                f"The functional dsd-blyp is only available with the def2-TZVPP basis set in part {part}.",
+                                "Change the basis set to def2-TZVPP or choose a different functional!"    
+                            )
+                        )
                         
                     if not tmp_settings["basis"] in tmp_stroptions[part]["basis"]["options"]:
-                        """basis set not available for this part in any software package"""
-                        raise LogicError 
+                        errors.append(LogicError(
+                                "basis",
+                                f"The basis set {tmp_settings['basis']} is not available for any software package in part {part}.",
+                                "Choose a different basis set!"    
+                            )
+                        )
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -817,6 +860,11 @@ class InternalSettings:
             self.settings_current(types=bool, parts="optrot", settings="run") 
             and self.settings_current(types=str, parts="optrot", settings="prog") == "orca"
         ):
-            self.save_errors.append(
-                f"{'ERROR:':{WARNLEN}}Optical rotation calculations are only possible with TM."
-            )
+            errors.append(LogicError(
+                                "optrot-run",
+                                "Calculation of optical rotation spectra is only possible with Turbomole.",
+                                "Change the software package to tm!"    
+                            )
+                        )
+            
+        return errors if len(errors) > 0 else None
