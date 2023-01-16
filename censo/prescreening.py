@@ -21,11 +21,14 @@ from censo.utilities import (
     print_errors,
     calc_boltzmannweights,
     conf_in_interval,
+    timeit,
 )
 from censo.part import CensoPart
 
 class Prescreening(CensoPart):
-    def run(self):
+    
+    @timeit
+    def run(self) -> None:
         """
         Cheap prescreening of the ensemble, with single-points on combined ensemble
         geometries.
@@ -588,4 +591,4 @@ class Prescreening(CensoPart):
         print("\n" + "".ljust(tmp, ">") + "END of Part0" + "".rjust(tmp, "<"))
         if config.progress:
             print("#>>># CENSO: Finished part0", file=sys.stderr)
-        return config, calculate, store_confs, ensembledata
+        # return config, calculate, store_confs, ensembledata

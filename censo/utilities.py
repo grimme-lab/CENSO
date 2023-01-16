@@ -11,8 +11,9 @@ import time
 import subprocess
 from copy import deepcopy
 from builtins import print as print_orig
-from typing import Tuple, Union
-from .cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
+from typing import Any, Callable, Tuple, Union
+import functools
+from censo.cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
 
 
 def print(*args, **kwargs):
@@ -101,10 +102,11 @@ def print_block(strlist, width=80, redirect=False):
         return result.getvalue()
 
 
-def t2x(path, writexyz=False, outfile="original.xyz") -> Tuple[list, int, str]:
-    """convert TURBOMOLE coord file to xyz data and/or write *.xyz ouput
+def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tuple[list, int, str]:
+    """
+    convert TURBOMOLE coord file to xyz data and/or write *.xyz output
 
-     - path [abs. path] does not need to include the filename coord
+     - path [abs. path] either to dir or file directly
      - writexyz [bool] default=False, directly write to outfile
      - outfile [filename] default = 'original.xyz' filename of xyz file which
                         is written into the same directory as
@@ -112,45 +114,44 @@ def t2x(path, writexyz=False, outfile="original.xyz") -> Tuple[list, int, str]:
      - coordxyz --> list of strings including atom x y z information
      - number of atoms
     """
-    if not os.path.basename(path) == "coord":
-        if os.path.isfile(path):
-            with open(path, "r", encoding=CODING, newline=None) as f:
-                if not "$coord" in f.readline():
-                    path = os.path.join(path, "coord")
-        else:
-            path = os.path.join(path, "coord")
+    # read lines from coord file
     with open(path, "r", encoding=CODING, newline=None) as f:
         coord = f.readlines()
-    x = []
-    y = []
-    z = []
-    atom = []
-    for line in coord[1:]:
-        if "$" in line:  # stop at $end ...
+    
+    # read coordinates with atom labels directly into a string
+    # and append the string to a list to be written/returned later
+    xyzatom = []
+    for line in coord:
+        if "$end" in line:  # stop at $end ...
             break
-        x.append(float(line.split()[0]) * BOHR2ANG)
-        y.append(float(line.split()[1]) * BOHR2ANG)
-        z.append(float(line.split()[2]) * BOHR2ANG)
-        atom.append(str(line.split()[3].lower()))
-    # natoms = int(len(coord[1:-1])) # unused
-    coordxyz = []
-    for i in range(len(x)):
-        coordxyz.append(
-            "{:3} {: .10f}  {: .10f}  {: .10f}".format(
-                atom[i][0].upper() + atom[i][1:], x[i], y[i], z[i]
+        xyzatom.append(reduce(
+                lambda x, y: x + " " + y, 
+                [
+                    f"{float(line.split()[0]) * BOHR2ANG:.10f}",
+                    f"{float(line.split()[1]) * BOHR2ANG:.10f}",
+                    f"{float(line.split()[2]) * BOHR2ANG:.10f}",
+                    f"{str(line.split()[3].lower()).capitalize()}",
+                ]
             )
         )
+      
+    # get path from args without the filename of the ensemble (last element of path)
+    if os.path.isfile(path):
+        outpath = reduce(
+            lambda x, y: os.path.join(x, y), 
+            list(os.path.split(path))[::-1][1:][::-1]
+        )
+    # or just use the given path if it is not a file path
+    else:
+        outpath = path
+    
+    # write converted coordinates to xyz outfile if wanted
     if writexyz:
-        with open(
-            os.path.join(os.path.split(path)[0], outfile),
-            "w",
-            encoding=CODING,
-            newline=None,
-        ) as out:
-            out.write(str(len(coordxyz)) + "\n\n")
-            for line in coordxyz:
-                out.write(line + "\n")
-    return coordxyz, int(len(coordxyz)), os.path.join(path, outfile)
+        with open(os.path.join(outpath, outfile), "w", encoding=CODING) as out:
+            out.write(str(len(xyzatom)) + "\n")
+            for line in xyzatom:
+                out.write(line)
+    return xyzatom, len(xyzatom), os.path.join(outpath, outfile) # FIXME - last return value??
 
 
 def x2t(path, infile="inp.xyz"):
@@ -957,12 +958,13 @@ def conf_in_interval(conformers, full_free_energy=True, bm=True):
         print(line)
 
 
-def timeit(f):
+def timeit(f) -> Callable[[], float]: # TODO - type hint correct?
     """time function execution"""
-    def wrapper(*args, **kwargs):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs) -> float:
         start = time.perf_counter()
-        res = f(*args, **kwargs)
+        f(*args, **kwargs)
         end = time.perf_counter()
-        return res, end - start
+        return end - start
     
     return wrapper

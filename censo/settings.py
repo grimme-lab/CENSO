@@ -10,7 +10,15 @@ from censo.cfg import WARNLEN
 from censo.errors import LogicError
 from censo.orca_job import OrcaJob
 
-PARTS = ("prescreening", "screening", "optimization", "refinement", "nmr", "optrot", "uvvis")
+PARTS = (
+    "prescreening", 
+    "screening", 
+    "optimization", 
+    "refinement", 
+    "nmr", 
+    "optrot", 
+    "uvvis"
+)
 Settings = Dict[
             type, Dict[
                 str, Dict[
@@ -359,9 +367,10 @@ class InternalSettings:
         
         # print errors and exit if there are any conflicting settings
         errors = self.check_logic()
-        if errors:
-            for e in errors:
-                print(e)
+        for error in errors:
+            print(error)
+
+        if len(errors) != 0:
             sys.exit(1)
 
         self.onlyread = False # FIXME - basically only used to print error???
@@ -390,7 +399,6 @@ class InternalSettings:
         # TODO - check runtime intensity and optimize if problematic
         
         def f(types=set(self._settings_current.keys()), parts=set(PARTS), settings=set([])) -> Any:
-            
             # if the keyword value is iterable, assert that it is a set
             for keyword in parts, types, settings:
                 try:
@@ -478,7 +486,7 @@ class InternalSettings:
                             self._settings_current[type_t][part][setting] = definition["default"]
 
 
-    def check_logic(self) -> Union[List[LogicError], None]:
+    def check_logic(self) -> List[LogicError]:
         """
         Checks internal settings for impossible setting-combinations
         also checking if calculations are possible with the requested qm_codes.
@@ -493,7 +501,7 @@ class InternalSettings:
         
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle prog_rrho
-        # TODO - keep?
+        # TODO - reimplement when there are more options available
         """ if not self.prog_rrho:
             self.save_errors.append(
                 f"{'WARNING:':{WARNLEN}}Thermostatistical contribution to "
@@ -517,13 +525,13 @@ class InternalSettings:
                 solvents_dc = json.load(file)
             
             # FIXME - ???
-            if self.settings_current(settings="vapor_pressure"):
+            """ if self.settings_current(settings="vapor_pressure"):
                 errors.append(LogicError(
                         "vapor_pressure",
                         "The vapor_pressure flag only affect settings for COSMO-RS.",
                         "Information on solvents with properties similar to the input molecule must be provided for other solvent models!"
                     )
-                )
+                ) """
             
             # check availability of solvent model for given program in parts 1-3
             # check for solvent availability for given solvent model
@@ -539,6 +547,7 @@ class InternalSettings:
                 smgsolv: str = tmp[part]["smgsolv"]
                 
                 # availability in program
+                # FIXME - calling the attributes of the job types should work?
                 if (
                     sm not in CensoCore.prog_job[prog].sm
                     or smgsolv not in CensoCore.prog_job[prog].smgsolv
@@ -557,7 +566,7 @@ class InternalSettings:
                             "Choose a different solvent!"
                         )
                     )
-                    # TODO - check for dielectric constant for cosmo -> dc only needed for dcosmors?
+                    # TODO - check for dielectric constant for cosmo ->  dc only needed for dcosmors?
                     
                 # there is no multitemp support for any orca smgsolv
                 if (
@@ -721,7 +730,7 @@ class InternalSettings:
                                     f" '{censo_solvent_db[self.solvent].get(key, ['',''])[1]}' is used!!!"
                                 ) """
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # TODO
+        # TODO ?
         """# adjust functional-names to new naming convention (cfg.functional)
         self.func0 = self.func_info.relay_functionals.get(self.func0, self.func0)
         self.func = self.func_info.relay_functionals.get(self.func, self.func)
@@ -867,4 +876,4 @@ class InternalSettings:
                             )
                         )
             
-        return errors if len(errors) > 0 else None
+        return errors

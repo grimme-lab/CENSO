@@ -11,6 +11,7 @@ from argparse import Namespace
 from collections import OrderedDict
 from typing import Dict
 import weakref
+import functools
 from censo.datastructure import MoleculeData
 from censo.ensembledata import EnsembleData
 from numpy import exp
@@ -47,7 +48,11 @@ class CensoCore:
 
     @staticmethod
     def check_instance(f):
-        """check number of CensoCore instances, exit if 0 or more than 1 to assure CENSO runs properly"""
+        """
+        check number of CensoCore instances,
+        exit if 0 or more than 1 to assure CENSO runs properly
+        """
+        @functools.wraps(f)
         def wrap(*args, **kwargs):
             n_inst = len(CensoCore._instance_ref)
             if n_inst > 1:
@@ -92,17 +97,20 @@ class CensoCore:
         # if there is no rcfile, CENSO exits
         # looks for custom path and standard paths:
         # cwd and home dir
+        # path to file directly
         self.censorc_path: str = self.find_rcfile()
         
         # if no path is found, CENSO exits (assets are essential for functionality)
         # checks standard path first:
         # "~/.censo_assets"
         # TODO - add option for cml input
+        # path to folder
         self.assets_path: str = self.find_assets()
         
         # if no input ensemble is found, CENSO exits
         # path has to be given via cml or the default path will be used:
         # "{cwd}/crest_conformers.xyz"
+        # path to file directly
         self.ensemble_path: str = self.find_ensemble()
 
         self.internal_settings = InternalSettings(self, self.args)
@@ -341,6 +349,7 @@ class CensoCore:
             
             if user_input.strip().lower() in ("y", "yes"):
                 rcpath = self.write_config()
+                self.censorc_name = "censorc_new"
             elif user_input.strip().lower() in ("n", "no"):
                 print(
                     "Configuration file needed to run CENSO!\n"
@@ -390,7 +399,6 @@ class CensoCore:
     def read_input(self) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
-        look for enso.json and load if found
         """
         
         # restart capability

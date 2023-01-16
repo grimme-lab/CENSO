@@ -349,7 +349,7 @@ class OrcaJob(QmJob):
             ]
         else:
             # xyz geometry
-            geom, _ = t2x(self.job["workdir"])
+            geom, _, _ = t2x(self.job["workdir"])
             orcainput["geom"] = [f"*xyz {self.job['charge']} {self.job['unpaired']+1}"]
             orcainput["geom"].extend(geom)
             orcainput["geom"].append("*")

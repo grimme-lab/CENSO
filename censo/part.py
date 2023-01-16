@@ -20,7 +20,7 @@ class CensoPart:
     
     
     @timeit
-    def run(self):
+    def run(self) -> None:
         pass
     
     

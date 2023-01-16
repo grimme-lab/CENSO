@@ -84,7 +84,7 @@ def main(argv=None):
     run = [Prescreening, ]
 
     for part in run:
-        part(core).run()
+        time = part(core).run()
         
     # RUNNING PART0
     # cheap prescreening

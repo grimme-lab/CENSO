@@ -5,6 +5,7 @@ cml parsing
 
 import argparse
 import os
+from typing import List
 from censo.cfg import (
     __version__,
 )
@@ -23,7 +24,7 @@ def cml(startup_description, argv=None):
         usage=argparse.SUPPRESS,
     )
 
-    groups = []
+    groups: List[argparse._ArgumentGroup] = []
 
     ### RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
