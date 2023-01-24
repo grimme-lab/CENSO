@@ -27,6 +27,7 @@ from censo.utilities import print
 from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
 from censo.prescreening import Prescreening
+from censo.storage import CensoStorage
 
 # use generators for reduced memory usage?
 # dict.setdefault()
@@ -56,7 +57,8 @@ def main(argv=None):
     Execute the CENSO code.
     """
     # parse command line into args
-    args = cml(DESCR, argv)
+    CensoStorage.args = cml(DESCR, argv)
+    CensoStorage.cwd = getcwd()
     if args.version:
         print(__version__)
         sys.exit(0)
@@ -66,7 +68,7 @@ def main(argv=None):
         sys.exit(0)
 
     # initialize blank core
-    core = CensoCore.factory(getcwd(), args)
+    core = CensoCore.factory()
 
     # read input and setup conformers
     core.read_input()

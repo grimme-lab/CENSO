@@ -5,29 +5,9 @@ import json
 from types import MappingProxyType
 from typing import Any, Callable, Dict, List, Union
 
-from censo.core import CensoCore
-from censo.cfg import WARNLEN
-from censo.errors import LogicError
-from censo.orca_job import OrcaJob
-
-PARTS = (
-    "prescreening", 
-    "screening", 
-    "optimization", 
-    "refinement", 
-    "nmr", 
-    "optrot", 
-    "uvvis"
-)
-Settings = Dict[
-            type, Dict[
-                str, Dict[
-                    str, Union[
-                        int, float, str, bool, list
-                    ]
-                ]
-            ]
-        ]
+from censo_test.cfg import WARNLEN, PARTS, Settings
+from censo_test.errors import LogicError
+from censo_test.orca_job import OrcaJob
 
 class DfaSettings:
     def __init__(self, obj: Dict[str, Dict[str, Dict]]):
@@ -53,9 +33,6 @@ class InternalSettings:
     Manages internal settings
     """
 
-    # get assets_path for loading of resources
-    assets_path = CensoCore.core().assets_path
-    
     # TODO - restart
     # must not be changed if restart(concerning optimization)
     restart_unchangeable = [

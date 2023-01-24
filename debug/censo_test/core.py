@@ -1,6 +1,4 @@
 """
-Wrapper to set up CENSO enviroment for runtime
-store paths here
 stores ensembledata and conformers
 """
 
@@ -9,40 +7,42 @@ import sys
 import json
 import shutil
 from argparse import Namespace
-from collections import OrderedDict
 from typing import Dict
 import weakref
 import functools
 from numpy import exp
 
-from censo.cfg import (
+from censo_test.cfg import (
     CODING,
     WARNLEN,
     __version__,
+    Settings,
+    PARTS
 )
-from censo.orca_job import OrcaJob
-from censo.settings import InternalSettings, PARTS, Settings
-from censo.tm_job import TmJob
-from censo.datastructure import MoleculeData
-from censo.ensembledata import EnsembleData
-from censo.utilities import (
+from censo_test.orca_job import OrcaJob
+from censo_test.tm_job import TmJob
+from censo_test.datastructure import MoleculeData
+from censo_test.ensembledata import EnsembleData
+from censo_test.utilities import (
     check_for_float,
     mkdir_p,
     do_md5,
     t2x,
     print,
 )
+import censo_test.settings
+from censo_test.storage import CensoStorage
 
 # TODO - how do the assets files get into ~/.censo_assets?
 class CensoCore:
     _instance_ref = weakref.WeakValueDictionary()
     
     prog_job: Dict[str, type] = {"tm": TmJob, "orca": OrcaJob}
-
+    
     @staticmethod
-    def factory(cwd, args: Namespace):
+    def factory():
         """keep track of the CensoCore instance (should only be one)"""
-        instance = CensoCore(cwd, args)
+        instance = CensoCore()
         CensoCore._instance_ref[id(instance)] = instance
         return instance
 
@@ -87,47 +87,34 @@ class CensoCore:
             sys.exit(1)
 
 
-    def __init__(self, cwd, args):
+    def __init__(self, storage: CensoStorage):
         """initialize core"""
-        self.args: Namespace = args
-        self.cwd: str = cwd
-        # TODO - remove hardcoding here, also remove os.path.join uses with this
-        self.censorc_name = ".censorc"
         
-        # looks for censorc file (global configuration file)
-        # if there is no rcfile, CENSO exits
-        # looks for custom path and standard paths:
-        # cwd and home dir
-        # path to file directly
-        self.censorc_path: str = self.find_rcfile()
+        self.args: Namespace = storage.args
+        self.cwd: str = storage.cwd
         
-        # if no path is found, CENSO exits (assets are essential for functionality)
-        # checks standard path first:
-        # "~/.censo_assets"
-        # TODO - add option for cml input
-        # path to folder
-        self.assets_path: str = self.find_assets()
-        
-        # if no input ensemble is found, CENSO exits
-        # path has to be given via cml or the default path will be used:
-        # "{cwd}/crest_conformers.xyz"
-        # path to file directly
-        self.ensemble_path: str = self.find_ensemble()
+        # no censorc found at standard dest./given dest.
+        if rcpath == "":
+            print(
+                f"No rcfile has been found. Do you want to create a new one?\n"
+            )
 
-        self.internal_settings = InternalSettings(self, self.args)
-
-        # pathsdefaults: --> read_program_paths
-        self.external_paths: Dict[str, str] = {}
-        self.external_paths["orcapath"] = ""
-        self.external_paths["orcaversion"] = ""
-        self.external_paths["xtbpath"] = ""
-        self.external_paths["crestpath"] = ""
-        self.external_paths["cosmorssetup"] = ""
-        self.external_paths["dbpath"] = ""
-        self.external_paths["cosmothermversion"] = ""
-        self.external_paths["mpshiftpath"] = ""
-        self.external_paths["escfpath"] = ""
-        
+            user_input = ""
+            while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+                print("Please type 'yes/y' or 'no/n':")
+                user_input = input()
+            
+            if user_input.strip().lower() in ("y", "yes"):
+                rcpath = self.write_config()
+                self.censorc_name = "censorc_new"
+            elif user_input.strip().lower() in ("n", "no"):
+                print(
+                    "Configuration file needed to run CENSO!\n"
+                    "Going to exit!"
+                )
+                sys.exit(1)
+            
+        # TODO - make into private attributes?
         self.conformers: list[MoleculeData] = []
         self.ensembledata: EnsembleData = EnsembleData()
         
@@ -144,14 +131,24 @@ class CensoCore:
         if self.args.writeconfig:
             self.write_config()
             sys.exit(0)
-            
-        # FIXME - temporary place for remaining settings
-        if not self.args.spearmanthr:
-            # set spearmanthr by number of atoms:
-            self.spearmanthr = 1 / (exp(0.03 * (self.internal_settings.runinfo["nat"] ** (1 / 4))))
-
-        self.internal_settings.runinfo["consider_unconverged"] = False
         
+
+        @property
+        def internal_settings(self):
+            return self._internal_settings
+
+
+        @internal_settings.setter
+        def internal_settings(self, settings: censo_test.settings.InternalSettings):
+            self._internal_settings = settings
+            
+            # FIXME - temporary place for remaining settings
+            if not self.args.spearmanthr:
+                # set spearmanthr by number of atoms:
+                self.spearmanthr = 1 / (exp(0.03 * (self._internal_settings.runinfo["nat"] ** (1 / 4))))
+
+            self._internal_settings.runinfo["consider_unconverged"] = False
+
 
     """ def run_args(self) -> None:
         # TODO - leave until compatibility is fixed
@@ -294,104 +291,6 @@ class CensoCore:
                     )
         ### END ORCA user editable input """
 
-        
-    def find_rcfile(self) -> str:
-        """check for existing censorc"""
-
-        tmp = [
-            os.path.join(self.cwd, self.censorc_name),
-            os.path.join(os.path.expanduser("~"), self.censorc_name)
-        ]
-
-        check = {
-            os.path.isfile(tmp[0]): tmp[0],
-            os.path.isfile(tmp[1]): tmp[1],
-        }
-
-        # FIXME - not the best solution to ensure code safety
-        rcpath = ""
-
-        # check for .censorc in standard locations if no path is given
-        if not self.args.inprcpath:
-            if all(list(check.keys())):
-                # ask which one to use if both are found
-                print(
-                    f"Configuration files have been found, {tmp[0]} and "
-                    f"{tmp[1]}. Which one to use? (cwd/home)"
-                )
-                
-                user_input = ""
-                while user_input.strip().lower() not in ("cwd", "home"):
-                    print("Please type 'cwd' or 'home':")
-                    user_input = input()
-                
-                if user_input.strip().lower() in ("cwd"):
-                    rcpath = tmp[0]
-                elif user_input.strip().lower() in ("home"):
-                    rcpath = tmp[1]
-                    
-            elif any(list(check.keys())):
-                # take the one file found
-                rcpath = check[True]
-        else:
-            if os.path.isfile(self.args.inprcpath):
-                rcpath = self.args.inprcpath
-        
-        # no censorc found at standard dest./given dest.
-        if rcpath == "":
-            print(
-                f"No rcfile has been found. Do you want to create a new one?\n"
-            )
-
-            user_input = ""
-            while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
-                print("Please type 'yes/y' or 'no/n':")
-                user_input = input()
-            
-            if user_input.strip().lower() in ("y", "yes"):
-                rcpath = self.write_config()
-                self.censorc_name = "censorc_new"
-            elif user_input.strip().lower() in ("n", "no"):
-                print(
-                    "Configuration file needed to run CENSO!\n"
-                    "Going to exit!"
-                )
-                sys.exit(1)
-            
-        return rcpath
-
-    
-    def find_assets(self) -> str:
-        """
-        look for assets folder
-        if it is not found, CENSO exits
-        """
-        assets_path = os.path.expanduser("~/.censo_assets")
-        if not os.path.isdir(assets_path):
-            print(f"{'WARNING:':{WARNLEN}}The folder '~/.censo_assets/' designed for additional "
-                "remote configuration files can not be found!\n"
-            )
-            sys.exit(1)
-
-        return assets_path
-
-
-    def find_ensemble(self) -> str:
-        """check for ensemble input file"""
-        # if input file given via args use this path, otherwise set path to a default value
-        if self.args.inp:
-            ensemble_path = os.path.join(self.cwd, self.args.inp)
-        else:
-            ensemble_path = os.path.join(self.cwd, "crest_conformers.xyz")
-
-        if os.path.isfile(ensemble_path):
-            return ensemble_path
-        else:
-            print(
-                f"{'ERROR:':{WARNLEN}}The input ensemble cannot be found!"
-            )
-            sys.exit(1)
-        
 
     def orca_version(self):
         """get the version of orca given via the program paths"""

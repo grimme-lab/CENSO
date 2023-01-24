@@ -6,19 +6,19 @@ import os
 import sys
 import time
 import subprocess
-from censo.cfg import (
+
+from censo_test.cfg import (
     CODING,
     ENVIRON,
     WARNLEN,
-    censo_solvent_db,
     external_paths,
     dfa_settings,
     editable_ORCA_input,
     PLANCK,
     C
 )
-from censo.utilities import last_folders, t2x, x2t, print
-from censo.qm_job import QmJob
+from censo_test.utilities import last_folders, t2x, x2t, print
+from censo_test.qm_job import QmJob
 
 
 class OrcaJob(QmJob):

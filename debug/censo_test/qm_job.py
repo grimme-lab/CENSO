@@ -10,19 +10,18 @@ import weakref
 try:
     from math import isclose
 except ImportError:
-    from censo.utilities import isclose
+    from censo_test.utilities import isclose
 import time
 import subprocess
 import json
-from censo.cfg import (
+from censo_test.cfg import (
     ENVIRON,
     CODING,
     WARNLEN,
-    censo_solvent_db,
     rot_sym_num, external_paths,
 )
-from censo.utilities import last_folders, print
-from censo.datastructure import MoleculeData
+from censo_test.utilities import last_folders, print
+from censo_test.datastructure import MoleculeData
 
 # TODO - add factory method
 
