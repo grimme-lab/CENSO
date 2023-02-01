@@ -4,10 +4,20 @@ import sys
 import json
 from types import MappingProxyType
 from typing import Any, Callable, Dict, List, Union
+from functools import reduce
 
-from censo_test.cfg import WARNLEN, PARTS, Settings
+from censo_test.cfg import (
+    WARNLEN, 
+    PARTS, 
+    ASSETS_PATH, 
+    PROGS, 
+    SOLV_MODS, 
+    SOLV_GMODS,
+    Settings,
+    __version__,
+)
 from censo_test.errors import LogicError
-from censo_test.orca_job import OrcaJob
+from censo_test.storage import CensoStorage
 
 class DfaSettings:
     def __init__(self, obj: Dict[str, Dict[str, Dict]]):
@@ -32,7 +42,7 @@ class InternalSettings:
     All options are saved here.
     Manages internal settings
     """
-
+    
     # TODO - restart
     # must not be changed if restart(concerning optimization)
     restart_unchangeable = [
@@ -98,22 +108,24 @@ class InternalSettings:
         "19-fine": "BP_TZVPD_FINE_19.ctd",
     }
 
-
     # load up all resources to set value options in settings_options
     # TODO - catch error if dfa_settings cannot be created
     try:
-        with open(os.path.join(assets_path, "censo_dfa_settings.json"), "r") as dfa_file:
+        with open(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"), "r") as dfa_file:
             dfa_settings = DfaSettings(json.load(dfa_file))
 
-        with open(os.path.join(assets_path, "basis_sets.json"), "r") as bs_file:
-            basis_sets = json.load(bs_file)
+        with open(os.path.join(ASSETS_PATH, "basis_sets.json"), "r") as bs_file:
+            basis_sets = tuple(json.load(bs_file))
 
-        with open(os.path.join(assets_path, "censo_solvents_db.json"), "r") as solv_file:
+        with open(os.path.join(ASSETS_PATH, "censo_solvents_db.json"), "r") as solv_file:
             solvents_db = json.load(solv_file)
     except FileNotFoundError:
         print(f"{'ERROR:':{WARNLEN}}Could not find DFA/basis/solvents file!")
         print("\nGoing to exit!")
         sys.exit(1)
+
+    solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    solv_gmods = reduce(lambda x, y: x + y, SOLV_GMODS.values())
 
     # TODO - defaults for uvvis (func: w-B97X-D3)
     # TODO - find solutions for "automatic" or "default"/"prog"/"whatever" cases
@@ -144,15 +156,15 @@ class InternalSettings:
     |  |-part: str, MappingProxyType
     |  |  |-> setting: str, dict
     .....
-    """
+    """    
     # TODO - change min values to ranges?
     # TODO - find solution for None cases
     # TODO - solvent mapping
     settings_options = MappingProxyType({
         int: MappingProxyType({
             "general": MappingProxyType({
-                "charge": {"default": 0, "min": -256}, 
-                "unpaired": {"default": 0, "min": 0},
+                "charge": {"default": 0, "min": -256}, # TODO - (re)move?
+                "unpaired": {"default": 0, "min": 0}, # TODO - (re)move?
                 "maxthreads": {"default": 1, "min": 1},
                 "omp": {"default": 1, "min": 1}, # number of cores per thread
             }),
@@ -201,61 +213,61 @@ class InternalSettings:
         }),
         str: MappingProxyType({
             "general": MappingProxyType({
-                "solvent": {"default": "gas", "options": tuple("gas") + tuple([k for k in solvents_db.keys()])},
+                "solvent": {"default": "gas", "options": ("gas",) + tuple([k for k in solvents_db.keys()])},
                 #"prog_rrho": {"default": "xtb", "options": ("xtb")}, # TODO - keep this here?
                 "sm_rrho": {"default": "alpb", "options": ("alpb", "gbsa")}, # TODO - same
                 "cosmorsparam": {"default": "automatic", "options": tuple([k for k in cosmors_param.keys()])},
             }),
             "prescreening": MappingProxyType({
                 "func": {"default": "b97-d", "options": tuple(dfa_settings.find_func("func0"))},
-                "basis": {"default": "def2-SV(P)", "options": tuple("automatic") + tuple(dfa_settings.composite_bs()) + ("def2-SV(P)", "def2-TZVP")},
-                "prog": {"default": "tm", "options": ("orca", "tm")},
+                "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs()) + ("def2-SV(P)", "def2-TZVP")},
+                "prog": {"default": "tm", "options": PROGS},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "screening": MappingProxyType({
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func1"))},
-                "basis": {"default": "automatic", "options": tuple("automatic") + tuple(basis_sets)},
-                "prog": {"default": "tm", "options": ("orca", "tm")},
-                "smgsolv": {"default": "cosmors", "options": ("cosmors", "cosmors-fine", "gbsa_gsolv", "alpb_gsolv", "smd_gsolv")},
+                "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
+                "prog": {"default": "tm", "options": PROGS},
+                "smgsolv": {"default": "cosmors", "options": solv_gmods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "optimization": MappingProxyType({
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func2"))},
-                "basis": {"default": "automatic", "options": tuple("automatic") + tuple(basis_sets)},
-                "prog": {"default": "tm", "options": ("orca", "tm")},
-                "prog2opt": {"default": "prog", "options": ("tm", "orca")}, # TODO - ??? prog2 ??? # FIXME
-                "sm": {"default": "default", "options": ("cosmo", "dcosmors", "cpcm", "smd")}, # FIXME
-                "smgsolv": {"default": "cosmors", "options": ("cosmors", "cosmors-fine", "gbsa_gsolv", "alpb_gsolv", "smd_gsolv")},
+                "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
+                "prog": {"default": "tm", "options": PROGS},
+                "prog2opt": {"default": "prog", "options": PROGS}, # TODO - ??? prog2 ??? # FIXME
+                "sm": {"default": "default", "options": solv_mods}, # FIXME
+                "smgsolv": {"default": "cosmors", "options": solv_gmods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
                 "optlevel2": {"default": "automatic", "options": ("crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme", "automatic")}, # TODO - what does this mean?
             }),
             "refinement": MappingProxyType({
-                "prog": {"default": "tm", "options": ("orca", "tm")},
+                "prog": {"default": "tm", "options": PROGS},
                 "func": {"default": "pw6b95", "options": tuple(dfa_settings.find_func("func3"))},
-                "basis": {"default": "def2-TZVPD", "options": tuple(basis_sets)},
-                "smgsolv": {"default": "cosmors", "options": ("cosmors", "cosmors-fine", "gbsa_gsolv", "alpb_gsolv", "smd_gsolv")},
+                "basis": {"default": "def2-TZVPD", "options": basis_sets},
+                "smgsolv": {"default": "cosmors", "options": solv_gmods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
-            "optrot": MappingProxyType({
-                "prog4_j": {"default": "tm", "options": ("orca", "tm")},
+            "nmr": MappingProxyType({
+                "prog4_j": {"default": "tm", "options": PROGS},
                 "func_j": {"default": "pbe0", "options": tuple(dfa_settings.find_func("func_j"))},
-                "basis_j": {"default": "def2-TZVP", "options": tuple(basis_sets)},
-                "sm4_j": {"default": "default", "options": ("cosmo", "dcosmors", "cpcm", "smd")}, # FIXME
-                "prog4_s": {"default": "tm", "options": ("orca", "tm")},
+                "basis_j": {"default": "def2-TZVP", "options": basis_sets},
+                "sm4_j": {"default": "default", "options": solv_mods}, # FIXME
+                "prog4_s": {"default": "tm", "options": PROGS},
                 "func_s": {"default": "pbe0", "options": tuple(dfa_settings.find_func("func_s"))},
-                "basis_s": {"default": "def2-TZVP", "options": tuple(basis_sets)},
-                "sm4_s": {"default": "default", "options": ("cosmo", "dcosmors", "cpcm", "smd")}, # FIXME
-                "h_ref": {"default": "TMS", "options": ("TMS")},
-                "c_ref": {"default": "TMS", "options": ("TMS")},
-                "f_ref": {"default": "CFCl3", "options": ("CFCl3")},
-                "si_ref": {"default": "TMS", "options": ("TMS")},
+                "basis_s": {"default": "def2-TZVP", "options": basis_sets},
+                "sm4_s": {"default": "default", "options": solv_mods}, # FIXME
+                "h_ref": {"default": "TMS", "options": ("TMS",)},
+                "c_ref": {"default": "TMS", "options": ("TMS",)},
+                "f_ref": {"default": "CFCl3", "options": ("CFCl3",)},
+                "si_ref": {"default": "TMS", "options": ("TMS",)},
                 "p_ref": {"default": "TMP", "options": ("TMP", "PH3")},
             }),
             "optrot": MappingProxyType({
                 "func": {"default": "pbe", "options": tuple(dfa_settings.find_func("func_or"))},
                 "func_or_scf": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func_or_scf"))},
-                "basis": {"default": "def2-SVPD", "options": tuple(basis_sets)},
-                "prog": {"default": "orca", "options": ("orca")},
+                "basis": {"default": "def2-SVPD", "options": basis_sets},
+                "prog": {"default": "orca", "options": ("orca",)},
             }),
             "uvvis": None,
         }),
@@ -336,13 +348,34 @@ class InternalSettings:
         return None
 
         
-    def __init__(self, core, args):
+    def __init__(self, storage):
 
         self._settings_current: Settings
 
-        self.parent: CensoCore = core
+        self.storage: CensoStorage = storage
 
-        self.settings_current = args
+        # no censorc found at standard dest./given dest.
+        if self.storage.censorc_path == "":
+            print(
+                f"No rcfile has been found. Do you want to create a new one?\n"
+            )
+
+            user_input = ""
+            while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+                print("Please type 'yes/y' or 'no/n':")
+                user_input = input()
+            
+            if user_input.strip().lower() in ("y", "yes"):
+                self.storage.censorc_path = self.write_config()
+                self.storage.censorc_name = "censorc_new"
+            elif user_input.strip().lower() in ("n", "no"):
+                print(
+                    "Configuration file needed to run CENSO!\n"
+                    "Going to exit!"
+                )
+                sys.exit(1)
+
+        self.settings_current = self.storage.args
         
         # print errors and exit if there are any conflicting settings
         errors = self.check_logic()
@@ -350,20 +383,8 @@ class InternalSettings:
             print(error)
 
         if len(errors) != 0:
-            sys.exit(1)
-
-        self.onlyread = False # FIXME - basically only used to print error???
-
-        # contains run-specific info that may change during runtime
-        # declared here for readability, initialized in CensoCore.read_input
-        self.runinfo = {
-            "nconf": int,
-            "nat": int,
-            "maxconf": int,
-            "md5": str,
-            "consider_unconverged": bool,
-        }
-
+            sys.exit(1) 
+            
 
     # TODO - write special timer decorator for this function
     @property
@@ -379,8 +400,12 @@ class InternalSettings:
         # TODO - check runtime intensity and optimize if problematic
         
         def f(types=set(self._settings_current.keys()), parts=set(PARTS), settings=set([])) -> Any:
+
+            # declare filter mapping with correct typing
+            filters: dict[str, set[str]] = {}
+            
             # if the keyword value is iterable, assert that it is a set
-            for keyword in parts, types, settings:
+            for keyword, keyname in zip((parts, types, settings), ("parts", "types", "settings")):
                 try:
                     if iter(keyword) and type(keyword) != set:
                         # convert str to a set of itself in order not to get a set of chars
@@ -388,29 +413,30 @@ class InternalSettings:
                             keyword = set([keyword])
                         else:
                             keyword = set(keyword)
-                # keyword not iterable
+                # keyword not iterable, make it iterable by putting it into a set
                 except TypeError:
                     keyword = set([keyword])
-               
-            # initialize filter mapping with correct typing, asserted above
-            filters: dict[str, set[str]] = {
-                "parts": parts,
-                "types": types,
-                "settings": settings
-            }
-            
+                
+                # use the strings from the zip as keys for the filters dict
+                filters[keyname] = keyword
+                    
             # recursively filter input dictionary
             def filter_f(in_dict: dict = self._settings_current, i: int = 0) -> Any:
                 fmap = ["types", "parts", "settings"]
                 out_dict = {}
 
+                # go through in_dict and filter out values for keys, which are
+                # defined in filters
                 for key, value in in_dict.items():
                     if key in filters[fmap[i]] and i < 2 and value:
                         out_dict[key] = filter_f(value, i+1)
                         
                         # remove key if there is nothing inside
-                        if len(out_dict[key]) == 0:
-                            out_dict.pop(key)
+                        try:
+                            if len(out_dict[key]) == 0:
+                                out_dict.pop(key)
+                        except TypeError:
+                            pass
                     # if we are at the level of settings
                     elif key in filters[fmap[i]] and i == 2:
                         out_dict[key] = value
@@ -419,10 +445,10 @@ class InternalSettings:
                 # partX: only one setting -> returns value of that setting
                 # accessing: settingsdict[part] = value of that setting   
                 if len(out_dict) == 1:
-                    return list(out_dict.values())[0]
+                    return reduce(lambda x, y: x + y, iter(out_dict.items()).__next__()[::-1])
                 else:
-                    return out_dict
-                                        
+                    return out_dict, None
+                       
             return filter_f()
 
         return f
@@ -450,20 +476,171 @@ class InternalSettings:
         ### END if restart """
         
         # get settings from rcfile first
-        self._settings_current = self.parent.read_config()
+        self._settings_current = self.read_config()
         
         # overwrite settings
-        for type_t, val in InternalSettings.settings_options.items():
-            for part, settings in val.items():
+        for type_t, partsd in InternalSettings.settings_options.items():
+            for part, settings in partsd.items():
                 if settings:
                     # set the value of the settings according to cml if given
-                    # else according to rcfile or default
-                    for setting, definition in settings.items():
-                        if getattr(args, setting):
-                            self._settings_current[type_t][part][setting] = getattr(args, setting)
-                        else:
-                            # FIXME - code is correct, typing leads to incorrect error
-                            self._settings_current[type_t][part][setting] = definition["default"]
+                    for setting in settings.keys():
+                        # FIXME - coverage between all actual settings and cml options?
+                        try:
+                            if getattr(args, setting):
+                                self._settings_current[type_t][part][setting] = getattr(args, setting)
+                        except AttributeError:
+                            pass
+
+
+    def read_config(self) -> Settings:
+        """
+        Read from config data from file (here .censorc),
+        every part has to be in rcfile
+        """
+        rcdata: Settings = {}
+        with open(self.storage.censorc_path, "r") as csvfile:
+            # skip header
+            line = csvfile.readline()
+            while not line.startswith("$PRESCREENING SETTINGS"):
+                line = csvfile.readline()
+            
+            # split file into settings sections
+            """
+            sections begin with $
+            part stated in this line is first word without $
+            read lines until next $ line
+            repeat until line is $END CENSORC
+            """
+            part = "prescreening" # FIXME - cheeky workaround, user input may be problematic
+            # mind the ordering of csvfile.readline(), should not lead to EOF errors
+            while True:
+                while not line.startswith("$"):
+                    spl = line.strip().split(":")
+                    sett_type = InternalSettings.get_type(spl[0])
+                    if sett_type and sett_type not in rcdata.keys():
+                        try:
+                            rcdata[sett_type] = {}
+                            rcdata[sett_type][part] = {}
+                            rcdata[sett_type][part][spl[0]] = sett_type(spl[1])
+                        except Exception:
+                            """casting failed"""
+                            # TODO
+                     
+                    line = csvfile.readline()
+                    
+                if line.startswith("$END CENSORC"):
+                    break
+                
+                part = line.split()[0][1:].lower()
+                line = csvfile.readline()
+            
+        return rcdata
+
+
+    def write_config(self) -> str:
+        """
+        write new configuration file with default settings into 
+        either the local or ~/.censorc directory.
+        """
+
+        # FIXME - is this legal
+        """ if self.args.copyinput:
+            self.write_config(global_config=False, usepaths=True)
+            print(
+                "The file censo.inp with the current settings has been written to "
+                "the current working directory."
+            )
+            print("\nGoing to exit!")
+            sys.exit(0) """
+
+        # what to do if there is an existing configuration file
+        if not (self.storage.censorc_path or self.storage.censorc_path == ""):
+            print(
+                f"An existing configuration file ({self.storage.censorc_name})" 
+                f"has been found in {self.storage.censorc_path}"
+                f"Do you want to copy existing program path information to the "
+                f"new remote configuration file?"
+            )
+            
+            user_input = ""
+            while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+                print("Please type 'yes/y' or 'no/n':")
+                user_input = input()
+            
+            if user_input.strip().lower() in ("y", "yes"):
+                self.storage.read_program_paths()
+
+        # write new censorc
+        if self.storage.args.inprcpath:
+            path = self.storage.args.inprcpath
+        # (path is never unbound)
+        else:
+            path = os.path.join(self.storage.cwd, "censorc_new")
+            
+        print(f"Writing configuration file to {path} ...")
+        with open(path, "w", newline=None) as outdata:
+            outdata.write(f"$CENSO global configuration file: {self.storage.censorc_name}\n")
+            outdata.write(f"$VERSION:{__version__} \n")
+            outdata.write("\n")
+            
+            # if ALL program paths are set, write the paths to the new rcfile
+            if all([s != "" for s in self.storage.external_paths.values()]):
+                # write stored program paths to file
+                outdata.write(f"ORCA: {self.storage.external_paths['orcapath']}\n")
+                outdata.write(f"ORCA version: {self.storage.external_paths['orcaversion']}\n")
+                outdata.write(f"GFN-xTB: {self.storage.external_paths['xtbpath']}\n")
+                outdata.write(f"CREST: {self.storage.external_paths['crestpath']}\n")
+                outdata.write(f"mpshift: {self.storage.external_paths['mpshiftpath']}\n")
+                outdata.write(f"escf: {self.storage.external_paths['escfpath']}\n")
+                outdata.write("\n")
+                outdata.write("#COSMO-RS\n")
+                outdata.write(f"{self.storage.external_paths['cosmorssetup']}\n")
+            else:
+                # TODO - why is this set up like that (including/excluding binary)??
+                # TODO - write some other default (e.g. "") instead of paths
+                outdata.write("ORCA: /path/excluding/binary/\n")
+                outdata.write("ORCA version: 4.2.1\n")
+                outdata.write("GFN-xTB: /path/including/binary/xtb-binary\n")
+                outdata.write("CREST: /path/including/binary/crest-binary\n")
+                outdata.write("mpshift: /path/including/binary/mpshift-binary\n")
+                outdata.write("escf: /path/including/binary/escf-binary\n")
+                outdata.write("\n")
+                outdata.write("#COSMO-RS\n")
+                outdata.write(
+                    "ctd = BP_TZVP_C30_1601.ctd cdir = "
+                    '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES" ldir = '
+                    '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES"\n'
+                )
+            outdata.write("$ENDPROGRAMS\n\n")
+            #outdata.write("$CRE SORTING SETTINGS:\n")
+
+            ### loop to write settings to rcfile
+            # create headers for sections in censorc and write them
+            # get defaults for settings and write them
+            for part in ("general",) + PARTS:
+                outdata.write(f"\n${part.upper()} SETTINGS\n")
+                
+                # get all parts (partsd) for all types
+                for partsd in InternalSettings.settings_options.values():
+                    # only do this loop if the current part has settings at all
+                    if partsd[part]:
+                        # get defaults
+                        for setting, definition in partsd[part].items():
+                            outdata.write(f"{setting}: {definition['default']}\n")
+                
+            outdata.write("\n$END CENSORC\n")
+
+        print(
+            "\nA new configuration file was written into the current directory file:\n"
+            "censorc_new\n"
+            "You have to adjust the settings to your needs"
+            " and it is mandatory to correctly set the program paths!\n"
+            "Additionally move the file to the correct filename: '.censorc'\n"
+            "and place it either in your /home/$USER/ or current directory.\n"
+            "\nAll done!"
+        )
+
+        return path
 
 
     def check_logic(self) -> List[LogicError]:
@@ -497,11 +674,11 @@ class InternalSettings:
                     "hessians possible and no TM hessians"
                 ) """
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        if not self.settings_current(settings="gas-phase"):
-            with open(os.path.join(self.parent.assets_path, "solvents.json"), "r") as file:
+        if not self.settings_current(settings="gas-phase")[0]:
+            with open(os.path.join(ASSETS_PATH, "solvents.json"), "r") as file:
                 solvents = json.load(file)
                 
-            with open(os.path.join(self.parent.assets_path, "solvents_dc.json"), "r") as file:
+            with open(os.path.join(ASSETS_PATH, "solvents_dc.json"), "r") as file:
                 solvents_dc = json.load(file)
             
             # FIXME - ???
@@ -517,21 +694,24 @@ class InternalSettings:
             # check for solvent availability for given solvent model
             # TODO - what about "replacements" for solvents
             # TODO - add flexibility concerning prescreening, optrot, uvvis
-            tmp = self.settings_current(
+            tmp_settings, _ = self.settings_current(
                 types=str, 
                 parts=PARTS, 
                 settings=["prog", "sm", "smgsolv"]
             )
             for part in PARTS:
-                prog: str = tmp[part]["prog"]
-                sm: str = tmp[part]["sm"]
-                smgsolv: str = tmp[part]["smgsolv"]
+                try:
+                    prog: str = tmp_settings[part]["prog"]
+                    sm: str = tmp_settings[part]["sm"]
+                    smgsolv: str = tmp_settings[part]["smgsolv"]
+                except KeyError:
+                    continue
                 
                 # availability in program
                 # FIXME - calling the attributes of the job types should work?
                 if (
-                    sm not in CensoCore.prog_job[prog].sm
-                    or smgsolv not in CensoCore.prog_job[prog].smgsolv
+                    sm not in SOLV_MODS[prog]
+                    or smgsolv not in SOLV_GMODS[prog]
                 ):
                     errors.append(LogicError(
                             "sm/smgsolv",
@@ -551,11 +731,11 @@ class InternalSettings:
                     
                 # there is no multitemp support for any orca smgsolv
                 if (
-                    self.settings_current(parts=part, settings="smgsolv") in OrcaJob.smgsolv
+                    self.settings_current(parts=part, settings="prog") == "orca"
                     and self.settings_current(settings="multitemp")
                 ):
                     errors.append(LogicError(
-                            "smgsolv",
+                            "multitemp",
                             "There is no multitemp support for any solvent models in ORCA.",
                             "Disable multitemp!"                  
                         )
@@ -741,12 +921,17 @@ class InternalSettings:
 
             # iterate through settings and check for funcX
             # TODO - handle composite method bases
-            if tmp_settings[bool][part] and tmp_stroptions[part]:
+            if tmp_settings[bool] and tmp_stroptions[part]:
+                try:
+                    func = tmp_settings["func"]
+                except KeyError:
+                    func = tmp_settings[str]
+                
                 # FIXME - again incorrect error because pylance is too stupid
-                if not tmp_settings["func"] in tmp_stroptions[part]["func"]["options"]:
+                if not func in tmp_stroptions[part]["func"]["options"]:
                     errors.append(LogicError(
                             "func",
-                            f"The functional {tmp_settings['func']} is not available for any software package in part {part}.",
+                            f"The functional {func} is not available for any software package in part {part}.",
                             "Choose a different functional!"
                         )
                     )
@@ -756,15 +941,15 @@ class InternalSettings:
                     if not tmp_prog_funcname:
                         errors.append(LogicError(
                                 "func",
-                                f"The functional {tmp_settings['func']} is not available for the software package {tmp_settings['prog']} in part {part}.",
+                                f"The functional {func} is not available for the software package {tmp_settings['prog']} in part {part}.",
                                 "Choose a different functional or change the software package!"
                             )
                         )
                     # extra check for r2scan-3c
                     elif (
-                        tmp_settings["func"] == "r2scan-3c" 
+                        func == "r2scan-3c" 
                         and tmp_settings["prog"] == "orca"
-                        and int(self.parent.external_paths["orcaversion"].split(".")[0]) < 5
+                        and int(self.storage.external_paths["orcaversion"].split(".")[0]) < 5
                     ):
                         errors.append(LogicError(
                                 "func",
@@ -774,7 +959,7 @@ class InternalSettings:
                         )
                     # extra check for dsd-blyp
                     elif (
-                        tmp_settings["func"] in ("dsd-blyp", "dsd-blyp-d3")
+                        func in ("dsd-blyp", "dsd-blyp-d3")
                         and tmp_settings["basis"] != "def2-TZVPP"
                     ):
                         errors.append(LogicError(

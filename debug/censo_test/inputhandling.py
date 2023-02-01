@@ -20,7 +20,6 @@ def cml(startup_description, argv=None):
     
     parser = argparse.ArgumentParser(
         description=startup_description,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         usage=argparse.SUPPRESS,
     )
 

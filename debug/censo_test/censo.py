@@ -1,33 +1,26 @@
 """
 CENSO run code:
-- reading commandline input --> cml()
-- parsing remote configuration file, reading conformer ensemble,
-  checking parameters and creating or reading enso.json conformer information
-  --> enso_startup()
-- run cheap_screeing --> part0()
-- run prescreening --> part1()
-- run optimization --> part2()
-- run refinement   --> part3()
-- run nmrproperties --> part4() or
-- run optical_rotation --part5()
-- run ... --> part6()
+
 """
 from os import getcwd
+import os
+import shutil
 from time import perf_counter
 import sys
 from traceback import print_exc
-from censo.cfg import PLENGTH, DESCR, __version__
-from censo.inputhandling import cml
-from censo.screening import part1
-from censo.optimization import part2
-from censo.refinement import part3
-from censo.nmrproperties import part4
-from censo.opticalrotation import part5
-from censo.utilities import print
-from censo.tutorial import interactiv_doc
-from censo.core import CensoCore
-from censo.prescreening import Prescreening
-from censo.storage import CensoStorage
+from censo_test.cfg import PLENGTH, DESCR, ASSETS_PATH, __version__
+from censo_test.inputhandling import cml
+from censo_test.screening import part1
+from censo_test.optimization import part2
+from censo_test.refinement import part3
+from censo_test.nmrproperties import part4
+from censo_test.opticalrotation import part5
+from censo_test.utilities import print
+from censo_test.tutorial import interactiv_doc
+from censo_test.core import CensoCore
+from censo_test.prescreening import Prescreening
+from censo_test.storage import CensoStorage
+from censo_test.settings import InternalSettings
 
 # use generators for reduced memory usage?
 # dict.setdefault()
@@ -52,23 +45,46 @@ from censo.storage import CensoStorage
 # TODO - introduce uniform formatting for print (utilities print redundant?)
 # TODO - fix all paths
 # TODO - output data in an easily processable format
+# TODO - print formatting
 def main(argv=None):
     """
     Execute the CENSO code.
     """
-    # parse command line into args
-    CensoStorage.args = cml(DESCR, argv)
-    CensoStorage.cwd = getcwd()
+    
+    # first, check program integrity
+    # TODO - proper implementation?
+    # FIXME - InternalSettings module is loaded before integrity is verified!!
+    if not os.path.isdir(ASSETS_PATH):
+        raise FileNotFoundError(ASSETS_PATH)
+        
+    # get setup info
+    args = cml(DESCR, argv)
+    cwd = getcwd()
+    
+    # run actions for which no complete setup is needed
     if args.version:
         print(__version__)
         sys.exit(0)
-
-    if args.tutorial:
+    elif args.tutorial:
         interactiv_doc()
         sys.exit(0)
-
-    # initialize blank core
-    core = CensoCore.factory()
+    elif args.cleanup:
+        cleanup_run(cwd)
+        print("Removed files and going to exit!")
+        sys.exit(0)
+    elif args.cleanup_all:
+        cleanup_run(cwd, complete=True)
+        print("Removed files and going to exit!")
+        sys.exit(0)
+        
+    # setup storage with args (basically only rcpath and ensemblepath)
+    storage = CensoStorage(args, cwd)
+    
+    # setup internal settings with args
+    settings = InternalSettings(storage)
+    
+    # initialize core linked to storage
+    core = CensoCore.factory(storage)
 
     # read input and setup conformers
     core.read_input()
@@ -215,3 +231,54 @@ def main(argv=None):
     )
     print("\nCENSO all done!")
     return 0
+
+
+def cleanup_run(cwd, complete=False):
+        """
+        Delete all unneeded files.
+        """
+
+        # files containing these patterns are deleted
+        to_delete = [
+            "enso.json.", 
+            "enso_ensemble_part1.xyz.", 
+            "enso_ensemble_part2.xyz.", 
+            "enso_ensemble_part3.xyz.",
+            "a3mat.tmp",
+            "a2mat.tmp",
+            "amat.tmp",
+        ]
+
+        
+        # remove conformer_rotamer_check folder if complete cleanup
+        if complete:
+            print("Cleaning up the directory from ALL unneeded files!")
+            to_delete[0] = "enso.json"
+            if os.path.isdir(os.path.join(cwd, "conformer_rotamer_check")):
+                print("Removing conformer_rotamer_check")
+                shutil.rmtree(os.path.join(cwd, "conformer_rotamer_check"))
+        else:
+            print("Cleaning up the directory from unneeded files!")
+
+        print(f"Be aware that files in {cwd} and subdirectories with names containing the following substrings will be deleted:")
+        for sub in to_delete:
+            print(sub)
+
+        print("Do you wish to continue?")
+        print("Please type 'yes' or 'no':")
+
+        ui = input()
+        if ui.strip().lower() not in ["yes", "y"]:
+            print("Aborting cleanup!")
+            sys.exit(0)
+
+        # iterate over files in cwd and subdirs recursively and remove them if to delete
+        deleted = 0
+        for subdir, dirs, files in os.walk(cwd):
+            for file in files:
+                if any([str in file for str in to_delete]) and int(file.split(".")[2]) > 1:
+                    print(f"Removing: {file}")
+                    os.remove(os.path.join(subdir, file))
+                    deleted += os.path.getsize(os.path.join(subdir, file))
+
+        print(f"Removed {deleted / (1024 * 1024): .2f} MB")

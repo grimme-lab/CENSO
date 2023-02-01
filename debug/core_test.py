@@ -5,12 +5,14 @@ import numpy as np
 from censo_test.inputhandling import cml
 from censo_test.cfg import DESCR
 from censo_test.core import CensoCore
+from censo_test.storage import CensoStorage
 
-test_args = cml(DESCR, "")
+test_args = cml(DESCR, "-inp testfiles/crest_conformers.xyz".split())
+test_dir = os.getcwd()
 
 class CoreTest(unittest.TestCase):
     def setUp(self):
-        self.test = CensoCore.factory(os.getcwd(), test_args)
+        self.test = CensoCore.factory(CensoStorage(test_args, test_dir))
         
     
     @CensoCore.check_instance
@@ -24,3 +26,7 @@ class CoreTest(unittest.TestCase):
         
     def test_read_input(self):
         self.test.read_input()
+        
+        
+    def test_instance(self):
+        self.assertEqual(self.test, self.test.core())

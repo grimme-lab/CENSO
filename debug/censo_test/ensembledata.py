@@ -94,8 +94,6 @@ class EnsembleData:
         if comment is None:
             comment = []
         self.id = id
-        self.part_info = part_info
-        self.previous_part_info = previous_part_info
         self.avGcorrection = avGcorrection
         self.comment = comment
         self.bestconf = bestconf

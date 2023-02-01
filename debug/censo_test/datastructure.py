@@ -10,6 +10,7 @@ from math import log
 
 # TODO - give information regarding status in the run in attributes e.g. above or below threshold
 # TODO - devide into "mutable" and "immutable" attributes
+# TODO - wtf is going on with this code
 class MoleculeData:
     """
     molecule_data contains all thermodynamic properties of a conformer e.g.
@@ -307,7 +308,7 @@ class MoleculeData:
 
         # exceptions:
         # FIXME - !!!! wtf
-        if not isinstance(rank, int):
+        """ if not isinstance(rank, int):
             raise TypeError(
                 "Please input an integer. The id is the rank of the "
                 "molecule in the input ensemble!"
@@ -374,7 +375,8 @@ class MoleculeData:
         if not isinstance(removed, bool):
             raise TypeError("Please provide removed with boolean true/false.")
         if any([type(i) != str for i in part_info.values()]):
-            raise TypeError("Please provide part_info settings as str!")
+            raise TypeError("Please provide part_info settings as str!") """
+        
         # assignment:
         self.id = id  # this is the rank from the input ensemble
         self.xyz = xyz

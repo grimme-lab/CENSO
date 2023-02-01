@@ -7,6 +7,7 @@ import os
 import sys
 from typing import Dict, Union
 
+# FIXME - not good practice?
 __version__ = "1.3.0"
 
 DESCR = f"""
@@ -67,6 +68,20 @@ PARTS = (
     "optrot", 
     "uvvis"
 )
+
+ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+
+PROGS = ("orca", "tm")
+
+SOLV_MODS = {
+    "orca": ("cpcm", "smd"),
+    "tm": ("cosmo", "dcosmors"),
+}
+
+SOLV_GMODS = {
+    "orca": ("gbsa_gsolv", "alpb_gsolv", "smd_gsolv"),
+    "tm": ("cosmors", "cosmors-fine"),
+}
 
 Settings = Dict[
             type, Dict[
