@@ -1,5 +1,5 @@
-$CENSO global configuration file: .censorc
-$VERSION:1.3.0 
+$CENSO global configuration file: censorc_new
+$VERSION: 1.3.0 
 
 ORCA: /path/excluding/binary/
 ORCA version: 4.2.1
@@ -40,7 +40,7 @@ trange: [273.15, 378.15, 5]
 
 $PRESCREENING SETTINGS
 prescreening_threshold: 4.0
-func: b97-d
+func: b97-d3(0)
 basis: def2-SV(P)
 prog: tm
 gfnv: gfn2
@@ -77,7 +77,7 @@ crestcheck: False
 $REFINEMENT SETTINGS
 refinement_threshold: 99.0
 prog: tm
-func: pw6b95
+func: pw6b95-d4
 basis: def2-TZVPD
 smgsolv: cosmors
 gfnv: gfn2
@@ -86,11 +86,11 @@ run: False
 $NMR SETTINGS
 resonance_frequency: 300.0
 prog4_j: tm
-func_j: pbe0
+func_j: pbe0-d4
 basis_j: def2-TZVP
 sm4_j: default
 prog4_s: tm
-func_s: pbe0
+func_s: pbe0-d4
 basis_s: def2-TZVP
 sm4_s: default
 h_ref: TMS
@@ -108,7 +108,7 @@ si_active: False
 p_active: False
 
 $OPTROT SETTINGS
-func: pbe
+func: pbe-d4
 func_or_scf: r2scan-3c
 basis: def2-SVPD
 prog: orca

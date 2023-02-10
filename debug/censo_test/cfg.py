@@ -59,6 +59,7 @@ PLANCK = 6.62607015e-34
 C = 2.998e8
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
+# FIXME - include 'general' here?
 PARTS = (
     "prescreening", 
     "screening", 
@@ -83,7 +84,7 @@ SOLV_GMODS = {
     "tm": ("cosmors", "cosmors-fine"),
 }
 
-Settings = Dict[
+SettingsDict = Dict[
             type, Dict[
                 str, Dict[
                     str, Union[

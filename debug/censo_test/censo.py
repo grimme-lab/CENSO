@@ -80,8 +80,43 @@ def main(argv=None):
     # setup storage with args (basically only rcpath and ensemblepath)
     storage = CensoStorage(args, cwd)
     
-    # setup internal settings with args
-    settings = InternalSettings(storage)
+    # setup internal settings with default values
+    settings = InternalSettings()
+    
+    # TODO - where to put this?
+    # no censorc found at standard dest./given dest.
+    if storage.censorc_path == "":
+        print(
+            f"No rcfile has been found. Do you want to create a new one?\n"
+        )
+
+        user_input = ""
+        while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+            print("Please type 'yes/y' or 'no/n':")
+            user_input = input()
+        
+        if user_input.strip().lower() in ("y", "yes"):
+            storage.censorc_path = settings.write_config(args, cwd)
+        elif user_input.strip().lower() in ("n", "no"):
+            print(
+                "Configuration file needed to run CENSO!\n"
+                "Going to exit!"
+            )
+            sys.exit(1)
+    
+    settings.censorc_path = storage.censorc_path
+    
+    # update the settings with rcdata and cml args
+    # TODO - maybe make this more readable
+    settings.settings_current = args
+    
+    # print errors and exit if there are any conflicting settings
+    errors = settings.check_logic()
+    
+    if len(errors) != 0:
+        for error in errors:
+            print(error)
+        sys.exit(1) 
     
     # initialize core linked to storage
     core = CensoCore.factory(storage)

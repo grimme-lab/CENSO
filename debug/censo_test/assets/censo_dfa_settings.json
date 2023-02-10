@@ -29,7 +29,7 @@
             "orca": "pbeh-3c",
             "disp": "composite",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -45,7 +45,7 @@
             "orca": "b97-3c",
             "disp": "composite",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -61,7 +61,7 @@
             "orca": "r2scan-3c",
             "disp": "composite",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -77,7 +77,7 @@
             "orca": "b3lyp",
             "disp": "composite",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -93,7 +93,7 @@
             "orca": "pbe",
             "disp": "novdw",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -109,7 +109,7 @@
             "orca": "pbe",
             "disp": "d3bj",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -125,7 +125,7 @@
             "orca": "pbe",
             "disp": "d3(0)",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -141,7 +141,7 @@
             "orca": "pbe",
             "disp": "d4",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -172,7 +172,7 @@
             "orca": "tpss",
             "disp": "novdw",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -188,7 +188,7 @@
             "orca": "tpss",
             "disp": "d3bj",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -204,7 +204,7 @@
             "orca": "tpss",
             "disp": "d3(0)",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -220,7 +220,7 @@
             "orca": "tpss",
             "disp": "d4",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -251,7 +251,7 @@
             "orca": "revTPSS",
             "disp": "novdw",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -265,7 +265,7 @@
             "orca": "b97-d3",
             "disp": "d3bj",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -281,7 +281,7 @@
             "orca": "",
             "disp": "d3(0)",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -311,7 +311,7 @@
             "orca": "pbe0",
             "disp": "novdw",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -327,7 +327,7 @@
             "orca": "pbe0",
             "disp": "d3bj",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -343,7 +343,7 @@
             "orca": "pbe0",
             "disp": "d3(0)",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -359,7 +359,7 @@
             "orca": "pbe0",
             "disp": "d4",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -390,7 +390,7 @@
             "orca": "pw6b95",
             "disp": "novdw",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -406,7 +406,7 @@
             "orca": "pw6b95",
             "disp": "d3bj",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -422,7 +422,7 @@
             "orca": "pw6b95",
             "disp": "d3(0)",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -438,7 +438,7 @@
             "orca": "pw6b95",
             "disp": "d4",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -454,7 +454,7 @@
             "orca": "b3lyp",
             "disp": "novdw",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -470,7 +470,7 @@
             "orca": "b3lyp",
             "disp": "d3bj",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -486,7 +486,7 @@
             "orca": "b3lyp",
             "disp": "d3(0)",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -502,7 +502,7 @@
             "orca": "b3lyp",
             "disp": "d4",
             "part": [
-                "func0",
+                "prescreening",
                 "func1",
                 "func2",
                 "func3",
@@ -533,7 +533,7 @@
             "orca": "wb97x-v",
             "disp": "included",
             "part": [
-                "func0", 
+                "prescreening", 
                 "func1",
                 "func2", 
                 "func3", 
@@ -547,7 +547,7 @@
             "orca": "wb97x-d3",
             "disp": "included",
             "part": [
-                "func0", 
+                "prescreening", 
                 "func1",
                 "func2", 
                 "func3", 
@@ -561,7 +561,7 @@
             "orca": "wb97x-d3bj",
             "disp": "included",
             "part": [
-                "func0", 
+                "prescreening", 
                 "func1",
                 "func2", 
                 "func3", 
@@ -575,7 +575,7 @@
             "orca": "wb97x-d4",
             "disp": "included",
             "part": [
-                "func0", 
+                "prescreening", 
                 "func1",
                 "func2", 
                 "func3", 
