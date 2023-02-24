@@ -5,7 +5,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 import sys
-from typing import Dict, Union
+from typing import Dict, Tuple, Union
 
 # FIXME - not good practice?
 __version__ = "1.3.0"
@@ -74,7 +74,7 @@ ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 
 PROGS = ("orca", "tm")
 
-SOLV_MODS = {
+SOLV_MODS: Dict[str, Tuple] = {
     "orca": ("cpcm", "smd"),
     "tm": ("cosmo", "dcosmors"),
 }

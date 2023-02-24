@@ -12,7 +12,7 @@ from censo.cfg import (
 
 # TODO - lineup args with settings_options
 # TODO - arg for assets_path?
-# removed ALL choices, since these are checked in InternalSettings.check_logic anyways
+# removed ALL choices, since these are checked in CensoSettings.check_logic anyways
 def cml(startup_description, argv=None):
     """
     Process commandline arguments

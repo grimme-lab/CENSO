@@ -21,7 +21,7 @@ from censo.cfg import (
     __version__,
 )
 from censo.orca_job import OrcaJob
-from censo.settings import InternalSettings, PARTS, Settings
+from censo.settings import CensoSettings, PARTS, Settings
 from censo.tm_job import TmJob
 from censo.datastructure import MoleculeData
 from censo.ensembledata import EnsembleData
@@ -114,7 +114,7 @@ class CensoCore:
         # path to file directly
         self.ensemble_path: str = self.find_ensemble()
 
-        self.internal_settings = InternalSettings(self, self.args)
+        self.internal_settings = CensoSettings(self, self.args)
 
         # pathsdefaults: --> read_program_paths
         self.external_paths: Dict[str, str] = {}
@@ -554,7 +554,7 @@ class CensoCore:
                 tmpsettings[tmppart] = {}
                 
             # second, get default for each setting and store it
-            for parts in InternalSettings.settings_options.values():
+            for parts in CensoSettings.settings_options.values():
                 for part, settings in parts.items():
                     if settings:
                         for setting, definition in settings.items():
@@ -608,7 +608,7 @@ class CensoCore:
             while True:
                 while not line.startswith("$"):
                     spl = line.strip().split(":")
-                    sett_type = InternalSettings.get_type(spl[0])
+                    sett_type = CensoSettings.get_type(spl[0])
                     if sett_type and sett_type not in rcdata.keys():
                         try:
                             rcdata[sett_type] = {}

@@ -47,7 +47,7 @@ class DfaSettings:
         return set([v for v in self.dfa_dict["composite_method_basis"].values()])
 
 
-class InternalSettings:
+class CensoSettings:
     """
     All options are saved here.
     Manages internal settings
@@ -350,7 +350,7 @@ class InternalSettings:
         """
         returns the type of a given setting
         """
-        for type_t, parts in InternalSettings.settings_options.items():
+        for type_t, parts in CensoSettings.settings_options.items():
             for settings in parts.values():
                 if settings:
                     if setting in settings.keys():
@@ -476,7 +476,7 @@ class InternalSettings:
         self._settings_current = self.parent.read_config()
         
         # overwrite settings
-        for type_t, val in InternalSettings.settings_options.items():
+        for type_t, val in CensoSettings.settings_options.items():
             for part, settings in val.items():
                 if settings:
                     # set the value of the settings according to cml if given
@@ -751,7 +751,7 @@ class InternalSettings:
         except (ValueError, AttributeError):
             orcaversion = 2"""
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        tmp_stroptions = InternalSettings.settings_options[str]
+        tmp_stroptions = CensoSettings.settings_options[str]
 
         for part in PARTS:
             """
@@ -775,7 +775,7 @@ class InternalSettings:
                     )
                 else:
                     # FIXME - doesn't work properly yet for part4_j/s
-                    tmp_prog_funcname = InternalSettings.dfa_settings.dfa_dict["functionals"][tmp_settings["func"]][tmp_settings["prog"]]
+                    tmp_prog_funcname = CensoSettings.dfa_settings.dfa_dict["functionals"][tmp_settings["func"]][tmp_settings["prog"]]
                     if not tmp_prog_funcname:
                         errors.append(LogicError(
                                 "func",

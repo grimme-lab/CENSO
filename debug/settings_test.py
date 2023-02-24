@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from censo_test.inputhandling import cml
 from censo_test.cfg import DESCR
-from censo_test.settings import InternalSettings
+from censo_test.settings import CensoSettings
 
 test_args = cml(DESCR, "-inp testfiles/crest_conformers.xyz -solvent water".split())
 test_dir = os.getcwd()
@@ -14,7 +14,7 @@ test_path = "/home/polt/prog/CENSO/debug/censorc_new"
 
 class SettingsTest(unittest.TestCase):
     def setUp(self):
-        self.test = InternalSettings()
+        self.test = CensoSettings()
         
         
     def test_write_config(self):

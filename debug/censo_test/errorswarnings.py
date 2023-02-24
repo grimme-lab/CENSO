@@ -18,3 +18,8 @@ class LogicError(Exception):
         
     def __str__(self) -> str:
         return f"LogicError: Invalid value for setting {self._setting}\n{self._problem}\n{self._fix}\n"
+    
+    
+class LogicWarning(Warning):
+    def __init__():
+        """"""

@@ -18,7 +18,7 @@ from censo_test.cfg import (
     SettingsDict,
     __version__,
 )
-from censo_test.errors import LogicError
+from debug.censo_test.errorswarnings import LogicError, LogicWarning
 
 class DfaSettings:
     def __init__(self, obj: Dict[str, Dict[str, Dict]]):
@@ -27,7 +27,7 @@ class DfaSettings:
     
     def find_func(self, part: str, prog=None):
         """
-        return all functionals for available for a certain part and (optionally) program
+        return all functionals available for a certain part and (optionally) program
         """
         tmp = []
         for k, v in self.dfa_dict["functionals"].items():
@@ -90,17 +90,22 @@ class SettingsTuple(tuple):
         return None
     
     
-    def get_settings(self, types: list[type], parts: list[str], names: list[str]) -> List[Setting]:
+    def get_settings(self, types: list[type], parts: list[str], names: list[str]) -> Tuple[List[Setting], List[str]]:
         """
         returns a list of 'Setting' objects that match the args
+        also returns the names of the settings that were not found
         """
-        return [
-            item for item in self 
-            if item.type in types and item.part in parts and item.name in names
-        ]
+        matches = []
+        notfound = names
+        for item in self:
+            if item.type in types and item.part in parts and item.name in names:
+                matches.append(item)
+                notfound.remove(item.name)
+                
+        return matches, notfound
 
 
-class InternalSettings:
+class CensoSettings:
     """
     All options are saved here.
     Manages internal settings
@@ -400,7 +405,7 @@ class InternalSettings:
         """
         returns the type of a given setting
         """
-        for type_t, parts in InternalSettings.settings_options.items():
+        for type_t, parts in CensoSettings.settings_options.items():
             for settings in parts.values():
                 if settings:
                     if setting in settings.keys():
@@ -410,6 +415,9 @@ class InternalSettings:
 
         
     def __init__(self):
+        """
+        setup with default settings, all other attributes blank
+        """        
         self._settings_current: SettingsTuple = self.default_settings()
         self.censorc_path: str
         
@@ -456,7 +464,7 @@ class InternalSettings:
             except AttributeError:
                 print(f"Could not find {setting} in cml args.")
               
-        print(f"Remaining settings:\n{rcdata}")
+        print(f"Remaining settings:\n{rcdata}") # TODO - where to print out?
 
 
     def default_settings(self) -> SettingsTuple:
@@ -467,7 +475,7 @@ class InternalSettings:
         # normal tuple operations cast result into normal tuple instead of SettingsTuple
         tmp = []
         # loop over all known settings (hardcoded in settings_options)
-        for type_t, parts in InternalSettings.settings_options.items():
+        for type_t, parts in CensoSettings.settings_options.items():
             for part, settings in parts.items():
                 if settings:
                     # if settings exist create 'Setting' objects with default settings
@@ -517,7 +525,7 @@ class InternalSettings:
                 while not line.startswith("$"):
                     # split the line at ':' and remove leading and trailing whitespaces
                     spl = [s.strip() for s in line.split(":")]
-                    sett_type = InternalSettings.get_type(spl[0]) # FIXME - eindeutig?
+                    sett_type = CensoSettings.get_type(spl[0]) # FIXME - eindeutig?
                     
                     # TODO - smells of copy paste
                     try:
@@ -622,7 +630,7 @@ class InternalSettings:
                 outdata.write(f"\n${part.upper()} SETTINGS\n")
                 
                 # iterate over the values for all types (dicts mapping partnames to settings)
-                for parts in InternalSettings.settings_options.values():
+                for parts in CensoSettings.settings_options.values():
                     # get only the settings for the current part
                     settings = parts[part]
                     
@@ -750,18 +758,18 @@ class InternalSettings:
                     break
 
 
-    def check_logic(self) -> List[LogicError]:
+    def check_logic(self) -> Tuple[List[LogicError], List[LogicWarning]]:
         """
         Checks internal settings for impossible setting-combinations
         also checking if calculations are possible with the requested qm_codes.
         """
-        # TODO - move checks concerning options given by commandline
         # TODO - check for uv/vis args
-        # TODO - pass parts to be checked via arg
-        # TODO - divide into sections
-        # TODO - collect all errors and return them
         
+        # affect execution, making it (partially) impossible
         errors = []
+        
+        # do not affect execution, although might lead to errors/unexpected behaviour down the line
+        warnings = []
         
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Handle prog_rrho
@@ -781,7 +789,7 @@ class InternalSettings:
                     "hessians possible and no TM hessians"
                 ) """
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        if not self.settings_current(settings="gas-phase"):
+        if not self.settings_current.get_setting(bool, "general", "gas-phase"):
             with open(os.path.join(ASSETS_PATH, "solvents.json"), "r") as file:
                 solvents = json.load(file)
                 
@@ -801,49 +809,70 @@ class InternalSettings:
             # check for solvent availability for given solvent model
             # TODO - what about "replacements" for solvents
             # TODO - add flexibility concerning prescreening, optrot, uvvis
-            tmp_settings = self.settings_current(
-                types=str, 
-                settings=["prog", "sm", "smgsolv"]
-            )
-            
-            for part in PARTS:
-                prog: str = tmp_settings[part]["prog"]
-                sm: str = tmp_settings[part]["sm"]
-                smgsolv: str = tmp_settings[part]["smgsolv"]
-                
-                # availability in program
-                # FIXME - calling the attributes of the job types should work?
-                if (
-                    sm not in SOLV_MODS[prog]
-                    or smgsolv not in SOLV_GMODS[prog]
-                ):
-                    errors.append(LogicError(
-                            "sm/smgsolv",
-                            f"{sm} or {smgsolv} not available with given program {prog} in part {part}.",
-                            "Choose a different solvent model!"
-                        )
-                    )
-                # availability in solvent model
-                elif self.settings_current(settings="solvent") not in solvents[sm]:
-                    errors.append(LogicError(
-                            "solvent",
-                            f"Solvent {self.settings_current(settings='solvent')} not available for solvent model {sm} in part {part}.",
-                            "Choose a different solvent!"
-                        )
-                    )
-                    # TODO - check for dielectric constant for cosmo ->  dc only needed for dcosmors?
+            try:
+                solvent = self.settings_current.get_setting(str, "general", "solvent").value
+                multitemp = self.settings_current.get_setting(bool, "general", "multitemp").value
+                for part in PARTS[1:4]:
+                    prog = self.settings_current.get_setting(str, part, "prog")
+                    sm = self.settings_current.get_setting(str, part, "sm")
+                    smgsolv = self.settings_current.get_setting(str, part, "smgsolv")
                     
-                # there is no multitemp support for any orca smgsolv
-                if (
-                    self.settings_current(parts=part, settings="prog") == "orca"
-                    and self.settings_current(settings="multitemp")
-                ):
-                    errors.append(LogicError(
-                            "multitemp",
-                            "There is no multitemp support for any solvent models in ORCA.",
-                            "Disable multitemp!"                  
+                    # assert that all settings are initialized 
+                    for s in [prog, sm, smgsolv, solvent, multitemp]:
+                        if not s:
+                            errors.append(LogicError(
+                                    f"prog/sm/smgsolv/solvent ({part})",
+                                    "Either one of these settings is not defined.",
+                                    f"Verify integrity of InternalSettings.settings_options and congruency with {self}._settings_current." # TODO - where do you find these?
+                                )
+                            )
+                        elif s:
+                            s = s.value
+                            
+                    # availability in program
+                    if (
+                        all([s for s in [sm, prog, smgsolv]])
+                        and sm not in SOLV_MODS[prog]
+                        or smgsolv not in SOLV_GMODS[prog]
+                    ):
+                        errors.append(LogicError(
+                                f"sm/smgsolv ({part})",
+                                f"{sm} or {smgsolv} not available with given program {prog} in part {part}.",
+                                "Choose a different solvent model."
+                            )
                         )
+                    # availability in solvent model
+                    elif (
+                        all([s for s in [solvent, sm]])
+                        and solvent not in solvents[sm]
+                    ):
+                        errors.append(LogicError(
+                                "solvent",
+                                f"Solvent {solvent} not available for solvent model {sm} in part {part}.",
+                                "Choose a different solvent."
+                            )
+                        )
+                        # TODO - check for dielectric constant for cosmo ->  dc only needed for dcosmors?
+                        
+                    # there is no multitemp support for any orca smgsolv
+                    if (
+                        all([s for s in [prog, multitemp]])
+                        and prog == "orca"
+                        and multitemp
+                    ):
+                        errors.append(LogicError(
+                                "multitemp",
+                                "There is no multitemp support for any solvent models in ORCA.",
+                                "Disable multitemp."                  
+                            )
+                        )
+            except AttributeError:
+                errors.append(LogicError(
+                        "multitemp/solvent",
+                        "Settings not defined.",
+                        "Check ." # TODO                  
                     )
+                )
 
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1012,7 +1041,7 @@ class InternalSettings:
         except (ValueError, AttributeError):
             orcaversion = 2"""
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        tmp_stroptions = InternalSettings.settings_options[str]
+        tmp_stroptions = CensoSettings.settings_options[str]
 
         for part in PARTS:
             """
@@ -1020,12 +1049,24 @@ class InternalSettings:
             look for funcX/basisX
             check if funcX/basisX values are allowed in settings_options
             """
-            # get settings for the part as dict
-            tmp_settings = self.settings_current(parts=part, settings=["run", "prog", "func", "basis"])
-
-            if len(tmp_settings.keys()) == 0:
-                continue
+            settings = self.settings_current.get_settings(
+                [str, bool], 
+                [part], 
+                ["run", "prog", "func", "basis"]
+            )
             
+            # assert that all settings are initialized 
+            for s in settings:
+                if not s:
+                    errors.append(LogicError(
+                            f"run/prog/func/basis ({part})",
+                            "Either one of these settings is not defined.",
+                            f"Verify integrity of InternalSettings.settings_options and congruency with {self}._settings_current." # TODO - where do you find these?
+                        )
+                    )
+                elif s:
+                    s = s.value
+                    
             # iterate through settings and check for funcX
             # TODO - handle composite method bases
             if tmp_settings["run"] and tmp_stroptions[part]:
@@ -1040,7 +1081,7 @@ class InternalSettings:
                 else:
                     print(part, tmp_settings)
                     # FIXME - doesn't work properly yet for part4_j/s
-                    if not tmp_settings["func"] in InternalSettings.dfa_settings.find_func(part, tmp_settings["prog"]):
+                    if not tmp_settings["func"] in CensoSettings.dfa_settings.find_func(part, tmp_settings["prog"]):
                         errors.append(LogicError(
                                 "func",
                                 f"The functional {tmp_settings['func']} is not available for the software package {tmp_settings['prog']} in part {part}.",

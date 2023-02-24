@@ -20,7 +20,7 @@ from censo_test.tutorial import interactiv_doc
 from censo_test.core import CensoCore
 from censo_test.prescreening import Prescreening
 from censo_test.storage import CensoStorage
-from censo_test.settings import InternalSettings
+from censo_test.settings import CensoSettings
 
 # use generators for reduced memory usage?
 # dict.setdefault()
@@ -53,7 +53,7 @@ def main(argv=None):
     
     # first, check program integrity
     # TODO - proper implementation?
-    # FIXME - InternalSettings module is loaded before integrity is verified!!
+    # FIXME - CensoSettings module is loaded before integrity is verified!!
     if not os.path.isdir(ASSETS_PATH):
         raise FileNotFoundError(ASSETS_PATH)
         
@@ -81,7 +81,7 @@ def main(argv=None):
     storage = CensoStorage(args, cwd)
     
     # setup internal settings with default values
-    settings = InternalSettings()
+    settings = CensoSettings()
     
     # TODO - where to put this?
     # no censorc found at standard dest./given dest.
