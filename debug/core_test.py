@@ -26,7 +26,3 @@ class CoreTest(unittest.TestCase):
         
     def test_read_input(self):
         self.test.read_input()
-        
-        
-    def test_instance(self):
-        self.assertEqual(self.test, self.test.core())

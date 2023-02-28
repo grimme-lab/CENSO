@@ -11,15 +11,17 @@ such as conformers or ensembledata)
 - main functions with @timeit
 """
 
-from censo.utilities import timeit
-from censo.core import CensoCore
+from censo_test.utilities import timeit
+from censo_test.core import CensoCore
+from censo_test.settings import SettingsTuple
 
 class CensoPart:
     
     name: str = "GENERIC"
     
-    def __init__(self, core: CensoCore):
+    def __init__(self, core: CensoCore, settings: SettingsTuple):
         self.core: CensoCore = core
+        self.settings = settings
     
     
     @timeit
@@ -45,4 +47,7 @@ class CensoPart:
     
     
     def print(self):
+        """
+        print format for every part
+        """
         pass

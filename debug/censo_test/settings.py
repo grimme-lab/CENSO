@@ -18,7 +18,7 @@ from censo_test.cfg import (
     SettingsDict,
     __version__,
 )
-from debug.censo_test.errorswarnings import LogicError, LogicWarning
+from censo_test.errorswarnings import LogicError, LogicWarning
 
 class DfaSettings:
     def __init__(self, obj: Dict[str, Dict[str, Dict]]):
@@ -58,7 +58,7 @@ class Setting:
     default: Union[int, float, str, list, bool]
     
     def __str__(self):
-        return f"{self.name}: {self.value} (part: {self.part})"
+        return f"{self.name}: {self.value}"
 
 
 class SettingsTuple(tuple):
@@ -78,6 +78,16 @@ class SettingsTuple(tuple):
         super().__init__()
     
     
+    def byname(self, name: str) -> Union[Setting, None]:
+        """
+        returns the first 'Setting' object in itself that has the given name
+        if no matching one is found 'None' is returned
+        """
+        for item in self:
+            if item.name == name:
+                return item
+    
+    
     def get_setting(self, type_t: type, part: str, name: str) -> Union[Setting, None]:
         """
         returns exactly the 'Setting' object defined by the args
@@ -90,71 +100,23 @@ class SettingsTuple(tuple):
         return None
     
     
-    def get_settings(self, types: list[type], parts: list[str], names: list[str]) -> Tuple[List[Setting], List[str]]:
+    def get_settings(self, types: list[type], parts: list[str], names: list[str]) -> List[Setting]:
         """
         returns a list of 'Setting' objects that match the args
-        also returns the names of the settings that were not found
         """
         matches = []
-        notfound = names
         for item in self:
             if item.type in types and item.part in parts and item.name in names:
                 matches.append(item)
-                notfound.remove(item.name)
                 
-        return matches, notfound
-
+        return matches
+    
 
 class CensoSettings:
     """
     All options are saved here.
     Manages internal settings
     """
-    # TODO - restart
-    """ # must not be changed if restart(concerning optimization)
-    restart_unchangeable = [
-        "unpaired",
-        "charge",
-        "solvent",
-        "prog",
-        "prog2opt",
-        "ancopt",
-        "opt_spearman",
-        "optlevel2",
-        "func",
-        "basis",
-        "sm2",
-        "nat",
-        "radsize",
-        "cosmorsparam",
-    ]
-    # may be changed but data may be lost/overwritten
-    restart_changeable = {
-        "multitemp": False,
-        # "temperature": False, # should not be changeable all solvent and
-        # rrho values depend on this
-        "trange": False,
-        "bhess": False,
-        "part1_gfnv": False,
-        "optimization_gfnv": False,
-        "refinement_gfnv": False,
-        "smgsolv1": False,
-        "smgsolv2": False,
-        "smgsolv3": False,
-        "func_or": False,
-        "basis_or": False,
-        "func_or_scf": False,
-        "freq_or": False,
-        "func3": False,
-        "basis3": False,
-        "func_j": False,
-        "basis_j": False,
-        "sm4_j": False,
-        "func_s": False,
-        "basis_s": False,
-        "sm4_s": False,
-        # "consider_sym": calculated on the fly
-    } """
 
     cosmors_param = {
         "12-normal": "BP_TZVP_C30_1201.ctd",
@@ -229,9 +191,9 @@ class CensoSettings:
     settings_options = MappingProxyType({
         int: MappingProxyType({
             "general": MappingProxyType({
-                "charge": {"default": 0, "options": (-256, 256)}, # TODO - (re)move?
-                "unpaired": {"default": 0, "options": (0, 10)}, # TODO - (re)move?
-                "maxthreads": {"default": 1, "options": (1, 1024)},
+                "charge": {"default": 0, "options": (-10, 10)}, # TODO - (re)move?
+                "unpaired": {"default": 0, "options": (0, 14)}, # TODO - (re)move?
+                "maxthreads": {"default": 1, "options": (1, 1024)}, # TODO - try to read out from environment variables
                 "omp": {"default": 1, "options": (1, 256)}, # number of cores per thread
             }),
             "prescreening": None,
@@ -255,7 +217,7 @@ class CensoSettings:
                 "temperature": {"default": 298.15, "options": (0.1, 2000.0)}, # TODO - 0.0 still works?
             }),
             "prescreening": MappingProxyType({
-                "prescreening_threshold": {"default": 4.0, "options": (1.0, 10.0)}, # TODO - which value as min?
+                "threshold": {"default": 4.0, "options": (1.0, 10.0)}, # TODO - which value as min?
             }),
             "screening": MappingProxyType({
                 "screening_threshold": {"default": 3.5, "options": (0.75, 7.5)},
@@ -393,7 +355,7 @@ class CensoSettings:
             "refinement": None,
             "nmr": None,
             "optrot": MappingProxyType({
-                "freq_or": {"default": [598.0]}, # FIXME - mit diesem setting ist irgendwas sus
+                "freq_or": {"default": [598.0]},
             }),
             "uvvis": None,
         }),
@@ -417,22 +379,23 @@ class CensoSettings:
     def __init__(self):
         """
         setup with default settings, all other attributes blank
-        """        
+        """   
         self._settings_current: SettingsTuple = self.default_settings()
+        
         self.censorc_path: str
         
-        # pathsdefaults: --> read_program_paths
+        # TODO - try to read paths from environment vars?
         self.external_paths: Dict[str, str] = {}
         self.external_paths["orcapath"] = ""
-        self.external_paths["orcaversion"] = ""
+        self.external_paths["orcaversion"] = "" # TODO - maybe remove this from here
         self.external_paths["xtbpath"] = ""
         self.external_paths["crestpath"] = ""
         self.external_paths["cosmorssetup"] = ""
         self.external_paths["dbpath"] = ""
-        self.external_paths["cosmothermversion"] = ""
+        self.external_paths["cosmothermversion"] = "" # TODO - maybe remove this from here
         self.external_paths["mpshiftpath"] = ""
         self.external_paths["escfpath"] = ""
-        
+         
 
     @property
     def settings_current(self) -> SettingsTuple:
@@ -446,6 +409,7 @@ class CensoSettings:
     def settings_current(self, args: Namespace):
         """
         iterate over all settings and set according to rcfile first, then cml args, 
+        implicitily calls check_logic
         """
         rcdata = self.read_config(self.censorc_path)
         for setting in self._settings_current:
@@ -465,6 +429,17 @@ class CensoSettings:
                 print(f"Could not find {setting} in cml args.")
               
         print(f"Remaining settings:\n{rcdata}") # TODO - where to print out?
+        
+        # print errors and exit if there are any conflicting settings
+        errors, warnings = self.check_logic()
+    
+        for warning in warnings:
+            print(warning)
+    
+        if len(errors) != 0:
+            for error in errors:
+                print(error)
+            sys.exit(1) 
 
 
     def default_settings(self) -> SettingsTuple:
@@ -558,7 +533,7 @@ class CensoSettings:
     def write_config(self, args: Namespace, cwd: str) -> str:
         """
         write new configuration file with default settings into 
-        either the local or ~/.censorc directory.
+        either the local 'censorc_new' or ~/.censorc.
         returns the path of the new configuration file
         """
         # what to do if there is an existing configuration file
@@ -652,6 +627,60 @@ class CensoSettings:
         )
 
         return path
+
+
+    def find_rcfile(self, cwd: str, inprcpath=None):
+        """check for existing censorc"""
+
+        # looks for censorc file (global configuration file)
+        # if there is no rcfile, CENSO exits
+        # looks for custom path and standard paths:
+        # cwd and $home dir
+        # absolute path to file directly
+
+        censorc_name = ".censorc"
+
+        tmp = [
+            os.path.join(cwd, censorc_name),
+            os.path.join(os.path.expanduser("~"), censorc_name)
+        ]
+
+        # mapping the paths defined above to True/False, 
+        # depending if file exists or not
+        check = {
+            os.path.isfile(tmp[0]): tmp[0],
+            os.path.isfile(tmp[1]): tmp[1],
+        }
+
+        # FIXME - not the best solution to ensure code safety
+        rcpath = ""
+
+        # check for .censorc in standard locations if no path is given
+        if not inprcpath:
+            if all(list(check.keys())):
+                # ask which one to use if both are found
+                print(
+                    f"Configuration files have been found, {tmp[0]} and "
+                    f"{tmp[1]}. Which one to use? (cwd/home)"
+                )
+                
+                user_input = ""
+                while user_input.strip().lower() not in ("cwd", "home"):
+                    print("Please type 'cwd' or 'home':")
+                    user_input = input()
+                
+                if user_input.strip().lower() in ("cwd"):
+                    rcpath = tmp[0]
+                elif user_input.strip().lower() in ("home"):
+                    rcpath = tmp[1]
+                    
+            elif any(list(check.keys())):
+                # take the one file found
+                rcpath = check[True]
+        elif inprcpath and os.path.isfile(inprcpath):
+            rcpath = inprcpath
+        
+        self.censorc_path = rcpath
 
 
     def read_program_paths(self):
@@ -763,9 +792,11 @@ class CensoSettings:
         Checks internal settings for impossible setting-combinations
         also checking if calculations are possible with the requested qm_codes.
         """
-        # TODO - check for uv/vis args
+        # TODO - complete it for all parts
         
-        # affect execution, making it (partially) impossible
+        print("CHECKING SETTINGS ...\n")
+        
+        # affect execution, making it (partially) impossible (contradict user settings)
         errors = []
         
         # do not affect execution, although might lead to errors/unexpected behaviour down the line
@@ -812,68 +843,79 @@ class CensoSettings:
             try:
                 solvent = self.settings_current.get_setting(str, "general", "solvent").value
                 multitemp = self.settings_current.get_setting(bool, "general", "multitemp").value
-                for part in PARTS[1:4]:
-                    prog = self.settings_current.get_setting(str, part, "prog")
-                    sm = self.settings_current.get_setting(str, part, "sm")
-                    smgsolv = self.settings_current.get_setting(str, part, "smgsolv")
-                    
-                    # assert that all settings are initialized 
-                    for s in [prog, sm, smgsolv, solvent, multitemp]:
-                        if not s:
-                            errors.append(LogicError(
-                                    f"prog/sm/smgsolv/solvent ({part})",
-                                    "Either one of these settings is not defined.",
-                                    f"Verify integrity of InternalSettings.settings_options and congruency with {self}._settings_current." # TODO - where do you find these?
-                                )
-                            )
-                        elif s:
-                            s = s.value
-                            
-                    # availability in program
-                    if (
-                        all([s for s in [sm, prog, smgsolv]])
-                        and sm not in SOLV_MODS[prog]
-                        or smgsolv not in SOLV_GMODS[prog]
-                    ):
-                        errors.append(LogicError(
-                                f"sm/smgsolv ({part})",
-                                f"{sm} or {smgsolv} not available with given program {prog} in part {part}.",
-                                "Choose a different solvent model."
-                            )
-                        )
-                    # availability in solvent model
-                    elif (
-                        all([s for s in [solvent, sm]])
-                        and solvent not in solvents[sm]
-                    ):
-                        errors.append(LogicError(
-                                "solvent",
-                                f"Solvent {solvent} not available for solvent model {sm} in part {part}.",
-                                "Choose a different solvent."
-                            )
-                        )
-                        # TODO - check for dielectric constant for cosmo ->  dc only needed for dcosmors?
-                        
-                    # there is no multitemp support for any orca smgsolv
-                    if (
-                        all([s for s in [prog, multitemp]])
-                        and prog == "orca"
-                        and multitemp
-                    ):
-                        errors.append(LogicError(
-                                "multitemp",
-                                "There is no multitemp support for any solvent models in ORCA.",
-                                "Disable multitemp."                  
-                            )
-                        )
             except AttributeError:
                 errors.append(LogicError(
                         "multitemp/solvent",
-                        "Settings not defined.",
+                        "Settings are not defined.",
                         "Check ." # TODO                  
                     )
                 )
+            else:
+                for part in PARTS[1:4]:
+                    # get 'prog', 'sm' and 'smgsolv' settings for the respective part
+                    settings = SettingsTuple(
+                        self.settings_current.get_settings(
+                            [str], 
+                            [part], 
+                            ["prog", "sm", "smgsolv"]
+                        )
+                    )
+                    
+                    for model in ["sm", "smgsolv"]:
+                        try:
+                            prog = settings.byname("prog").value
+                            model = settings.byname(model).value        
+                        except AttributeError:
+                            errors.append(LogicWarning(
+                                    f"prog/{model}",
+                                    f"One of the settings is not defined for part {part}.",
+                                    "Cannot check for availability."
+                                )
+                            )
+                        else:
+                            # check solvent availability in solvent model (warning)
+                            if solvent not in solvents[model]:
+                                warnings.append(LogicWarning(
+                                        "solvent",
+                                        f"Solvent {solvent} was not found to be available for solvent model {model} in part {part}.",
+                                        ""
+                                   )
+                                )
 
+                            # check sm/smgsolv availability in program (warning)
+                            if (
+                                model not in SOLV_MODS[prog] + SOLV_GMODS[prog]
+                            ):
+                                warnings.append(LogicWarning(
+                                        "sm/smgsolv",
+                                        f"Solvent model {model} was not found to be available with given program {prog} in part {part}.",
+                                        ""
+                                    )
+                                )
+                    # TODO - check for dielectric constant for cosmo ->  dc only needed for dcosmors?
+                    
+                    try:
+                        prog = settings.byname("prog").value
+                    except AttributeError:
+                        errors.append(LogicError(
+                                "prog",
+                                "Setting is not defined for part {part}.",
+                                "Check ." # TODO
+                            )
+                        )
+                    else:
+                        # there is no multitemp support for any orca smgsolv (error)
+                        if (
+                            prog == "orca"
+                            and multitemp
+                        ):
+                            errors.append(LogicError(
+                                    "multitemp",
+                                    "There is no multitemp support for any solvent models in ORCA.",
+                                    "Disable multitemp."                  
+                                )
+                            )
+            
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             # TODO - special part2
@@ -953,7 +995,6 @@ class CensoSettings:
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 
             # FIXME - looks up solvents, if solvent not found for solvent model a replacement is chosen automatically
-            # (why would you want that)
             """ else:
                 for key, value in check_for.items():
                     if value:
@@ -1041,84 +1082,94 @@ class CensoSettings:
         except (ValueError, AttributeError):
             orcaversion = 2"""
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        tmp_stroptions = CensoSettings.settings_options[str]
+        stroptions = CensoSettings.settings_options[str]
 
         for part in PARTS:
-            """
-            get settings for part
-            look for funcX/basisX
-            check if funcX/basisX values are allowed in settings_options
-            """
-            settings = self.settings_current.get_settings(
-                [str, bool], 
-                [part], 
-                ["run", "prog", "func", "basis"]
+            # get settings for part
+            # look for func/basis
+            # check if func/basis values are allowed in settings_options
+            settings = SettingsTuple(
+                self.settings_current.get_settings(
+                    [str, bool], 
+                    [part], 
+                    ["run", "prog", "func", "basis"]
+                )
             )
             
-            # assert that all settings are initialized 
-            for s in settings:
-                if not s:
-                    errors.append(LogicError(
-                            f"run/prog/func/basis ({part})",
-                            "Either one of these settings is not defined.",
-                            f"Verify integrity of InternalSettings.settings_options and congruency with {self}._settings_current." # TODO - where do you find these?
-                        )
+            try:
+                run = settings.byname("run").value
+                prog = settings.byname("prog").value
+                func = settings.byname("func").value
+                basis = settings.byname("basis").value
+            except AttributeError:
+                warnings.append(LogicWarning(
+                        "run/prog/func/basis",
+                        f"Settings at least partially not defined for part {part}",
+                        "Cannot check for availability."
                     )
-                elif s:
-                    s = s.value
-                    
-            # iterate through settings and check for funcX
-            # TODO - handle composite method bases
-            if tmp_settings["run"] and tmp_stroptions[part]:
-                # FIXME - again incorrect error because pylance is too stupid
-                if not tmp_settings["func"] in tmp_stroptions[part]["func"]["options"]:
-                    errors.append(LogicError(
-                            "func",
-                            f"The functional {tmp_settings['func']} is not available for any software package in part {part}.",
-                            "Choose a different functional!"
-                        )
-                    )
-                else:
-                    print(part, tmp_settings)
-                    # FIXME - doesn't work properly yet for part4_j/s
-                    if not tmp_settings["func"] in CensoSettings.dfa_settings.find_func(part, tmp_settings["prog"]):
-                        errors.append(LogicError(
+                )
+            else:
+                # iterate through settings and check for func
+                # TODO - handle composite method bases
+                if run and stroptions[part]:
+                    # FIXME - again incorrect error because pylance is too stupid
+                    if not func in stroptions[part]["func"]["options"]:
+                        warnings.append(LogicWarning(
                                 "func",
-                                f"The functional {tmp_settings['func']} is not available for the software package {tmp_settings['prog']} in part {part}.",
-                                "Choose a different functional or change the software package!"
+                                f"The functional {func} was not found to be available for any software package in part {part}.",
+                                ""
                             )
                         )
-                    # extra check for r2scan-3c
-                    elif (
-                        tmp_settings["func"] == "r2scan-3c" 
-                        and tmp_settings["prog"] == "orca"
-                        and int(self.storage.external_paths["orcaversion"].split(".")[0]) < 5
-                    ):
-                        errors.append(LogicError(
-                                "func",
-                                f"The functional r2scan-3c is only available from ORCA version 5 in part {part}.",
-                                "Choose a different functional or use a newer version of ORCA!"    
+                    else:
+                        # FIXME - doesn't work properly yet for part4_j/s
+                        # check for DFA availability in prog (warning)
+                        if not func in CensoSettings.dfa_settings.find_func(part, prog):
+                            warnings.append(LogicWarning(
+                                    "func",
+                                    f"The functional {func} was not found to be available for the software package {prog} in part {part}.",
+                                    ""
+                                )
                             )
-                        )
-                    # extra check for dsd-blyp
-                    elif (
-                        tmp_settings["func"] in ("dsd-blyp", "dsd-blyp-d3")
-                        and tmp_settings["basis"] != "def2-TZVPP"
-                    ):
-                        errors.append(LogicError(
-                                "func",
-                                f"The functional dsd-blyp is only available with the def2-TZVPP basis set in part {part}.",
-                                "Change the basis set to def2-TZVPP or choose a different functional!"    
+                        # extra check for r2scan-3c
+                        elif (
+                            func == "r2scan-3c" 
+                            and prog == "orca"
+                        ):
+                            try:
+                                if int(self.external_paths["orcaversion"].split(".")[0]) < 5:
+                                    errors.append(LogicError(
+                                            "func",
+                                            f"The functional r2scan-3c is only available from ORCA version 5 in part {part}.",
+                                            "Choose a different functional or use a newer version of ORCA."    
+                                        )
+                                    )
+                            except Exception:
+                                warnings.append(LogicWarning(
+                                        "func",
+                                        f"The availability for {func} could not be checked because the version of Orca could not be determined.",
+                                        ""
+                                    )
+                                )
+                        # extra check for dsd-blyp
+                        elif (
+                            func in ("dsd-blyp", "dsd-blyp-d3")
+                            and basis != "def2-TZVPP"
+                        ):
+                            errors.append(LogicError(
+                                    "func/basis",
+                                    f"The functional {func} is only available with the def2-TZVPP basis set in part {part}.",
+                                    "Change the basis set to def2-TZVPP or choose a different functional."    
+                                )
                             )
-                        )
-                        
-                    if not tmp_settings["basis"] in tmp_stroptions[part]["basis"]["options"]:
-                        errors.append(LogicError(
-                                "basis",
-                                f"The basis set {tmp_settings['basis']} is not available for any software package in part {part}.",
-                                "Choose a different basis set!"    
+                            
+                        # check for basis set availability in prog (warning)
+                        if not basis in stroptions[part]["basis"]["options"]:
+                            warnings.append(LogicWarning(
+                                    "basis",
+                                    f"The basis set {basis} was not found to be available for any software package in part {part}.",
+                                    ""    
+                                )
                             )
-                        )
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1174,4 +1225,4 @@ class CensoSettings:
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             
-        return errors
+        return errors, warnings

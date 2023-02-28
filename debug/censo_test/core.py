@@ -4,6 +4,8 @@ stores ensembledata and conformers
 functionality for program setup
 """
 
+from argparse import Namespace
+import os
 import sys
 from typing import Dict
 import weakref
@@ -34,9 +36,9 @@ class CensoCore:
     prog_job: Dict[str, type] = {"tm": TmJob, "orca": OrcaJob}
     
     @staticmethod
-    def factory(storage: CensoStorage):
+    def factory(args: Namespace, cwd: str):
         """keep track of the CensoCore instance (should only be one)"""
-        instance = CensoCore(storage)
+        instance = CensoCore(args, cwd)
         CensoCore._instance_ref[id(instance)] = instance
         return instance
 
@@ -81,10 +83,11 @@ class CensoCore:
             sys.exit(1)
 
 
-    def __init__(self, storage: CensoStorage):
+    def __init__(self, args: Namespace, cwd: str):
         """initialize core"""
 
-        self.storage: CensoStorage = storage  
+        self.cwd = cwd
+        self.args = args
         
         # contains run-specific info that may change during runtime
         # initialized in CensoCore.read_input
@@ -99,6 +102,12 @@ class CensoCore:
         # TODO - make into private attributes?
         self.conformers: list[MoleculeData] = []
         self.ensembledata: EnsembleData
+        
+        # if no input ensemble is found, CENSO exits
+        # path has to be given via cml or the default path will be used:
+        # "{cwd}/crest_conformers.xyz"
+        # absolute path to file directly
+        self.ensemble_path: str = self.find_ensemble()
 
 
     """ def run_args(self) -> None:
@@ -242,40 +251,45 @@ class CensoCore:
                     )
         ### END ORCA user editable input """
         
+    
+    def find_ensemble(self) -> str:
+        """check for ensemble input file"""
+        # if input file given via args use this path, otherwise set path to a default value
+        if self.args.inp:
+            ensemble_path = os.path.join(self.cwd, self.args.inp)
+        else:
+            ensemble_path = os.path.join(self.cwd, "crest_conformers.xyz")
+
+        if os.path.isfile(ensemble_path):
+            return ensemble_path
+        else:
+            """ print(
+                f"{'ERROR:':{WARNLEN}}The input ensemble cannot be found!"
+            ) """
+            sys.exit(1)
+            
         
     def read_input(self) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
         """
-        
-        # restart capability
-        """ if self.args.restart and os.path.isfile(os.path.join(self.cwd, "enso.json")):
-            tmp = config.read_json(os.path.join(self.cwd, "enso.json"), silent=True)
-            if "ensemble_info" in tmp and self.args.inp is None:
-                inpfile = os.path.basename(tmp["ensemble_info"].get("filename"))
-
-                if os.path.isfile(inpfile):
-                    self.args.inp = inpfile
-
-                if self.args.debug:
-                    print(f"Using Input file from: {inpfile}") """
 
         # store md5 hash for quick comparison of inputs later
-        self.runinfo["md5"] = do_md5(self.storage.ensemble_path)
+        self.runinfo["md5"] = do_md5(self.ensemble_path)
         
         # if $coord in file => tm format, needs to be converted to xyz
-        with open(self.storage.ensemble_path, "r", encoding=CODING, newline=None) as inp:
+        with open(self.ensemble_path, "r", encoding=CODING, newline=None) as inp:
             lines = inp.readlines()
             if any(["$coord" in line for line in lines]):
-                _, self.runinfo["nat"], self.storage.ensemble_path = t2x(
-                        self.storage.ensemble_path, writexyz=True, outfile="converted.xyz"
+                _, self.runinfo["nat"], self.ensemble_path = t2x(
+                        self.ensemble_path, writexyz=True, outfile="converted.xyz"
                     )
             else:
                 self.runinfo["nat"] = int(lines[0].split()[0])
         
         # FIXME - temporary place for remaining settings
         # FIXME - where to put spearmanthr???
-        if not self.storage.args.spearmanthr:
+        if not self.args.spearmanthr:
             # set spearmanthr by number of atoms:
             self.spearmanthr = 1 / (exp(0.03 * (self.runinfo["nat"] ** (1 / 4))))
 
@@ -297,16 +311,16 @@ class CensoCore:
         read out energy from xyz file if possible
         """
         # open ensemble input
-        with open(self.storage.ensemble_path, "r") as file:
+        with open(self.ensemble_path, "r") as file:
             lines = file.readlines()
             nat = self.runinfo["nat"]
             
             # check for correct line count in input 
             # assuming consecutive xyz-format coordinates
             if len(lines) % (nat + 2) == 0:
-                if self.storage.args.nconf:
-                    nconf = int(min(self.storage.args.nconf, len(lines) / (nat + 2)))
-                    if self.storage.args.nconf > nconf:
+                if self.args.nconf:
+                    nconf = int(min(self.args.nconf, len(lines) / (nat + 2)))
+                    if self.args.nconf > nconf:
                         print(
                             f"{'WARNING:':{WARNLEN}}Given nconf is larger than max. number"
                             "of conformers in input file. Setting to the max. amount automatically."

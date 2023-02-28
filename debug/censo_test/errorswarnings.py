@@ -21,5 +21,12 @@ class LogicError(Exception):
     
     
 class LogicWarning(Warning):
-    def __init__():
-        """"""
+    def __init__(self, setting: str, problem: str, hint: str, *args):
+        super().__init__(args)
+        self._setting = setting
+        self._problem = problem
+        self._hint = hint
+        
+    
+    def __str__(self) -> str:
+        return f"LogicWarning: Possibly invalid value for setting {self._setting}\n{self._problem}\n{self._hint} Trying to continue.\n"

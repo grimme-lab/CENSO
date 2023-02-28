@@ -23,25 +23,37 @@ from censo.utilities import (
     conf_in_interval,
     timeit,
 )
-from censo.part import CensoPart
+from censo_test.part import CensoPart
+from censo_test.core import CensoCore
+from censo_test.settings import SettingsTuple
 
 class Prescreening(CensoPart):
     
     name: str = "prescreening"
+    
+    def __init__(self, core: CensoCore, settings: SettingsTuple):
+        super().__init__(core, settings)
+        try:
+            self.prog = settings.byname("prog").value
+            self.func = settings.byname("func").value
+            self.basis = settings.byname("basis").value
+            self.gfnv = settings.byname("gfnv").value
+            
+            self.threshold = settings.byname("threshold").value
+        except AttributeError:
+            raise Exception # TODO
     
     @timeit
     def run(self) -> None:
         """
         Cheap prescreening of the ensemble, with single-points on combined ensemble
         geometries.
-        Input:
-        - config [config_setup object] contains all settings
-        - conformers [list of molecule_data objects] each conformer is represented
-        - ensembledata -> instance for saving ensemble (not conf) related data
-        Return:
-        -> config
-        -> conformers
-        -> store_confs
+        """
+        
+        """
+        1. setup job instructions (either gas phase sp or computation with solvent model)
+        2. setup queue and run calculations via helper
+        3. print results
         """
         save_errors = []
         if config.progress:
@@ -113,6 +125,8 @@ class Prescreening(CensoPart):
         resultq = Queue()
 
         folder = "part0_sp"
+
+        ### JOB INSTRUCTIONS
 
         if config.prog == "tm":
             job = TmJob
@@ -288,15 +302,6 @@ class Prescreening(CensoPart):
                         save_errors,
                     )
 
-            # save current data to jsonfile
-            config.write_json(
-                config.cwd,
-                [i.provide_runinfo() for i in calculate]
-                + [i.provide_runinfo() for i in prev_calculated]
-                + [i.provide_runinfo() for i in store_confs]
-                + [ensembledata],
-                config.provide_runinfo(),
-            )
             check_tasks(calculate, config.check)
         else:
             print("No conformers are considered additionally.") # ???
@@ -330,6 +335,9 @@ class Prescreening(CensoPart):
             print("Going to exit!")
             sys.exit(1)
 
+
+        ### PRINTING
+
         # create data for possible SI generation:-----------------------------------
         # Energy:
         ensembledata.si["part0"]["Energy"] = instruction["method"]
@@ -361,6 +369,9 @@ class Prescreening(CensoPart):
             )
         )
         print("".ljust(int(PLENGTH), "-") + "\n")
+
+
+
 
         if config.solvent != "gas":
             solvation = "cheap_prescreening_gsolv_info"
@@ -423,7 +434,9 @@ class Prescreening(CensoPart):
             print_errors(
                 f"{'ERROR:':{WARNLEN}}No conformer left or error in maxreldft!", save_errors
             )
-        # print sorting
+            
+            
+        ### PRINT print sorting
         columncall = [
             lambda conf: "CONF" + str(getattr(conf, "id")),
             lambda conf: getattr(conf, "cheap_prescreening_gsolv_info")["solv-energy"],
@@ -494,6 +507,9 @@ class Prescreening(CensoPart):
             minfree,
         )
         print("".ljust(int(PLENGTH), "-"))
+        
+        
+        
         # --------------------------------------------------------------------------
         calculate = calc_boltzmannweights(
             calculate, "free_energy", config.fixed_temperature
@@ -501,15 +517,6 @@ class Prescreening(CensoPart):
         conf_in_interval(calculate, full_free_energy=False)
         # --------------------------------------------------------------------------
 
-        # write to enso.json
-        config.write_json(
-            config.cwd,
-            [i.provide_runinfo() for i in calculate]
-            + [i.provide_runinfo() for i in prev_calculated]
-            + [i.provide_runinfo() for i in store_confs]
-            + [ensembledata],
-            config.provide_runinfo(),
-        )
         # ---------------------------------------------------------------------------
         # sorting
         if maxreldft > config.part0_threshold:
@@ -576,16 +583,6 @@ class Prescreening(CensoPart):
             conf.tmp_rel_gsolv = 0.0
             conf.reset_job_info()
 
-        # write to enso.json
-        config.write_json(
-            config.cwd,
-            [i.provide_runinfo() for i in calculate]
-            + [i.provide_runinfo() for i in prev_calculated]
-            + [i.provide_runinfo() for i in store_confs]
-            + [ensembledata],
-            config.provide_runinfo(),
-        )
-
         if save_errors:
             print("\n***---------------------------------------------------------***")
             print("Printing most relevant errors again, just for user convenience:")
@@ -597,4 +594,3 @@ class Prescreening(CensoPart):
         print("\n" + "".ljust(tmp, ">") + "END of Part0" + "".rjust(tmp, "<"))
         if config.progress:
             print("#>>># CENSO: Finished part0", file=sys.stderr)
-        # return config, calculate, store_confs, ensembledata

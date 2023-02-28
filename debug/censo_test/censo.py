@@ -8,18 +8,13 @@ import shutil
 from time import perf_counter
 import sys
 from traceback import print_exc
+
 from censo_test.cfg import PLENGTH, DESCR, ASSETS_PATH, __version__
 from censo_test.inputhandling import cml
-from censo_test.screening import part1
-from censo_test.optimization import part2
-from censo_test.refinement import part3
-from censo_test.nmrproperties import part4
-from censo_test.opticalrotation import part5
 from censo_test.utilities import print
 from censo_test.tutorial import interactiv_doc
 from censo_test.core import CensoCore
 from censo_test.prescreening import Prescreening
-from censo_test.storage import CensoStorage
 from censo_test.settings import CensoSettings
 
 # use generators for reduced memory usage?
@@ -50,86 +45,11 @@ def main(argv=None):
     """
     Execute the CENSO code.
     """
-    
-    # first, check program integrity
-    # TODO - proper implementation?
-    # FIXME - CensoSettings module is loaded before integrity is verified!!
-    if not os.path.isdir(ASSETS_PATH):
-        raise FileNotFoundError(ASSETS_PATH)
-        
-    # get setup info
-    args = cml(DESCR, argv)
-    cwd = getcwd()
-    
-    # run actions for which no complete setup is needed
-    if args.version:
-        print(__version__)
-        sys.exit(0)
-    elif args.tutorial:
-        interactiv_doc()
-        sys.exit(0)
-    elif args.cleanup:
-        cleanup_run(cwd)
-        print("Removed files and going to exit!")
-        sys.exit(0)
-    elif args.cleanup_all:
-        cleanup_run(cwd, complete=True)
-        print("Removed files and going to exit!")
-        sys.exit(0)
-        
-    # setup storage with args (basically only rcpath and ensemblepath)
-    storage = CensoStorage(args, cwd)
-    
-    # setup internal settings with default values
-    settings = CensoSettings()
-    
-    # TODO - where to put this?
-    # no censorc found at standard dest./given dest.
-    if storage.censorc_path == "":
-        print(
-            f"No rcfile has been found. Do you want to create a new one?\n"
-        )
 
-        user_input = ""
-        while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
-            print("Please type 'yes/y' or 'no/n':")
-            user_input = input()
-        
-        if user_input.strip().lower() in ("y", "yes"):
-            storage.censorc_path = settings.write_config(args, cwd)
-        elif user_input.strip().lower() in ("n", "no"):
-            print(
-                "Configuration file needed to run CENSO!\n"
-                "Going to exit!"
-            )
-            sys.exit(1)
-    
-    settings.censorc_path = storage.censorc_path
-    
-    # update the settings with rcdata and cml args
-    # TODO - maybe make this more readable
-    settings.settings_current = args
-    
-    # print errors and exit if there are any conflicting settings
-    errors = settings.check_logic()
-    
-    if len(errors) != 0:
-        for error in errors:
-            print(error)
-        sys.exit(1) 
-    
-    # initialize core linked to storage
-    core = CensoCore.factory(storage)
-
-    # read input and setup conformers
-    core.read_input()
-
-    # read paths for external programs (definition in rcfile?)
-    core.read_program_paths()
-
-    ### END of setup
-    # -> core.conformers contains all conformers with their info from input (sorted)
-    # -> core.ensembledata is blank
+    # put every step for startup into a method for convenience
+    # makes testing easier and may also be called for customized workflows
+    # standard censo setup
+    args, cwd, core, settings = startup(argv)
 
     ### default: part1 - 3
     # TODO - reduce copy/paste code with list of functions which is iterated over
@@ -266,6 +186,78 @@ def main(argv=None):
     )
     print("\nCENSO all done!")
     return 0
+
+
+def startup(argv):
+    # first, check program integrity
+    # TODO - proper implementation?
+    if not os.path.isdir(ASSETS_PATH):
+        raise FileNotFoundError(ASSETS_PATH)
+        
+    # get most important infos for current run
+    args = cml(DESCR, argv)
+    cwd = getcwd()
+    
+    # run actions for which no complete setup is needed
+    if args.version:
+        print(__version__)
+        sys.exit(0)
+    elif args.tutorial:
+        interactiv_doc()
+        sys.exit(0)
+    elif args.cleanup:
+        cleanup_run(cwd)
+        print("Removed files and going to exit!")
+        sys.exit(0)
+    elif args.cleanup_all:
+        cleanup_run(cwd, complete=True)
+        print("Removed files and going to exit!")
+        sys.exit(0)
+        
+    # setup internal settings with default values
+    settings = CensoSettings()
+    
+    # look for censorc
+    settings.find_rcfile(cwd, args.inprcpath)
+    
+    # TODO - where to put this?
+    # no censorc found at standard dest./given dest.
+    if settings.censorc_path == "":
+        print(
+            f"No rcfile has been found. Do you want to create a new one?\n"
+        )
+
+        user_input = ""
+        while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
+            print("Please type 'yes/y' or 'no/n':")
+            user_input = input()
+        
+        if user_input.strip().lower() in ("y", "yes"):
+            settings.censorc_path = settings.write_config(args, cwd)
+        elif user_input.strip().lower() in ("n", "no"):
+            print(
+                "Configuration file needed to run CENSO!\n"
+                "Going to exit!"
+            )
+            sys.exit(1)
+    
+    # read paths for external programs (definition in rcfile?) ????
+    settings.read_program_paths()
+    
+    # update the settings with rcdata and cml args
+    settings.settings_current = args
+    
+    # initialize core linked to storage
+    core = CensoCore.factory(args, cwd)
+
+    # read input and setup conformers
+    core.read_input()
+
+    ### END of setup
+    # -> core.conformers contains all conformers with their info from input (sorted)
+    # -> core.ensembledata is blank
+    
+    return args, cwd, core, settings
 
 
 def cleanup_run(cwd, complete=False):
