@@ -13,15 +13,17 @@ such as conformers or ensembledata)
 
 from censo_test.utilities import timeit
 from censo_test.core import CensoCore
-from censo_test.settings import SettingsTuple
+from censo_test.settings import CensoSettings, SettingsTuple
 
 class CensoPart:
     
-    name: str = "GENERIC"
-    
-    def __init__(self, core: CensoCore, settings: SettingsTuple):
-        self.core: CensoCore = core
-        self.settings = settings
+    def __init__(self):
+        self.core: CensoCore = CensoCore()
+        self.settings: SettingsTuple = CensoSettings().settings_current.get_settings(
+            ,
+            ,
+            
+        )
     
     
     @timeit

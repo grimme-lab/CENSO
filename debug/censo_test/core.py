@@ -1,24 +1,19 @@
 """
 stores ensembledata and conformers
-
 functionality for program setup
 """
 
 from argparse import Namespace
 import os
 import sys
-from typing import Dict
-import weakref
-import functools
 from numpy import exp
+from multiprocessing import Lock
 
 from censo_test.cfg import (
     CODING,
     WARNLEN,
     __version__,
 )
-from censo_test.orca_job import OrcaJob
-from censo_test.tm_job import TmJob
 from censo_test.datastructure import MoleculeData
 from censo_test.ensembledata import EnsembleData
 from censo_test.utilities import (
@@ -27,64 +22,19 @@ from censo_test.utilities import (
     t2x,
     print,
 )
-from censo_test.storage import CensoStorage
+
 
 # TODO - how do the assets files get into ~/.censo_assets?
 class CensoCore:
-    _instance_ref = weakref.WeakValueDictionary()
+    """
+    CensoCore is implemented as thread-safe singleton 
+    (there should only be one instance for the run)
+    """
     
-    prog_job: Dict[str, type] = {"tm": TmJob, "orca": OrcaJob}
-    
-    @staticmethod
-    def factory(args: Namespace, cwd: str):
-        """keep track of the CensoCore instance (should only be one)"""
-        instance = CensoCore(args, cwd)
-        CensoCore._instance_ref[id(instance)] = instance
-        return instance
-
-
-    @staticmethod
-    def check_instance(f):
-        """
-        check number of CensoCore instances,
-        exit if 0 or more than 1 to assure CENSO runs properly
-        """
-        @functools.wraps(f)
-        def wrap(*args, **kwargs):
-            n_inst = len(CensoCore._instance_ref)
-            if n_inst > 1:
-                print(
-                    f"{'ERROR:':{WARNLEN}}There should be only one instance of censo_core"
-                    "Current instances are:"
-                )
-                for ref in CensoCore._instance_ref.values():
-                    print(ref)
-                sys.exit(1)
-            elif n_inst == 0:
-                print(
-                    f"{'ERROR:':{WARNLEN}}There is currently no instance of censo_core"
-                )
-                sys.exit(1)
-            else:
-                return f(*args, **kwargs)
-
-        return wrap
-
-
-    @staticmethod 
-    def core():
-        try:
-            core: CensoCore = next(CensoCore._instance_ref.values())
-            return core
-        except StopIteration:
-            print(
-                f"{'ERROR:':{WARNLEN}}There is currently no instance of censo_core"
-            )
-            sys.exit(1)
-
-
     def __init__(self, args: Namespace, cwd: str):
-        """initialize core"""
+        """
+        store cwd and args, setup blank information storages
+        """
 
         self.cwd = cwd
         self.args = args
@@ -103,11 +53,8 @@ class CensoCore:
         self.conformers: list[MoleculeData] = []
         self.ensembledata: EnsembleData
         
-        # if no input ensemble is found, CENSO exits
-        # path has to be given via cml or the default path will be used:
-        # "{cwd}/crest_conformers.xyz"
-        # absolute path to file directly
-        self.ensemble_path: str = self.find_ensemble()
+        # absolute path to ensemble input file
+        self.ensemble_path: str
 
 
     """ def run_args(self) -> None:
@@ -252,7 +199,7 @@ class CensoCore:
         ### END ORCA user editable input """
         
     
-    def find_ensemble(self) -> str:
+    def find_ensemble(self) -> None:
         """check for ensemble input file"""
         # if input file given via args use this path, otherwise set path to a default value
         if self.args.inp:
@@ -261,7 +208,7 @@ class CensoCore:
             ensemble_path = os.path.join(self.cwd, "crest_conformers.xyz")
 
         if os.path.isfile(ensemble_path):
-            return ensemble_path
+            self.ensemble_path = ensemble_path
         else:
             """ print(
                 f"{'ERROR:':{WARNLEN}}The input ensemble cannot be found!"

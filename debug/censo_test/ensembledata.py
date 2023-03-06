@@ -3,6 +3,9 @@ Contains info regarding the ensemble such as energies etc., best conf per part,
 number of confs per part, timings (remove)
 """
 
+# TODO - should contain all information calculated results for all conformers
+# identify data by conformer id
+# fairly big/highly functional class
 class EnsembleData:
     def __init__(
         self,

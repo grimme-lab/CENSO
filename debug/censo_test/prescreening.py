@@ -29,8 +29,6 @@ from censo_test.settings import SettingsTuple
 
 class Prescreening(CensoPart):
     
-    name: str = "prescreening"
-    
     def __init__(self, core: CensoCore, settings: SettingsTuple):
         super().__init__(core, settings)
         try:

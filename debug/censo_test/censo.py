@@ -247,8 +247,11 @@ def startup(argv):
     # update the settings with rcdata and cml args
     settings.settings_current = args
     
-    # initialize core linked to storage
-    core = CensoCore.factory(args, cwd)
+    # initialize core with args and cwd
+    core = CensoCore(args, cwd)
+    
+    # look for ensemble input file
+    core.find_ensemble()
 
     # read input and setup conformers
     core.read_input()

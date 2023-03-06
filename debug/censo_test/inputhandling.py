@@ -285,17 +285,17 @@ def cml(startup_description, argv=None):
         "--omp",
         dest="omp",
         type=int,
-        help="Number of cores each thread can use. E.g. (maxthreads) 5 threads "
+        help="Number of cores each process can use. E.g. (maxprocs) 5 processes "
         "with each (omp) 4 cores --> 20 cores need to be available on the machine.",
     )
     groups[1].add_argument(
         "-P",
-        "--maxthreads",
-        dest="maxthreads",
+        "--maxprocs",
+        dest="maxprocs",
         type=int,
         help="Number of independent calculations during the CENSO calculation. E.g."
-        " (maxthreads) 5 independent calculation-"
-        " threads with each (omp) 4 cores --> 20 cores need to be available on "
+        " (maxprocs) 5 independent calculation-"
+        " processes with each (omp) 4 cores --> 20 cores need to be available on "
         "the machine.",
     )
     groups[1].add_argument(

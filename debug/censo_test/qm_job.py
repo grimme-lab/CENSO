@@ -1,16 +1,16 @@
 """
-Contains QmJob base class for calculating QM related properties of conformers.
+Contains QmJob base class, extending the multiprocessing.Process class.
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
+from multiprocessing import Process
 import os
+from typing import Dict
 import weakref
-
-# TODO - create subclass for xTB?
 try:
     from math import isclose
 except ImportError:
-    from censo_test.utilities import isclose
+    from censo_test.utilities import isclose # ???
 import time
 import subprocess
 import json
@@ -23,23 +23,54 @@ from censo_test.cfg import (
 from censo_test.utilities import last_folders, print
 from censo_test.datastructure import MoleculeData
 
-# TODO - add factory method
-
-class QmJob:
+class QmJob(Process):
     """
-    QmJob base class for calculating QM related properties of conformers.
+    QmJob base class
     """
+    _instance_ref: Dict[str, weakref.WeakValueDictionary] = {
+        "OrcaJob": weakref.WeakValueDictionary(),
+        "TmJob": weakref.WeakValueDictionary(),
+    }
 
-    instances_orca = weakref.WeakValueDictionary()
-    instances_tm = weakref.WeakValueDictionary()
-    instances_xtb = weakref.WeakValueDictionary()
-
-    @staticmethod
-    def factory(type):
-        """loop over all types and return a respective instance, add it to the respective register"""
+    @classmethod
+    def factory(cls, type_t: type): # TODO - make usage more intuitive/simple?
+        """
+        loop over all subclasses and return a respective instance 
+        add it to the respective register
+        """
+        for subclass in cls.__subclasses__():
+            if subclass == type_t:
+                instance = subclass()
+                cls._instance_ref[subclass.__name__][id(instance)] = instance
+                return instance
+            
+        raise TypeError(f"No subclass {type_t.__name__} for {cls.__name__}.")
 
     def __init__(self):
+        """should be defined"""
+        # jobtype is basically an ordered (!!!) list containing the instructions of which computations to do        
+        
+        # dict to map the jobtypes to their respective methods
+        self.jobtypes = {
+            "sp": self._sp,
+            "gsolv": self._gsolv,
+            "opt": self._opt,
+            "genericoutput": self._genericoutput,
+            "xtb_sp": self._xtb_sp,
+            "xtb_gsolv": self._xtb_gsolv,
+            "xto_opt": self._xtb_opt,
+            "xtb_rrho": self._xtbrrho,
+        }
+        
+        # attribute to store the resultq passed to it
+
+
+    def run(self):
+        """
+        overwrite Process.run, should be implemented for each subclass
+        """
         pass
+
 
     def reset_job_info(self):
         """
@@ -115,6 +146,14 @@ class QmJob:
             "vapor_pressure": False,
         }
 
+
+    def _prep(self):
+        """
+        input preparation
+        """
+        pass
+
+
     def _sp(self, silent=False):
         """
         single-point calculation
@@ -126,6 +165,14 @@ class QmJob:
         geometry optimization
         """
         pass
+    
+    
+    def _gsolv(self):
+        """
+        gsolv calculation using the respective solvent model
+        """
+        pass
+    
 
     def _genericoutput(self):
         """
@@ -330,6 +377,14 @@ class QmJob:
                     self.job["erange1"] = {self.job["temperature"]: tmp_solv - tmp_gas}
                 self.job["energy_xtb_gas"] = tmp_gas
                 self.job["energy_xtb_solv"] = tmp_solv
+
+
+    def _xtb_opt(self):
+        """
+        geometry optimization using xtb as driver, has to be implemented for each qm code
+        """
+        pass
+
 
     def _xtbrrho(self, filename="ohess.out"):
         """
@@ -570,9 +625,3 @@ class QmJob:
             )
             self.job["energy"] = 0.0
             self.job["success"] = False
-
-    def execute(self):
-        """
-        Chooses which function to execute based on jobtype.
-        """
-        pass

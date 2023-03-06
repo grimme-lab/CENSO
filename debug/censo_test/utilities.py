@@ -14,9 +14,9 @@ from copy import deepcopy
 from builtins import print as print_orig
 from typing import Any, Callable, Tuple, Union
 import functools
+from multiprocessing import Lock
 
 from censo_test.cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
-
 
 def print(*args, **kwargs):
     """

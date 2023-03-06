@@ -33,13 +33,18 @@ class OrcaJob(QmJob):
     - writing of generic output for shielding and coupling constants
     """
 
-    smgsolv = ("gbsa_gsolv", "alpb_gsolv", "smd_gsolv")
-    sm = ("cpcm", "smd")
+    def __init__(self):
+        super().__init__()
+        
+        # expand jobtypes with special orca jobtypes
+        self.jobtypes = {**self.jobtypes, **{
+            "nmrS": self._nmrS,
+            "nmrJ": self._nmrJ,
+            "uvvis": self._uvvis,
+        }}
 
-    def __init__(self, rank, *args, **kwargs):
-        QmJob.__init__(self, rank, *args, **kwargs)
-
-    def _prep_input(self, xyzfile=False, returndict=False):
+        
+    def _prep(self, xyzfile=False, returndict=False):
         """
         cefine preparation step analogue
 
@@ -517,7 +522,7 @@ class OrcaJob(QmJob):
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
         return
 
-    def _smd_gsolv(self):
+    def _gsolv(self):
         """
         Calculate SMD_gsolv, needs ORCA
         if optimization is not performed with ORCA, only the density 
@@ -961,17 +966,17 @@ class OrcaJob(QmJob):
         time.sleep(0.02)
         return
 
-    # FIXME - redundant because of if conditions?
-    def execute(self):
+
+    def _uvvis(self):
         """
-        Choose what to execute for the jobtype
-        use:
-        prep --> ignore 
-        sp --> _sp
-        cosmors --> not with orca
-        opt --> pure opt with ORCA
-        xtbopt --> opt with xtb as driver
-        rrhoxtb --> _rrho()
+        calculation of uvvis spectra
+        """
+
+
+    def run(self):
+        """
+        run method depending on jobtype
+        put the results on the result queue # TODO
         """
         try:
             if self.job["jobtype"] == "prep":
@@ -999,6 +1004,7 @@ class OrcaJob(QmJob):
             elif self.job["jobtype"] == "genericout":
                 self._genericoutput()
             elif self.job["jobtype"] in ("gbsa_gsolv", "alpb_gsolv"):
+                # basically no other behaviour than sp -> xtb_gsolv
                 if self.job["prepinfo"]:
                     tmp_solvent = self.job["solvent"]
                     self.job["solvent"] = "gas"

@@ -1,24 +1,18 @@
-from argparse import Namespace
+import json
 import os
 import shutil
 import sys
-import json
-from types import MappingProxyType
-from typing import Any, Dict, List, Tuple, Union
-from functools import reduce
+from argparse import Namespace
 from dataclasses import dataclass
+from functools import reduce
+from multiprocessing import Lock
+from types import MappingProxyType
+from typing import Any, Dict, List, Tuple, Type, Union
 
-from censo_test.cfg import (
-    WARNLEN, 
-    PARTS, 
-    ASSETS_PATH, 
-    PROGS, 
-    SOLV_MODS, 
-    SOLV_GMODS,
-    SettingsDict,
-    __version__,
-)
+from censo_test.cfg import (ASSETS_PATH, GSOLV_MODS, PARTS, PROGS, SOLV_MODS,
+                            WARNLEN, SettingsDict, __version__)
 from censo_test.errorswarnings import LogicError, LogicWarning
+
 
 class DfaSettings:
     def __init__(self, obj: Dict[str, Dict[str, Dict]]):
@@ -59,7 +53,10 @@ class Setting:
     
     def __str__(self):
         return f"{self.name}: {self.value}"
-
+    
+    # TODO - add setter that automatically checks what value you try to assign to the setting
+    # regarding type and options
+    
 
 class SettingsTuple(tuple):
     def __init__(self, *args, **kwargs):
@@ -115,9 +112,11 @@ class SettingsTuple(tuple):
 class CensoSettings:
     """
     All options are saved here.
-    Manages internal settings
+    Manages internal settings.
+    CensoSettings is implemented as thread-safe singleton
+    (there should only be one instance for the run)
     """
-
+    
     cosmors_param = {
         "12-normal": "BP_TZVP_C30_1201.ctd",
         "13-normal": "BP_TZVP_C30_1301.ctd",
@@ -154,7 +153,7 @@ class CensoSettings:
         sys.exit(1)
 
     solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
-    solv_gmods = reduce(lambda x, y: x + y, SOLV_GMODS.values())
+    gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     # TODO - defaults for uvvis (func: w-B97X-D3)
     # TODO - find solutions for "automatic" or "default"/"prog"/"whatever" cases
@@ -187,14 +186,14 @@ class CensoSettings:
     .....
     """    
     # TODO - solvent mapping
-    # still included for convenience
+    # still included as fallback
     settings_options = MappingProxyType({
         int: MappingProxyType({
             "general": MappingProxyType({
                 "charge": {"default": 0, "options": (-10, 10)}, # TODO - (re)move?
                 "unpaired": {"default": 0, "options": (0, 14)}, # TODO - (re)move?
-                "maxthreads": {"default": 1, "options": (1, 1024)}, # TODO - try to read out from environment variables
-                "omp": {"default": 1, "options": (1, 256)}, # number of cores per thread
+                "maxprocs": {"default": 1, "options": (1, 1024)}, # number of processes
+                "omp": {"default": 1, "options": (1, 256)}, # number of cores per process
             }),
             "prescreening": None,
             "screening": None,
@@ -256,7 +255,7 @@ class CensoSettings:
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func1"))},
                 "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
                 "prog": {"default": "tm", "options": PROGS},
-                "smgsolv": {"default": "cosmors", "options": solv_gmods},
+                "smgsolv": {"default": "cosmors", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "optimization": MappingProxyType({
@@ -265,7 +264,7 @@ class CensoSettings:
                 "prog": {"default": "tm", "options": PROGS},
                 "prog2opt": {"default": "prog", "options": PROGS}, # TODO - ??? prog2 ??? # FIXME
                 "sm": {"default": "default", "options": solv_mods}, # FIXME
-                "smgsolv": {"default": "cosmors", "options": solv_gmods},
+                "smgsolv": {"default": "cosmors", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
                 "optlevel2": {"default": "automatic", "options": ("crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme", "automatic")}, # TODO - what does this mean?
             }),
@@ -273,7 +272,7 @@ class CensoSettings:
                 "prog": {"default": "tm", "options": PROGS},
                 "func": {"default": "pw6b95-d4", "options": tuple(dfa_settings.find_func("func3"))},
                 "basis": {"default": "def2-TZVPD", "options": basis_sets},
-                "smgsolv": {"default": "cosmors", "options": solv_gmods},
+                "smgsolv": {"default": "cosmors", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "nmr": MappingProxyType({
@@ -361,18 +360,32 @@ class CensoSettings:
         }),
     })
                 
-
-    @staticmethod
-    def get_type(setting) -> Union[type, None]:
+                
+    @classmethod
+    def get_type(cls, name: str) -> Union[type, None]:
         """
         returns the type of a given setting
         """
-        for type_t, parts in CensoSettings.settings_options.items():
+        for type_t, parts in cls.settings_options.items():
             for settings in parts.values():
                 if settings:
-                    if setting in settings.keys():
+                    if name in settings.keys():
                         return type_t
 
+        return None
+
+
+    @classmethod
+    def byname(cls, name: str) -> Union[Dict, None]:
+        """
+        returns the definition of a given setting
+        """
+        for type_t, parts in cls.settings_options.items():
+            for settings in parts.values():
+                if settings:
+                    if name in settings.keys():
+                        return settings[name]
+                    
         return None
 
         
@@ -380,8 +393,11 @@ class CensoSettings:
         """
         setup with default settings, all other attributes blank
         """   
+        
+        # stores all settings in a SettingsTuple (extending built-in tuple)
         self._settings_current: SettingsTuple = self.default_settings()
         
+        # absolute path to configuration file
         self.censorc_path: str
         
         # TODO - try to read paths from environment vars?
@@ -422,25 +438,21 @@ class CensoSettings:
             
             # overwrite settings with cml arguments
             # FIXME - coverage between all actual settings and cml options?
-            try:
-                if hasattr(args, setting.name):
-                    setting.value = getattr(args, setting.name)
-            except AttributeError:
+            if hasattr(args, setting.name):
+                setting.value = getattr(args, setting.name)
+            else:
                 print(f"Could not find {setting} in cml args.")
               
-        print(f"Remaining settings:\n{rcdata}") # TODO - where to print out?
+        print(f"Remaining settings:\n{rcdata}\n") # TODO - where to print out?
         
-        # print errors and exit if there are any conflicting settings
-        errors, warnings = self.check_logic()
-    
+        warnings = self.check_logic()
         for warning in warnings:
             print(warning)
-    
-        if len(errors) != 0:
-            for error in errors:
-                print(error)
-            sys.exit(1) 
-
+            
+        if any([warning.fatal for warning in warnings]):
+            print("\nFatal error in user input while setting up run settings. Going to exit!")
+            sys.exit(1)
+            
 
     def default_settings(self) -> SettingsTuple:
         """
@@ -455,13 +467,11 @@ class CensoSettings:
                 if settings:
                     # if settings exist create 'Setting' objects with default settings
                     for setting, definition in settings.items():
-                        try:
-                            options = definition["options"]
-                        except KeyError:
-                            options = None
+                        options = definition.get("options", None)
                         
                         # the typical type annotation errors
-                        tmp.append(Setting(
+                        tmp.append(
+                            Setting(
                                 type_t, 
                                 part, 
                                 setting, 
@@ -515,7 +525,7 @@ class CensoSettings:
                             # setting-key not initialized
                             rcdata[sett_type][part][spl[0]] = sett_type(spl[1])
                     except Exception:
-                        print(f"casting failed for {line}")
+                        raise TypeError(f"Casting failed for line '{line}' while trying to read configuration file.")
                      
                     line = csvfile.readline()
                     
@@ -629,7 +639,7 @@ class CensoSettings:
         return path
 
 
-    def find_rcfile(self, cwd: str, inprcpath=None):
+    def find_rcfile(self, cwd: str, inprcpath=None) -> None:
         """check for existing censorc"""
 
         # looks for censorc file (global configuration file)
@@ -787,17 +797,14 @@ class CensoSettings:
                     break
 
 
-    def check_logic(self) -> Tuple[List[LogicError], List[LogicWarning]]:
+    def check_logic(self) -> List[LogicWarning]:
         """
         Checks internal settings for impossible setting-combinations
         also checking if calculations are possible with the requested qm_codes.
         """
         # TODO - complete it for all parts
         
-        print("CHECKING SETTINGS ...\n")
-        
-        # affect execution, making it (partially) impossible (contradict user settings)
-        errors = []
+        print("\nCHECKING SETTINGS ...\n")
         
         # do not affect execution, although might lead to errors/unexpected behaviour down the line
         warnings = []
@@ -840,17 +847,18 @@ class CensoSettings:
             # check for solvent availability for given solvent model
             # TODO - what about "replacements" for solvents
             # TODO - add flexibility concerning prescreening, optrot, uvvis
-            try:
-                solvent = self.settings_current.get_setting(str, "general", "solvent").value
-                multitemp = self.settings_current.get_setting(bool, "general", "multitemp").value
-            except AttributeError:
-                errors.append(LogicError(
-                        "multitemp/solvent",
-                        "Settings are not defined.",
-                        "Check ." # TODO                  
-                    )
-                )
-            else:
+            solvent = getattr(
+                self.settings_current.get_setting(str, "general", "solvent"), 
+                "value", 
+                None
+            )
+            multitemp = getattr(
+                self.settings_current.get_setting(bool, "general", "multitemp"),
+                "value",
+                None
+            )
+                
+            if not (solvent is None or multitemp is None):
                 for part in PARTS[1:4]:
                     # get 'prog', 'sm' and 'smgsolv' settings for the respective part
                     settings = SettingsTuple(
@@ -862,59 +870,66 @@ class CensoSettings:
                     )
                     
                     for model in ["sm", "smgsolv"]:
-                        try:
-                            prog = settings.byname("prog").value
-                            model = settings.byname(model).value        
-                        except AttributeError:
-                            errors.append(LogicWarning(
-                                    f"prog/{model}",
-                                    f"One of the settings is not defined for part {part}.",
-                                    "Cannot check for availability."
-                                )
-                            )
-                        else:
+
+                        prog = getattr(settings.byname("prog"), "value", None)
+                        model = getattr(settings.byname(model), "value", None)
+                            
+                        if not (prog is None or model is None):
                             # check solvent availability in solvent model (warning)
                             if solvent not in solvents[model]:
                                 warnings.append(LogicWarning(
                                         "solvent",
                                         f"Solvent {solvent} was not found to be available for solvent model {model} in part {part}.",
-                                        ""
+                                        "",
                                    )
                                 )
 
                             # check sm/smgsolv availability in program (warning)
                             if (
-                                model not in SOLV_MODS[prog] + SOLV_GMODS[prog]
+                                model not in SOLV_MODS.get("prog", tuple([])) + GSOLV_MODS.get("prog", tuple([]))
                             ):
                                 warnings.append(LogicWarning(
                                         "sm/smgsolv",
                                         f"Solvent model {model} was not found to be available with given program {prog} in part {part}.",
-                                        ""
+                                        "",
                                     )
                                 )
                     # TODO - check for dielectric constant for cosmo ->  dc only needed for dcosmors?
-                    
-                    try:
-                        prog = settings.byname("prog").value
-                    except AttributeError:
-                        errors.append(LogicError(
-                                "prog",
-                                "Setting is not defined for part {part}.",
-                                "Check ." # TODO
+                        else:
+                            warnings.append(LogicWarning(
+                                    f"prog/{model}",
+                                    f"One of the settings is not defined for part {part}.",
+                                    "Cannot check for availability.",
+                                )
                             )
-                        )
-                    else:
+                    
+                    prog = getattr(settings.byname("prog"), "value", None)
+                    
+                    if not prog is None:
                         # there is no multitemp support for any orca smgsolv (error)
                         if (
                             prog == "orca"
                             and multitemp
                         ):
-                            errors.append(LogicError(
+                            warnings.append(LogicWarning(
                                     "multitemp",
                                     "There is no multitemp support for any solvent models in ORCA.",
-                                    "Disable multitemp."                  
+                                    "Disable multitemp.",
+                                    fatal=True              
                                 )
                             )
+                    else:
+                        raise LogicError(
+                            "prog",
+                            "Setting is not defined for part {part}.",
+                            "Check initialization of run settings."
+                        )
+            else:
+                raise LogicError(
+                    "multitemp/solvent",
+                    "Settings are not defined.",
+                    "Check initialization of run settings."                  
+                )
             
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1096,22 +1111,15 @@ class CensoSettings:
                 )
             )
             
-            try:
-                run = settings.byname("run").value
-                prog = settings.byname("prog").value
-                func = settings.byname("func").value
-                basis = settings.byname("basis").value
-            except AttributeError:
-                warnings.append(LogicWarning(
-                        "run/prog/func/basis",
-                        f"Settings at least partially not defined for part {part}",
-                        "Cannot check for availability."
-                    )
-                )
-            else:
+            run = getattr(settings.byname("run"), "value", None)
+            prog = getattr(settings.byname("prog"), "value", None)
+            func = getattr(settings.byname("func"), "value", None)
+            basis = getattr(settings.byname("basis"), "value", None)
+                
+            if not (run is None or prog is None or func is None or basis is None):
                 # iterate through settings and check for func
                 # TODO - handle composite method bases
-                if run and stroptions[part]:
+                if run and not stroptions[part] is None:
                     # FIXME - again incorrect error because pylance is too stupid
                     if not func in stroptions[part]["func"]["options"]:
                         warnings.append(LogicWarning(
@@ -1137,10 +1145,11 @@ class CensoSettings:
                         ):
                             try:
                                 if int(self.external_paths["orcaversion"].split(".")[0]) < 5:
-                                    errors.append(LogicError(
+                                    warnings.append(LogicWarning(
                                             "func",
                                             f"The functional r2scan-3c is only available from ORCA version 5 in part {part}.",
-                                            "Choose a different functional or use a newer version of ORCA."    
+                                            "Choose a different functional or use a newer version of ORCA.",
+                                            fatal=True    
                                         )
                                     )
                             except Exception:
@@ -1155,10 +1164,11 @@ class CensoSettings:
                             func in ("dsd-blyp", "dsd-blyp-d3")
                             and basis != "def2-TZVPP"
                         ):
-                            errors.append(LogicError(
+                            warnings.append(LogicWarning(
                                     "func/basis",
                                     f"The functional {func} is only available with the def2-TZVPP basis set in part {part}.",
-                                    "Change the basis set to def2-TZVPP or choose a different functional."    
+                                    "Change the basis set to def2-TZVPP or choose a different functional.",
+                                    fatal=True  
                                 )
                             )
                             
@@ -1170,6 +1180,13 @@ class CensoSettings:
                                     ""    
                                 )
                             )
+            else:
+                warnings.append(LogicWarning(
+                        "run/prog/func/basis",
+                        f"Settings at least partially not defined for part {part}",
+                        "Cannot check for availability."
+                    )
+                )
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1225,4 +1242,4 @@ class CensoSettings:
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             
-        return errors, warnings
+        return warnings

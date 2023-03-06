@@ -42,7 +42,7 @@ class TmJob(QmJob):
     def __init__(self, rank, *args, **kwargs):
         QmJob.__init__(self, rank, *args, **kwargs)
 
-    def _prep_cefine(self):
+    def _prep(self):
         """
         Run define for Turbomole calculation using comandline program cefine.
         """
@@ -554,7 +554,7 @@ class TmJob(QmJob):
 
     # ****************************end _sp***************************************
 
-    def _cosmors(self):
+    def _gsolv(self):
         """
         Run COSMO-RS from within censo.
         calculates directly in the workdir. folder COSMO has to be created 
@@ -1195,7 +1195,7 @@ class TmJob(QmJob):
         """
         pass
 
-    def _nmr_coupling(self):
+    def _nmrJ(self):
         """
         Turbomole coupling constant calculation.
         """
@@ -1246,7 +1246,7 @@ class TmJob(QmJob):
             print(f"The file escf.out could not be found!")
             self.job["success"] = False
 
-    def _nmr_shielding(self):
+    def _nmrS(self):
         """
         Turbomole shielding constant calculation.
         """
@@ -1517,7 +1517,7 @@ class TmJob(QmJob):
             self.job["energy2"] = 0.0
             self.job["erange1"] = {}
 
-    def execute(self):
+    def run(self):
         """
         Choose what to execute for the jobtype
         """
