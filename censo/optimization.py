@@ -28,8 +28,8 @@ from .utilities import (
     calc_weighted_std_dev,
     conf_in_interval,
 )
-from .orca_job import OrcaJob
-from .tm_job import TmJob
+from .orca_job import OrcaProc
+from .tm_job import TmProc
 from .parallel import run_in_parallel
 
 
@@ -172,9 +172,9 @@ def part2(config, conformers, store_confs, ensembledata):
     resultq = Queue()
 
     if config.prog2opt == "tm":
-        job = TmJob
+        job = TmProc
     elif config.prog2opt == "orca":
-        job = OrcaJob
+        job = OrcaProc
 
     for conf in list(conformers):
         if conf.removed:
@@ -998,9 +998,9 @@ def part2(config, conformers, store_confs, ensembledata):
         )
 
     if config.prog == "tm":
-        job = TmJob
+        job = TmProc
     elif config.prog == "orca":
-        job = OrcaJob
+        job = OrcaProc
     # reset
     for conf in calculate:
         conf.reset_job_info()
@@ -1054,7 +1054,7 @@ def part2(config, conformers, store_confs, ensembledata):
             # additive Gsolv
             # COSMO-RS
             if "cosmors" in config.smgsolv2 and config.smgsolv2 != "dcosmors":
-                job = TmJob
+                job = TmProc
                 exc_fine = {"cosmors": "normal", "cosmors-fine": "fine"}
                 tmp = {
                     "jobtype": "cosmors",
@@ -1100,7 +1100,7 @@ def part2(config, conformers, store_confs, ensembledata):
                 folder = str(instruction_gsolv["func"]) + "/Gsolv2"
             # SMD_Gsolv
             elif config.smgsolv2 == "smd_gsolv":
-                job = OrcaJob
+                job = OrcaProc
                 instruction_gsolv["jobtype"] = "smd_gsolv"
                 instruction_gsolv["method"], instruction_gsolv[
                     "method2"
@@ -1332,14 +1332,14 @@ def part2(config, conformers, store_confs, ensembledata):
         ensembledata.si["part2"]["Energy"] += " + GCP"
     # Energy_settings:
     try:
-        if job == TmJob:
+        if job == TmProc:
             if tmp_SI is not None:
                 tmp = " ".join(qm_prepinfo["tm"][tmp_SI[0]]).replace("-", "")
             else:
                 tmp = " ".join(
                     qm_prepinfo["tm"][instruction_gsolv["prepinfo"][0]]
                 ).replace("-", "")
-        elif job == OrcaJob:
+        elif job == OrcaProc:
             if tmp_SI is not None:
                 tmp = " ".join(qm_prepinfo["orca"][tmp_SI[0]])
             else:

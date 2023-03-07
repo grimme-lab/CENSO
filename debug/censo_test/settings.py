@@ -85,6 +85,21 @@ class SettingsTuple(tuple):
                 return item
     
     
+    def bypart(self, part: str) -> List[Setting]:
+        """
+        returns a list of all 'Setting' objects that belong to a given part
+        if no matches are found an empty list is returned
+        """
+        
+        matches = []
+        
+        for item in self:
+            if item.part == part:
+                matches.append(item)
+
+        return matches
+        
+    
     def get_setting(self, type_t: type, part: str, name: str) -> Union[Setting, None]:
         """
         returns exactly the 'Setting' object defined by the args

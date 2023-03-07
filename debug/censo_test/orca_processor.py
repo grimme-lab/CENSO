@@ -1,11 +1,12 @@
 """
-Contains OrcaJob class for calculating ORCA related properties of conformers.
+Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
 from collections import OrderedDict
 import os
 import sys
 import time
 import subprocess
+from typing import Any, Dict
 
 from censo_test.cfg import (
     CODING,
@@ -18,10 +19,11 @@ from censo_test.cfg import (
     C
 )
 from censo_test.utilities import last_folders, t2x, x2t, print
-from censo_test.qm_job import QmJob
+from censo_test.datastructure import MoleculeData
+from censo_test.qm_processor import QmProc
 
 
-class OrcaJob(QmJob):
+class OrcaProc(QmProc):
     """
     Perform calculations with ORCA
     - create orca.inp input
@@ -37,12 +39,14 @@ class OrcaJob(QmJob):
         super().__init__()
         
         # expand jobtypes with special orca jobtypes
-        self.jobtypes = {**self.jobtypes, **{
-            "nmrS": self._nmrS,
-            "nmrJ": self._nmrJ,
-            "uvvis": self._uvvis,
-        }}
-
+        self.jobtypes = {
+            **self.jobtypes, **{
+                "nmrS": self._nmrS,
+                "nmrJ": self._nmrJ,
+                "uvvis": self._uvvis,
+            }
+        }
+        
         
     def _prep(self, xyzfile=False, returndict=False):
         """
@@ -971,51 +975,3 @@ class OrcaJob(QmJob):
         """
         calculation of uvvis spectra
         """
-
-
-    def run(self):
-        """
-        run method depending on jobtype
-        put the results on the result queue # TODO
-        """
-        try:
-            if self.job["jobtype"] == "prep":
-                self.job["success"] = True
-            elif self.job["jobtype"] == "xtb_sp":
-                self._xtb_sp()
-            elif self.job["jobtype"] in ("sp", "sp_implicit"):
-                self._sp()
-            elif self.job["jobtype"] == "opt":
-                print("RUNNING xtbopt!!!")
-                # self._opt()
-                self._xtbopt()
-            elif self.job["jobtype"] == "xtbopt":
-                self._xtbopt()
-            elif self.job["jobtype"] == "rrhoxtb":
-                self._xtbrrho()
-            # elif self.job['jobtype'] == "rrhoorca":
-            #     self._rrho()
-            elif self.job["jobtype"] == "smd_gsolv":
-                self._smd_gsolv()
-            elif self.job["jobtype"] == "couplings_sp":
-                self._nmrJ()
-            elif self.job["jobtype"] in ("shieldings_sp", "shieldings"):
-                self._nmrS()
-            elif self.job["jobtype"] == "genericout":
-                self._genericoutput()
-            elif self.job["jobtype"] in ("gbsa_gsolv", "alpb_gsolv"):
-                # basically no other behaviour than sp -> xtb_gsolv
-                if self.job["prepinfo"]:
-                    tmp_solvent = self.job["solvent"]
-                    self.job["solvent"] = "gas"
-                    self._sp()
-                    if not self.job["success"]:
-                        return
-                    self.job["solvent"] = tmp_solvent
-                self._xtb_gsolv()
-            else:
-                print(f"JOBTYPE {self.job['jobtype']} UNKNOWN!")
-        except OSError as error:
-            self.job["success"] = False
-            print(f"{'IO-ERROR:':{WARNLEN}}in CONF{self.id} calculation")
-            print(error, file=sys.stderr)

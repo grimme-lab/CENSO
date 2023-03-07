@@ -13,7 +13,7 @@ from censo.cfg import (
     __version__,
 )
 from censo.datastructure import MoleculeData
-from censo.qm_job import QmJob
+from censo.qm_job import QmProc
 from censo.utilities import (
     check_for_float,
     do_md5,
@@ -317,7 +317,7 @@ def enso_startup():
                                 f"{'WARNING:':{WARNLEN}}Missing data {info} from enso.json! "
                                 "Default is added."
                             )
-                    molecule = QmJob(
+                    molecule = QmProc(
                         save_data[conf].get("id"),
 
                         xtb_energy=save_data[conf].get("xtb_energy"),
@@ -625,7 +625,7 @@ def enso_startup():
                         break
                 if not considered:
                     print(f"Adding CONF{i} as new conformer!")
-                    newconfs.append(QmJob(i))
+                    newconfs.append(QmProc(i))
             if newconfs:
                 conformers.extend(newconfs)
                 get_energy_from_ensemble(config.ensemblepath, config, conformers) """

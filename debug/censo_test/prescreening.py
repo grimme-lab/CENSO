@@ -5,10 +5,11 @@ The idea is to improve on the description of E with a very fast DFT method.
 import os
 import sys
 from multiprocessing import JoinableQueue as Queue
+from typing import Any, Dict
 from censo.cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, qm_prepinfo, dfa_settings
 from censo.parallel import run_in_parallel
-from censo.orca_job import OrcaJob
-from censo.tm_job import TmJob
+from censo.orca_job import OrcaProc
+from censo.tm_job import TmProc
 from censo.utilities import (
     check_for_folder,
     print_block,
@@ -25,21 +26,23 @@ from censo.utilities import (
 )
 from censo_test.part import CensoPart
 from censo_test.core import CensoCore
-from censo_test.settings import SettingsTuple
+from censo_test.settings import CensoSettings
 
 class Prescreening(CensoPart):
     
-    def __init__(self, core: CensoCore, settings: SettingsTuple):
-        super().__init__(core, settings)
-        try:
-            self.prog = settings.byname("prog").value
-            self.func = settings.byname("func").value
-            self.basis = settings.byname("basis").value
-            self.gfnv = settings.byname("gfnv").value
-            
-            self.threshold = settings.byname("threshold").value
-        except AttributeError:
-            raise Exception # TODO
+    def __init__(self, core: CensoCore, run_settings: CensoSettings):
+        super().__init__()
+        
+        self.core = core
+        
+        # grabs the settings required for this part from the passed 'CensoSettings' instance
+        settings = run_settings.settings_current.bypart("general")
+        settings = settings + run_settings.settings_current.bypart("prescreening")
+        
+        # transfers settings into a dict of instructions to be passed to the process handler
+        self._instructions = {}
+        for setting in settings:
+            self._instructions[setting.name] = setting.value
     
     @timeit
     def run(self) -> None:
@@ -126,10 +129,12 @@ class Prescreening(CensoPart):
 
         ### JOB INSTRUCTIONS
 
+
+
         if config.prog == "tm":
-            job = TmJob
+            job = TmProc
         elif config.prog == "orca":
-            job = OrcaJob
+            job = OrcaProc
 
         for conf in list(conformers):
             conf = conformers.pop(conformers.index(conf))

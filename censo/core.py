@@ -20,9 +20,9 @@ from censo.cfg import (
     WARNLEN,
     __version__,
 )
-from censo.orca_job import OrcaJob
+from censo.orca_job import OrcaProc
 from censo.settings import CensoSettings, PARTS, Settings
-from censo.tm_job import TmJob
+from censo.tm_job import TmProc
 from censo.datastructure import MoleculeData
 from censo.ensembledata import EnsembleData
 from censo.utilities import (
@@ -37,7 +37,7 @@ from censo.utilities import (
 class CensoCore:
     _instance_ref = weakref.WeakValueDictionary()
     
-    prog_job: Dict[str, type] = {"tm": TmJob, "orca": OrcaJob}
+    prog_job: Dict[str, type] = {"tm": TmProc, "orca": OrcaProc}
 
     @staticmethod
     def factory(cwd, args: Namespace):

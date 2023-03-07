@@ -7,8 +7,8 @@ import sys
 from multiprocessing import JoinableQueue as Queue
 from censo.cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, qm_prepinfo, dfa_settings
 from censo.parallel import run_in_parallel
-from censo.orca_job import OrcaJob
-from censo.tm_job import TmJob
+from censo.orca_job import OrcaProc
+from censo.tm_job import TmProc
 from censo.utilities import (
     check_for_folder,
     print_block,
@@ -115,9 +115,9 @@ class Prescreening(CensoPart):
         folder = "part0_sp"
 
         if config.prog == "tm":
-            job = TmJob
+            job = TmProc
         elif config.prog == "orca":
-            job = OrcaJob
+            job = OrcaProc
 
         for conf in list(conformers):
             conf = conformers.pop(conformers.index(conf))

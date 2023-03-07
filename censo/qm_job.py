@@ -1,5 +1,5 @@
 """
-Contains QmJob base class for calculating QM related properties of conformers.
+Contains QmProc base class for calculating QM related properties of conformers.
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
@@ -26,9 +26,9 @@ from censo.datastructure import MoleculeData
 
 # TODO - add factory method
 
-class QmJob:
+class QmProc:
     """
-    QmJob base class for calculating QM related properties of conformers.
+    QmProc base class for calculating QM related properties of conformers.
     """
 
     instances_orca = weakref.WeakValueDictionary()

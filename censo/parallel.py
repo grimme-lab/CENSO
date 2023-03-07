@@ -5,9 +5,9 @@ import time
 import os
 import traceback
 from multiprocessing import Process
-from .qm_job import QmJob
-from .tm_job import TmJob
-from .orca_job import OrcaJob
+from .qm_job import QmProc
+from .tm_job import TmProc
+from .orca_job import OrcaProc
 from .utilities import print
 from .cfg import ENVIRON, WARNLEN
 
@@ -98,13 +98,13 @@ def run_in_parallel(
     else:
         balance = False
     maxthreads, omp, changed = balance_load(maxthreads, omp, nconf, balance)
-    if all(isinstance(x, QmJob) for x in loopover):
+    if all(isinstance(x, QmProc) for x in loopover):
         for item in loopover:
-            if isinstance(item, TmJob) and job == OrcaJob:
+            if isinstance(item, TmProc) and job == OrcaProc:
                 item.__class__ = job
-            elif isinstance(item, OrcaJob) and job == TmJob:
+            elif isinstance(item, OrcaProc) and job == TmProc:
                 item.__class__ = job
-            elif isinstance(item, QmJob) and job != QmJob:
+            elif isinstance(item, QmProc) and job != QmProc:
                 item.__class__ = job
             item.job["workdir"] = os.path.normpath(
                 os.path.join(config.cwd, "CONF" + str(item.id), foldername)

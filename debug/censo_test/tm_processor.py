@@ -1,5 +1,5 @@
 """
-Contains TmJob class for calculating TM related properties of conformers.
+Contains TmProc class for calculating TM related properties of conformers.
 """
 import os
 import math
@@ -21,10 +21,10 @@ from censo_test.cfg import (
     dfa_settings,
 )
 from censo_test.utilities import last_folders, print
-from censo_test.qm_job import QmJob
+from debug.censo_test.qm_processor import QmProc
 
 
-class TmJob(QmJob):
+class TmProc(QmProc):
     """
     Perform calculations with TM
     - create input with cefine
@@ -40,7 +40,7 @@ class TmJob(QmJob):
     sm = ("cosmo", "dcosmors")
 
     def __init__(self, rank, *args, **kwargs):
-        QmJob.__init__(self, rank, *args, **kwargs)
+        QmProc.__init__(self, rank, *args, **kwargs)
 
     def _prep(self):
         """

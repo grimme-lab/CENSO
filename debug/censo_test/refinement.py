@@ -25,8 +25,8 @@ from censo.utilities import (
     conf_in_interval,
 )
 from censo.parallel import run_in_parallel
-from censo.orca_job import OrcaJob
-from censo.tm_job import TmJob
+from censo.orca_job import OrcaProc
+from censo.tm_job import TmProc
 from censo.datastructure import MoleculeData
 
 
@@ -127,7 +127,7 @@ def part3(config, conformers, store_confs, ensembledata):
     # end print
 
     # TODO - fix the mess
-    calculate = []  # has to be calculated in this run, list of QmJobs
+    calculate = []  # has to be calculated in this run, list of QmProcs
     prev_calculated = []  # was already calculated in a previous run
     try:
         store_confs
@@ -139,9 +139,9 @@ def part3(config, conformers, store_confs, ensembledata):
     resultq = Queue()
 
     if config.prog3 == "tm":
-        job = TmJob
+        job = TmProc
     elif config.prog3 == "orca":
-        job = OrcaJob
+        job = OrcaProc
 
     for conf in list(conformers):
         if conf.removed:
@@ -273,7 +273,7 @@ def part3(config, conformers, store_confs, ensembledata):
             # additive GSolv
             # COSMORS
             if "cosmors" in config.smgsolv3 and config.smgsolv3 != "dcosmors":
-                job = TmJob
+                job = TmProc
                 exc_fine = {"cosmors": "normal", "cosmors-fine": "fine"}
                 tmp = {
                     "jobtype": "cosmors",
@@ -317,7 +317,7 @@ def part3(config, conformers, store_confs, ensembledata):
                 folder = "part3"
             # SMD-Gsolv
             elif instruction["sm"] == "smd_gsolv":
-                job = OrcaJob
+                job = OrcaProc
                 instruction["prepinfo"] = ["high"]
                 instruction["jobtype"] = instruction["sm"]
                 instruction["method"], instruction["method2"] = config.get_method_name(
@@ -516,14 +516,14 @@ def part3(config, conformers, store_confs, ensembledata):
         ensembledata.si["part3"]["Energy"] += " + GCP"
     # Energy_settings:
     try:
-        if job == TmJob:
+        if job == TmProc:
             if tmp_SI is not None:
                 tmp = " ".join(qm_prepinfo["tm"][tmp_SI[0]]).replace("-", "")
             else:
                 tmp = " ".join(qm_prepinfo["tm"][instruction["prepinfo"][0]]).replace(
                     "-", ""
                 )
-        elif job == OrcaJob:
+        elif job == OrcaProc:
             if tmp_SI is not None:
                 tmp = " ".join(qm_prepinfo["orca"][tmp_SI[0]])
             else:

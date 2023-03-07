@@ -1,5 +1,5 @@
 """
-Contains OrcaJob class for calculating ORCA related properties of conformers.
+Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
 from collections import OrderedDict
 import os
@@ -18,10 +18,10 @@ from censo.cfg import (
     C
 )
 from censo.utilities import last_folders, t2x, x2t, print
-from censo.qm_job import QmJob
+from censo.qm_job import QmProc
 
 
-class OrcaJob(QmJob):
+class OrcaProc(QmProc):
     """
     Perform calculations with ORCA
     - create orca.inp input
@@ -37,7 +37,7 @@ class OrcaJob(QmJob):
     sm = ("cpcm", "smd")
 
     def __init__(self, rank, *args, **kwargs):
-        QmJob.__init__(self, rank, *args, **kwargs)
+        QmProc.__init__(self, rank, *args, **kwargs)
 
     def _prep_input(self, xyzfile=False, returndict=False):
         """

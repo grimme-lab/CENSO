@@ -1,12 +1,14 @@
 """
-Contains QmJob base class, extending the multiprocessing.Process class.
+Contains QmProc base class, 
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
-from multiprocessing import Process
 import os
-from typing import Dict
-import weakref
+from typing import Any, Callable, Dict, List, Union
+from censo_test.datastructure import MoleculeData
+
+from censo_test.orca_processor import OrcaProc
+from censo_test.tm_processor import TmProc
 try:
     from math import isclose
 except ImportError:
@@ -21,37 +23,23 @@ from censo_test.cfg import (
     rot_sym_num, external_paths,
 )
 from censo_test.utilities import last_folders, print
-from censo_test.datastructure import MoleculeData
+        
 
-class QmJob(Process):
+class QmProc:
     """
-    QmJob base class
+    QmProc base class with xtb as driver (see _xtb methods)
     """
-    _instance_ref: Dict[str, weakref.WeakValueDictionary] = {
-        "OrcaJob": weakref.WeakValueDictionary(),
-        "TmJob": weakref.WeakValueDictionary(),
-    }
-
-    @classmethod
-    def factory(cls, type_t: type): # TODO - make usage more intuitive/simple?
-        """
-        loop over all subclasses and return a respective instance 
-        add it to the respective register
-        """
-        for subclass in cls.__subclasses__():
-            if subclass == type_t:
-                instance = subclass()
-                cls._instance_ref[subclass.__name__][id(instance)] = instance
-                return instance
-            
-        raise TypeError(f"No subclass {type_t.__name__} for {cls.__name__}.")
 
     def __init__(self):
         """should be defined"""
         # jobtype is basically an ordered (!!!) list containing the instructions of which computations to do        
+        self.jobtype: List[str]
+        
+        # stores instructions
+        self.instructions: Dict[str, Any]
         
         # dict to map the jobtypes to their respective methods
-        self.jobtypes = {
+        self.jobtypes: Dict[str, Callable] = {
             "sp": self._sp,
             "gsolv": self._gsolv,
             "opt": self._opt,
@@ -61,15 +49,19 @@ class QmJob(Process):
             "xto_opt": self._xtb_opt,
             "xtb_rrho": self._xtbrrho,
         }
+
+
+    def run(self, conformer: MoleculeData) -> Dict[str, Any]:
+        """
+        run methods depending on jobtype
+        """
         
-        # attribute to store the resultq passed to it
-
-
-    def run(self):
-        """
-        overwrite Process.run, should be implemented for each subclass
-        """
-        pass
+        res = {}
+        
+        for job in self.jobtype:
+            res[job] = self.jobtypes[job](conformer)
+            
+        return res
 
 
     def reset_job_info(self):
@@ -625,3 +617,26 @@ class QmJob(Process):
             )
             self.job["energy"] = 0.0
             self.job["success"] = False
+
+
+class ProcessorFactory:
+    
+    # for now these are the only available processor types
+    proctypes: Dict[str, type] = {
+        "orca": OrcaProc,
+        "tm": TmProc,
+    }
+    
+    @classmethod
+    def create_processor(cls, prog: str, *args, **kwargs) -> QmProc:
+        """
+        returns an instance of the requested processor type (mapping with the 'prog' setting)
+        for now the QmProc class uses xtb as driver (this method should be changed if additional drivers are implemented)
+        available processor types are mapped in ProcessorFactory.proctypes
+        """
+        type_t = cls.proctypes.get(prog, None)
+        
+        if not type_t is None:
+            return type_t(*args, **kwargs)
+        else:
+            raise TypeError(f"No processor type was found for {prog} in {cls.proctypes}.")

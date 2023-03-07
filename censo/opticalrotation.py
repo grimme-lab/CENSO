@@ -9,8 +9,8 @@ from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
 from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, dfa_settings
 from .parallel import run_in_parallel
-from .orca_job import OrcaJob
-from .tm_job import TmJob
+from .orca_job import OrcaProc
+from .tm_job import TmProc
 from .utilities import (
     calc_boltzmannweights,
     printout,
@@ -476,12 +476,12 @@ def part5(config, conformers, store_confs, ensembledata):
         print("Going to exit!")
         sys.exit(1)
         # ORCA can't calculate optical rotation!!! -->
-        job = OrcaJob
+        job = OrcaProc
         if config.solvent != "gas":
             instruction_or["solvent"] = config.solvent
             instruction_or["sm"] = "cpcm"
     if config.prog == "tm":
-        job = TmJob
+        job = TmProc
         instruction_or["prepinfo"] = ["clear", "-grid", "2", "-scfconv", "6"]
         if config.basis == config.basis_or:
             instruction_or["copymos"] = config.func

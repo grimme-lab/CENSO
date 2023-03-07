@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Union
 from censo.core import CensoCore
 from censo.cfg import WARNLEN
 from censo.errors import LogicError
-from censo.orca_job import OrcaJob
+from censo.orca_job import OrcaProc
 
 PARTS = (
     "prescreening", 
@@ -574,7 +574,7 @@ class CensoSettings:
                     
                 # there is no multitemp support for any orca smgsolv
                 if (
-                    self.settings_current(parts=part, settings="smgsolv") in OrcaJob.smgsolv
+                    self.settings_current(parts=part, settings="smgsolv") in OrcaProc.smgsolv
                     and self.settings_current(settings="multitemp")
                 ):
                     errors.append(LogicError(

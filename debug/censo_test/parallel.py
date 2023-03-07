@@ -3,32 +3,33 @@ Performs the parallel execution of the QM calls.
 """
 import time
 import os
-from multiprocessing import Process, Queue, Manager
-from typing import List, Union
-import concurrent.futures
+from multiprocessing import Process
+from typing import Any, Dict, List, Union
+from concurrent.futures import ProcessPoolExecutor
 
-from censo_test.qm_job import QmJob
-from censo_test.tm_job import TmJob
-from censo_test.orca_job import OrcaJob
+from debug.censo_test.qm_processor import ProcessorFactory, QmProc
+from debug.censo_test.tm_processor import TmProc
+from debug.censo_test.orca_processor import OrcaProc
 from censo_test.utilities import print
 from censo_test.cfg import ENVIRON, WARNLEN
 from censo_test.datastructure import MoleculeData
 from censo_test.settings import CensoSettings
 
+
 class ProcessHandler:
     
     # https://stackoverflow.com/questions/1540822/dumping-a-multiprocessing-queue-into-a-list/1541117#1541117
     
-    def __init__(self, conformers: List[MoleculeData], settings: CensoSettings):
+    def __init__(self, settings: CensoSettings, conformers: List[MoleculeData]):
         """
-        creates instance with two empty queues for conformers and results
+        creates instance with 
         also sets the number of processes (nprocs) and cores per processes (omp) to optimized vaules if possible
         """
-        self.jobq = Queue()
-        self.resultq = Queue()
+        # stores the conformers
+        self.conformers: List[MoleculeData] = conformers
         
-        # stores all processes (TODO)
-        self.processes: List[Union[OrcaJob, TmJob]]
+        # stores the processor
+        self._processor = None
         
         # get number of cores
         try:
@@ -40,7 +41,7 @@ class ProcessHandler:
         self.omp = None
         if (
             getattr(settings.settings_current.byname("balance"), "value", False) 
-            or not self.balance_load()
+            or not self._balance_load()
         ):
             print("\nCould not readjust maxprocs and omp.\n")
             # get number of processes
@@ -58,7 +59,7 @@ class ProcessHandler:
             )
     
     
-    def balance_load(self) -> bool:
+    def _balance_load(self) -> bool:
         """
         distribute computational load between cores
         keeping the number of processes below number of conformers
@@ -71,7 +72,7 @@ class ProcessHandler:
                 self.nprocs is None or self.omp is None
             )
             and (
-                self.ncores > self.jobq.qsize() 
+                self.ncores > len(self.conformers) 
                 or self.ncores > self.nprocs * self.omp
             )
         ):
@@ -86,21 +87,31 @@ class ProcessHandler:
             # should always be divisible, int casting only as safeguard
             self.omp = int(self.ncores / self.nprocs)
             
-            # check if nprocs is a divisor of nconf
-            # TODO - if this is not the case split jobq into two parts, rebalance load for the second part
-            
             return True
         else:
             return False
                 
 
-    def execute(self):
+    def execute(self, jobtype: List[str], prog: str, instructions: Dict[str, Any]) -> List:
         """
-        executes the processes
+        creates and executes the processes
         returns the results
         """
-        for process in self.processes:
-            process.run()
+        res = []
+        
+        # initialize the processor for the respective program (depends on part)
+        # and set the jobtype as well as instructions
+        self._processor = ProcessorFactory.create_processor(prog)
+        self._processor.jobtype = jobtype
+        self._processor.instructions = instructions
+        
+        # execute jobs for conformers in queue
+        # check if nprocs is a divisor of nconf
+        # TODO - if this is not the case split jobq into two parts, rebalance load for the second part
+        with ProcessPoolExecutor(max_workers=self.nprocs) as executor:
+            res = [item for item in executor.map(self._processor.run, self.conformers)]
+
+        return res
 
 
     def run_in_parallel(
@@ -140,13 +151,13 @@ class ProcessHandler:
         else:
             balance = False
         maxthreads, omp, changed = balance_load(maxthreads, omp, nconf, balance)
-        if all(isinstance(x, QmJob) for x in loopover):
+        if all(isinstance(x, QmProc) for x in loopover):
             for item in loopover:
-                if isinstance(item, TmJob) and job == OrcaJob:
+                if isinstance(item, TmProc) and job == OrcaProc:
                     item.__class__ = job
-                elif isinstance(item, OrcaJob) and job == TmJob:
+                elif isinstance(item, OrcaProc) and job == TmProc:
                     item.__class__ = job
-                elif isinstance(item, QmJob) and job != QmJob:
+                elif isinstance(item, QmProc) and job != QmProc:
                     item.__class__ = job
                 item.job["workdir"] = os.path.normpath(
                     os.path.join(config.cwd, "CONF" + str(item.id), foldername)

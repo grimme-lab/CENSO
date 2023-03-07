@@ -10,8 +10,8 @@ from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
 from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, CODING, NmrRef, qm_prepinfo
 from .parallel import run_in_parallel
-from .orca_job import OrcaJob
-from .tm_job import TmJob
+from .orca_job import OrcaProc
+from .tm_job import TmProc
 from .utilities import (
     calc_boltzmannweights,
     printout,
@@ -952,7 +952,7 @@ def part4(config, conformers, store_confs, ensembledata):
             "onlyread": config.onlyread,
         }
         if config.prog4_j == "orca":
-            job = OrcaJob
+            job = OrcaProc
             instruction_j["prepinfo"].extend(["nmrJ"])
             instruction_j["method"], _ = config.get_method_name(
                 instruction_j["jobtype"],
@@ -963,7 +963,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 prog=config.prog4_j,
             )
         elif config.prog4_j == "tm":
-            job = TmJob
+            job = TmProc
             instruction_j["method"], _ = config.get_method_name(
                 instruction_j["jobtype"],
                 func=instruction_j["func"],
@@ -1112,7 +1112,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 instruction_s["jobtype"] = "shieldings_sp"
 
         if config.prog4_s == "orca":
-            job = OrcaJob
+            job = OrcaProc
             instruction_s["prepinfo"].extend(["nmrS"])
             instruction_s["method"], _ = config.get_method_name(
                 instruction_s["jobtype"],
@@ -1123,7 +1123,7 @@ def part4(config, conformers, store_confs, ensembledata):
                 prog=config.prog4_s,
             )
         elif config.prog4_s == "tm":
-            job = TmJob
+            job = TmProc
             instruction_s["method"], _ = config.get_method_name(
                 instruction_s["jobtype"],
                 func=instruction_s["func"],

@@ -15,6 +15,7 @@ from censo_test.utilities import timeit
 from censo_test.core import CensoCore
 from censo_test.settings import CensoSettings, SettingsTuple
 
+
 class CensoPart:
     
     def __init__(self):

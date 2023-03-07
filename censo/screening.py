@@ -9,8 +9,8 @@ import time
 from multiprocessing import JoinableQueue as Queue
 from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN, qm_prepinfo, dfa_settings
 from .parallel import run_in_parallel
-from .orca_job import OrcaJob
-from .tm_job import TmJob
+from .orca_job import OrcaProc
+from .tm_job import TmProc
 from .utilities import (
     check_for_folder,
     print_block,
@@ -136,9 +136,9 @@ def part1(config, conformers, store_confs, ensembledata):
     resultq = Queue()
 
     if config.prog == "tm":
-        job = TmJob
+        job = TmProc
     elif config.prog == "orca":
-        job = OrcaJob
+        job = OrcaProc
 
     for conf in list(conformers):
         if conf.removed:
@@ -218,7 +218,7 @@ def part1(config, conformers, store_confs, ensembledata):
             # additive Gsolv
             # COSMORS
             if config.smgsolv1 != "dcosmors" and "cosmors" in config.smgsolv1:
-                job = TmJob
+                job = TmProc
                 exc_fine = {"cosmors": "normal", "cosmors-fine": "fine"}
                 tmp = {
                     "jobtype": "cosmors",
@@ -261,7 +261,7 @@ def part1(config, conformers, store_confs, ensembledata):
                 folder = str(instruction["func"]) + "/Gsolv"
             # SMD-Gsolv
             elif instruction["sm"] == "smd_gsolv":
-                job = OrcaJob
+                job = OrcaProc
                 instruction["jobtype"] = instruction["sm"]
                 instruction["progpath"] = config.external_paths["orcapath"]
                 instruction["method"], instruction["method2"] = config.get_method_name(
@@ -286,14 +286,14 @@ def part1(config, conformers, store_confs, ensembledata):
 
     # Supporting info update:
     try:
-        if job == TmJob:
+        if job == TmProc:
             if tmp_SI is not None:
                 tmp = " ".join(qm_prepinfo["tm"][tmp_SI[0]]).replace("-", "")
             else:
                 tmp = " ".join(qm_prepinfo["tm"][instruction["prepinfo"][0]]).replace(
                     "-", ""
                 )
-        elif job == OrcaJob:
+        elif job == OrcaProc:
             if tmp_SI is not None:
                 tmp = " ".join(qm_prepinfo["orca"][tmp_SI[0]])
             else:
