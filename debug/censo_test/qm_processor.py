@@ -5,7 +5,7 @@ code. (xTB always available)
 """
 import os
 from typing import Any, Callable, Dict, List, Union
-from censo_test.datastructure import MoleculeData
+from censo_test.datastructure import GeometryData
 
 from censo_test.orca_processor import OrcaProc
 from censo_test.tm_processor import TmProc
@@ -51,12 +51,14 @@ class QmProc:
         }
 
 
-    def run(self, conformer: MoleculeData) -> Dict[str, Any]:
+    def run(self, conformer: GeometryData) -> Dict[str, Any]:
         """
         run methods depending on jobtype
         """
         
         res = {}
+        
+        res["confid"] = conformer.id
         
         for job in self.jobtype:
             res[job] = self.jobtypes[job](conformer)

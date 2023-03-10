@@ -37,3 +37,9 @@ class LogicWarning(Warning):
                 {self._problem}\n
                 {self._hint}
                 {' Trying to continue.' if not self.fatal else ''}\n"""
+                
+                
+class JobFailedWarning(Warning):
+    """
+    warning for failed job, specifying reasons TODO
+    """

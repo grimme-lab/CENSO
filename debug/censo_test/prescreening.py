@@ -5,7 +5,7 @@ The idea is to improve on the description of E with a very fast DFT method.
 import os
 import sys
 from multiprocessing import JoinableQueue as Queue
-from typing import Any, Dict
+from typing import Any, Dict, List
 from censo.cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, qm_prepinfo, dfa_settings
 from censo.parallel import run_in_parallel
 from censo.orca_job import OrcaProc
@@ -27,6 +27,8 @@ from censo.utilities import (
 from censo_test.part import CensoPart
 from censo_test.core import CensoCore
 from censo_test.settings import CensoSettings
+from censo_test.parallel import ProcessHandler
+from censo_test.datastructure import MoleculeData
 
 class Prescreening(CensoPart):
     
@@ -45,7 +47,7 @@ class Prescreening(CensoPart):
             self._instructions[setting.name] = setting.value
     
     @timeit
-    def run(self) -> None:
+    def run(self, conformers: List[MoleculeData]) -> None:
         """
         Cheap prescreening of the ensemble, with single-points on combined ensemble
         geometries.
@@ -56,6 +58,29 @@ class Prescreening(CensoPart):
         2. setup queue and run calculations via helper
         3. print results
         """
+        
+        # FIXME - just basic formalism
+        handler = ProcessHandler(settings, [conf.geom for conf in conformers])
+        
+        jobtype: List
+        if self._instructions.get("gas-phase", None):
+            jobtype = ["sp"]
+        else:
+            jobtype = ["sp", "xtb_gsolv"]
+        
+        results = handler.execute(jobtype, self._instructions)
+        for conf in conformers:
+            conf.results[self.__class__.__name__.lower()] = results[id(conf)]
+        
+        # update ensembledata
+        
+        # print results
+        
+        # DONE
+        
+        #########
+        #########
+        
         save_errors = []
         if config.progress:
             print("#>>># CENSO: Starting part0", file=sys.stderr)

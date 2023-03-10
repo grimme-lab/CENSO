@@ -1,6 +1,7 @@
 """
 Contains info regarding the ensemble such as energies etc., best conf per part,
 number of confs per part, timings (remove)
+metadata class
 """
 
 # TODO - should contain all information calculated results for all conformers

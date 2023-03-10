@@ -281,7 +281,7 @@ class CensoCore:
             
             # get precalculated energies if possible
             for i in range(nconf):
-                self.conformers.append(MoleculeData(i, lines[i*nat+2:(i+1)*nat+2]))
+                self.conformers.append(MoleculeData(f"CONF{i}", lines[i*nat+2:(i+1)*nat+2]))
                 self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1])
             
             # also works, if xtb_energy is None (None is put first)    

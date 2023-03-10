@@ -19,10 +19,9 @@ from censo_test.cfg import (
     C
 )
 from censo_test.utilities import last_folders, t2x, x2t, print
-from censo_test.datastructure import MoleculeData
 from censo_test.qm_processor import QmProc
 
-
+# TODO - keep output if any job fails!!!!
 class OrcaProc(QmProc):
     """
     Perform calculations with ORCA
@@ -470,7 +469,7 @@ class OrcaProc(QmProc):
             with open(
                 os.path.join(self.job["workdir"], "inp"), "w", newline=None
             ) as inp:
-                for line in self._prep_input():
+                for line in self._prep():
                     inp.write(line + "\n")
 
             # Done writing input!
@@ -502,17 +501,7 @@ class OrcaProc(QmProc):
                         self.job["energy"] = float(line.split()[4])
                     if "ORCA TERMINATED NORMALLY" in line:
                         self.job["success"] = True
-                    # read uvvis excitation energies and oscillator strengths
-                    if self.job["calc_uvvis"] and "ABSORPTION SPECTRUM" in line:
-                        # offset of 5 because of text in orca output
-                        # TODO - catch error in reading uvvis data
-                        uvvis_table = stor[i+5:i+5+self.job["nroots"]]
-                        for row in uvvis_table:
-                            tmp = {"wavelength": 0.0, "energy": 0.0, "osc_str": 0.0}
-                            tmp["energy"] = float(row.split()[1]) * PLANCK * C
-                            tmp["wavelength"] = float(row.split()[2])
-                            tmp["osc_str"] = float(row.split()[3])
-                            self.job["excitations"].append(tmp)
+                    
             if not self.job["success"]:
                 self.job["energy"] = 0.0
                 self.job["success"] = False # FIXME - redundant?
@@ -975,3 +964,14 @@ class OrcaProc(QmProc):
         """
         calculation of uvvis spectra
         """
+        # read uvvis excitation energies and oscillator strengths
+        if self.job["calc_uvvis"] and "ABSORPTION SPECTRUM" in line:
+            # offset of 5 because of text in orca output
+            # TODO - catch error in reading uvvis data
+            uvvis_table = stor[i+5:i+5+self.job["nroots"]]
+            for row in uvvis_table:
+                tmp = {"wavelength": 0.0, "energy": 0.0, "osc_str": 0.0}
+                tmp["energy"] = float(row.split()[1]) * PLANCK * C
+                tmp["wavelength"] = float(row.split()[2])
+                tmp["osc_str"] = float(row.split()[3])
+                self.job["excitations"].append(tmp)
