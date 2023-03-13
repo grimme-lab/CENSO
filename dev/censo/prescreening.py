@@ -46,7 +46,7 @@ class Prescreening(CensoPart):
             self._instructions[setting.name] = setting.value
     
     @timeit
-    def run(self) -> None:
+    def run(self, conformers: List[MoleculeData]) -> None:
         """
         Cheap prescreening of the ensemble, with single-points on combined ensemble
         geometries.
@@ -58,35 +58,22 @@ class Prescreening(CensoPart):
         3. print results
         """
         
-        # initialize process handler for current program with conformer geometries
-        handler = ProcessHandler(settings, [conf.geom for conf in self.core.conformers])
+        # FIXME - just basic formalism
+        handler = ProcessHandler(settings, [conf.geom for conf in conformers])
         
-        jobtype: List[str] = []
+        jobtype: List
         if self._instructions.get("gas-phase", None):
             jobtype = ["sp"]
         else:
             jobtype = ["sp", "xtb_gsolv"]
         
         results = handler.execute(jobtype, self._instructions)
-        for conf in self.core.conformers:
+        for conf in conformers:
             conf.results[self.__class__.__name__.lower()] = results[id(conf)]
         
-        # sort conformers list with prescreening key
-        self.core.conformers.sort(key=self.key)
+        # update ensembledata
         
-        # filter conformers list and store popped conformers
-        best = max([self.key(conf) for conf in self.core.conformers])
-        self.core.rem += self.core.conformers - [
-            conf for conf in filter(
-                lambda x: x. < best +- threshold,
-                self.core.conformers
-            )
-        ]
-        
-        self.core.conformers = self.core.conformers - self.core.rem
-        
-        # print new order and results
-        self.print(self.core.conformers)
+        # print results
         
         # DONE
         
@@ -634,31 +621,3 @@ class Prescreening(CensoPart):
         print("\n" + "".ljust(tmp, ">") + "END of Part0" + "".rjust(tmp, "<"))
         if config.progress:
             print("#>>># CENSO: Finished part0", file=sys.stderr)
-
-
-    def key(self, conf: MoleculeData) -> float:
-        """
-        prescreening key for conformer sorting
-        calculates δG_tot for a given conformer
-        """
-        
-        
-        
-        return abs(gtot)
-
-
-    def print(self, conformers: List[MoleculeData]) -> None:
-        """
-        formatted print for prescreening
-        prints: 
-            E(xtb), 
-            δE(xbt), 
-            G_solv, 
-            δG_solv,
-            
-            E(DFT), 
-            δE(DFT), 
-            
-            E(DFT) + G_solv, 
-            δ(E(DFT) + G_solv) 
-        """

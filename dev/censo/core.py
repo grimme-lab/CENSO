@@ -27,6 +27,8 @@ from censo.utilities import (
 # TODO - how do the assets files get into ~/.censo_assets?
 class CensoCore:
     """
+    CensoCore is implemented as thread-safe singleton 
+    (there should only be one instance for the run)
     """
     
     def __init__(self, args: Namespace, cwd: str):
@@ -47,11 +49,9 @@ class CensoCore:
             "consider_unconverged": bool,
         }
             
-        # stores the conformers with all info
+        # TODO - make into private attributes?
         self.conformers: list[MoleculeData] = []
- 
-        # stores the conformers which were sorted out
-        self.rem: list[MoleculeData] = []       
+        self.ensembledata: EnsembleData
         
         # absolute path to ensemble input file
         self.ensemble_path: str

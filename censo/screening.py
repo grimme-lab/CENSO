@@ -9,8 +9,8 @@ import time
 from multiprocessing import JoinableQueue as Queue
 from .cfg import PLENGTH, DIGILEN, AU2KCAL, CODING, WARNLEN, qm_prepinfo, dfa_settings
 from .parallel import run_in_parallel
-from .orca_job import OrcaProc
-from .tm_job import TmProc
+from .orca_processor import OrcaProc
+from .tm_processor import TmProc
 from .utilities import (
     check_for_folder,
     print_block,

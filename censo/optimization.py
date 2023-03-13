@@ -28,8 +28,8 @@ from .utilities import (
     calc_weighted_std_dev,
     conf_in_interval,
 )
-from .orca_job import OrcaProc
-from .tm_job import TmProc
+from .orca_processor import OrcaProc
+from .tm_processor import TmProc
 from .parallel import run_in_parallel
 
 

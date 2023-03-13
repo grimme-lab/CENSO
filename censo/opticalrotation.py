@@ -9,8 +9,8 @@ from random import normalvariate
 from multiprocessing import JoinableQueue as Queue
 from .cfg import PLENGTH, DIGILEN, AU2KCAL, WARNLEN, dfa_settings
 from .parallel import run_in_parallel
-from .orca_job import OrcaProc
-from .tm_job import TmProc
+from .orca_processor import OrcaProc
+from .tm_processor import TmProc
 from .utilities import (
     calc_boltzmannweights,
     printout,

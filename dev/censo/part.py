@@ -49,13 +49,6 @@ class CensoPart:
             jobs.append(self.core.prog_job[settings[str]["prog"]]())
     
     
-    def key(self):
-        """
-        key to sort conformers list (optional)
-        """
-        pass
-    
-    
     def print(self):
         """
         print format for every part

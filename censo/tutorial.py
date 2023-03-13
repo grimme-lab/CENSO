@@ -1,8 +1,6 @@
 """
 Guide for setting up CENSO and performing a CENSO calculation
 """
-from .cfg import DESCR, censo_solvent_db, dfa_settings
-from .inputhandling import internal_settings
 
 def make_block(strlist, width=80):
     """Print all elements of strlist in block mode

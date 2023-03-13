@@ -1,0 +1,669 @@
+{
+    "acetone": {
+        "DC": 20.7,
+        "cosmors": [
+            "propanone_c0",
+            "propanone_c0"
+        ],
+        "cpcm": [
+            "acetone",
+            "acetone"
+        ],
+        "dcosmors": [
+            "propanone",
+            "propanone"
+        ],
+        "smd": [
+            "ACETONE",
+            "ACETONE"
+        ],
+        "xtb": [
+            "acetone",
+            "acetone"
+        ]
+    },
+    "acetonitrile": {
+        "DC": 36.6,
+        "cosmors": [
+            "acetonitrile_c0",
+            "acetonitrile_c0"
+        ],
+        "cpcm": [
+            "acetonitrile",
+            "acetonitrile"
+        ],
+        "dcosmors": [
+            "acetonitrile",
+            "acetonitrile"
+        ],
+        "smd": [
+            "ACETONITRILE",
+            "ACETONITRILE"
+        ],
+        "xtb": [
+            "acetonitrile",
+            "acetonitrile"
+        ]
+    },
+    "aniline": {
+        "DC": 6.9,
+        "cosmors": [
+            "aniline_c0",
+            "aniline_c0"
+        ],
+        "cpcm": [
+            null,
+            "Pyridine"
+        ],
+        "dcosmors": [
+            "aniline",
+            "aniline"
+        ],
+        "smd": [
+            "ANILINE",
+            "ANILINE"
+        ],
+        "xtb": [
+            "aniline",
+            "aniline"
+        ]
+    },
+    "benzaldehyde": {
+        "DC": 18.2,
+        "cosmors": [
+            "benzaldehyde_c0",
+            "benzaldehyde_c0"
+        ],
+        "cpcm": [
+            null,
+            "Pyridine"
+        ],
+        "dcosmors": [
+            null,
+            "propanone"
+        ],
+        "smd": [
+            "BENZALDEHYDE",
+            "BENZALDEHYDE"
+        ],
+        "xtb": [
+            "benzaldehyde",
+            "benzaldehyde"
+        ]
+    },
+    "benzene": {
+        "DC": 2.3,
+        "cosmors": [
+            "benzene_c0",
+            "benzene_c0"
+        ],
+        "cpcm": [
+            "Benzene",
+            "Benzene"
+        ],
+        "dcosmors": [
+            null,
+            "toluene"
+        ],
+        "smd": [
+            "BENZENE",
+            "BENZENE"
+        ],
+        "xtb": [
+            "benzene",
+            "benzene"
+        ]
+    },
+    "ccl4": {
+        "DC": 2.2,
+        "cosmors": [
+            "ccl4_c0",
+            "ccl4_c0"
+        ],
+        "cpcm": [
+            "CCl4",
+            "CCl4"
+        ],
+        "dcosmors": [
+            "ccl4",
+            "ccl4"
+        ],
+        "smd": [
+            "CARBON TETRACHLORIDE",
+            "CARBON TETRACHLORIDE"
+        ],
+        "xtb": [
+            "ccl4",
+            "ccl4"
+        ]
+    },
+    "ch2cl2": {
+        "DC": 9.1,
+        "cosmors": [
+            "ch2cl2_c0",
+            "ch2cl2_c0"
+        ],
+        "cpcm": [
+            "CH2Cl2",
+            "CH2Cl2"
+        ],
+        "dcosmors": [
+            null,
+            "chcl3"
+        ],
+        "smd": [
+            "DICHLOROMETHANE",
+            "DICHLOROMETHANE"
+        ],
+        "xtb": [
+            "ch2cl2",
+            "ch2cl2"
+        ]
+    },
+    "chcl3": {
+        "DC": 4.8,
+        "cosmors": [
+            "chcl3_c0",
+            "chcl3_c0"
+        ],
+        "cpcm": [
+            "chloroform",
+            "chloroform"
+        ],
+        "dcosmors": [
+            "chcl3",
+            "chcl3"
+        ],
+        "smd": [
+            "CHLOROFORM",
+            "CHLOROFORM"
+        ],
+        "xtb": [
+            "chcl3",
+            "chcl3"
+        ]
+    },
+    "cs2": {
+        "DC": 2.6,
+        "cosmors": [
+            "cs2_c0",
+            "cs2_c0"
+        ],
+        "cpcm": [
+            null,
+            "CCl4"
+        ],
+        "dcosmors": [
+            null,
+            "ccl4"
+        ],
+        "smd": [
+            "CARBON DISULFIDE",
+            "CARBON DISULFIDE"
+        ],
+        "xtb": [
+            "cs2",
+            "cs2"
+        ]
+    },
+    "cyclohexane": {
+        "DC": 2.0,
+        "cosmors": [
+            "cyclohexane_c0",
+            "cyclohexane_c0"
+        ],
+        "cpcm": [
+            "Cyclohexane",
+            "Cyclohexane"
+        ],
+        "dcosmors": [
+            "cyclohexane",
+            "cyclohexane"
+        ],
+        "smd": [
+            "CYCLOHEXANE",
+            "CYCLOHEXANE"
+        ],
+        "xtb": [
+            null,
+            "hexane"
+        ]
+    },
+    "dichloroethane": {
+        "DC": 10.125,
+        "cosmors": [
+            "1,2-dichloroethane_c0",
+            "1,2-dichloroethane_c0"
+        ],
+        "cpcm": [
+            null,
+            "CH2Cl2"
+        ],
+        "dcosmors": [
+            null,
+            "chcl3"
+        ],
+        "smd": [
+            "1,2-DICHLOROETHANE",
+            "1,2-DICHLOROETHANE"
+        ],
+        "xtb": [
+            null,
+            "ch2cl2"
+        ]
+    },
+    "diethylether": {
+        "DC": 4.4,
+        "cosmors": [
+            "diethylether_c0",
+            "diethylether_c0"
+        ],
+        "cpcm": [
+            null,
+            "THF"
+        ],
+        "dcosmors": [
+            "diethylether",
+            "diethylether"
+        ],
+        "smd": [
+            "DIETHYL ETHER",
+            "DIETHYL ETHER"
+        ],
+        "xtb": [
+            "ether",
+            "ether"
+        ]
+    },
+    "dioxane": {
+        "DC": 2.2,
+        "cosmors": [
+            "dioxane_c0",
+            "dioxane_c0"
+        ],
+        "cpcm": [
+            null,
+            "Cyclohexane"
+        ],
+        "dcosmors": [
+            null,
+            "diethylether"
+        ],
+        "smd": [
+            "1,4-DIOXANE",
+            "1,4-DIOXANE"
+        ],
+        "xtb": [
+            "dioxane",
+            "dioxane"
+        ]
+    },
+    "dmf": {
+        "DC": 38.3,
+        "cosmors": [
+            "dimethylformamide_c0",
+            "dimethylformamide_c0"
+        ],
+        "cpcm": [
+            "DMF",
+            "DMF"
+        ],
+        "dcosmors": [
+            null,
+            "dimethylsulfoxide"
+        ],
+        "smd": [
+            "N,N-DIMETHYLFORMAMIDE",
+            "N,N-DIMETHYLFORMAMIDE"
+        ],
+        "xtb": [
+            "dmf",
+            "dmf"
+        ]
+    },
+    "dmso": {
+        "DC": 47.2,
+        "cosmors": [
+            "dimethylsulfoxide_c0",
+            "dimethylsulfoxide_c0"
+        ],
+        "cpcm": [
+            "DMSO",
+            "DMSO"
+        ],
+        "dcosmors": [
+            "dimethylsulfoxide",
+            "dimethylsulfoxide"
+        ],
+        "smd": [
+            "DIMETHYLSULFOXIDE",
+            "DIMETHYLSULFOXIDE"
+        ],
+        "xtb": [
+            "dmso",
+            "dmso"
+        ]
+    },
+    "ethanol": {
+        "DC": 24.6,
+        "cosmors": [
+            "ethanol_c0",
+            "ethanol_c0"
+        ],
+        "cpcm": [
+            null,
+            "Methanol"
+        ],
+        "dcosmors": [
+            "ethanol",
+            "ethanol"
+        ],
+        "smd": [
+            "ETHANOL",
+            "ETHANOL"
+        ],
+        "xtb": [
+            "ethanol",
+            "ethanol"
+        ]
+    },
+    "ethylacetate": {
+        "DC": 5.9,
+        "cosmors": [
+            "ethylacetate_c0",
+            "ethylacetate_c0"
+        ],
+        "cpcm": [
+            null,
+            "THF"
+        ],
+        "dcosmors": [
+            null,
+            "diethylether"
+        ],
+        "smd": [
+            "ETHYL ETHANOATE",
+            "ETHYL ETHANOATE"
+        ],
+        "xtb": [
+            "ethylacetate",
+            "ethylacetate"
+        ]
+    },
+    "furan": {
+        "DC": 3.0,
+        "cosmors": [
+            "furane_c0",
+            "furane_c0"
+        ],
+        "cpcm": [
+            null,
+            "THF"
+        ],
+        "dcosmors": [
+            null,
+            "diethylether"
+        ],
+        "smd": [
+            null,
+            "THF"
+        ],
+        "xtb": [
+            "furane",
+            "furane"
+        ]
+    },
+    "h2o": {
+        "DC": 80.1,
+        "cosmors": [
+            "h2o_c0",
+            "h2o_c0"
+        ],
+        "cpcm": [
+            "Water",
+            "Water"
+        ],
+        "dcosmors": [
+            "h2o",
+            "h2o"
+        ],
+        "smd": [
+            "WATER",
+            "WATER"
+        ],
+        "xtb": [
+            "h2o",
+            "h2o"
+        ]
+    },
+    "hexadecane": {
+        "DC": 2.1,
+        "cosmors": [
+            "n-hexadecane_c0",
+            "n-hexadecane_c0"
+        ],
+        "cpcm": [
+            null,
+            "Hexane"
+        ],
+        "dcosmors": [
+            "hexadecane",
+            "hexadecane"
+        ],
+        "smd": [
+            "N-HEXADECANE",
+            "N-HEXADECANE"
+        ],
+        "xtb": [
+            "hexadecane",
+            "hexadecane"
+        ]
+    },
+    "hexane": {
+        "DC": 1.9,
+        "cosmors": [
+            "hexane_c0",
+            "hexane_c0"
+        ],
+        "cpcm": [
+            "Hexane",
+            "Hexane"
+        ],
+        "dcosmors": [
+            "hexane",
+            "hexane"
+        ],
+        "smd": [
+            "N-HEXANE",
+            "N-HEXANE"
+        ],
+        "xtb": [
+            "hexane",
+            "hexane"
+        ]
+    },
+    "methanol": {
+        "DC": 32.7,
+        "cosmors": [
+            "methanol_c0",
+            "methanol_c0"
+        ],
+        "cpcm": [
+            "Methanol",
+            "Methanol"
+        ],
+        "dcosmors": [
+            "methanol",
+            "methanol"
+        ],
+        "smd": [
+            "METHANOL",
+            "METHANOL"
+        ],
+        "xtb": [
+            "methanol",
+            "methanol"
+        ]
+    },
+    "nitromethane": {
+        "DC": 38.2,
+        "cosmors": [
+            "nitromethane_c0",
+            "nitromethane_c0"
+        ],
+        "cpcm": [
+            null,
+            "methanol"
+        ],
+        "dcosmors": [
+            "nitromethane",
+            "nitromethane"
+        ],
+        "smd": [
+            "NITROMETHANE",
+            "NITROMETHANE"
+        ],
+        "xtb": [
+            "nitromethane",
+            "nitromethane"
+        ]
+    },
+    "octane": {
+        "DC": 1.94,
+        "cosmors": [
+            "octane_c0",
+            "octane_c0"
+        ],
+        "cpcm": [
+            null,
+            "hexane"
+        ],
+        "dcosmors": [
+            null,
+            "octanol"
+        ],
+        "smd": [
+            "N-OCTANE",
+            "N-OCTANE"
+        ],
+        "xtb": [
+            null,
+            "hexane"
+        ]
+    },
+    "octanol": {
+        "DC": 9.9,
+        "cosmors": [
+            "1-octanol_c0",
+            "1-octanol_c0"
+        ],
+        "cpcm": [
+            "Octanol",
+            "Octanol"
+        ],
+        "dcosmors": [
+            "octanol",
+            "octanol"
+        ],
+        "smd": [
+            "1-OCTANOL",
+            "1-OCTANOL"
+        ],
+        "xtb": [
+            "octanol",
+            "octanol"
+        ]
+    },
+    "phenol": {
+        "DC": 8.0,
+        "cosmors": [
+            "phenol_c0",
+            "phenol_c0"
+        ],
+        "cpcm": [
+            null,
+            "THF"
+        ],
+        "dcosmors": [
+            null,
+            "thf"
+        ],
+        "smd": [
+            null,
+            "THIOPHENOL"
+        ],
+        "xtb": [
+            "phenol",
+            "phenol"
+        ]
+    },
+    "thf": {
+        "DC": 7.6,
+        "cosmors": [
+            "thf_c0",
+            "thf_c0"
+        ],
+        "cpcm": [
+            "THF",
+            "THF"
+        ],
+        "dcosmors": [
+            "thf",
+            "thf"
+        ],
+        "smd": [
+            "TETRAHYDROFURAN",
+            "TETRAHYDROFURAN"
+        ],
+        "xtb": [
+            "thf",
+            "thf"
+        ]
+    },
+    "toluene": {
+        "DC": 2.4,
+        "cosmors": [
+            "toluene_c0",
+            "toluene_c0"
+        ],
+        "cpcm": [
+            "Toluene",
+            "Toluene"
+        ],
+        "dcosmors": [
+            "toluene",
+            "toluene"
+        ],
+        "smd": [
+            "TOLUENE",
+            "TOLUENE"
+        ],
+        "xtb": [
+            "toluene",
+            "toluene"
+        ]
+    },
+    "woctanol": {
+        "DC": 8.1,
+        "cosmors": [
+            null,
+            "woctanol"
+        ],
+        "cpcm": [
+            null,
+            "Octanol"
+        ],
+        "dcosmors": [
+            "wet-otcanol",
+            "wet-octanol"
+        ],
+        "smd": [
+            null,
+            "1-OCTANOL"
+        ],
+        "xtb": [
+            "woctanol",
+            "woctanol"
+        ]
+    }
+}
