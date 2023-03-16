@@ -472,8 +472,6 @@ class OrcaProc(QmProc):
                 for line in self._prep():
                     inp.write(line + "\n")
 
-            # Done writing input!
-            time.sleep(0.02)
             if not silent:
                 print(f"Running single-point in {last_folders(self.job['workdir'], 2)}")
             # start SP calculation
@@ -490,15 +488,14 @@ class OrcaProc(QmProc):
                     stdout=outputfile,
                     env=ENVIRON,
                 )
-            time.sleep(0.05)
         # read output
-        # check if scf is converged:
         if os.path.isfile(outputpath):
             with open(outputpath, "r", encoding=CODING, newline=None) as inp:
                 stor = inp.readlines()
                 for i, line in enumerate(stor):
                     if "FINAL SINGLE POINT ENERGY" in line:
                         self.job["energy"] = float(line.split()[4])
+                    # check if scf is converged:
                     if "ORCA TERMINATED NORMALLY" in line:
                         self.job["success"] = True
                     

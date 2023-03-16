@@ -234,16 +234,16 @@ class CensoSettings:
                 "threshold": {"default": 4.0, "options": (1.0, 10.0)}, # TODO - which value as min?
             }),
             "screening": MappingProxyType({
-                "screening_threshold": {"default": 3.5, "options": (0.75, 7.5)},
+                "threshold": {"default": 3.5, "options": (0.75, 7.5)},
             }),
             "optimization": MappingProxyType({
-                "opt_limit": {"default": 2.5, "options": (0.5, 5)}, # TODO - rename?
+                "threshold": {"default": 2.5, "options": (0.5, 5)}, # TODO - rename?
                 "hlow": {"default": 0.01, "options": (0.01, 1.0)}, # TODO
                 "optimization_P_threshold": {"default": 99.0, "options": (1.0, 10.0)}, # TODO
                 "spearmanthr": {"default": 0.0, "options": (0.0, 10.0)},
             }),
             "refinement": MappingProxyType({
-                "refinement_threshold": {"default": 99.0, "min": (1.0, 10.0)}, # TODO
+                "threshold": {"default": 99.0, "min": (1.0, 10.0)}, # TODO
             }),
             "nmr": MappingProxyType({
                 "resonance_frequency": {"default": 300.0, "options": (150.0, 1000.0)}, # TODO

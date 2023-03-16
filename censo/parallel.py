@@ -1,6 +1,7 @@
 """
 Performs the parallel execution of the QM calls.
 """
+from functools import reduce
 import os
 from typing import Any, Dict, List
 from concurrent.futures import ProcessPoolExecutor
@@ -104,23 +105,18 @@ class ProcessHandler:
         self._processor.jobtype = jobtype
         self._processor.instructions = instructions
         
-        results: Dict[int, Dict] = {}
-        
         # execute processes for conformers
         # TODO - set PARNODES
         with ProcessPoolExecutor(max_workers=self._nprocs) as executor:
             resiter = executor.map(self._processor.run, self.conformers)
-
-            # sort results by conformer and then by jobtype
-            for res in resiter:
-                if res["confid"] not in results.keys():
-                    results[res["confid"]] = {}
-                    
-                results[res["confid"]]["success"] = True
-                for job in jobtype:
-                    results[res["confid"]][job] = res["confid"][job]
-                    if not res["confid"]["success"]:
-                        """job failed""" # TODO
-                        results[res["confid"]]["success"] = False
-            
+         
+        # returns merged result dicts
+        results = reduce(lambda x, y: {**x, **y}, resiter)
+        
+        # assert that there is a result for every conformer
+        try:
+            assert all([conf.id in results.keys() for conf in self.conformers])  
+        except AssertionError:
+            raise KeyError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
+        
         return results

@@ -6,6 +6,7 @@ functionality for program setup
 from argparse import Namespace
 import os
 import sys
+from typing import Callable, List
 from numpy import exp
 from multiprocessing import Lock
 
@@ -48,10 +49,10 @@ class CensoCore:
         }
             
         # stores the conformers with all info
-        self.conformers: list[MoleculeData] = []
+        self.conformers: List[MoleculeData] = []
  
         # stores the conformers which were sorted out
-        self.rem: list[MoleculeData] = []       
+        self.rem: List[MoleculeData] = []       
         
         # absolute path to ensemble input file
         self.ensemble_path: str
@@ -286,6 +287,17 @@ class CensoCore:
             
             # also works, if xtb_energy is None (None is put first)    
             self.conformers.sort(key=lambda x: x.xtb_energy)
+
+
+    def update_conformers(self, filtered: List[MoleculeData]):
+        """
+        removing conformers from further consideration
+        """
+
+        # move the sorted out conformers to rem list
+        for conf in filtered:
+            # pop item from conformers and insert this item at index 0 in rem
+            self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
 
     """ def read_json(self, path, silent=False):

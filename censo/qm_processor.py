@@ -51,18 +51,18 @@ class QmProc:
         }
 
 
-    def run(self, conformer: GeometryData) -> Dict[str, Any]:
+    def run(self, conformer: GeometryData) -> Dict[int, Dict[str, Any]]:
         """
         run methods depending on jobtype
+        DO NOT OVERRIDE OR OVERLOAD! this will possibly break e.g. ProcessHandler.execute
         """
         
-        res = {}
-        
-        res["confid"] = conformer.id
+        res = {conformer.id: {}}
         
         for job in self.jobtype:
-            res[job] = self.jobtypes[job](conformer)
+            res[conformer.id][job] = self.jobtypes[job](conformer)
             
+        # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
 
 
@@ -139,6 +139,13 @@ class QmProc:
             "symnum": 1,
             "vapor_pressure": False,
         }
+
+
+    def print(self):
+        """
+        print method for each part, should be implemented if needed
+        """
+        pass
 
 
     def _prep(self):

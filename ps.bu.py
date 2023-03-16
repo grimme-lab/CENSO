@@ -58,50 +58,36 @@ class Prescreening(CensoPart):
         3. print results
         """
         
-        # TODO - initialize process handler for current program with conformer geometries
+        # initialize process handler for current program with conformer geometries
         handler = ProcessHandler(settings, [conf.geom for conf in self.core.conformers])
         
-        # set jobtype to pass to handler
         jobtype: List[str] = []
         if self._instructions.get("gas-phase", None):
             jobtype = ["sp"]
         else:
             jobtype = ["sp", "xtb_gsolv"]
         
-        # compute results
         results = handler.execute(jobtype, self._instructions)
-
-        # update results for each conformer
         for conf in self.core.conformers:
             conf.results[self.__class__.__name__.lower()] = results[id(conf)]
         
         # sort conformers list with prescreening key
-        # for float the default comparator sorts from highest to lowest value,
-        # so the sorting has to be reversed here, since the best conf is the one with the lowest energy
-        self.core.conformers.sort(key=self.key, reverse=True)  
+        self.core.conformers.sort(key=self.key)
         
-        # update conformers with threshold
-        threshold = self._instructions.get("threshold", None)
-        if not threshold is None:
-            limit = self.key(self.core.conformers[0])
-            filtered = [
-                conf for conf in filter(
-                    lambda x: self.key(x) > limit + threshold, 
-                    self.core.conformers
-                )
-            ]
-            self.core.update_conformers(filtered)  
-        else:
-            """
-            TODO
-            print warning that no threshold could be determined
-            (should not happen but doesn't necessarily brake the program)
-            """
-            print("...")
+        # filter conformers list and store popped conformers
+        best = max([self.key(conf) for conf in self.core.conformers])
+        self.core.rem += self.core.conformers - [
+            conf for conf in filter(
+                lambda x: x. < best +- threshold,
+                self.core.conformers
+            )
+        ]
         
-        # print results
-        self.print()
-                
+        self.core.conformers = self.core.conformers - self.core.rem
+        
+        # print new order and results
+        self.print(self.core.conformers)
+        
         # DONE
         
         #########
@@ -653,19 +639,15 @@ class Prescreening(CensoPart):
     def key(self, conf: MoleculeData) -> float:
         """
         prescreening key for conformer sorting
-        calculates G_tot for a given conformer
+        calculates δG_tot for a given conformer
         """
         
-        # gtot = E(DFT) + gsolv
-        # gsolv is only calculated if prescreening is not in the gas-phase
-        gtot: float = conf.results[self.__class__.__name__.lower()]["sp"]["energy"]
-        if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys():
-            gtot += conf.results[self.__class__.__name__.lower()]["xtb_gsolv"]["gsolv"]
         
-        return gtot
+        
+        return abs(gtot)
 
 
-    def print(self) -> None:
+    def print(self, conformers: List[MoleculeData]) -> None:
         """
         formatted print for prescreening
         prints: 
