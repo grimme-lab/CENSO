@@ -803,5 +803,3 @@ class Prescreening(CensoPart):
         # write everything to a file
         with open(os.path.join(self.core.cwd, "prescreening.out"), "w") as outfile:
             outfile.writelines(lines)
-            
-            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
