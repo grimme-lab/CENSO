@@ -35,6 +35,7 @@ class Prescreening(CensoPart):
         super().__init__()
         
         self.core = core
+        self.settings = run_settings
         
         # grabs the settings required for this part from the passed 'CensoSettings' instance
         settings = run_settings.settings_current.bypart("general")
@@ -54,12 +55,13 @@ class Prescreening(CensoPart):
         
         """
         1. setup job instructions (either gas phase sp or computation with solvent model)
-        2. setup queue and run calculations via helper
-        3. print results
+        2. print instructions TODO - print only when 'verbose' (for debugging basically)?
+        3. run calculations in parallel via helper
+        4. print results
         """
         
         # TODO - initialize process handler for current program with conformer geometries
-        handler = ProcessHandler(settings, [conf.geom for conf in self.core.conformers])
+        handler = ProcessHandler(self.run_settings, [conf.geom for conf in self.core.conformers])
         
         # set jobtype to pass to handler
         jobtype: List[str] = []
@@ -67,6 +69,9 @@ class Prescreening(CensoPart):
             jobtype = ["sp"]
         else:
             jobtype = ["sp", "xtb_gsolv"]
+        
+        # print instructions
+        self.print_info()
         
         # compute results
         results = handler.execute(jobtype, self._instructions)
@@ -84,13 +89,20 @@ class Prescreening(CensoPart):
         threshold = self._instructions.get("threshold", None)
         if not threshold is None:
             limit = self.key(self.core.conformers[0])
+            
+            # filter out all conformers below threshold
+            # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
                 conf for conf in filter(
                     lambda x: self.key(x) > limit + threshold, 
                     self.core.conformers
                 )
             ]
+            
+            # update the conformer list in core (remove conf if below threshold)
             self.core.update_conformers(filtered)  
+            
+            # if no conformers are filtered basically nothing happens
         else:
             """
             TODO
@@ -99,8 +111,8 @@ class Prescreening(CensoPart):
             """
             print("...")
         
-        # print results
-        self.print()
+        # print results (analogous to deprecated print)
+        self.write_results()
                 
         # DONE
         
@@ -504,28 +516,8 @@ class Prescreening(CensoPart):
             lambda conf: getattr(conf, "tmp_rel_gsolv"),
             lambda conf: getattr(conf, "rel_free_energy"),
         ]
-        columnheader = [
-            "CONF#",
-            f"E [Eh]",
-            f"ΔE [kcal/mol]",
-            "E [Eh]",
-            "Gsolv [Eh]",
-            "gtot",
-            "ΔE(DFT)",
-            "ΔGsolv",
-            "Δgtot",
-        ]
-        columndescription = [
-            "",
-            "",
-            "",
-            "",
-            "[Eh]",
-            "[Eh]",
-            "[kcal/mol]",
-            "[kcal/mol]",
-            "[kcal/mol]",
-        ]
+        
+        
         columnformat = [
             "",
             (12, 7),
@@ -653,25 +645,45 @@ class Prescreening(CensoPart):
     def key(self, conf: MoleculeData) -> float:
         """
         prescreening key for conformer sorting
-        calculates G_tot for a given conformer
+        calculates Gtot = E (DFT) + Gsolv (xtb) for a given conformer
         """
         
-        # gtot = E(DFT) + gsolv
-        # gsolv is only calculated if prescreening is not in the gas-phase
+        # Gtot = E (DFT) + Gsolv (xtb)
         gtot: float = conf.results[self.__class__.__name__.lower()]["sp"]["energy"]
+        
+        # Gsolv is only calculated if prescreening is not in the gas-phase
         if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys():
             gtot += conf.results[self.__class__.__name__.lower()]["xtb_gsolv"]["gsolv"]
         
         return gtot
 
 
-    def print(self) -> None:
+    def print_info(self) -> None:
         """
-        formatted print for prescreening
-        prints: 
-            E(xtb), 
-            δE(xbt), 
-            G_solv, 
+        formatted write for prescreening
+        write out settings used
+        """
+        
+        lines = []
+        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
+        lines.append("PRESCREENING - PART0".center(PLENGTH, " ") + "\n")
+        lines.append("".ljust(PLENGTH, "-") + "\n")
+        lines.append("\n")
+        
+        for instruction, val in self._instructions.items():
+            lines.append(f"{instruction}:".ljust(DIGILEN, " ") + f"{val}\n")
+            
+        # print everything to console TODO - to stderr instead?
+        for line in lines:
+            print(line)
+
+
+    def write_results(self) -> None:
+        """
+        writes: 
+            E (xtb), 
+            δE (xtb), 
+            G_solv (xtb), 
             δG_solv,
             
             E(DFT), 
@@ -679,4 +691,117 @@ class Prescreening(CensoPart):
             
             E(DFT) + G_solv, 
             δ(E(DFT) + G_solv) 
+            
+        also writes data in easily digestible format
         """
+        # column headers
+        headers = [
+            "CONF",
+            "E (xtb)",
+            "ΔE (xtb)",
+            "E (DFT)",
+            "Gsolv (xtb)",
+            "Gtot",
+            "ΔE (DFT)",
+            "ΔGsolv",
+            "ΔGtot",
+        ]
+        
+        # column units
+        units = [
+            "",
+            "[Eh]",
+            "[kcal/mol]",
+            "[Eh]",
+            "[Eh]",
+            "[Eh]",
+            "[kcal/mol]",
+            "[kcal/mol]",
+            "[kcal/mol]",
+        ]
+        
+        # variables for printmap
+        # minimal xtb single-point energy
+        xtbmin = min(
+            conf.results[self.__class__.__name__.lower()]['xtb_sp']['energy'] 
+            for conf in self.core.conformers
+        )
+        # minimal dft single-point energy
+        dftmin = min(
+            conf.results[self.__class__.__name__.lower()]['sp']['energy'] 
+            for conf in self.core.conformers
+        )
+        # minimal solvation free enthalpy
+        gsolvmin = min(
+            conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv'] 
+            if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
+            else 0.0 
+            for conf in self.core.conformers
+        ) 
+        # minimal total free enthalpy
+        gtotmin = min(self.key(conf) for conf in self.core.conformers)
+        
+        # determines what to print for each conformer in each column
+        # TODO - remaining float accuracies
+        printmap = {
+            "CONF": lambda conf: conf.name,
+            "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_sp']['energy']}",
+            "ΔE (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_sp']['energy'] - xtbmin:.2f}",
+            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
+            "δGsolv (xtb)": lambda conf: 
+                f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']}" 
+                if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys()
+                else "---",
+            "Gtot": lambda conf: f"{self.key(conf)}",
+            "ΔE (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy'] - dftmin:.2f}",
+            "ΔδGsolv": lambda conf: 
+                f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv'] - gsolvmin:.2f}" 
+                if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
+                else "---",
+            "ΔGtot": lambda conf: f"{self.key(conf) - gtotmin:.2f}",
+        }
+        """
+        1. determine column widths
+        2. print headers
+        3. print units
+        4. print values for each conf (sorted by name)
+        4.1. print arrow for best conf
+        
+        """
+        # determine column width 'collen' of column with header 'header' 
+        # by finding the length of the maximum width entry
+        # for each column (header)
+        collens = {
+            header: collen for header, collen in zip(
+                headers,
+                (max(
+                    len(header), max(len(printmap[header](conf)) 
+                    for conf in self.core.conformers)
+                ) for header in headers)
+            )
+        }
+        
+        lines = []
+        
+        # add table header
+        lines.append(" ".join(f"{{{header:^{collen}}}}" for header, collen in collens.items()) + "\n")
+        
+        # add a row for every conformer (this time sorted by name)
+        for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
+            # print floats with 2 digits accuracy if it is a difference, else with 6 digits
+            lines.append(
+                " ".join(
+                        f"{{{printmap[header](conf):^ {collen}.2f}}}" 
+                        if "Δ" in header 
+                        else f"{{{printmap[header](conf):^ {collen}.6f}}}" 
+                        for header, collen in collens.items()
+                    ) 
+                # draw an arrow if conformer is the best in current ranking
+                + ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
+            )
+            
+        # write everything to a file
+        with open(os.path.join(self.core.cwd, "prescreening.out"), "w") as outfile:
+            outfile.writelines(lines)
+            
+            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

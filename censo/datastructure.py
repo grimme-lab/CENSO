@@ -23,7 +23,7 @@ class GeometryData:
             spl = [s.strip() for s in line.split(":")]
             element = spl[0].capitalize()
             tmp = spl[1:]
-            if element not in xyz.keys():
+            if element not in self.xyz.keys():
                 self.xyz[element] = []
                 
             self.xyz[element].append([float(i) for i in tmp])

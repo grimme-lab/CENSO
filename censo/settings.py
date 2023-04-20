@@ -9,7 +9,7 @@ from multiprocessing import Lock
 from types import MappingProxyType
 from typing import Any, Dict, List, Tuple, Type, Union
 
-from censo.cfg import (ASSETS_PATH, GSOLV_MODS, PARTS, PROGS, SOLV_MODS,
+from censo.cfg import (ASSETS_PATH, DIGILEN, GSOLV_MODS, PARTS, PLENGTH, PROGS, SOLV_MODS,
                             WARNLEN, SettingsDict, __version__)
 from censo.errorswarnings import LogicError, LogicWarning
 
@@ -426,7 +426,23 @@ class CensoSettings:
         self.external_paths["cosmothermversion"] = "" # TODO - maybe remove this from here
         self.external_paths["mpshiftpath"] = ""
         self.external_paths["escfpath"] = ""
-         
+    
+    
+    def print_paths(self) -> None:
+        """
+        print out paths of all external qm programs
+        """
+        lines = []
+        
+        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
+        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
+        lines.append("".ljust(PLENGTH, "-") + "\n")
+        
+        for program, path in self.external_paths.items():
+            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
+            
+        for line in lines:
+            print(line)      
 
     @property
     def settings_current(self) -> SettingsTuple:

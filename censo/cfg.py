@@ -49,7 +49,9 @@ if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
 
 CODING = "ISO-8859-1"
 DIGILEN = 60
+# print lines with width PLENGTH
 PLENGTH = 100
+
 AU2J = 4.3597482e-18  # a.u.(hartree/mol) to J
 KB = 1.3806485279e-23  # J/K
 R = 1.987203585e-03  # kcal/(mol*K)

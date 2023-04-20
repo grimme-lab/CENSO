@@ -11,8 +11,9 @@ class CensoTest(unittest.TestCase):
     
     
     def test_startup(self):
-        args, cwd, core, settings = startup(self.argv)
-        self.assertEqual(cwd, getcwd())
+        core, settings = startup(self.argv)
+        settings.print_paths()
+        self.assertEqual(core.cwd, getcwd())
         
         
 def main():

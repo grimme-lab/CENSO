@@ -9,7 +9,6 @@ import math
 import hashlib
 import time
 import subprocess
-import yaml
 from copy import deepcopy
 from builtins import print as print_orig
 from typing import Any, Callable, Tuple, Union

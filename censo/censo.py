@@ -14,7 +14,7 @@ from censo.inputhandling import cml
 from censo.utilities import print
 from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
-from censo.prescreening import Prescreening
+#from censo.prescreening import Prescreening
 from censo.settings import CensoSettings
 
 # use generators for reduced memory usage?
@@ -49,7 +49,7 @@ def main(argv=None):
     # put every step for startup into a method for convenience
     # makes testing easier and may also be called for customized workflows
     # standard censo setup
-    args, cwd, core, settings = startup(argv)
+    core, settings = startup(argv)
 
     ### default: part1 - 3
     # TODO - reduce copy/paste code with list of functions which is iterated over
@@ -260,7 +260,7 @@ def startup(argv):
     # -> core.conformers contains all conformers with their info from input (sorted)
     # -> core.ensembledata is blank
     
-    return args, cwd, core, settings
+    return core, settings
 
 
 def cleanup_run(cwd, complete=False):

@@ -32,11 +32,10 @@ class LogicWarning(Warning):
         
     
     def __str__(self) -> str:
-        return  f"""{'Fatal ' if self.fatal else ''}LogicWarning: 
-                Possibly invalid value for setting {self._setting}\n
-                {self._problem}\n
-                {self._hint}
-                {' Trying to continue.' if not self.fatal else ''}\n"""
+        return  f"""{'Fatal ' if self.fatal else ''}LogicWarning: Possibly invalid value for setting {self._setting}
+              {self._problem}
+              {self._hint}
+              {'Trying to continue.' if not self.fatal else ''}\n"""
                 
                 
 class JobFailedWarning(Warning):
