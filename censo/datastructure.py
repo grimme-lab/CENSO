@@ -48,6 +48,10 @@ class MoleculeData:
         
         # stores the results of the calculations
         # should be structured like:
-        ## 'part': <results from part jobs>
-        # so parts as keys and actual part job results as values
+        # 'part': <results from part jobs/in-part-calculations>
+        # => e.g. self.results["prescreening"]["gtot"] 
+        #    would return the free enthalpy of the conformer calculated in prescreening
+        #
+        #    self.results["prescreening"]["sp"] 
+        #    returns the energy calculated in the DFT single point in prescreening
         self.results = {}

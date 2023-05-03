@@ -404,51 +404,6 @@ def move_recursively(path, filename):
         shutil.move(os.path.join(path, filename), os.path.join(path, filename + ".1"))
 
 
-def calc_boltzmannweights(confs, property, T):
-    """
-    Calculate Boltzmannweights:
-    - confs [list] list with conformer objects
-    - property [str] e.g. free_energy of conformer
-    - T [float] temperature at which the Boltzmann weight has to be evaluated
-
-    returns confs
-    """
-    if len(confs) == 1:
-        confs[0].bm_weight = 1.0
-        return confs
-    try:
-        T = float(T)
-    except ValueError:
-        T = 298.15  # K
-        print(
-            f"{'WARNING:':{WARNLEN}}Temperature can not be converted and is therfore set to T = {T} K."
-        )
-    if T == 0:
-        T += 0.00001  # avoid division by zero
-    try:
-        minfree = min(
-            [
-                getattr(conf, property, None)
-                for conf in confs
-                if getattr(conf, property, None) is not None
-            ]
-        )
-    except ValueError:
-        print(f"{'ERROR:':{WARNLEN}}Boltzmann weight can not be calculated!")
-    bsum = 0.0
-    for item in confs:
-        bsum += getattr(item, "gi", 1.0) * math.exp(
-            -((item.free_energy - minfree) * AU2J) / (KB * T)
-        )
-    for item in confs:
-        item.bm_weight = (
-            getattr(item, "gi", 1.0)
-            * math.exp(-((item.free_energy - minfree) * AU2J) / (KB * T))
-            / bsum
-        )
-    return confs
-
-
 def new_folders(cwd, conflist, foldername, save_errors, store_confs, silent=False):
     """ 
     create folders for all conformers in conflist

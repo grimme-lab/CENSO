@@ -228,7 +228,7 @@ class CensoSettings:
                 "imagethr": {"default": -100.0, "options": (-300.0, 0.0)}, # TODO - threshold for imaginary frequencies
                 "sthr": {"default": 0.0, "options": (0.0, 100.0)}, # TODO - what is this?
                 "scale": {"default": 1.0, "options": (0.0, 1.0)}, # TODO - what is this?
-                "temperature": {"default": 298.15, "options": (0.1, 2000.0)}, # TODO - 0.0 still works?
+                "temperature": {"default": 298.15, "options": (0.00001, 2000.0)}, # TODO
             }),
             "prescreening": MappingProxyType({
                 "threshold": {"default": 4.0, "options": (1.0, 10.0)}, # TODO - which value as min?

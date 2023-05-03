@@ -115,7 +115,7 @@ class ProcessHandler:
         
         # assert that there is a result for every conformer
         try:
-            assert all([conf.id in results.keys() for conf in self.conformers])  
+            assert all([id(conf) in results.keys() for conf in self.conformers])  
         except AssertionError:
             raise KeyError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
         

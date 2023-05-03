@@ -6,7 +6,7 @@ functionality for program setup
 from argparse import Namespace
 import os
 import sys
-from typing import Callable, List
+from typing import Callable, Dict, List
 from numpy import exp
 from multiprocessing import Lock
 
@@ -14,6 +14,8 @@ from censo.cfg import (
     CODING,
     WARNLEN,
     __version__,
+    AU2J,
+    KB
 )
 from censo.datastructure import MoleculeData
 from censo.ensembledata import EnsembleData
@@ -299,6 +301,27 @@ class CensoCore:
             # pop item from conformers and insert this item at index 0 in rem
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
+
+    def calc_boltzmannweights(self, temp: float, part: str) -> None:
+        """
+        Calculate weights for boltzmann distribution of ensemble at given temperature
+        and given values for free enthalpy
+        """
+        # find lowest gtot value
+        minfree: float = min([conf.results[part]["gtot"] for conf in self.conformers])
+        
+        # calculate boltzmann factors
+        bmfactors = {
+            id(conf):   conf.results[part]["gtot"] 
+                        * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp)) 
+            for conf in self.conformers
+        }
+       
+        # calculate boltzmann sum from bmfactors 
+        bsum: float = sum(bmfactors.values())
+        
+        for conf in self.conformers:
+            conf.results[part]["bmw"] = bmfactors[id(conf)] / bsum
 
     """ def read_json(self, path, silent=False):
         Reading stored data on conformers and information on settings of
