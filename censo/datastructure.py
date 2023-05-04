@@ -46,6 +46,9 @@ class MoleculeData:
         # stores the geometry info to have a small object to be used for multiprocessing
         self.geom: GeometryData = GeometryData(id(self), xyz)
         
+        # stores the initial xtb energy from CREST (or whatever was used before)
+        self.xtb_energy: float
+        
         # stores the results of the calculations
         # should be structured like:
         # 'part': <results from part jobs/in-part-calculations>

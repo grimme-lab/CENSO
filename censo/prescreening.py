@@ -4,7 +4,7 @@ The idea is to improve on the description of E with a very fast DFT method.
 """
 import os
 from typing import List
-from censo.cfg import PLENGTH, DIGILEN, AU2KCAL, dfa_settings
+from censo.cfg import PLENGTH, DIGILEN, AU2KCAL
 from censo.utilities import (
     print,
     timeit,
@@ -59,8 +59,18 @@ class Prescreening(CensoPart):
         # print instructions
         self.print_info()
         
+        # set folder to do the calculations in for prescreening
+        folder = os.path.join(self.core.cwd, 'prescreening')
+        if os.path.isdir(folder):
+            # TODO - warning? stderr?
+            print(f"Folder {folder} already exists. Potentially overwriting files.")
+        elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
+            # TODO - stderr case?
+            print(f"Could not create directory for {self.__class__.__name__.lower()}. Executing calculations in {self.core.cwd}.")
+            folder = self.core.cwd
+        
         # compute results
-        results = handler.execute(jobtype, self._instructions)
+        results = handler.execute(jobtype, self._instructions, folder)
 
         # update results for each conformer
         for conf in self.core.conformers:

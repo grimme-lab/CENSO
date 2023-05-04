@@ -255,7 +255,8 @@ class CensoSettings:
         }),
         str: MappingProxyType({
             "general": MappingProxyType({
-                "solvent": {"default": "gas", "options": ("gas",) + tuple([k for k in solvents_db.keys()])},
+                # TODO - removed gas here, since there is already 'gas-phase' option (also doesn't make sense)
+                "solvent": {"default": "???", "options": tuple([k for k in solvents_db.keys()])}, 
                 #"prog_rrho": {"default": "xtb", "options": ("xtb")}, # TODO - keep this here?
                 "sm_rrho": {"default": "alpb", "options": ("alpb", "gbsa")}, # TODO - same
                 "cosmorsparam": {"default": "automatic", "options": tuple([k for k in cosmors_param.keys()])},
@@ -500,7 +501,7 @@ class CensoSettings:
                     for setting, definition in settings.items():
                         options = definition.get("options", None)
                         
-                        # the typical type annotation errors
+                        # FIXME - the typical type annotation errors
                         tmp.append(
                             Setting(
                                 type_t, 

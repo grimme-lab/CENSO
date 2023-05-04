@@ -9,10 +9,7 @@ from censo.datastructure import GeometryData
 
 from censo.orca_processor import OrcaProc
 from censo.tm_processor import TmProc
-try:
-    from math import isclose
-except ImportError:
-    from censo.utilities import isclose # ???
+from math import isclose
 import time
 import subprocess
 import json
@@ -32,12 +29,17 @@ class QmProc:
 
     def __init__(self):
         """should be defined"""
-        # jobtype is basically an ordered (!!!) list containing the instructions of which computations to do        
+        # jobtype is basically an ordered (!!!) (important for example if sp is required before the next job)
+        # list containing the instructions of which computations to do        
         self.jobtype: List[str]
         
-        # stores instructions
+        # stores instructions, meaning the settings that should be applied for all jobs
+        # e.g. gfnv (GFN-xTB version for xtb_sp/xtb_rrho/xtb_gsolv)
         self.instructions: Dict[str, Any]
         
+        # absolute path to the folder where jobs should be executed in
+        self.folder: str
+
         # dict to map the jobtypes to their respective methods
         self.jobtypes: Dict[str, Callable] = {
             "sp": self._sp,
@@ -64,81 +66,6 @@ class QmProc:
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
-
-
-    def reset_job_info(self):
-        """
-        Clear information/instructions from the previous job
-        """
-        # TODO - split settings to separate xTB and orca - specific setting, only keep general settings here
-        # G => general setting (quasi static, doesn't have to be local)
-        self.job = {
-            "jobtype": "",
-            "prepinfo": [],  # additional info for cefine
-            "method": "",  # description of the method
-            "method2": "",  # description of the method
-            "workdir": "",
-            "copymos": "",
-            "moread": None,
-            "omp": 1,
-            "charge": 0,
-            "unpaired": 0,
-            "gfn_version": None,
-            "bhess": None,
-            "consider_sym": False,
-            "symmetry": "C1",
-            "rmsdbias": False,
-            "sm_rrho": None,
-            "func": None,
-            "func2": None,  # functional used in subsequent property calculation
-            "basis": None,
-            "solvent": "gas",
-            "sm": "gas-phase",
-            "rmsd": 0.0,  # rmsd in case of bhess
-            "nat": None,  # number of atoms
-            "onlyread": False,  # don't calculate, just perform readout
-            "progpath": "",
-            "xtb_driver_path": "",  # program path to xtb if xtb as driver
-            # optimization related:
-            "optcycles": None,  # number of cycles that are allowed in the
-            "hlow": None,  # setting for ancopt
-            "optlevel": None,
-            # geometry optimization
-            "cycles": 0,  # number of cycles it needed for optimization convergence
-            "ecyc": [],
-            "decyc": [],
-            "grad_norm": 10.0,
-            "converged": False,
-            # temperature related:
-            "trange": [],  # list with temperatures to evaluate G,H,S
-            "temperature": 298.15,
-            # nmrprop related:
-            "h_active": False,
-            "c_active": False,
-            "f_active": False,
-            "p_active": False,
-            "si_active": False,
-            # optical rotation related:
-            "freq_or": [],
-            # uv/vis related:
-            "calc_uvvis": False, # G
-            "nroots": 20, # TODO - hardcoded for now # G
-            "excitations": [], # list of dicts
-            "sigma": 0.00016131, # gaussian width for uvvis plot # G
-            # return values which can be updated:
-            "success": False,
-            "energy": 0.0,
-            "energy2": 0.0,
-            "erange1": {},
-            "erange2": {},
-            "erange3": {},
-            "errormessage": [],
-            "internal_error": [],
-            #
-            "cosmorsparam": "",  # normal/fine
-            "symnum": 1,
-            "vapor_pressure": False,
-        }
 
 
     def print(self):
@@ -202,74 +129,79 @@ class QmProc:
                 break
         return symnum
 
-    def _xtb_sp(self, filename="sp.out", silent=False):
+    def _xtb_sp(self, filename="xtb_sp.out", silent=False):
         """
         Get single-point energy from GFNn-xTB
-        --> return self.job["energy"]
-        --> return self.job["success"] 
         """
-        outputpath = os.path.join(self.job["workdir"], filename)
-        if not self.job["onlyread"]:
-            files = [
-                "xtbrestart",
-                "xtbtopo.mol",
-                "xcontrol-inp",
-                "wbo",
-                "charges",
-                "gfnff_topo",
-                filename,
-            ]
-            for file in files:
-                if os.path.isfile(os.path.join(self.job["workdir"], file)):
-                    os.remove(os.path.join(self.job["workdir"], file))
-            # run single-point:
-            call = [
-                external_paths["xtbpath"],
-                "coord",
-                "--" + self.job["gfn_version"],
-                "--sp",
-                "--chrg",
-                str(self.job["charge"]),
-                "--norestart",
-                "--parallel",
-                str(self.job["omp"]),
-            ]
-            if self.job["solvent"] != "gas":
-                call.extend(
-                    [
-                        "--" + str(self.job["sm"]),
-                        censo_solvent_db[self.job["solvent"]]["xtb"][1],
-                        "reference",
-                        "-I",
-                        "xcontrol-inp",
-                    ]
-                )
-                with open(
-                    os.path.join(self.job["workdir"], "xcontrol-inp"), "w", newline=None
-                ) as xcout:
-                    xcout.write("$gbsa\n")
-                    xcout.write("  gbsagrid=tight\n")
-                    xcout.write("$end\n")
-            with open(outputpath, "w", newline=None) as outputfile:
-                returncode = subprocess.call(
-                    call,
-                    shell=False,
-                    stdin=None,
-                    stderr=subprocess.STDOUT,
-                    universal_newlines=False,
-                    cwd=self.job["workdir"],
-                    stdout=outputfile,
-                    env=ENVIRON,
-                )
-            if returncode != 0:
-                self.job["energy"] = 0.0
-                self.job["success"] = False
-                print(
-                    f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
-                    f"{last_folders(self.job['workdir'], 2)}"
-                )
-                return
-            time.sleep(0.02)
+        
+        outputpath = os.path.join(self.folder, filename)
+        # if not self.job["onlyread"]: ??? TODO
+        files = [
+            "xtbrestart",
+            "xtbtopo.mol",
+            "xcontrol-inp",
+            "wbo",
+            "charges",
+            "gfnff_topo",
+            filename,
+        ]
+
+        # remove potentially preexisting files to avoid confusion
+        for file in files:
+            if os.path.isfile(os.path.join(self.job["workdir"], file)):
+                os.remove(os.path.join(self.job["workdir"], file))
+
+        # run single-point:
+        call = [
+            external_paths["xtbpath"],
+            "coord",
+            "--" + self.instructions["gfnv"],
+            "--sp",
+            "--chrg",
+            str(self.instructions["charge"]),
+            "--norestart",
+            "--parallel",
+            str(self.instructions["omp"]), # TODO - sets cores per process for xtb?
+        ]
+        if not self.instructions["gas-phase"]:
+            call.extend(
+                [
+                    "--" + str(self.instructions["sm_rrho"]),
+                    censo_solvent_db[self.instructions["solvent"]]["xtb"][1], # TODO
+                    "reference",
+                    "-I",
+                    "xcontrol-inp",
+                ]
+            )
+            with open(
+                os.path.join(self.folder, "xcontrol-inp"), "w", newline=None
+            ) as xcout:
+                xcout.write("$gbsa\n")
+                xcout.write("  gbsagrid=tight\n")
+                xcout.write("$end\n")
+        with open(outputpath, "w", newline=None) as outputfile:
+            returncode = subprocess.call(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=self.folder,
+                stdout=outputfile,
+                env=ENVIRON,
+            )
+        if returncode != 0:
+            self.job["energy"] = 0.0
+            self.job["success"] = False
+            print(
+                f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
+                f"{last_folders(self.folder, 2)}"
+            )
+            return
+
+        # FIXME
+        time.sleep(0.02)
+
         # read energy:
         if os.path.isfile(outputpath):
             with open(outputpath, "r", encoding=CODING, newline=None) as inp:
@@ -277,31 +209,34 @@ class QmProc:
                 for line in store:
                     if "| TOTAL ENERGY" in line:
                         try:
-                            self.job["energy"] = float(line.split()[3])
-                            self.job["success"] = True
+                            result["energy"] = float(line.split()[3])
+                            result["success"] = True
                         except Exception:
                             if not silent:
                                 print(
                                     f"{'ERROR:':{WARNLEN}}while converting "
-                                    f"single-point in: {last_folders(self.job['workdir'], 2)}"
+                                    f"single-point in: {last_folders(self.folder, 2)}"
                                 )
-                            self.job["energy"] = 0.0
-                            self.job["success"] = False
-                            return
+                            result["energy"] = 0.0
+                            result["success"] = False
+                            return result
         else:
-            self.job["energy"] = 0.0
-            self.job["success"] = False
+            result["energy"] = 0.0
+            result["success"] = False
             if not silent:
                 print(
                     f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
                     f"{last_folders(self.job['workdir'], 2)}"
                 )
-            return
+            return result
         if not silent:
             print(
                 f"{self.job['gfn_version']}-xTB energy for {last_folders(self.job['workdir'], 2)}"
                 f" = {self.job['energy']: >.7f}"
             )
+
+        return result
+
 
     def _xtb_gsolv(self):
         """

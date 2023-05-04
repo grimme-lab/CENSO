@@ -87,10 +87,14 @@ class ProcessHandler:
             return False
                 
 
-    def execute(self, jobtype: List[str], instructions: Dict[str, Any]):
+    def execute(self, jobtype: List[str], instructions: Dict[str, Any], folder: str):
         """
         creates and executes the processes
         returns the results sorted by conformer, divided into jobtypes
+
+        jobtype: list of ordered jobtypes (e.g. [xtb_sp, xtb_gsolv])
+        instructions: dict with settings from CensoSettings (specific for part, see CensoPart)
+        folder: absolute path to folder where calculations should be executed in
         """
         # TODO - 'smart balancing'
         # try to get program from instructions
@@ -100,10 +104,11 @@ class ProcessHandler:
             raise Exception # TODO
         
         # initialize the processor for the respective program (depends on part)
-        # and set the jobtype as well as instructions
+        # and set the jobtype as well as instructions, also pass folder to compute in
         self._processor = ProcessorFactory.create_processor(prog)
         self._processor.jobtype = jobtype
         self._processor.instructions = instructions
+        self._processor.folder = folder
         
         # execute processes for conformers
         # TODO - set PARNODES

@@ -21,7 +21,7 @@ from censo.cfg import (
 from censo.utilities import last_folders, t2x, x2t, print
 from censo.qm_processor import QmProc
 
-# TODO - keep output if any job fails!!!!
+# TODO - keep output if any job fails
 class OrcaProc(QmProc):
     """
     Perform calculations with ORCA

@@ -23,6 +23,7 @@ class CensoPart:
         self.core: CensoCore
         self.run_settings: CensoSettings
         
+        # contains settings grabbed from CensoSettings instance, such as general settings etc.
         self._instructions: Dict[str, Any]
     
     

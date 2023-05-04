@@ -37,8 +37,11 @@ class CensoCore:
         store cwd and args, setup blank information storages
         """
 
-        self.cwd = cwd
-        self.args = args
+        # current working directory
+        self.cwd: str = cwd
+
+        # parsed commandline arguments
+        self.args: Nampespace = args
         
         # contains run-specific info that may change during runtime
         # initialized in CensoCore.read_input
@@ -285,9 +288,11 @@ class CensoCore:
             # get precalculated energies if possible
             for i in range(nconf):
                 self.conformers.append(MoleculeData(f"CONF{i}", lines[i*nat+2:(i+1)*nat+2]))
-                self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1])
+                
+                # precalculated energy set to 0.0 if it cannot be found
+                self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1]) or 0.0
             
-            # also works, if xtb_energy is None (None is put first)    
+            # also works if xtb_energy is None for some reason (None is put first)    
             self.conformers.sort(key=lambda x: x.xtb_energy, reverse=True)
 
 

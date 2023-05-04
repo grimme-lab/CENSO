@@ -188,6 +188,7 @@ def main(argv=None):
     return 0
 
 
+# sets up a core and settings object for you using the given cml arguments and censorc
 def startup(argv):
     # first, check program integrity
     # TODO - proper implementation?

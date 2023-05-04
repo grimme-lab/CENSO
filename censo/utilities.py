@@ -819,15 +819,6 @@ def check_tasks(results, check=False, thresh=0.25):
         print(f"{'WARNING:':{WARNLEN}}{fail_rate*100} % of the calculations failed!")
 
 
-def isclose(value_a, value_b, rel_tol=1e-9, abs_tol=0.0):
-    """
-    Replace function if not available from math module (exists since python 3.5)
-    """
-    return abs(value_a - value_b) <= max(
-        rel_tol * max(abs(value_a), abs(value_b)), abs_tol
-    )
-
-
 def calc_std_dev(data):
     """
     Calculate standard deviation
