@@ -21,10 +21,10 @@ class CensoPart:
     
     def __init__(self):
         self.core: CensoCore
-        self.run_settings: CensoSettings
+        self.settings: CensoSettings
         
         # contains settings grabbed from CensoSettings instance, such as general settings etc.
-        self._instructions: Dict[str, Any]
+        self.__instructions: Dict[str, Any]
     
     
     @timeit

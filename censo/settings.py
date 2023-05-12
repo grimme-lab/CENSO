@@ -74,6 +74,13 @@ class SettingsTuple(tuple):
         
         super().__init__()
     
+
+    def __add__(self, other):
+        """
+        overload the '+' operator for tuple to get the correct return type
+        """
+        return SettingsTuple([x for x in self] + [y for y in other])
+
     
     def byname(self, name: str) -> Union[Setting, None]:
         """
@@ -151,7 +158,7 @@ class CensoSettings:
         "19-fine": "BP_TZVPD_FINE_19.ctd",
     }
 
-    # load up all resources to set value options in settings_options
+    # load up all resources to set value options in __settings_options
     # TODO - catch error if dfa_settings cannot be created
     try:
         with open(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"), "r") as dfa_file:
@@ -202,7 +209,7 @@ class CensoSettings:
     """    
     # TODO - solvent mapping
     # still included as fallback
-    settings_options = MappingProxyType({
+    __settings_options = MappingProxyType({
         int: MappingProxyType({
             "general": MappingProxyType({
                 "charge": {"default": 0, "options": (-10, 10)}, # TODO - (re)move?
@@ -375,6 +382,33 @@ class CensoSettings:
             "uvvis": None,
         }),
     })
+
+    @classmethod
+    @property
+    def settings_options(cls) -> SettingsTuple:
+        """
+        returns settings_options converted to SettingsTuple
+        """
+        default = SettingsTuple()
+
+        # loop over all known settings (hardcoded in __settings_options)
+        for type_t, parts in cls.__settings_options.items():
+            for part, settings in parts.items():
+                if settings:
+                    # if settings exist create 'Setting' objects with default settings
+                    for setting, definition in settings.items():
+                        options = definition.get("options", None)
+                        
+                        default += Setting(
+                            type_t, 
+                            part, 
+                            setting, 
+                            definition["default"], 
+                            options, 
+                            definition["default"]
+                        )
+        
+        return default
                 
                 
     @classmethod
@@ -382,7 +416,7 @@ class CensoSettings:
         """
         returns the type of a given setting
         """
-        for type_t, parts in cls.settings_options.items():
+        for type_t, parts in cls.__settings_options.items():
             for settings in parts.values():
                 if settings:
                     if name in settings.keys():
@@ -396,7 +430,7 @@ class CensoSettings:
         """
         returns the definition of a given setting
         """
-        for type_t, parts in cls.settings_options.items():
+        for type_t, parts in cls.__settings_options.items():
             for settings in parts.values():
                 if settings:
                     if name in settings.keys():
@@ -411,7 +445,8 @@ class CensoSettings:
         """   
         
         # stores all settings in a SettingsTuple (extending built-in tuple)
-        self._settings_current: SettingsTuple = self.default_settings()
+        # initialized with default settings
+        self.__settings_current: SettingsTuple = self.settings_options
         
         # absolute path to configuration file
         self.censorc_path: str
@@ -445,12 +480,13 @@ class CensoSettings:
         for line in lines:
             print(line)      
 
+
     @property
     def settings_current(self) -> SettingsTuple:
         """
-        return the complete _settings_current
+        returns the complete __settings_current
         """
-        return self._settings_current
+        return self.__settings_current
 
     
     @settings_current.setter
@@ -460,7 +496,7 @@ class CensoSettings:
         implicitily calls check_logic
         """
         rcdata = self.read_config(self.censorc_path)
-        for setting in self._settings_current:
+        for setting in self.__settings_current:
             # update settings with rcfile
             try:
                 setting.value = rcdata[setting.type][setting.part][setting.name]
@@ -485,36 +521,6 @@ class CensoSettings:
             print("\nFatal error in user input while setting up run settings. Going to exit!")
             sys.exit(1)
             
-
-    def default_settings(self) -> SettingsTuple:
-        """
-        initialize settings as default
-        """
-        # workaround with a temporary list in order not having to redefine tuple operations
-        # normal tuple operations cast result into normal tuple instead of SettingsTuple
-        tmp = []
-        # loop over all known settings (hardcoded in settings_options)
-        for type_t, parts in CensoSettings.settings_options.items():
-            for part, settings in parts.items():
-                if settings:
-                    # if settings exist create 'Setting' objects with default settings
-                    for setting, definition in settings.items():
-                        options = definition.get("options", None)
-                        
-                        # FIXME - the typical type annotation errors
-                        tmp.append(
-                            Setting(
-                                type_t, 
-                                part, 
-                                setting, 
-                                definition["default"], 
-                                options, 
-                                definition["default"]
-                            )
-                        )
-        
-        return SettingsTuple(tmp)
-
 
     def read_config(self, censorc_path: str) -> SettingsDict:
         """
@@ -647,7 +653,7 @@ class CensoSettings:
                 outdata.write(f"\n${part.upper()} SETTINGS\n")
                 
                 # iterate over the values for all types (dicts mapping partnames to settings)
-                for parts in CensoSettings.settings_options.values():
+                for parts in CensoSettings.__settings_options.values():
                     # get only the settings for the current part
                     settings = parts[part]
                     
@@ -1129,12 +1135,12 @@ class CensoSettings:
         except (ValueError, AttributeError):
             orcaversion = 2"""
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        stroptions = CensoSettings.settings_options[str]
+        stroptions = CensoSettings.__settings_options[str]
 
         for part in PARTS:
             # get settings for part
             # look for func/basis
-            # check if func/basis values are allowed in settings_options
+            # check if func/basis values are allowed in __settings_options
             settings = SettingsTuple(
                 self.settings_current.get_settings(
                     [str, bool], 

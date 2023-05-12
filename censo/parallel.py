@@ -19,41 +19,42 @@ class ProcessHandler:
         creates instance with 
         also sets the number of processes (nprocs) and cores per processes (omp) to optimized vaules if possible
         """
+        
         # stores the conformers
         self.conformers: List[GeometryData] = conformers
         
         # stores the processor
-        self._processor = None
+        self.__processor = None
         
         # get number of cores
         try:
-            self._ncores = os.cpu_count()
+            self.__ncores = os.cpu_count()
         except AttributeError:
             raise AttributeError("Could not determine number of cores.")
         
-        self._nprocs = None
-        self._omp = None
+        self.__nprocs = None
+        self.__omp = None
         if (
             getattr(settings.settings_current.byname("balance"), "value", False) 
-            or not self._balance_load()
+            or not self.__balance_load()
         ):
             print("\nCould not readjust maxprocs and omp.\n")
             # get number of processes
-            self._nprocs = getattr(
+            self.__nprocs = getattr(
                 settings.settings_current.byname("maxprocs"), 
                 "value",
                 None
             )
             
             # get number of cores per process
-            self._omp = getattr(
+            self.__omp = getattr(
                 settings.settings_current.byname("omp"),
                 "value",
                 None
             )
     
     
-    def _balance_load(self) -> bool:
+    def __balance_load(self) -> bool:
         """
         distribute computational load between cores
         keeping the number of processes below number of conformers
@@ -61,26 +62,26 @@ class ProcessHandler:
         """
         # check if load can be rebalanced
         if (
-            not self._ncores is None 
+            not self.__ncores is None 
             and not (
-                self._nprocs is None or self._omp is None
+                self.__nprocs is None or self.__omp is None
             )
             and (
-                self._ncores > len(self.conformers) 
-                or self._ncores > self._nprocs * self._omp
+                self.__ncores > len(self.conformers) 
+                or self.__ncores > self.__nprocs * self.__omp
             )
         ):
             # you want to create a number of parallel processes that in the best case is a divisor of nconf
             # the number of processes should allow for utilization of all cores
             try:
                 # finds the largest divisor of ncores that is less or equal than nconf
-                self._nprocs = max([i for i in range(self._ncores) if self._ncores % i and i <= len(self.conformers)])
+                self.__nprocs = max([i for i in range(self.__ncores) if self.__ncores % i and i <= len(self.conformers)])
             except ValueError:
                 print("There was an error while determining the number of processes in load balancing.") # TODO
                 return False
             
             # should always be divisible, int casting only as safeguard
-            self._omp = int(self._ncores / self._nprocs)
+            self.__omp = int(self._ncores / self._nprocs)
             
             return True
         else:
@@ -105,15 +106,15 @@ class ProcessHandler:
         
         # initialize the processor for the respective program (depends on part)
         # and set the jobtype as well as instructions, also pass folder to compute in
-        self._processor = ProcessorFactory.create_processor(prog)
-        self._processor.jobtype = jobtype
-        self._processor.instructions = instructions
-        self._processor.folder = folder
+        self.__processor = ProcessorFactory.create_processor(prog)
+        self.__processor.jobtype = jobtype
+        self.__processor.instructions = instructions
+        self.__processor.folder = folder
         
         # execute processes for conformers
         # TODO - set PARNODES
-        with ProcessPoolExecutor(max_workers=self._nprocs) as executor:
-            resiter = executor.map(self._processor.run, self.conformers)
+        with ProcessPoolExecutor(max_workers=self.__nprocs) as executor:
+            resiter = executor.map(self.__processor.run, self.conformers)
          
         # returns merged result dicts
         results = reduce(lambda x, y: {**x, **y}, resiter)

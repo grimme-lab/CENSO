@@ -28,28 +28,27 @@ class QmProc:
     """
 
     def __init__(self):
-        """should be defined"""
         # jobtype is basically an ordered (!!!) (important for example if sp is required before the next job)
         # list containing the instructions of which computations to do        
         self.jobtype: List[str]
         
         # stores instructions, meaning the settings that should be applied for all jobs
-        # e.g. gfnv (GFN-xTB version for xtb_sp/xtb_rrho/xtb_gsolv)
+        # e.g. 'gfnv' (GFN-xTB version for xtb_sp/xtb_rrho/xtb_gsolv)
         self.instructions: Dict[str, Any]
         
         # absolute path to the folder where jobs should be executed in
         self.folder: str
 
         # dict to map the jobtypes to their respective methods
-        self.jobtypes: Dict[str, Callable] = {
-            "sp": self._sp,
-            "gsolv": self._gsolv,
-            "opt": self._opt,
-            "genericoutput": self._genericoutput,
-            "xtb_sp": self._xtb_sp,
-            "xtb_gsolv": self._xtb_gsolv,
-            "xto_opt": self._xtb_opt,
-            "xtb_rrho": self._xtbrrho,
+        self.__jobtypes: Dict[str, Callable] = {
+            "sp": self.__sp,
+            "gsolv": self.__gsolv,
+            "opt": self.__opt,
+            "genericoutput": self.__genericoutput,
+            "xtb_sp": self.__xtb_sp,
+            "xtb_gsolv": self.__xtb_gsolv,
+            "xto_opt": self.__xtb_opt,
+            "xtb_rrho": self.__xtbrrho,
         }
 
 
@@ -62,7 +61,7 @@ class QmProc:
         res = {conformer.id: {}}
         
         for job in self.jobtype:
-            res[conformer.id][job] = self.jobtypes[job](conformer)
+            res[conformer.id][job] = self.__jobtypes[job](conformer)
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
@@ -75,34 +74,34 @@ class QmProc:
         pass
 
 
-    def _prep(self):
+    def __prep(self):
         """
         input preparation
         """
         pass
 
 
-    def _sp(self, silent=False):
+    def __sp(self, silent=False):
         """
         single-point calculation
         """
         pass
 
-    def _opt(self):
+    def __opt(self):
         """
         geometry optimization
         """
         pass
     
     
-    def _gsolv(self):
+    def __gsolv(self):
         """
         gsolv calculation using the respective solvent model
         """
         pass
     
 
-    def _genericoutput(self):
+    def __genericoutput(self):
         """
         Read shielding and coupling constants and write them to plain output
         The first natom lines contain the shielding constants, and from
@@ -110,7 +109,7 @@ class QmProc:
         """
         pass
 
-    def _get_sym_num(self, sym=None, linear=None):
+    def __get_sym_num(self, sym=None, linear=None):
         """Get rotational symmetry number from Schoenfließ symbol"""
         if sym is None:
             sym = "c1"
@@ -129,7 +128,9 @@ class QmProc:
                 break
         return symnum
 
-    def _xtb_sp(self, filename="xtb_sp.out", silent=False):
+
+    # TODO - almost done
+    def __xtb_sp(self, filename="xtb_sp.out", silent=False):
         """
         Get single-point energy from GFNn-xTB
         """
@@ -158,10 +159,10 @@ class QmProc:
             "--" + self.instructions["gfnv"],
             "--sp",
             "--chrg",
-            str(self.instructions["charge"]),
+            self.instructions["charge"],
             "--norestart",
             "--parallel",
-            str(self.instructions["omp"]), # TODO - sets cores per process for xtb?
+            self.instructions["omp"], # TODO - sets cores per process for xtb?
         ]
         if not self.instructions["gas-phase"]:
             call.extend(
@@ -238,7 +239,7 @@ class QmProc:
         return result
 
 
-    def _xtb_gsolv(self):
+    def __xtb_gsolv(self):
         """
         Calculate additive GBSA or ALPB solvation contribution by
         Gsolv = Esolv - Egas,
@@ -315,14 +316,14 @@ class QmProc:
                 self.job["energy_xtb_solv"] = tmp_solv
 
 
-    def _xtb_opt(self):
+    def __xtb_opt(self):
         """
         geometry optimization using xtb as driver, has to be implemented for each qm code
         """
         pass
 
 
-    def _xtbrrho(self, filename="ohess.out"):
+    def __xtbrrho(self, filename="ohess.out"):
         """
         mRRHO contribution with GFNn/GFN-FF-xTB
         """

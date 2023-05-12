@@ -38,16 +38,16 @@ class OrcaProc(QmProc):
         super().__init__()
         
         # expand jobtypes with special orca jobtypes
-        self.jobtypes = {
-            **self.jobtypes, **{
-                "nmrS": self._nmrS,
-                "nmrJ": self._nmrJ,
-                "uvvis": self._uvvis,
+        self.__jobtypes = {
+            **self.__jobtypes, **{
+                "nmrS": self.__nmrS,
+                "nmrJ": self.__nmrJ,
+                "uvvis": self.__uvvis,
             }
         }
         
         
-    def _prep(self, xyzfile=False, returndict=False):
+    def __prep(self, xyzfile=False, returndict=False):
         """
         cefine preparation step analogue
 
@@ -459,7 +459,7 @@ class OrcaProc(QmProc):
         else:
             return tmp
 
-    def _sp(self, silent=False, filename="sp.out"):
+    def __sp(self, silent=False, filename="sp.out"):
         """
         ORCA input generation and single-point calculation
         """
@@ -512,7 +512,7 @@ class OrcaProc(QmProc):
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
         return
 
-    def _gsolv(self):
+    def __gsolv(self):
         """
         Calculate SMD_gsolv, needs ORCA
         if optimization is not performed with ORCA, only the density 
@@ -586,7 +586,7 @@ class OrcaProc(QmProc):
                 self.job["success"] = True
         return
 
-    def _xtbopt(self):
+    def __xtbopt(self):
         """
         ORCA input generation and geometry optimization using ANCOPT
         implemented within xtb, generates inp.xyz, inp (orca-input) 
@@ -761,7 +761,7 @@ class OrcaProc(QmProc):
             x2t(self.job["workdir"], infile="inp.xyz")
         return
 
-    def _nmrS(self):
+    def __nmrS(self):
         """
         ORCA NMR shielding constant calculation
         """
@@ -812,7 +812,7 @@ class OrcaProc(QmProc):
             )
         return
 
-    def _nmrJ(self):
+    def __nmrJ(self):
         """
         ORCA NMR coupling constant calculation
 
@@ -870,7 +870,7 @@ class OrcaProc(QmProc):
             )
         return
 
-    def _genericoutput(self):
+    def __genericoutput(self):
         """
         ORCA read shielding and coupling constants and write them to plain output
         """
@@ -957,7 +957,7 @@ class OrcaProc(QmProc):
         return
 
 
-    def _uvvis(self):
+    def __uvvis(self):
         """
         calculation of uvvis spectra
         """

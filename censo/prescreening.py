@@ -21,16 +21,14 @@ class Prescreening(CensoPart):
         super().__init__()
         
         self.core = core
-        self.settings = run_settings
-        
+
         # grabs the settings required for this part from the passed 'CensoSettings' instance
-        settings = run_settings.settings_current.bypart("general")
-        settings = settings + run_settings.settings_current.bypart("prescreening")
+        self.settings = run_settings.settings_current.bypart("general") + run_settings.settings_current.bypart("prescreening")
         
         # transfers settings into a dict of instructions to be passed to the process handler
-        self._instructions = {}
+        self.__instructions = {}
         for setting in settings:
-            self._instructions[setting.name] = setting.value
+            self.__instructions[setting.name] = setting.value
     
     @timeit
     def run(self) -> None:
@@ -51,7 +49,7 @@ class Prescreening(CensoPart):
         
         # set jobtype to pass to handler
         jobtype: List[str] = []
-        if self._instructions.get("gas-phase", None):
+        if self.__instructions.get("gas-phase", None):
             jobtype = ["sp"]
         else:
             jobtype = ["sp", "xtb_gsolv"]
@@ -70,7 +68,7 @@ class Prescreening(CensoPart):
             folder = self.core.cwd
         
         # compute results
-        results = handler.execute(jobtype, self._instructions, folder)
+        results = handler.execute(jobtype, self.__instructions, folder)
 
         # update results for each conformer
         for conf in self.core.conformers:
@@ -89,7 +87,7 @@ class Prescreening(CensoPart):
         )  
         
         # update conformers with threshold
-        threshold = self._instructions.get("threshold", None)
+        threshold = self.__instructions.get("threshold", None)
         if not threshold is None:
             # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
             limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
