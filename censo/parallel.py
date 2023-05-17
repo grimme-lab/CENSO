@@ -20,6 +20,8 @@ class ProcessHandler:
         also sets the number of processes (nprocs) and cores per processes (omp) to optimized vaules if possible
         """
         
+        self.settings = settings
+
         # stores the conformers
         self.conformers: List[GeometryData] = conformers
         
@@ -35,20 +37,20 @@ class ProcessHandler:
         self.__nprocs = None
         self.__omp = None
         if (
-            getattr(settings.settings_current.byname("balance"), "value", False) 
+            getattr(self.settings.settings_current.byname("balance"), "value", False) 
             or not self.__balance_load()
         ):
-            print("\nCould not readjust maxprocs and omp.\n")
+            print("\nNot readjusting maxprocs and omp.\n")
             # get number of processes
             self.__nprocs = getattr(
-                settings.settings_current.byname("maxprocs"), 
+                self.settings.settings_current.byname("maxprocs"), 
                 "value",
                 None
             )
             
             # get number of cores per process
             self.__omp = getattr(
-                settings.settings_current.byname("omp"),
+                self.settings.settings_current.byname("omp"),
                 "value",
                 None
             )
@@ -81,7 +83,7 @@ class ProcessHandler:
                 return False
             
             # should always be divisible, int casting only as safeguard
-            self.__omp = int(self._ncores / self._nprocs)
+            self.__omp = int(self.__ncores / self.__nprocs)
             
             return True
         else:
@@ -98,6 +100,9 @@ class ProcessHandler:
         folder: absolute path to folder where calculations should be executed in
         """
         # TODO - 'smart balancing'
+        # set cores per process in instructions
+        instructions["omp"] = self.__omp
+
         # try to get program from instructions
         prog = instructions.get("prog", None)
         
@@ -106,10 +111,15 @@ class ProcessHandler:
         
         # initialize the processor for the respective program (depends on part)
         # and set the jobtype as well as instructions, also pass folder to compute in
-        self.__processor = ProcessorFactory.create_processor(prog)
+        # also pass a lookup dict to the processor so it can set the solvent for the program call correctly
+        self.__processor = ProcessorFactory.create_processor(
+            prog, 
+            self.settings.external_paths,
+            solvents_dict=self.settings.solvents_db[self.instructions["solvent"]], 
+        )
         self.__processor.jobtype = jobtype
         self.__processor.instructions = instructions
-        self.__processor.folder = folder
+        self.__processor.workdir = workdir
         
         # execute processes for conformers
         # TODO - set PARNODES
@@ -117,6 +127,8 @@ class ProcessHandler:
             resiter = executor.map(self.__processor.run, self.conformers)
          
         # returns merged result dicts
+        # structure of results: 
+        #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
         results = reduce(lambda x, y: {**x, **y}, resiter)
         
         # assert that there is a result for every conformer

@@ -54,7 +54,9 @@ class MoleculeData:
         # 'part': <results from part jobs/in-part-calculations>
         # => e.g. self.results["prescreening"]["gtot"] 
         #    would return the free enthalpy of the conformer calculated in prescreening
+        #    (not calculated with an external program)
         #
         #    self.results["prescreening"]["sp"] 
         #    returns the energy calculated in the DFT single point in prescreening
+        #    (calculated by external program)
         self.results = {}

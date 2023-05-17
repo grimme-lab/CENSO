@@ -17,9 +17,9 @@ from censo.cfg import (
     ENVIRON,
     CODING,
     WARNLEN,
-    rot_sym_num, external_paths,
+    rot_sym_num,
 )
-from censo.utilities import last_folders, print
+from censo.utilities import last_folders, print, frange
         
 
 class QmProc:
@@ -27,29 +27,35 @@ class QmProc:
     QmProc base class with xtb as driver (see _xtb methods)
     """
 
-    def __init__(self):
+    def __init__(self, paths: Dict[str, str], solvents_dict: Dict = None):
         # jobtype is basically an ordered (!!!) (important for example if sp is required before the next job)
         # list containing the instructions of which computations to do        
         self.jobtype: List[str]
         
         # stores instructions, meaning the settings that should be applied for all jobs
-        # e.g. 'gfnv' (GFN-xTB version for xtb_sp/xtb_rrho/xtb_gsolv)
+        # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
         self.instructions: Dict[str, Any]
         
         # absolute path to the folder where jobs should be executed in
-        self.folder: str
+        self.workdir: str
 
         # dict to map the jobtypes to their respective methods
-        self.__jobtypes: Dict[str, Callable] = {
-            "sp": self.__sp,
-            "gsolv": self.__gsolv,
-            "opt": self.__opt,
-            "genericoutput": self.__genericoutput,
-            "xtb_sp": self.__xtb_sp,
-            "xtb_gsolv": self.__xtb_gsolv,
-            "xto_opt": self.__xtb_opt,
-            "xtb_rrho": self.__xtbrrho,
+        self._jobtypes: Dict[str, Callable] = {
+            "sp": self._sp,
+            "gsolv": self._gsolv,
+            "opt": self._opt,
+            "genericoutput": self._genericoutput,
+            "xtb_sp": self._xtb_sp,
+            "xtb_gsolv": self._xtb_gsolv,
+            "xto_opt": self._xtb_opt,
+            "xtb_rrho": self._xtbrrho,
         }
+
+        # stores the solvent lookup dict
+        self.solvents_dict = solvents_dict
+
+        # stores lookup dict for external paths
+        self.paths: Dict[str, str] = paths
 
 
     def run(self, conformer: GeometryData) -> Dict[int, Dict[str, Any]]:
@@ -61,7 +67,7 @@ class QmProc:
         res = {conformer.id: {}}
         
         for job in self.jobtype:
-            res[conformer.id][job] = self.__jobtypes[job](conformer)
+            res[conformer.id][job] = self._jobtypes[job](conformer)
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
@@ -74,34 +80,34 @@ class QmProc:
         pass
 
 
-    def __prep(self):
+    def _prep(self):
         """
         input preparation
         """
         pass
 
 
-    def __sp(self, silent=False):
+    def _sp(self, silent=False):
         """
         single-point calculation
         """
         pass
 
-    def __opt(self):
+    def _opt(self):
         """
         geometry optimization
         """
         pass
     
     
-    def __gsolv(self):
+    def _gsolv(self):
         """
         gsolv calculation using the respective solvent model
         """
         pass
     
 
-    def __genericoutput(self):
+    def _genericoutput(self):
         """
         Read shielding and coupling constants and write them to plain output
         The first natom lines contain the shielding constants, and from
@@ -109,7 +115,7 @@ class QmProc:
         """
         pass
 
-    def __get_sym_num(self, sym=None, linear=None):
+    def _get_sym_num(self, sym=None, linear=None):
         """Get rotational symmetry number from Schoenfließ symbol"""
         if sym is None:
             sym = "c1"
@@ -129,13 +135,22 @@ class QmProc:
         return symnum
 
 
-    # TODO - almost done
-    def __xtb_sp(self, filename="xtb_sp.out", silent=False):
+    def _xtb_sp(self, filename: str = "xtb_sp.out", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
         """
-        Get single-point energy from GFNn-xTB
+        Get single-point energy from xtb
+        result = {
+            "energy": None,
+            "success": None,
+        }
         """
         
-        outputpath = os.path.join(self.folder, filename)
+        if not silent:
+            print(
+                f"Running xtb_sp calculation in "
+                f"{last_folders(self.workdir, 3)}"
+            )
+
+        outputpath = os.path.join(self.workdir, filename)
         # if not self.job["onlyread"]: ??? TODO
         files = [
             "xtbrestart",
@@ -149,12 +164,12 @@ class QmProc:
 
         # remove potentially preexisting files to avoid confusion
         for file in files:
-            if os.path.isfile(os.path.join(self.job["workdir"], file)):
-                os.remove(os.path.join(self.job["workdir"], file))
+            if os.path.isfile(os.path.join(self.workdir, file)):
+                os.remove(os.path.join(self.workdir, file))
 
-        # run single-point:
+        # setup call for xtb single-point
         call = [
-            external_paths["xtbpath"],
+            self.paths["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             "--sp",
@@ -162,24 +177,36 @@ class QmProc:
             self.instructions["charge"],
             "--norestart",
             "--parallel",
-            self.instructions["omp"], # TODO - sets cores per process for xtb?
+            self.instructions["omp"],
         ]
-        if not self.instructions["gas-phase"]:
+
+        # add solvent to xtb call if not a gas-phase sp 
+        # (set either through run settings or by call kwarg e.g. for _xtb_gsolv)
+        if not self.instructions.get("gas-phase", False) or no_solv:
             call.extend(
                 [
-                    "--" + str(self.instructions["sm_rrho"]),
-                    censo_solvent_db[self.instructions["solvent"]]["xtb"][1], # TODO
+                    "--" + self.instructions["sm_rrho"],
+                    self.solvents_dict["xtb"][1],
                     "reference",
-                    "-I",
-                    "xcontrol-inp",
                 ]
             )
-            with open(
-                os.path.join(self.folder, "xcontrol-inp"), "w", newline=None
-            ) as xcout:
-                xcout.write("$gbsa\n")
-                xcout.write("  gbsagrid=tight\n")
-                xcout.write("$end\n")
+
+            # set gbsa grid if gbsa is used, do nothing for alpb
+            if self.instructions["sm_rrho"] == "gbsa":
+                call.extend(
+                    [
+                        "-I",
+                        "xcontrol-inp",
+                    ]
+                )
+                with open(
+                    os.path.join(self.workdir, "xcontrol-inp"), "w", newline=None
+                ) as xcout:
+                    xcout.write("$gbsa\n")
+                    xcout.write("  gbsagrid=tight\n")
+                    xcout.write("$end\n")
+
+        # call xtb and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
             returncode = subprocess.call(
                 call,
@@ -187,27 +214,34 @@ class QmProc:
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=self.folder,
+                cwd=self.workdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
-        if returncode != 0:
-            self.job["energy"] = 0.0
-            self.job["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
-                f"{last_folders(self.folder, 2)}"
-            )
-            return
 
-        # FIXME
+        # set results
+        result = {
+            "energy": None,
+            "success": None,
+        }
+
+        # if returncode != 0 then some error happened in xtb
+        if returncode != 0:
+            result["energy"] = None
+            result["success"] = False
+            print(
+                f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} error in "
+                f"{last_folders(self.workdir, 2)}"
+            )
+            return result
+
+        # FIXME - ???
         time.sleep(0.02)
 
-        # read energy:
+        # read energy from outputfile
         if os.path.isfile(outputpath):
-            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
-                store = inp.readlines()
-                for line in store:
+            with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
+                for line in outputfile.readlines():
                     if "| TOTAL ENERGY" in line:
                         try:
                             result["energy"] = float(line.split()[3])
@@ -216,372 +250,431 @@ class QmProc:
                             if not silent:
                                 print(
                                     f"{'ERROR:':{WARNLEN}}while converting "
-                                    f"single-point in: {last_folders(self.folder, 2)}"
+                                    f"single-point in: {last_folders(self.workdir, 2)}"
                                 )
-                            result["energy"] = 0.0
+                            result["energy"] = None
                             result["success"] = False
                             return result
         else:
-            result["energy"] = 0.0
+            result["energy"] = None
             result["success"] = False
             if not silent:
                 print(
-                    f"{'ERROR:':{WARNLEN}}{self.job['gfn_version']}-xTB error in "
-                    f"{last_folders(self.job['workdir'], 2)}"
+                    f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} error in "
+                    f"{last_folders(self.workdir, 2)}"
                 )
             return result
+
+        # everything went fine, return result
         if not silent:
             print(
-                f"{self.job['gfn_version']}-xTB energy for {last_folders(self.job['workdir'], 2)}"
-                f" = {self.job['energy']: >.7f}"
+                f"{self.instructions['gfnv'].upper()} energy for {last_folders(self.workdir, 2)}"
+                f" = {result['energy']:>.7f}"
             )
 
         return result
 
 
-    def __xtb_gsolv(self):
+    def _xtb_gsolv(self) -> Dict[str, Any]:
         """
         Calculate additive GBSA or ALPB solvation contribution by
-        Gsolv = Esolv - Egas,
-        using xTB and the GFNn or GFN-FF hamiltonian.
-        --> return gsolv at energy2
+        Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
+        result = {
+            "success": None,
+            "gsolv": None,
+            "energy_xtb_gas": None,
+            "energy_xtb_solv": None,
+        }
         """
         print(
-            f"Running {self.job['jobtype'].upper()} calculation in "
-            f"{last_folders(self.job['workdir'], 3)}"
+            f"Running xtb_gsolv calculation in "
+            f"{last_folders(self.workdir, 3)}"
         )
         tmp_gas = None
         tmp_solv = None
-        # keep possible DFT energy:
-        keep_dft_energy = self.job["energy"]
-        self.job["energy"] = 0.0
-        keep_solvent = self.job["solvent"]
-        self.job["solvent"] = "gas"
-        self.job["sm"] = "gas-phase"
 
-        # run gas-phase GFNn-xTB single-point
-        self._xtb_sp(filename="gas.out", silent=True)
-        if self.job["success"]:
-            tmp_gas = self.job["energy"]
-            # reset for next calculation
-            self.job["energy"] = 0.0
-            self.job["success"] = False
+        # what is returned in the end
+        result = {
+            "success": None,
+            "gsolv": None,
+            "energy_xtb_gas": None,
+            "energy_xtb_solv": None,
+        }
+
+        # run gas-phase GFN single-point
+        res = self._xtb_sp(filename="gas.out", silent=True, no_solv=True)
+        if res["success"]:
+            tmp_gas = res["energy"]
         else:
-            self.job["energy"] = keep_dft_energy
-            self.job["energy2"] = 0.0
-            self.job["success"] = False
             print(
-                f"{'ERROR:':{WARNLEN}}Gas phase {self.job['gfn_version']}-xTB error in "
-                f"{last_folders(self.job['workdir'], 3)}"
+                f"{'ERROR:':{WARNLEN}}Gas phase {self.instructions['gfnv'].upper()} error in "
+                f"{last_folders(self.workdir, 3)}"
             )
-            return
-        # run gas-phase GFNn-xTB single-point
+            result["success"] = False
+            return result
+
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        if self.job["jobtype"] == "gbsa_gsolv":
-            self.job["sm"] = "gbsa"
-        elif self.job["jobtype"] == "alpb_gsolv":
-            self.job["sm"] = "alpb"
-        self.job["solvent"] = keep_solvent
-        self._xtb_sp(filename="solv.out", silent=True)
-        if self.job["success"]:
-            tmp_solv = self.job["energy"]
-            # reset
-            self.job["energy"] = keep_dft_energy
+        res = self._xtb_sp(filename="solv.out", silent=True)
+        if res["success"]:
+            tmp_solv = res["energy"]
         else:
-            self.job["energy"] = keep_dft_energy
-            self.job["energy2"] = 0.0
-            self.job["success"] = False
             print(
-                f"{'ERROR:':{WARNLEN}}Solution phase {self.job['gfn_version']}-xTB error in "
-                f"{last_folders(self.job['workdir'], 3)}"
+                f"{'ERROR:':{WARNLEN}}Solution phase {self.instructions['gfnv'].upper()} error in "
+                f"{last_folders(self.workdir, 3)}"
             )
-            return
-        if self.job["success"]:
-            if tmp_solv is None or tmp_gas is None:
-                self.job["energy2"] = 0.0
-                self.job["success"] = False
-            else:
-                self.job["energy2"] = tmp_solv - tmp_gas
-                if self.job["trange"]:
-                    tmp = {}
-                    for temperature in self.job["trange"]:
-                        tmp[temperature] = tmp_solv - tmp_gas
-                    tmp[self.job["temperature"]] = tmp_solv - tmp_gas
-                    self.job["erange1"] = tmp
-                else:
-                    self.job["erange1"] = {self.job["temperature"]: tmp_solv - tmp_gas}
-                self.job["energy_xtb_gas"] = tmp_gas
-                self.job["energy_xtb_solv"] = tmp_solv
+            result["success"] = False
+            return result
+
+        # only reached if both gas-phase and solvated sp succeeded   
+        result["gsolv"] = tmp_solv - tmp_gas
+
+        # TODO - what is the sense behind this?
+        # leave this out for now, only 'calculate' this when needed
+        """if self.instructions.get("trange", None):
+            result["erange1"] = {
+                temperature: tmp_solv - tmp_gas 
+                for temperature in frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
+            }
+        else:
+            self.job["erange1"] = None"""
+
+        result["success"] = True
+        result["energy_xtb_gas"] = tmp_gas
+        result["energy_xtb_solv"] = tmp_solv
+
+        return result
 
 
-    def __xtb_opt(self):
+    def _xtb_opt(self):
         """
         geometry optimization using xtb as driver, has to be implemented for each qm code
         """
         pass
 
 
-    def __xtbrrho(self, filename="ohess.out"):
+    def _xtbrrho(self, filename="hess.out"):
         """
-        mRRHO contribution with GFNn/GFN-FF-xTB
+        mRRHO contribution with GFNn-xTB/GFN-FF
+        result = {
+            "energy": None,
+            "success": None,
+            "rmsd": None,
+            "erange1": None,
+            "erange2": None,
+            "erange3": None,
+            "symmetry": None,
+            "symnum": None,
+        }
         """
-        outputpath = os.path.join(self.job["workdir"], filename)
-        xcontrolpath = os.path.join(self.job["workdir"], "xcontrol-inp")
-        if not self.job["onlyread"]:
-            print(
-                f"Running {str(self.job['gfn_version']).upper()}-xTB mRRHO in "
-                f"{last_folders(self.job['workdir'], 2)}"
-            )
-            files = [
-                "xtbrestart",
-                "xtbtopo.mol",
-                "xcontrol-inp",
-                "wbo",
-                "charges",
-                "gfnff_topo",
-            ]
-            for file in files:
-                if os.path.isfile(os.path.join(self.job["workdir"], file)):
-                    os.remove(os.path.join(self.job["workdir"], file))
-            if self.job["trange"]:
-                for t in list(self.job["trange"]):
-                    if isclose(self.job["temperature"], t, abs_tol=0.6):
-                        self.job["trange"].pop(self.job["trange"].index(t))
-                self.job["trange"].append(self.job["temperature"])
-            with open(xcontrolpath, "w", newline=None) as xcout:
-                xcout.write("$thermo\n")
-                if self.job["trange"]:
-                    xcout.write(
-                        f"    temp="
-                        f"{','.join([str(i) for i in self.job['trange']])}\n"
-                    )
-                else:
-                    xcout.write("    temp={}\n".format(self.job["temperature"]))
-                if self.job.get("sthr", "automatic") == "automatic":
-                    xcout.write("    sthr=50.0\n")
-                else:
-                    xcout.write("    sthr={}\n".format(self.job["sthr"]))
-                if self.job.get("imagthr", "automatic") == "automatic":
-                    if self.job["bhess"]:
-                        xcout.write("    imagthr={}\n".format("-100"))
-                    else:
-                        xcout.write("    imagthr={}\n".format("-50"))
-                else:
-                    xcout.write("    imagthr={}\n".format(self.job["imagthr"]))
-                if self.job.get("scale", "automatic") != "automatic":
-                    # for automatic --> is method dependant leave it to xTB e.g. GFNFF has a
-                    # different scaling factor than GFN2
-                    xcout.write("    scale={}\n".format(self.job["scale"]))
-                xcout.write("$symmetry\n")
-                xcout.write("     maxat=1000\n")
-                # always consider symmetry
-                # xcout.write("    desy=0.1\n") # taken from xtb defaults
-                # xcout.write("    desy=0.0\n")
-                if self.job["solvent"] != "gas":
-                    xcout.write("$gbsa\n")
-                    xcout.write("  gbsagrid=tight\n")
-                xcout.write("$end\n")
-            if self.job["bhess"]:
-                # set ohess or bhess
-                dohess = "--bhess"
-                olevel = "vtight"
+        outputpath = os.path.join(self.workdir, filename)
+        xcontrolpath = os.path.join(self.workdir, "xcontrol-inp")
+        # if not self.job["onlyread"]: # TODO ???
+        print(
+            f"Running {str(self.instructions['gfnv']).upper()} mRRHO in "
+            f"{last_folders(self.workdir, 2)}"
+        )
+
+        files = [
+            "xtbrestart",
+            "xtbtopo.mol",
+            "xcontrol-inp",
+            "wbo",
+            "charges",
+            "gfnff_topo",
+        ]
+
+        # remove potentially preexisting files to avoid confusion
+        for file in files:
+            if os.path.isfile(os.path.join(self.workdir, file)):
+                os.remove(os.path.join(self.workdir, file))
+
+        # FIXME - ??? what the hell is happening here ???
+        if self.instructions.get("trange", None):
+            for t in self.instructions["trange"]:
+                if isclose(self.instructions["temperature"], t, abs_tol=0.6):
+                    self.instructions["trange"].pop(self.instructions["trange"].index(t))
+            self.instructions["trange"].append(self.instructions["temperature"])
+
+        # setup xcontrol
+        with open(xcontrolpath, "w", newline=None) as xcout:
+            xcout.write("$thermo\n")
+            if self.instructions.get("trange", False):
+                trange = frange(self.instructions['trange'][0], self.instructions['trange'][1], self.instructions['trange'][2])
+                xcout.write(
+                    f"    temp="
+                    f"{','.join([str(i) for i in trange])}\n")
             else:
-                dohess = "--ohess"
-                olevel = "vtight"
-            time.sleep(0.02)
-            with open(outputpath, "w", newline=None) as outputfile:
-                if self.job["solvent"] != "gas":
-                    callargs = [
-                        external_paths["xtbpath"],
-                        "coord",
-                        "--" + str(self.job["gfn_version"]),
-                        dohess,
-                        olevel,
-                        "--" + str(self.job["sm_rrho"]),
-                        censo_solvent_db[self.job["solvent"]]["xtb"][1],
-                        "--chrg",
-                        str(self.job["charge"]),
-                        "--enso",
-                        "--norestart",
-                        "-I",
-                        "xcontrol-inp",
-                        "--parallel",
-                        str(self.job["omp"]),
+                xcout.write(f"    temp={self.instructions['temperature']}\n")
+
+
+            xcout.write(f"    sthr={self.instructions['sthr']}\n")
+
+            xcout.write(f"    imagthr={self.instructions['imagthr']}\n")
+
+            # TODO - it is never left to xTB ??? zombiecode ???
+            if self.instructions.get("scale", "automatic") != "automatic":
+                # for automatic --> is method dependant leave it to xTB e.g. GFNFF has a
+                # different scaling factor than GFN2
+                xcout.write(f"    scale={self.instructions['scale']}\n")
+            
+            xcout.write("$symmetry\n")
+            xcout.write("     maxat=1000\n")
+            # always consider symmetry
+            # xcout.write("    desy=0.1\n") # taken from xtb defaults
+            # xcout.write("    desy=0.0\n")
+
+            # TODO - does this actually do anything
+            if not self.instructions["gas-phase"]:
+                xcout.write("$gbsa\n")
+                xcout.write("  gbsagrid=tight\n")
+            
+            xcout.write("$end\n")
+
+        if self.instructions["bhess"]:
+            # set ohess or bhess
+            dohess = "--bhess"
+            olevel = "vtight"
+        else:
+            dohess = "--ohess"
+            olevel = "vtight"
+
+        # FIXME ???
+        time.sleep(0.02)
+        
+        with open(outputpath, "w", newline=None) as outputfile:
+            if not self.instructions["gas-phase"]:
+                call = [
+                    self.paths["xtbpath"],
+                    "coord",
+                    "--" + self.instructions["gfnv"],
+                    dohess,
+                    olevel,
+                    "--" + self.instructions["sm_rrho"],
+                    self.solvents_dict["xtb"][1],
+                    "--chrg",
+                    self.instructions["charge"],
+                    "--enso",
+                    "--norestart",
+                    "-I",
+                    "xcontrol-inp",
+                    "--parallel",
+                    self.instructions["omp"],
+                ]
+            else:
+                call = [
+                    self.paths["xtbpath"],
+                    "coord",
+                    "--" + self.instructions["gfnversion"],
+                    dohess,
+                    olevel,
+                    "--chrg",
+                    self.instructions["charge"],
+                    "--enso",
+                    "--norestart",
+                    "-I",
+                    "xcontrol-inp",
+                    "--parallel",
+                    self.instructions["omp"],
+                ]
+            if self.instructions["rmsdbias"]:
+                # move one dir up to get to cwd (FIXME)
+                cwd = os.path.join(os.path.split(self.workdir)[::-1][1:][::-1])
+
+                call.extend(
+                    [
+                        "--bias-input",
+                        os.path.join(cwd, "rmsdpot.xyz"),
                     ]
-                else:
-                    callargs = [
-                        external_paths["xtbpath"],
-                        "coord",
-                        "--" + str(self.job["gfn_version"]),
-                        dohess,
-                        olevel,
-                        "--chrg",
-                        str(self.job["charge"]),
-                        "--enso",
-                        "--norestart",
-                        "-I",
-                        "xcontrol-inp",
-                        "--parallel",
-                        str(self.job["omp"]),
-                    ]
-                if self.job["rmsdbias"]:
-                    callargs.extend(
-                        [
-                            "--bias-input",
-                            str(os.path.join(self.job["cwd"], "rmsdpot.xyz")),
-                        ]
-                    )
-                returncode = subprocess.call(
-                    callargs,
-                    shell=False,
-                    stdin=None,
-                    stderr=subprocess.STDOUT,
-                    universal_newlines=False,
-                    cwd=self.job["workdir"],
-                    stdout=outputfile,
-                    env=ENVIRON,
                 )
-            # check if converged:
-            if returncode != 0:
-                self.job["energy"] = 0.0
-                self.job["success"] = False
-                self.job["errormessage"].append(
-                    f"{'ERROR:':{WARNLEN}}{str(self.job['gfn_version']).upper()}-xTB ohess error in "
-                    f"{last_folders(self.job['workdir'], 2):18}"
-                )
-                print(self.job["errormessage"][-1])
-                return
-        # start reading output!
-        if not os.path.isfile(outputpath):
-            self.job["energy"] = 0.0
-            self.job["success"] = False
-            self.job["errormessage"].append(
-                f"{'ERROR:':{WARNLEN}}file {self.job['workdir']}/ohess.out could not be found!"
+
+            # run xtb
+            returncode = subprocess.call(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=self.workdir,
+                stdout=outputfile,
+                env=ENVIRON,
             )
-            print(self.job["errormessage"][-1])
-            return
-        # start reading file:
-        with open(outputpath, "r", encoding=CODING, newline=None) as inp:
-            store = inp.readlines()
-        if self.job["trange"]:
+
+        # what is returned in the end
+        result = {
+            "energy": None,
+            "success": None,
+            "rmsd": None,
+            "erange1": None,
+            "erange2": None,
+            "erange3": None,
+            "symmetry": None,
+            "symnum": None,
+        }
+
+        # check if converged:
+        if returncode != 0:
+            result["energy"] = None
+            result["success"] = False
+            print(
+                f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} ohess/bhess error in "
+                f"{last_folders(self.workdir, 2):18}"
+            )
+            return result
+
+        # start reading output
+        # TODO - error handling
+        if not os.path.isfile(outputpath):
+            result["energy"] = None
+            result["success"] = False
+            print(
+                f"{'ERROR:':{WARNLEN}}file {self.workdir}/hess.out could not be found!"
+            )
+            return result
+
+        # read output and store lines
+        with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
+            lines = outputfile.readlines()
+
+        # get gibbs energy, enthalpy and entropy for given temperature range
+        if self.instructions["trange"]:
+            trange = frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
+            # gibbs energy
             gt = {}
+
+            # enthalpy
             ht = {}
+            
+            # rotational entropy
             rotS = {}
-            # rotational entropy:
-            for line in store:
+
+            for line in lines:
+
+                # get rotational entropy
                 if "VIB" in line:
                     try:
-                        realline = store.index(line) + 1
+                        index = lines.index(line) + 1
                         T = float(line.split()[0])
-                        rotS[T] = float(store[realline].split()[4])
+                        rotS[T] = float(lines[index].split()[4])
                     except (KeyError, ValueError):
+                        # TODO - error handling !!!
                         pass
-            for line in store:
+
+                # get gibbs energy and enthalpy
                 if "T/K" in line:
-                    start = store.index(line)
-            for line in store[start + 2 :]:
-                if "----------------------------------" in line:
-                    break
-                else:
+                    for line2 in lines[lines.index(line)+2:]:
+                        if "----------------------------------" in line2:
+                            break
+                        else:
+                            try:
+                                T = float(line2.split()[0])
+                                gt[T] = float(line2.split()[4])
+                                ht[T] = float(line2.split()[2])
+                            except (ValueError, KeyError):
+                                # TODO - error handling
+                                print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
+
+                # extract rmsd
+                if "final rmsd / " in line and self.instructions["bhess"]:
                     try:
-                        T = float(line.split()[0])
-                        gt[T] = float(line.split()[4])
-                        ht[T] = float(line.split()[2])
-                    except (ValueError, KeyError):
-                        print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
-            if len(self.job["trange"]) == len(gt):
-                self.job["success"] = True
-                self.job["erange1"] = gt
-                self.job["erange2"] = ht
-                self.job["erange3"] = rotS
+                        result["rmsd"] = float(line.split()[3])
+                    except (ValueError, IndexError):
+                        # TODO - error handling ?
+                        result["rmsd"] = None
+
+                # extract symmetry
+                if ":  linear? " in line:
+                    # linear needed for symmetry and S_rot (only if considersym is turned off)
+                    try:
+                        if line.split()[2] == "false":
+                            result["linear"] = False
+                        elif line.split()[2] == "true":
+                            result["linear"] = True
+                    except (IndexError, Exception) as e:
+                        # TODO - error handling
+                        print(e)
+
+            # check if xtb calculated the temperature range correctly
+            if len(trange) == len(gt):
+                result["erange1"] = gt
+                result["erange2"] = ht
+                result["erange3"] = rotS
             else:
-                self.job["success"] = False
-                return
-        # end self.job["trange"]
-        for line in store:
-            if "final rmsd / " in line and self.job["bhess"]:
-                try:
-                    self.job["rmsd"] = float(line.split()[3])
-                except (ValueError, IndexError):
-                    self.job["rmsd"] = 0.0
-            if ":  linear? " in line:
-                # linear needed for symmetry and S_rot (only if considersym is turned off)
-                try:
-                    if line.split()[2] == "false":
-                        self.job["linear"] = False
-                    elif line.split()[2] == "true":
-                        self.job["linear"] = True
-                except (IndexError, Exception) as e:
-                    print(e)
-        if os.path.isfile(os.path.join(self.job["workdir"], "xtb_enso.json")):
+                result["success"] = False
+                return result
+
+        # TODO - where did you come from where did you go where did you come from xtb_enso
+        # also what is happening here
+        if os.path.isfile(os.path.join(self.workdir, "xtb_enso.json")):
             with open(
-                os.path.join(self.job["workdir"], "xtb_enso.json"),
+                os.path.join(self.workdir, "xtb_enso.json"),
                 "r",
                 encoding=CODING,
                 newline=None,
             ) as f:
                 data = json.load(f)
+
             if "number of imags" in data:
                 if data["number of imags"] > 0:
                     print(
                         f"{'WARNING:':{WARNLEN}}found {data['number of imags']} significant"
                         f" imaginary frequencies in "
-                        f"{last_folders(self.job['workdir'], 2)}"
+                        f"{last_folders(self.workdir, 2)}"
                     )
             if "G(T)" in data:
-                if float(self.job["temperature"]) == 0:
-                    self.job["energy"] = data.get("ZPVE", 0.0)
-                    self.job["success"] = True
-                    self.job["erange1"][self.job["temperature"]] = data.get("ZPVE", 0.0)
-                    self.job["erange2"][self.job["temperature"]] = data.get("ZPVE", 0.0)
+                if float(self.instructions["temperature"]) == 0:
+                    result["energy"] = data.get("ZPVE", 0.0)
+                    result["success"] = True
+                    result["erange1"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
+                    result["erange2"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
                 else:
-                    self.job["energy"] = data.get("G(T)", 0.0)
-                    self.job["erange1"][self.job["temperature"]] = data.get("G(T)", 0.0)
+                    result["energy"] = data.get("G(T)", 0.0)
+                    result["erange1"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
                     # self.job['erange2'][self.job['temperature']] =  data.get("H(T)", 0.0)
-                    self.job["success"] = True
+                    result["success"] = True
                 if "point group" in data:
-                    self.job["symmetry"] = data["point group"]
+                    result["symmetry"] = data["point group"]
                 if "linear" in data:
-                    self.job["linear"] = data.get("linear", self.job["linear"])
+                    result["linear"] = data.get("linear", result["linear"])
             else:
                 print(
-                    f"{'ERROR:':{WARNLEN}}while converting mRRHO in: {last_folders(self.job['workdir'], 2)}"
+                    f"{'ERROR:':{WARNLEN}}while converting mRRHO in: {last_folders(self.workdir, 2)}"
                 )
-                self.job["energy"] = 0.0
-                self.job["success"] = False
+                result["success"] = False
             # calculate symnum
-            self.job["symnum"] = self._get_sym_num(
-                sym=self.job["symmetry"], linear=self.job["linear"]
+            result["symnum"] = self._get_sym_num(
+                sym=result["symmetry"], linear=result["linear"]
             )
         else:
             print(
                 f"{'WARNING:':{WARNLEN}}File "
-                f"{os.path.join(self.job['workdir'], 'xtb_enso.json')} doesn't exist!"
+                f"{os.path.join(self.workdir, 'xtb_enso.json')} doesn't exist!"
             )
-            self.job["energy"] = 0.0
-            self.job["success"] = False
+            result["success"] = False
 
 
 class ProcessorFactory:
     
     # for now these are the only available processor types
-    proctypes: Dict[str, type] = {
+    __proctypes: Dict[str, type] = {
         "orca": OrcaProc,
         "tm": TmProc,
     }
     
     @classmethod
-    def create_processor(cls, prog: str, *args, **kwargs) -> QmProc:
+    def create_processor(cls, *args, **kwargs) -> QmProc:
         """
         returns an instance of the requested processor type (mapping with the 'prog' setting)
         for now the QmProc class uses xtb as driver (this method should be changed if additional drivers are implemented)
-        available processor types are mapped in ProcessorFactory.proctypes
+        available processor types are mapped in ProcessorFactory.__proctypes
+
+        example: create_processor(orca, external_paths, solvents_dict=...) 
+        (lookup the constructors for the processor types for further documentation)
         """
-        type_t = cls.proctypes.get(prog, None)
+        type_t: type = cls.__proctypes.get(prog, None)
         
         if not type_t is None:
             return type_t(*args, **kwargs)
         else:
-            raise TypeError(f"No processor type was found for {prog} in {cls.proctypes}.")
+            raise TypeError(f"No processor type was found for {prog} in {cls.__proctypes}.")
