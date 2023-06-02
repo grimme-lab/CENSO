@@ -178,7 +178,7 @@ class Prescreening(CensoPart):
             E(DFT) + G_solv, 
             δ(E(DFT) + G_solv) 
             
-        also writes data in easily digestible format
+        TODO also writes data in easily digestible format
         """
         # column headers
         headers = [
@@ -276,9 +276,9 @@ class Prescreening(CensoPart):
             # print floats with 2 digits accuracy if it is a difference, else with 6 digits
             lines.append(
                 " ".join(
-                        f"{{{printmap[header](conf):^ {collen}.2f}}}" 
+                        f"{{{printmap[header](conf):^{collen}.2f}}}" 
                         if "Δ" in header 
-                        else f"{{{printmap[header](conf):^ {collen}.6f}}}" 
+                        else f"{{{printmap[header](conf):^{collen}.6f}}}" 
                         for header, collen in collens.items()
                     ) 
                 # draw an arrow if conformer is the best in current ranking

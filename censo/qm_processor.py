@@ -182,11 +182,13 @@ class QmProc:
 
         # add solvent to xtb call if not a gas-phase sp 
         # (set either through run settings or by call kwarg e.g. for _xtb_gsolv)
+        # note on solvents_dict (or rather censo_solvents.json): 
+        # [0] is the normal name of the solvent, if it is available, [1] is the replacement
         if not self.instructions.get("gas-phase", False) or no_solv:
             call.extend(
                 [
                     "--" + self.instructions["sm_rrho"],
-                    self.solvents_dict["xtb"][1],
+                    self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
                     "reference",
                 ]
             )
@@ -376,6 +378,7 @@ class QmProc:
             f"{last_folders(self.workdir, 2)}"
         )
 
+        # TODO - is this list complete?
         files = [
             "xtbrestart",
             "xtbtopo.mol",
@@ -390,12 +393,12 @@ class QmProc:
             if os.path.isfile(os.path.join(self.workdir, file)):
                 os.remove(os.path.join(self.workdir, file))
 
-        # FIXME - ??? what the hell is happening here ???
-        if self.instructions.get("trange", None):
-            for t in self.instructions["trange"]:
-                if isclose(self.instructions["temperature"], t, abs_tol=0.6):
-                    self.instructions["trange"].pop(self.instructions["trange"].index(t))
-            self.instructions["trange"].append(self.instructions["temperature"])
+        # if a temperature in the trange is close (+-0.6) to the fixed temperature then replace this value in trange
+        # don't do this for now, to make the program more predictable
+        """ for t in trange:
+            if isclose(self.instructions["temperature"], t, abs_tol=0.6):
+                trange[trange.index(t)] = self.instructions["temperature"]
+                break """
 
         # setup xcontrol
         with open(xcontrolpath, "w", newline=None) as xcout:
@@ -413,11 +416,12 @@ class QmProc:
 
             xcout.write(f"    imagthr={self.instructions['imagthr']}\n")
 
-            # TODO - it is never left to xTB ??? zombiecode ???
-            if self.instructions.get("scale", "automatic") != "automatic":
+            # TODO - when do you actually want to set the scale manually?
+            # don't set scale manually for now
+            """ if self.instructions.get("scale", "automatic") != "automatic":
                 # for automatic --> is method dependant leave it to xTB e.g. GFNFF has a
                 # different scaling factor than GFN2
-                xcout.write(f"    scale={self.instructions['scale']}\n")
+                xcout.write(f"    scale={self.instructions['scale']}\n") """
             
             xcout.write("$symmetry\n")
             xcout.write("     maxat=1000\n")
@@ -425,8 +429,8 @@ class QmProc:
             # xcout.write("    desy=0.1\n") # taken from xtb defaults
             # xcout.write("    desy=0.0\n")
 
-            # TODO - does this actually do anything
-            if not self.instructions["gas-phase"]:
+            # set gbsa grid
+            if not self.instructions["gas-phase"] and self.instructions["sm_rrho"] == "gbsa":
                 xcout.write("$gbsa\n")
                 xcout.write("  gbsagrid=tight\n")
             
@@ -444,40 +448,28 @@ class QmProc:
         time.sleep(0.02)
         
         with open(outputpath, "w", newline=None) as outputfile:
+            call = [
+                self.paths["xtbpath"],
+                "coord",
+                "--" + self.instructions["gfnv"],
+                dohess,
+                olevel,
+                "--chrg",
+                self.instructions["charge"],
+                "--enso",
+                "--norestart",
+                "-I",
+                "xcontrol-inp",
+                "--parallel",
+                self.instructions["omp"],
+            ]
             if not self.instructions["gas-phase"]:
-                call = [
-                    self.paths["xtbpath"],
-                    "coord",
-                    "--" + self.instructions["gfnv"],
-                    dohess,
-                    olevel,
-                    "--" + self.instructions["sm_rrho"],
-                    self.solvents_dict["xtb"][1],
-                    "--chrg",
-                    self.instructions["charge"],
-                    "--enso",
-                    "--norestart",
-                    "-I",
-                    "xcontrol-inp",
-                    "--parallel",
-                    self.instructions["omp"],
-                ]
-            else:
-                call = [
-                    self.paths["xtbpath"],
-                    "coord",
-                    "--" + self.instructions["gfnversion"],
-                    dohess,
-                    olevel,
-                    "--chrg",
-                    self.instructions["charge"],
-                    "--enso",
-                    "--norestart",
-                    "-I",
-                    "xcontrol-inp",
-                    "--parallel",
-                    self.instructions["omp"],
-                ]
+                call.extend(
+                    [
+                        "--" + self.instructions["sm_rrho"],
+                        self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
+                    ]
+                )
             if self.instructions["rmsdbias"]:
                 # move one dir up to get to cwd (FIXME)
                 cwd = os.path.join(os.path.split(self.workdir)[::-1][1:][::-1])
@@ -515,7 +507,6 @@ class QmProc:
 
         # check if converged:
         if returncode != 0:
-            result["energy"] = None
             result["success"] = False
             print(
                 f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} ohess/bhess error in "
@@ -526,7 +517,6 @@ class QmProc:
         # start reading output
         # TODO - error handling
         if not os.path.isfile(outputpath):
-            result["energy"] = None
             result["success"] = False
             print(
                 f"{'ERROR:':{WARNLEN}}file {self.workdir}/hess.out could not be found!"
@@ -538,74 +528,73 @@ class QmProc:
             lines = outputfile.readlines()
 
         # get gibbs energy, enthalpy and entropy for given temperature range
-        if self.instructions["trange"]:
-            trange = frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
-            # gibbs energy
-            gt = {}
+        # TODO - there should be no case where the trange setting is unset
+        trange = frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
+        # gibbs energy
+        gt = {}
 
-            # enthalpy
-            ht = {}
-            
-            # rotational entropy
-            rotS = {}
+        # enthalpy
+        ht = {}
+        
+        # rotational entropy
+        rotS = {}
 
-            for line in lines:
+        for line in lines:
+            # get rotational entropy
+            if "VIB" in line:
+                try:
+                    index = lines.index(line) + 1
+                    T = float(line.split()[0])
+                    rotS[T] = float(lines[index].split()[4])
+                except (KeyError, ValueError):
+                    # TODO - error handling !!!
+                    pass
 
-                # get rotational entropy
-                if "VIB" in line:
-                    try:
-                        index = lines.index(line) + 1
-                        T = float(line.split()[0])
-                        rotS[T] = float(lines[index].split()[4])
-                    except (KeyError, ValueError):
-                        # TODO - error handling !!!
-                        pass
+            # get gibbs energy and enthalpy
+            if "T/K" in line:
+                for line2 in lines[lines.index(line)+2:]:
+                    if "----------------------------------" in line2:
+                        break
+                    else:
+                        try:
+                            T = float(line2.split()[0])
+                            gt[T] = float(line2.split()[4])
+                            ht[T] = float(line2.split()[2])
+                        except (ValueError, KeyError):
+                            # TODO - error handling
+                            print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
 
-                # get gibbs energy and enthalpy
-                if "T/K" in line:
-                    for line2 in lines[lines.index(line)+2:]:
-                        if "----------------------------------" in line2:
-                            break
-                        else:
-                            try:
-                                T = float(line2.split()[0])
-                                gt[T] = float(line2.split()[4])
-                                ht[T] = float(line2.split()[2])
-                            except (ValueError, KeyError):
-                                # TODO - error handling
-                                print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
+            # extract rmsd
+            if "final rmsd / " in line and self.instructions["bhess"]:
+                try:
+                    result["rmsd"] = float(line.split()[3])
+                except (ValueError, IndexError):
+                    # TODO - error handling ?
+                    result["rmsd"] = None
 
-                # extract rmsd
-                if "final rmsd / " in line and self.instructions["bhess"]:
-                    try:
-                        result["rmsd"] = float(line.split()[3])
-                    except (ValueError, IndexError):
-                        # TODO - error handling ?
-                        result["rmsd"] = None
+            # extract symmetry
+            if ":  linear? " in line:
+                # linear needed for symmetry and S_rot (only if considersym is turned off)
+                try:
+                    if line.split()[2] == "false":
+                        result["linear"] = False
+                    elif line.split()[2] == "true":
+                        result["linear"] = True
+                except (IndexError, Exception) as e:
+                    # TODO - error handling
+                    print(e)
 
-                # extract symmetry
-                if ":  linear? " in line:
-                    # linear needed for symmetry and S_rot (only if considersym is turned off)
-                    try:
-                        if line.split()[2] == "false":
-                            result["linear"] = False
-                        elif line.split()[2] == "true":
-                            result["linear"] = True
-                    except (IndexError, Exception) as e:
-                        # TODO - error handling
-                        print(e)
+        # check if xtb calculated the temperature range correctly
+        if len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS):
+            result["erange1"] = gt
+            result["erange2"] = ht
+            result["erange3"] = rotS
+        else:
+            result["success"] = False
+            return result
 
-            # check if xtb calculated the temperature range correctly
-            if len(trange) == len(gt):
-                result["erange1"] = gt
-                result["erange2"] = ht
-                result["erange3"] = rotS
-            else:
-                result["success"] = False
-                return result
-
-        # TODO - where did you come from where did you go where did you come from xtb_enso
-        # also what is happening here
+        # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess (when a hessian is calculated)
+        # contains output from xtb in json format to be more easily digestible by CENSO
         if os.path.isfile(os.path.join(self.workdir, "xtb_enso.json")):
             with open(
                 os.path.join(self.workdir, "xtb_enso.json"),
@@ -615,6 +604,7 @@ class QmProc:
             ) as f:
                 data = json.load(f)
 
+            # read number of imaginary frequencies and print warning
             if "number of imags" in data:
                 if data["number of imags"] > 0:
                     print(
@@ -622,31 +612,42 @@ class QmProc:
                         f" imaginary frequencies in "
                         f"{last_folders(self.workdir, 2)}"
                     )
+
+            # get gibbs energy
             if "G(T)" in data:
+                # TODO - error handling
                 if float(self.instructions["temperature"]) == 0:
-                    result["energy"] = data.get("ZPVE", 0.0)
                     result["success"] = True
+                    result["energy"] = data.get("ZPVE", 0.0)
                     result["erange1"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
                     result["erange2"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
+                    result["erange3"][self.instructions["temperature"]] = None # set this to None for predictability
                 else:
+                    result["success"] = True
                     result["energy"] = data.get("G(T)", 0.0)
                     result["erange1"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
-                    # self.job['erange2'][self.job['temperature']] =  data.get("H(T)", 0.0)
-                    result["success"] = True
-                if "point group" in data:
+                    result["erange2"][self.instructions["temperature"]] = None # set this to None for predictability
+                    result["erange3"][self.instructions["temperature"]] = None # set this to None for predictability
+
+                # only determine symmetry if all the needed information is there
+                if "point group" and "linear" in data.keys():
                     result["symmetry"] = data["point group"]
-                if "linear" in data:
                     result["linear"] = data.get("linear", result["linear"])
+                    # calculate symnum
+                    result["symnum"] = self._get_sym_num(
+                        sym=result["symmetry"], linear=result["linear"]
+                    )
+                else:
+                    """could not determine symnum"""
+                    # TODO
             else:
+                # TODO - error handling
                 print(
-                    f"{'ERROR:':{WARNLEN}}while converting mRRHO in: {last_folders(self.workdir, 2)}"
+                    f"{'ERROR:':{WARNLEN}}while reading xtb_enso.json in: {last_folders(self.workdir, 2)}"
                 )
                 result["success"] = False
-            # calculate symnum
-            result["symnum"] = self._get_sym_num(
-                sym=result["symmetry"], linear=result["linear"]
-            )
         else:
+            # TODO - error handling
             print(
                 f"{'WARNING:':{WARNLEN}}File "
                 f"{os.path.join(self.workdir, 'xtb_enso.json')} doesn't exist!"

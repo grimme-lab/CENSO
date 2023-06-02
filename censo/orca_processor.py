@@ -12,8 +12,6 @@ from censo.cfg import (
     CODING,
     ENVIRON,
     WARNLEN,
-    external_paths,
-    dfa_settings,
     editable_ORCA_input,
     PLANCK,
     C
