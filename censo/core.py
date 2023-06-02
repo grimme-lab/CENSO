@@ -62,6 +62,9 @@ class CensoCore:
         # absolute path to ensemble input file
         self.ensemble_path: str
 
+        # TODO - should this be done here?
+        self.find_ensemble()
+
 
     """ def run_args(self) -> None:
         # TODO - leave until compatibility is fixed

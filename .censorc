@@ -16,13 +16,13 @@ $ENDPROGRAMS
 $GENERAL SETTINGS
 charge: 0
 unpaired: 0
-maxthreads: 1
+maxprocs: 1
 omp: 1
 imagethr: -100.0
 sthr: 0.0
 scale: 1.0
 temperature: 298.15
-solvent: gas
+solvent: ???
 sm_rrho: alpb
 cosmorsparam: automatic
 multitemp: True
@@ -39,15 +39,15 @@ gas-phase: False
 trange: [273.15, 378.15, 5]
 
 $PRESCREENING SETTINGS
-prescreening_threshold: 4.0
+threshold: 4.0
 func: b97-d3(0)
 basis: def2-SV(P)
-prog: tm
+prog: orca
 gfnv: gfn2
 run: True
 
 $SCREENING SETTINGS
-screening_threshold: 3.5
+threshold: 3.5
 func: r2scan-3c
 basis: automatic
 prog: tm
@@ -58,7 +58,7 @@ run: True
 $OPTIMIZATION SETTINGS
 optcycles: 8
 radsize: 10
-opt_limit: 2.5
+threshold: 2.5
 hlow: 0.01
 optimization_P_threshold: 99.0
 spearmanthr: 0.0
@@ -75,7 +75,7 @@ opt_spearman: True
 crestcheck: False
 
 $REFINEMENT SETTINGS
-refinement_threshold: 99.0
+threshold: 99.0
 prog: tm
 func: pw6b95-d4
 basis: def2-TZVPD

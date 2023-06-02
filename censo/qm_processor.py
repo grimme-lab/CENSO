@@ -363,9 +363,9 @@ class QmProc:
             "energy": None,
             "success": None,
             "rmsd": None,
-            "erange1": None,
-            "erange2": None,
-            "erange3": None,
+            "gibbs": None,
+            "enthalpy": None,
+            "entropy": None,
             "symmetry": None,
             "symnum": None,
         }
@@ -498,9 +498,9 @@ class QmProc:
             "energy": None,
             "success": None,
             "rmsd": None,
-            "erange1": None,
-            "erange2": None,
-            "erange3": None,
+            "gibbs": None,
+            "enthalpy": None,
+            "entropy": None,
             "symmetry": None,
             "symnum": None,
         }
@@ -586,9 +586,9 @@ class QmProc:
 
         # check if xtb calculated the temperature range correctly
         if len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS):
-            result["erange1"] = gt
-            result["erange2"] = ht
-            result["erange3"] = rotS
+            result["gibbs"] = gt
+            result["enthalpy"] = ht
+            result["entropy"] = rotS
         else:
             result["success"] = False
             return result
@@ -619,15 +619,15 @@ class QmProc:
                 if float(self.instructions["temperature"]) == 0:
                     result["success"] = True
                     result["energy"] = data.get("ZPVE", 0.0)
-                    result["erange1"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
-                    result["erange2"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
-                    result["erange3"][self.instructions["temperature"]] = None # set this to None for predictability
+                    result["gibbs"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
+                    result["enthalpy"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
+                    result["entropy"][self.instructions["temperature"]] = None # set this to None for predictability
                 else:
                     result["success"] = True
                     result["energy"] = data.get("G(T)", 0.0)
-                    result["erange1"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
-                    result["erange2"][self.instructions["temperature"]] = None # set this to None for predictability
-                    result["erange3"][self.instructions["temperature"]] = None # set this to None for predictability
+                    result["gibbs"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
+                    result["enthalpy"][self.instructions["temperature"]] = None # set this to None for predictability
+                    result["entropy"][self.instructions["temperature"]] = None # set this to None for predictability
 
                 # only determine symmetry if all the needed information is there
                 if "point group" and "linear" in data.keys():

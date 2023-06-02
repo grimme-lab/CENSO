@@ -251,9 +251,6 @@ def startup(argv):
     # initialize core with args and cwd
     core = CensoCore(args, cwd)
     
-    # look for ensemble input file
-    core.find_ensemble()
-
     # read input and setup conformers
     core.read_input()
 

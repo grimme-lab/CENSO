@@ -70,7 +70,7 @@ class SettingsTuple(tuple):
                     for item in arg:
                         assert type(item) == Setting
         except AssertionError:
-            raise TypeError("Cannot create a 'SettingsTuple' instance because the input sequence is not entirely made up of 'Setting' objects")
+            raise TypeError("Cannot create a 'SettingsTuple' instance because the input sequence is not entirely made up of 'Setting' objects.")
         
         super().__init__()
     
@@ -78,8 +78,15 @@ class SettingsTuple(tuple):
     def __add__(self, other):
         """
         overload the '+' operator for tuple to get the correct return type
+        can also accept Setting objects
         """
-        return SettingsTuple([x for x in self] + [y for y in other])
+        try:
+            return SettingsTuple([x for x in self] + [y for y in other])
+        except TypeError:
+            if type(other) == Setting:
+                return SettingsTuple([x for x in self] + [other])
+            else:
+                raise(TypeError("'+' operation for SettingsTuple only supported for iterables containing exclusively Setting objects or single Setting objects."))
 
     
     def byname(self, name: str) -> Union[Setting, None]:

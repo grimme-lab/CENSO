@@ -11,7 +11,7 @@ import time
 import subprocess
 from copy import deepcopy
 from builtins import print as print_orig
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union, List
 import functools
 from multiprocessing import Lock
 
@@ -905,8 +905,12 @@ def conf_in_interval(conformers, full_free_energy=True, bm=True):
         print(line)
 
 
-def timeit(f) -> Callable[[], float]: # TODO - type hint correct?
-    """time function execution"""
+def timeit(f) -> Callable:
+    """
+    time function execution
+    timed function should have no return value, since it is lost in the process
+    calling a decorated function returns the time spent for it's execution
+    """
     @functools.wraps(f)
     def wrapper(*args, **kwargs) -> float:
         start = time.perf_counter()
