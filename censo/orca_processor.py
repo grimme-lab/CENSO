@@ -6,7 +6,7 @@ import os
 import sys
 import time
 import subprocess
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from censo.cfg import (
     CODING,
@@ -18,6 +18,152 @@ from censo.cfg import (
 )
 from censo.utilities import last_folders, t2x, x2t, print
 from censo.qm_processor import QmProc
+from censo.errorswarnings import ParsingError
+
+
+class OrcaParser:
+    """
+    Parser for orca input files
+    can read input files and transform them to ordered dict
+    also capable of writing an input file from an ordered dict
+    """
+    def __init__(self):
+        pass
+
+
+    def read_input(self, path: str) -> OrderedDict:
+        """
+        read orca input file at 'path' and parse into ordered dict
+        """
+        with open(path, "r") as infile:
+            lines = infile.readlines()
+
+        converted = self.__todict(lines)
+
+        return converted
+
+
+    def write_input(self, path: str, indict: OrderedDict) -> None:
+        """
+        write an orca input file at 'path' from an ordered dict
+        """
+        with open(path, "w") as outfile:
+            outfile.writelines(self.__tolines(indict))
+
+
+    def __todict(self, lines: List[str]) -> OrderedDict:
+        """
+        convert lines from orca input into ordered dict
+
+        shape of the result:
+        "main": [...], (contains all main input line options)
+        "some setting": {"some option": [...], ...}, (contains all settings that are started with a % with their respective keywords and values)
+        "geom": {"def": ["xyz/xyzfile", ...], "coord": [...]} (contains the geometry information block definition in 'def', 'coord' only if you use the option 'xyz')
+
+        TODO - cannot deal with %coord or internal coordinates
+        """
+
+        converted = OrderedDict()
+
+        for i, line in enumerate(lines):
+            # TODO - ignore comments
+
+            # strip leading whitespace
+            line = line.lstrip()
+
+            # main input line found
+            if line.startswith("!"):
+                # get rid of '!'
+                line =  line[1:]
+
+                # orca input may have multiple lines beginning with '!'
+                # account for that and read options from line
+                if converted.get("main", False):
+                    converted["main"].extend(line.split())
+                else:
+                    converted["main"] = line.split()
+            # configuration line found
+            elif line.startswith("%"):
+                # get rid of '%'
+                line = line[1:]
+                split = line.split()
+
+                # new configuration entry
+                # keep in mind that converted remembers the order 
+                # in which key/value pairs are inserted
+                setting = split[0]
+                converted[setting] = []
+
+                # check it there is already some option in the same line as the setting declaration
+                if len(split) > 1:
+                    option = split[1]
+                    converted[setting][option] = split[2:]
+
+                # find end of definition block
+                end = i + self.__eob(lines[i:])
+
+                # consume remaining definitions
+                for line2 in lines[i+1:end]:
+                    split = line2.split()
+                    option = split[0]
+                    converted[setting][option] = split[1:]
+            # geometry input line found
+            elif line.startswith("*") and "geom" not in converted.keys():
+                converted["geom"] = {}
+                if "xyzfile" in line:
+                    converted["geom"]["def"]["xyzfile"]
+                # the 'xyz' keyword should be one of the first two substrings
+                elif "xyz" in line.split()[0] or "xyz" in line.split()[1]:
+                    converted["geom"]["def"] = ["xyz"]
+                else:
+                    raise(ParsingError())
+                
+                # add the remaining line to the dict
+                # get rid of '*'
+                line = line[1:]
+                converted["geom"]["def"].extend(line.split()[1:])
+
+                # consume the remaining geometry information
+                if converted["geom"]["def"][0] == "xyz":
+                    converted["geom"]["coord"] = []
+                    # find end of definition block
+                    # start search from next line since geometry definition starts with an '*'
+                    end = i + self.__eob(lines[i+1:], endchar="*") + 1
+
+                    for line2 in lines[i+1:end]:
+                        converted["geom"]["coord"].extend(line.split())
+
+        return self.__remove_comments(converted)
+
+
+    def __eob(self, lines: List[str], endchar: str = "end") -> int:
+        """
+        find end of definition block
+        """
+        end = None
+        for index, line in enumerate(lines):
+            if endchar in line:
+                end = index
+                break
+
+        if end is None:
+            raise(ParsingError())
+        else:
+            return end
+
+
+    def __remove_comments(self, indict: OrderedDict) -> OrderedDict:
+        """
+        remove all comments from a parsed orca input and collapse dict nesting if possible
+        """
+
+    
+    def __tolines(self, indict: OrderedDict) -> List[str]:
+        """
+        convert ordered dict to lines for orca input
+        """
+
+
 
 # TODO - keep output if any job fails
 class OrcaProc(QmProc):
@@ -55,6 +201,14 @@ class OrcaProc(QmProc):
         call --> list with settings
         """
 
+        """
+        how is an orca input structured?
+        - main input (begins with ! and includes e.g. dfa, basis, jobtype)
+        - module specific settings (begin with % and includes e.g. cpcm, tddft)
+        - geometry input 
+        - some options which have to be placed after geometry input (e.g. eprnmr)
+        """
+
         # understood commands in prepinfo:
         # DOGCP = uses gcp if basis known for gcp
 
@@ -88,11 +242,11 @@ class OrcaProc(QmProc):
                 ("optthreshold", None),
                 ("parallel", None),
                 ("solvation", None),
+                ("uvvis", None),
+                ("uvvis_nroots", None),
                 ("geom", None),
                 ("couplings", None),
                 ("shieldings", None),
-                ("uvvis", None),
-                ("uvvis_nroots", None)
             ]
         )
         if "nmrJ" or "nmrS" in self.job["prepinfo"]:
@@ -288,10 +442,10 @@ class OrcaProc(QmProc):
             # add thresholds
             orcainput["optthreshold"] = []
         # nprocs
-        if int(self.job["omp"]) >= 1:
+        if int(self.instructions["omp"]) >= 1:
             orcainput["parallel"] = [
                 "%pal",
-                "    nprocs {}".format(self.job["omp"]),
+                "    nprocs {}".format(self.instructions["omp"]),
                 "end",
             ]
         # solvent model
@@ -431,7 +585,7 @@ class OrcaProc(QmProc):
         if self.job["calc_uvvis"]:
             orcainput["uvvis"] = [
                 "%tddft",
-                f"  nroots {self.job['nroots']}",
+                f"  nroots {self.instructions['nroots']}",
                 "end",
             ]
 

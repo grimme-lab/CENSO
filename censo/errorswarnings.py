@@ -18,6 +18,13 @@ class LogicError(Exception):
     def __str__(self) -> str:
         return f"LogicError: Error for setting {self._setting}\n{self._problem}\n{self._fix}\n"
     
+
+class ParsingError(Exception):
+    """
+    error type for parsing
+    """
+    pass
+
     
 class LogicWarning(Warning):
     """
