@@ -7,6 +7,7 @@ import sys
 import time
 import subprocess
 from typing import Any, Dict, List
+from functools import reduce
 
 from censo.cfg import (
     CODING,
@@ -25,7 +26,7 @@ class OrcaParser:
     """
     Parser for orca input files
     can read input files and transform them to ordered dict
-    also capable of writing an input file from an ordered dict
+    also capable of writing an input file from a properly ordered dict (see __todict for format)
     """
     def __init__(self):
         pass
@@ -55,10 +56,12 @@ class OrcaParser:
         """
         convert lines from orca input into ordered dict
 
-        shape of the result:
+        format of the result:
         "main": [...], (contains all main input line options)
-        "some setting": {"some option": [...], ...}, (contains all settings that are started with a % with their respective keywords and values)
+        "some setting": {"some option": [...], ...}, (contains a settings that is started with a % with the respective keywords and values) 
+        (the list under "some option" contains just all the following substrings, nothing fancy)
         "geom": {"def": ["xyz/xyzfile", ...], "coord": [...]} (contains the geometry information block definition in 'def', 'coord' only if you use the option 'xyz')
+        "some setting after geom": {"some option": [...], ...}
 
         TODO - cannot deal with %coord or internal coordinates
         """
@@ -162,7 +165,45 @@ class OrcaParser:
         """
         convert ordered dict to lines for orca input
         """
+        # write lines into this list (include \n at the end of each line)
+        lines = []
 
+        # write main input line
+        # start with an '!'
+        lines.append("!")
+
+        # then append all keywords with whitespace inbetween
+        lines[0] += reduce(lambda x, y: x + " " + y, indict["main"])
+        lines[0] += "\n"
+
+        # next, write all keywords and options that come between the main input line and the geom input
+        allkeys = list(indict.keys())
+        for key in allkeys[:allkeys.index("geom")]:
+            lines.append(f"%{key}\n")
+            for option in indict[key].keys():
+                lines.append(f"    {option} {reduce(lambda x, y: x + ' ' + y, indict[key][option])}\n")
+            lines.append("end\n")
+        
+        # next, write the geometry input lines
+        # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0 1")
+        lines.append(f"* {reduce(lambda x, y: x + ' ' + y, indict['geom']['def'])}\n")
+        
+        # write coordinates if "xyz" keyword is used
+        if indict["geom"].get("coord", False):
+            for coord in indict["geom"]["coord"]:
+                lines.append(f"{reduce(lambda x, y: x + ' ' + y, coord)}\n")
+            lines.append("*\n")
+
+        # lastly, write all the keywords and options that should be placed after the geometry input (e.g. NMR settings)
+        for key in allkeys[allkeys.index("geom")+1:]:
+            lines.append(f"%{key}\n")
+            for option in indict[key].keys():
+                lines.append(f"    {option} {reduce(lambda x, y: x + ' ' + y, indict[key][option])}\n")
+            lines.append("end\n")
+
+        # TODO - externalize line appending?
+
+        return lines
 
 
 # TODO - keep output if any job fails
