@@ -25,7 +25,7 @@ from censo.errorswarnings import ParsingError
 class OrcaParser:
     """
     Parser for orca input files
-    can read input files and transform them to ordered dict
+    can read input files and transpile them to ordered dict
     also capable of writing an input file from a properly ordered dict (see __todict for format)
     """
     def __init__(self):
@@ -63,14 +63,18 @@ class OrcaParser:
         "geom": {"def": ["xyz/xyzfile", ...], "coord": [...]} (contains the geometry information block definition in 'def', 'coord' only if you use the option 'xyz')
         "some setting after geom": {"some option": [...], ...}
 
+        comments get removed from the read input lines and are therefore lost
+
         TODO - cannot deal with %coord or internal coordinates
+        TODO - cannot deal with settings blocks with more 'end's than '%'s
         """
 
         converted = OrderedDict()
 
-        for i, line in enumerate(lines):
-            # TODO - ignore comments
+        # remove all comments from read lines
+        self.__remove_comments(lines)
 
+        for i, line in enumerate(lines):
             # strip leading whitespace
             line = line.lstrip()
 
@@ -95,7 +99,7 @@ class OrcaParser:
                 # keep in mind that converted remembers the order 
                 # in which key/value pairs are inserted
                 setting = split[0]
-                converted[setting] = []
+                converted[setting] = {}
 
                 # check it there is already some option in the same line as the setting declaration
                 if len(split) > 1:
@@ -105,21 +109,25 @@ class OrcaParser:
                 # find end of definition block
                 end = i + self.__eob(lines[i:])
 
+                # in case the eob is found within the line itself remove the 'end' substring
+                if end == i:
+                    converted[setting][option].remove("end")
                 # consume remaining definitions
-                for line2 in lines[i+1:end]:
-                    split = line2.split()
-                    option = split[0]
-                    converted[setting][option] = split[1:]
+                else:
+                    for line2 in lines[i+1:end]:
+                        split = line2.split()
+                        option = split[0]
+                        converted[setting][option] = split[1:]
             # geometry input line found
             elif line.startswith("*") and "geom" not in converted.keys():
                 converted["geom"] = {}
                 if "xyzfile" in line:
-                    converted["geom"]["def"]["xyzfile"]
+                    converted["geom"]["def"] = ["xyzfile"]
                 # the 'xyz' keyword should be one of the first two substrings
                 elif "xyz" in line.split()[0] or "xyz" in line.split()[1]:
                     converted["geom"]["def"] = ["xyz"]
                 else:
-                    raise(ParsingError())
+                    raise ParsingError()
                 
                 # add the remaining line to the dict
                 # get rid of '*'
@@ -134,9 +142,9 @@ class OrcaParser:
                     end = i + self.__eob(lines[i+1:], endchar="*") + 1
 
                     for line2 in lines[i+1:end]:
-                        converted["geom"]["coord"].extend(line.split())
+                        converted["geom"]["coord"].append(line2.split())
 
-        return self.__remove_comments(converted)
+        return converted
 
 
     def __eob(self, lines: List[str], endchar: str = "end") -> int:
@@ -155,11 +163,14 @@ class OrcaParser:
             return end
 
 
-    def __remove_comments(self, indict: OrderedDict) -> OrderedDict:
+    def __remove_comments(self, input: List) -> None:
         """
-        remove all comments from a parsed orca input and collapse dict nesting if possible
+        remove all comments from an orca input
         """
-
+        for i in range(len(input)):
+            if "#" in input[i]:
+                index = input[i].index("#")
+                input[i] = input[i][:index]
     
     def __tolines(self, indict: OrderedDict) -> List[str]:
         """
@@ -170,7 +181,7 @@ class OrcaParser:
 
         # write main input line
         # start with an '!'
-        lines.append("!")
+        lines.append("! ")
 
         # then append all keywords with whitespace inbetween
         lines[0] += reduce(lambda x, y: x + " " + y, indict["main"])
@@ -178,7 +189,8 @@ class OrcaParser:
 
         # next, write all keywords and options that come between the main input line and the geom input
         allkeys = list(indict.keys())
-        for key in allkeys[:allkeys.index("geom")]:
+        # skip first key ('main')
+        for key in allkeys[1:allkeys.index("geom")]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
                 lines.append(f"    {option} {reduce(lambda x, y: x + ' ' + y, indict[key][option])}\n")
