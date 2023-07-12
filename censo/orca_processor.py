@@ -163,14 +163,14 @@ class OrcaParser:
             return end
 
 
-    def __remove_comments(self, input: List) -> None:
+    def __remove_comments(self, inlist: List) -> None:
         """
         remove all comments from an orca input
         """
-        for i in range(len(input)):
-            if "#" in input[i]:
-                index = input[i].index("#")
-                input[i] = input[i][:index]
+        for i in range(len(inlist)):
+            if "#" in inlist[i]:
+                index = inlist[i].index("#")
+                inlist[i] = inlist[i][:index]
     
     def __tolines(self, indict: OrderedDict) -> List[str]:
         """
@@ -231,7 +231,7 @@ class OrcaProc(QmProc):
     - writing of generic output for shielding and coupling constants
     """
 
-    def __init__(self, paths: Dict[str, str], solvents_dict: Dict = None):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         # expand jobtypes with special orca jobtypes
@@ -242,130 +242,34 @@ class OrcaProc(QmProc):
                 "uvvis": self.__uvvis,
             }
         }
-        
-        
-    def _prep(self, xyzfile=False, returndict=False):
+
+
+    def __prep(self, jobtype: str) -> OrderedDict:
         """
-        cefine preparation step analogue
-
-        use:
-        xyzfile --> if set : * xyzfile ...  xyzfile.xyz 
-        returns
-        call --> list with settings
+        prepare an OrderedDict to be fed into the parser in order to write an input file
+        for jobtype 'jobtype' (e.g. sp)
+        TODO - NMR/OR/UVVis etc preparation steps
         """
+        indict = OrderedDict()
+        indict["main"] = []
 
-        """
-        how is an orca input structured?
-        - main input (begins with ! and includes e.g. dfa, basis, jobtype)
-        - module specific settings (begin with % and includes e.g. cpcm, tddft)
-        - geometry input 
-        - some options which have to be placed after geometry input (e.g. eprnmr)
-        """
+        # grab func, basis, solvation, computational parameters
+        indict["main"].append(instructions["func"])
+        indict["main"].append(instructions["basis"])
 
-        # understood commands in prepinfo:
-        # DOGCP = uses gcp if basis known for gcp
-
-        orcainput_start = OrderedDict(
-            [
-                ("moread", None),
-                ("functional", None),
-                ("disp", None),
-                ("basis", None),
-                ("gcp", None),
-                ("RI-approx", None),
-                ("grid", None),
-                ("scfconv", None),
-                ("frozencore", None),
-                ("mp2", None),
-                (
-                    "default",
-                    editable_ORCA_input.get('default',
-                    [
-                        "! smallprint printgap noloewdin",
-                        "! NOSOSCF",
-                        "%MaxCore 8000",
-                        "%output",
-                        "       print[P_BondOrder_M] 1",
-                        "       print[P_Mayer] 1",
-                        "       print[P_basis] 2",
-                        "end",
-                    ]),
-                ),
-                ("job", None),
-                ("optthreshold", None),
-                ("parallel", None),
-                ("solvation", None),
-                ("uvvis", None),
-                ("uvvis_nroots", None),
-                ("geom", None),
-                ("couplings", None),
-                ("shieldings", None),
-            ]
-        )
-        if "nmrJ" or "nmrS" in self.job["prepinfo"]:
-            nmrprop = True
-        else:
-            nmrprop = False
-
-
-        # check ORCA5 or older versions:
-        try:
-            if int(external_paths['orcaversion'].split('.')[0]) >= 5:
-                orca5 = True
-            else:
-                orca5 = False
-        except:
-            print(f"{'ERROR:':{WARNLEN}}Can not convert the orcaversion, needed for input generation!")
-
-        # build up call:
-        orcainput = orcainput_start.copy()
-        # set functional
-        if self.job["func"] in dfa_settings.composite_method_basis.keys() and self.job["basis"] == dfa_settings.composite_method_basis.get(self.job["func"], "NONE"):
+        # FIXME
+        if instructions["func"] in self.dfa_settings.composites:
             if self.job["func"] == "b3lyp-3c":
                 orcainput["functional"] = [f"! {'b3lyp'}"]
                 orcainput["basis"] = [f"! {self.job['basis']}"]
                 orcainput["gcp"] = [f"! GCP(DFT/SV(P))"]
             else:
                 orcainput["functional"] = [
-                    f"! {dfa_settings.functionals.get(self.job['func']).get('orca')}"
+                    f"! {dfa_settings.composites.get(self.job['func']).get('orca')}"
                 ]
         else:
-            if self.job["func"] in ("kt2", "kt2-novdw"):
-                orcainput["functional"] = [
-                    "%method",
-                    "  method dft",
-                    "  functional gga_xc_kt2",
-                    "end",
-                ]
-            else:
-                orcainput["functional"] = [
-                    f"! {dfa_settings.functionals.get(self.job['func']).get('orca')}"
-                ]
-            # set basis set
-            orcainput["basis"] = [f"! {self.job['basis']}"]
-            # set gcp:
-            if "DOGCP" in self.job["prepinfo"] or self.job["func"] == "b3lyp-3c":
-                gcp_keywords = {
-                    "minis": "MINIS",
-                    "sv": "SV",
-                    "6-31g(d)": "631GD",
-                    "def2-sv(p)": "SV(P)",
-                    "def2-svp": "SVP",
-                    "def2-tzvp": "TZ",
-                }
-                if self.job["basis"].lower() in gcp_keywords.keys():
-                    if self.job[
-                        "func"
-                    ] in dfa_settings.composite_method_basis.keys() and self.job[
-                        "basis"
-                    ] == dfa_settings.composite_method_basis.get(
-                        self.job["func"], "NONE"
-                    ):
-                        pass
-                    else:
-                        orcainput["gcp"] = [
-                            f"! GCP(DFT/{gcp_keywords[self.job['basis'].lower()]})"
-                        ]
+        ####################### SET RI ###########################
+        # if not composite method
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
             if self.job["func"] in dfa_settings().dh_dfa():
                 if nmrprop:
@@ -396,26 +300,27 @@ class OrcaProc(QmProc):
                         ]
                         # call.append(f"! RIJK def2/JK def2-TZVPP/C ")
                 if nmrprop:
-                    orcainput["mp2"] = [
-                        "%mp2",
-                        "    RI true",
-                        "    density relaxed",
-                        "end",
-                    ]
-                else:
-                    orcainput["mp2"] = ["%mp2", "    RI true", "end"]
-            elif (
-                self.job["func"] in dfa_settings().hybrid_dfa()
-                and self.job["func"] != "pbeh-3c"
-            ):
-                if orca5:
-                    orcainput["RI-approx"] = [f"! def2/J RIJCOSX"]
-                else:
-                    orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
-            elif self.job["func"] in dfa_settings.composite_method_basis.keys():
-                pass
-            else:  # essentially gga
-                orcainput["RI-approx"] = ["! RI def2/J"]
+                orcainput["mp2"] = [
+                    "%mp2",
+                    "    RI true",
+                    "    density relaxed",
+                    "end",
+                ]
+            else:
+                orcainput["mp2"] = ["%mp2", "    RI true", "end"]
+        elif (
+            self.job["func"] in dfa_settings().hybrid_dfa()
+            and self.job["func"] != "pbeh-3c"
+        ):
+            if orca5:
+                orcainput["RI-approx"] = [f"! def2/J RIJCOSX"]
+            else:
+                orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
+        elif self.job["func"] in dfa_settings.composite_method_basis.keys():
+            pass
+        else:  # essentially gga
+            orcainput["RI-approx"] = ["! RI def2/J"]    
+
         # set grid
         if (
             self.job["func"] in dfa_settings().dh_dfa()
@@ -435,8 +340,8 @@ class OrcaProc(QmProc):
             #%moinp "jobname2.gbw"
             orcainput["moread"] = self.job["moread"]
         orcainput["scfconv"] = ["! scfconv6"]
-        # set scfconv or convergence threshold e.g. loosescf or scfconv6
 
+        ########################## SET GRID ############################
         extension = {
             "low": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! loosescf"]},
             "low+": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! scfconv6"]},
@@ -459,6 +364,8 @@ class OrcaProc(QmProc):
                         orcainput["grid"] = extension[self.job["prepinfo"][0]]["grid"]
                         orcainput["scfconv"] = extension[self.job["prepinfo"][0]]["scfconv"]
 
+        
+        ########################## DISPERSION #######################
         # add dispersion
         # dispersion correction information
         if dfa_settings.functionals.get(self.job["func"]).get("disp") == "composite":
@@ -487,56 +394,8 @@ class OrcaProc(QmProc):
                 f" {dfa_settings.functionals.get(self.job['func']).get('disp')} unknown dispersion option!"
             )
 
-        # optimization ancopt or pure orca
-        if self.job["jobtype"] == "xtbopt":
-            orcainput["job"] = ["! ENGRAD"]
-        elif self.job["jobtype"] == "opt":
-            orcainput["job"] = ["! OPT"]
-            # add thresholds
-            orcainput["optthreshold"] = []
-        # nprocs
-        if int(self.instructions["omp"]) >= 1:
-            orcainput["parallel"] = [
-                "%pal",
-                "    nprocs {}".format(self.instructions["omp"]),
-                "end",
-            ]
-        # solvent model
-        # upd_solvent = {
-        #     "chcl3": "chloroform",
-        #     "h2o": "water",
-        #     "ch2cl2":"dichloromethane",
-        #     "octanol": "1-octanol",
-        #     "hexadecane": "N-HEXADECANE",
-        # }
-        # solventexch = {
-        #     "acetone": "Acetone",
-        #     "chcl3": "Chloroform",
-        #     "acetonitrile": "Acetonitrile",
-        #     "ch2cl2": "CH2Cl2",
-        #     "dmso": "DMSO",
-        #     "h2o": "Water",
-        #     "methanol": "Methanol",
-        #     "thf": "THF",
-        #     "toluene": "Toluene",
-        #     "octanol": "Octanol",
-        # }
-        # if self.job['solvent'] != 'gas':
-        #     if self.job['sm'] in ('smd', 'smd_gsolv'):
-        #         self.job['solvent'] = upd_solvent.get(self.job['solvent'], self.job['solvent'])
-        #         orcainput['solvation'] = [
-        #             '%cpcm',
-        #             '    smd    true',
-        #             (f'    smdsolvent '
-        #             f'"{solventexch.get(self.job["solvent"],self.job["solvent"])}"'),
-        #             'end',
-        #         ]
-        #     elif self.job['sm'] == 'cpcm':
-        #         orcainput['solvation'] = [(
-        #             f"! CPCM("
-        #             f"{solventexch.get(self.job['solvent'],self.job['solvent'])})"
-        #             ),
-        #         ]
+
+        ###################### SOLVENT/GEOM ########################
         if self.job["solvent"] != "gas":
             if self.job["sm"] in ("smd", "smd_gsolv"):
                 orcainput["solvation"] = [
@@ -562,137 +421,45 @@ class OrcaProc(QmProc):
             ]
         else:
             # xyz geometry
-            geom, _, _ = t2x(self.job["workdir"])
+            geom, _ = t2x(self.job["workdir"])
             orcainput["geom"] = [f"*xyz {self.job['charge']} {self.job['unpaired']+1}"]
             orcainput["geom"].extend(geom)
             orcainput["geom"].append("*")
-        # nmr kt2 disp
-        if self.job["func"] == "kt2" and ("nmrJ" or "nmrS" in self.job["prepinfo"]):
-            orcainput["disp"] = []
-        # couplings
-        if nmrprop and "nmrJ" in self.job["prepinfo"]:
-            if not any(
-                [
-                    self.job["h_active"],
-                    self.job["c_active"],
-                    self.job["f_active"],
-                    self.job["si_active"],
-                    self.job["p_active"],
-                ]
-            ):
-                self.job["h_active"] = True
-                self.job["c_active"] = True
-                self.job["f_active"] = True
-                self.job["si_active"] = True
-                self.job["p_active"] = True
-            tmp = []
-            tmp.append("%eprnmr")
-            if self.job["h_active"]:
-                tmp.append(" Nuclei = all H { ssfc }")
-            if self.job["c_active"]:
-                tmp.append(" Nuclei = all C { ssfc }")
-            if self.job["f_active"]:
-                tmp.append(" Nuclei = all F { ssfc }")
-            if self.job["si_active"]:
-                tmp.append(" Nuclei = all Si { ssfc }")
-            if self.job["p_active"]:
-                tmp.append(" Nuclei = all P { ssfc }")
-            tmp.append(" SpinSpinRThresh 8.0")
-            tmp.append("end")
-            orcainput["couplings"] = tmp
-        # shielding
-        if nmrprop and "nmrS" in self.job["prepinfo"]:
-            if not any(
-                [
-                    self.job["h_active"],
-                    self.job["c_active"],
-                    self.job["f_active"],
-                    self.job["si_active"],
-                    self.job["p_active"],
-                ]
-            ):
-                self.job["h_active"] = True
-                self.job["c_active"] = True
-                self.job["f_active"] = True
-                self.job["si_active"] = True
-                self.job["p_active"] = True
-            tmp = []
-            tmp.append("%eprnmr")
-            if self.job["h_active"]:
-                tmp.append(" Nuclei = all H { shift }")
-            if self.job["c_active"]:
-                tmp.append(" Nuclei = all C { shift }")
-            if self.job["f_active"]:
-                tmp.append(" Nuclei = all F { shift }")
-            if self.job["si_active"]:
-                tmp.append(" Nuclei = all Si { shift }")
-            if self.job["p_active"]:
-                tmp.append(" Nuclei = all P { shift }")
-            tmp.append(" origin giao")
-            tmp.append(" giao_2el giao_2el_same_as_scf")
-            tmp.append(" giao_1el giao_1el_analytic")
-            tmp.append("end")
-            orcainput["shieldings"] = tmp
 
-        # uvvis
-        if self.job["calc_uvvis"]:
-            orcainput["uvvis"] = [
-                "%tddft",
-                f"  nroots {self.instructions['nroots']}",
-                "end",
-            ]
 
-        error_logical = False
-        if not orcainput["functional"]:
-            error_logical = True
-        elif (
-            not orcainput["basis"]
-            and self.job["func"] not in dfa_settings.composite_method_basis.keys()
-        ):
-            error_logical = True
-        elif not orcainput["geom"]:
-            error_logical = True
-        if error_logical:
-            print("unusable input!")
 
-        tmp = []
-        for value in orcainput.values():
-            if value:
-                tmp.extend(value)
-        if returndict:
-            return tmp, orcainput
-        else:
-            return tmp
-
-    def _sp(self, silent=False, filename="sp.out"):
+    #@self.__prep
+    def _sp(self, silent=False, filename="sp.out") -> Dict[str, Any]:
         """
-        ORCA input generation and single-point calculation
+        ORCA single-point calculation
         """
         outputpath = os.path.join(self.job["workdir"], filename)
-        if not self.job["onlyread"]:
-            # write input into file "inp"
-            with open(
-                os.path.join(self.job["workdir"], "inp"), "w", newline=None
-            ) as inp:
-                for line in self._prep():
-                    inp.write(line + "\n")
+        # if not self.job["onlyread"]:
 
-            if not silent:
-                print(f"Running single-point in {last_folders(self.job['workdir'], 2)}")
-            # start SP calculation
-            with open(outputpath, "w", newline=None) as outputfile:
-                # make external call to orca with "inp" as argument
-                call = [os.path.join(external_paths["orcapath"], "orca"), "inp"]
-                subprocess.call(
-                    call,
-                    shell=False,
-                    stdin=None,
-                    stderr=subprocess.STDOUT,
-                    universal_newlines=False,
-                    cwd=self.job["workdir"],
-                    stdout=outputfile,
-                    env=ENVIRON,
+        # write input into file "inp"
+        with open(
+            os.path.join(self.job["workdir"], "inp"), "w", newline=None
+        ) as inp:
+            parser = OrcaParser()
+            indict = self.__prep("sp")
+
+        if not silent:
+            print(f"Running single-point in {last_folders(self.job['workdir'], 2)}")
+        # start SP calculation
+        with open(outputpath, "w", newline=None) as outputfile:
+            # make external call to orca with "inp" as argument
+            call = [os.path.join(external_paths["orcapath"], "orca"), "inp"]
+            subprocess.call(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=self.job["workdir"],
+                stdout=outputfile,
+                env=ENVIRON,
                 )
+
         # read output
         if os.path.isfile(outputpath):
             with open(outputpath, "r", encoding=CODING, newline=None) as inp:

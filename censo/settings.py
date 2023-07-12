@@ -23,23 +23,50 @@ class DfaSettings:
         """
         return all functionals available for a certain part and (optionally) program
         """
+        # TODO - turn into filter using filterfunction defined within find_func
         tmp = []
         for k, v in self.dfa_dict["functionals"].items():
             if part in v["part"]:
-                if prog:
+                if prog is None:
+                    tmp.append(k)
+                else:
                     if v[prog] != "":
                         tmp.append(k)
-                else:
-                    tmp.append(k)
         
         return tmp
 
 
+    @property
     def composite_bs(self) -> set:
         """
         return all composite method basis sets
         """
         return set([v for v in self.dfa_dict["composite_method_basis"].values()])
+
+
+    @property
+    def composites(self) -> set:
+        """
+        return all composite method dfas dict entries
+        """
+        return set(filter(lambda x: "composite" in x["type"], self.dfa_dict["functionals"]))
+
+
+    @property
+    def hybrids(self) -> set:
+        """
+        return all hybrid dfas dict entries
+        """
+        return set(filter(lambda x: "hybrid" in x["type"], self.dfa_dict["functionals"]))
+
+
+    @property
+    def doublehs(self) -> set:
+        """
+        return all double hybrid dfas dict entries
+        """
+        return set(filter(lambda x: "double" in x["type"], self.dfa_dict["functionals"]))
+
 
 
 @dataclass

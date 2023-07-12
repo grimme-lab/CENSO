@@ -5,7 +5,6 @@ code. (xTB always available)
 """
 import os
 from typing import Any, Callable, Dict, List, Union
-from censo.datastructure import GeometryData
 
 from math import isclose
 import time
@@ -18,6 +17,8 @@ from censo.cfg import (
     rot_sym_num,
 )
 from censo.utilities import last_folders, print, frange
+from censo.datastructure import GeometryData
+from censo.settings import DfaSettings
         
 
 class QmProc:
@@ -25,8 +26,8 @@ class QmProc:
     QmProc base class with xtb as driver (see _xtb methods)
     """
 
-    def __init__(self, paths: Dict[str, str], solvents_dict: Dict = None):
-        # jobtype is basically an ordered (!!!) (important for example if sp is required before the next job)
+    def __init__(self, paths: Dict[str, str], solvents_dict: Dict = None, dfa_settings: DfaSettings = None):
+        # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
         # list containing the instructions of which computations to do        
         self.jobtype: List[str]
         
@@ -51,6 +52,9 @@ class QmProc:
 
         # stores the solvent lookup dict
         self.solvents_dict = solvents_dict
+
+        # stores the dfa lookup object
+        self.dfa_settings = dfa_settings
 
         # stores lookup dict for external paths
         self.paths: Dict[str, str] = paths

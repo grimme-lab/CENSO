@@ -589,7 +589,7 @@
             "orca": "ri-dsd-blyp",
             "disp": "d3bj",
             "part": ["func3", "func_s"],
-            "type": "doublehybrid"
+            "type": "double"
         }
     }
 }
