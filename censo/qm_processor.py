@@ -170,6 +170,7 @@ class QmProc:
                 os.remove(os.path.join(self.workdir, file))
 
         # setup call for xtb single-point
+        # TODO - where does 'coord' come from?
         call = [
             self.paths["xtbpath"],
             "coord",
@@ -231,7 +232,6 @@ class QmProc:
 
         # if returncode != 0 then some error happened in xtb
         if returncode != 0:
-            result["energy"] = None
             result["success"] = False
             print(
                 f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} error in "
@@ -256,11 +256,9 @@ class QmProc:
                                     f"{'ERROR:':{WARNLEN}}while converting "
                                     f"single-point in: {last_folders(self.workdir, 2)}"
                                 )
-                            result["energy"] = None
                             result["success"] = False
                             return result
         else:
-            result["energy"] = None
             result["success"] = False
             if not silent:
                 print(
@@ -294,8 +292,6 @@ class QmProc:
             f"Running xtb_gsolv calculation in "
             f"{last_folders(self.workdir, 3)}"
         )
-        tmp_gas = None
-        tmp_solv = None
 
         # what is returned in the end
         result = {
@@ -308,7 +304,7 @@ class QmProc:
         # run gas-phase GFN single-point
         res = self._xtb_sp(filename="gas.out", silent=True, no_solv=True)
         if res["success"]:
-            tmp_gas = res["energy"]
+            result["energy_xtb_gas"] = res["energy"]
         else:
             print(
                 f"{'ERROR:':{WARNLEN}}Gas phase {self.instructions['gfnv'].upper()} error in "
@@ -322,7 +318,7 @@ class QmProc:
         #   solution at infinite dilution,
         res = self._xtb_sp(filename="solv.out", silent=True)
         if res["success"]:
-            tmp_solv = res["energy"]
+            result["energy_xtb_solv"] = res["energy"]
         else:
             print(
                 f"{'ERROR:':{WARNLEN}}Solution phase {self.instructions['gfnv'].upper()} error in "
@@ -332,7 +328,8 @@ class QmProc:
             return result
 
         # only reached if both gas-phase and solvated sp succeeded   
-        result["gsolv"] = tmp_solv - tmp_gas
+        result["gsolv"] = result["energy_xtb_solv"] - result["energy_xtb_gas"]
+        result["success"] = True
 
         # TODO - what is the sense behind this?
         # leave this out for now, only 'calculate' this when needed
@@ -344,9 +341,6 @@ class QmProc:
         else:
             self.job["erange1"] = None"""
 
-        result["success"] = True
-        result["energy_xtb_gas"] = tmp_gas
-        result["energy_xtb_solv"] = tmp_solv
 
         return result
 

@@ -53,11 +53,19 @@ class DfaSettings:
 
 
     @property
+    def ggas(self) -> set:
+        """
+        return all (m)gga dfas dict entries
+        """
+        return set(filter(lambda x: "gga" in x["type"] and not "composite" in x["type"], self.dfa_dict["functionals"]))
+
+
+    @property
     def hybrids(self) -> set:
         """
         return all hybrid dfas dict entries
         """
-        return set(filter(lambda x: "hybrid" in x["type"], self.dfa_dict["functionals"]))
+        return set(filter(lambda x: "hybrid" in x["type"] and not "composite" in x["type"], self.dfa_dict["functionals"]))
 
 
     @property
@@ -65,7 +73,7 @@ class DfaSettings:
         """
         return all double hybrid dfas dict entries
         """
-        return set(filter(lambda x: "double" in x["type"], self.dfa_dict["functionals"]))
+        return set(filter(lambda x: "double" in x["type"] and not "composite" in x["type"], self.dfa_dict["functionals"]))
 
 
 
@@ -662,9 +670,8 @@ class CensoSettings:
                 outdata.write("#COSMO-RS\n")
                 outdata.write(f"{self.external_paths['cosmorssetup']}\n")
             else:
-                # TODO - why is this set up like that (including/excluding binary)??
                 # TODO - write some other default (e.g. "") instead of paths
-                outdata.write("ORCA: /path/excluding/binary/\n")
+                outdata.write("ORCA: /path/including/binary/orca-binary\n")
                 outdata.write("ORCA version: 4.2.1\n")
                 outdata.write("GFN-xTB: /path/including/binary/xtb-binary\n")
                 outdata.write("CREST: /path/including/binary/crest-binary\n")

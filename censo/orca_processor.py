@@ -158,7 +158,7 @@ class OrcaParser:
                 break
 
         if end is None:
-            raise(ParsingError())
+            raise ParsingError()
         else:
             return end
 
@@ -244,11 +244,14 @@ class OrcaProc(QmProc):
         }
 
 
-    def __prep(self, jobtype: str) -> OrderedDict:
+    def __prep(self, jobtype: str, xyzfile: str = None, no_solv: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
+
         TODO - NMR/OR/UVVis etc preparation steps
+        TODO - support for xyz preparation?
+        TODO - externalize comp parameter setups
         """
         indict = OrderedDict()
         indict["main"] = []
@@ -268,58 +271,45 @@ class OrcaProc(QmProc):
                     f"! {dfa_settings.composites.get(self.job['func']).get('orca')}"
                 ]
         else:
-        ####################### SET RI ###########################
+        ####################### SET RI/GRID ###########################
         # if not composite method
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
+            # settings for double hybrids
             if self.job["func"] in dfa_settings().dh_dfa():
-                if nmrprop:
-                    orcainput["frozencore"] = ["!NOFROZENCORE"]
+                indict["main"].extend(["def2/J", "RIJCOSX"])
+
+                if "nmr" in jobtype:
+                    indict["main"].append("NOFROZENCORE")
+                    indict["mp2"] = {
+                        "RI": ["true"],
+                        "density": ["relaxed"],
+                    }
                 else:
-                    orcainput["frozencore"] = ["! Frozencore"]
-                def2cbasis = ("Def2-SVP", "Def2-TZVP", "Def2-TZVPP", "Def2-QZVPP")
-                if str(self.job["basis"]).upper() in def2cbasis:
-                    # --> decide cosx or RIJK
-                    if orca5:
-                        orcainput["RI-approx"] = [
-                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX"
-                        ]
-                    else:
-                        orcainput["RI-approx"] = [
-                            f"! def2/J {str(self.job['basis'])}/C RIJCOSX GRIDX7 NOFINALGRIDX"
-                        ]
-                    # call.append(f"! RIJK def2/JK {str(self.job['basis'])}/C")
+                    indict["main"].append("frozencore")
+                    orcainput["mp2"] = ["%mp2", "    RI true", "end"]
+
+                def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
+                if self.instructions["basis"].lower() in def2cbasis:
+                    indict["main"].append(f"{self.instructions['basis']}/C")
+                    if not orca5:
+                        indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
                 else:
-                    if orca5:
-                        orcainput["RI-approx"] = [
-                            f"! def2/J def2-TZVPP/C RIJCOSX"
-                        ]
-                        # call.append(f"! RIJK def2/JK def2-TZVPP/C ")                    
-                    else:
-                        orcainput["RI-approx"] = [
-                            f"! def2/J def2-TZVPP/C RIJCOSX GRIDX7 NOFINALGRIDX"
-                        ]
-                        # call.append(f"! RIJK def2/JK def2-TZVPP/C ")
-                if nmrprop:
-                orcainput["mp2"] = [
-                    "%mp2",
-                    "    RI true",
-                    "    density relaxed",
-                    "end",
-                ]
-            else:
-                orcainput["mp2"] = ["%mp2", "    RI true", "end"]
-        elif (
-            self.job["func"] in dfa_settings().hybrid_dfa()
-            and self.job["func"] != "pbeh-3c"
-        ):
-            if orca5:
-                orcainput["RI-approx"] = [f"! def2/J RIJCOSX"]
-            else:
-                orcainput["RI-approx"] = [f"! def2/J RIJCOSX GRIDX6 NOFINALGRIDX"]
-        elif self.job["func"] in dfa_settings.composite_method_basis.keys():
-            pass
-        else:  # essentially gga
-            orcainput["RI-approx"] = ["! RI def2/J"]    
+                    indict["main"].append("def2-TZVPP/C")
+                    if not orca5:
+                        indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+
+            # settings for hybrids
+            # TODO - what about b3lyp-3c??
+            elif self.instructions["func"] in self.dfa_settings.hybrids:
+                indict["main"].extend(["def2/J", "RIJCOSX"])
+                if not orca5:
+                    indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+            
+            # settings for (m)ggas
+            elif self.instructions["func"] in self.dfa_settings.ggas:
+                indict["main"].extend(["RI", "def2/J"])    
+
+        ########################## SET GRID ############################
 
         # set grid
         if (
@@ -341,7 +331,6 @@ class OrcaProc(QmProc):
             orcainput["moread"] = self.job["moread"]
         orcainput["scfconv"] = ["! scfconv6"]
 
-        ########################## SET GRID ############################
         extension = {
             "low": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! loosescf"]},
             "low+": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! scfconv6"]},
@@ -396,93 +385,105 @@ class OrcaProc(QmProc):
 
 
         ###################### SOLVENT/GEOM ########################
-        if self.job["solvent"] != "gas":
-            if self.job["sm"] in ("smd", "smd_gsolv"):
-                orcainput["solvation"] = [
-                    "%cpcm",
-                    "    smd    true",
-                    (
-                        f"    smdsolvent "
-                        f'"{censo_solvent_db[self.job["solvent"]]["smd"][1]}"'
-                    ),
-                    "end",
-                ]
-            elif self.job["sm"] == "cpcm":
-                orcainput["solvation"] = [
-                    (f"! CPCM(" f"{censo_solvent_db[self.job['solvent']]['cpcm'][1]})")
-                ]
+
+        # set keywords for the selected solvent model
+        if not self.instructions["gas-phase"] and not no_solv:
+            if self.instructions["sm"] in ("smd"):
+                orcainput["cpcm"] = {
+                    "smd": ["true"],
+                    "smdsolvent": [f"{self.solvents_dict['smd'][1]}"],
+                }
+            elif self.instuctions["sm"] == "cpcm":
+                indict["main"].append(f"CPCM({self.solvents_dict['cpcm'][1]})")
+
         # unpaired, charge, and coordinates
-        if xyzfile:
-            orcainput["geom"] = [
-                (
-                    f"* xyzfile {self.job['charge']} "
-                    f"{self.job['unpaired']+1} {str(xyzfile)}"
-                )
-            ]
+        if xyzfile is not None:
+            indict["geom"] = {
+                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"]+1, xyzfile]
+            }
+        else:
+            raise Exception("no xyzfile") # TODO - error handling
+        """
+        don't use this for now
         else:
             # xyz geometry
             geom, _ = t2x(self.job["workdir"])
-            orcainput["geom"] = [f"*xyz {self.job['charge']} {self.job['unpaired']+1}"]
-            orcainput["geom"].extend(geom)
-            orcainput["geom"].append("*")
+            orcainput["geom"] = {
+                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1]
+                "coord": []
+            }
+        """
+        return indict
 
 
-
-    #@self.__prep
-    def _sp(self, silent=False, filename="sp.out") -> Dict[str, Any]:
+    #@self.__prep TODO
+    def _sp(self, silent=False, filename="sp.out", no_solv: bool = False) -> Dict[str, Any]:
         """
         ORCA single-point calculation
-        """
-        outputpath = os.path.join(self.job["workdir"], filename)
-        # if not self.job["onlyread"]:
 
+        result = {
+            "energy": None,
+            "success": None,
+        }
+        """
+        # set output path
+        outputpath = os.path.join(self.workdir, filename)
+
+        # prepare input dict
+        parser = OrcaParser()
+        indict = self.__prep("sp", no_solv=no_solv)
+        
         # write input into file "inp"
-        with open(
-            os.path.join(self.job["workdir"], "inp"), "w", newline=None
-        ) as inp:
-            parser = OrcaParser()
-            indict = self.__prep("sp")
+        parser.write_input(os.path.join(self.workdir, "inp"), indict)
 
         if not silent:
-            print(f"Running single-point in {last_folders(self.job['workdir'], 2)}")
+            print(f"Running single-point in {last_folders(self.workdir, 2)}")
+        
         # start SP calculation
         with open(outputpath, "w", newline=None) as outputfile:
             # make external call to orca with "inp" as argument
-            call = [os.path.join(external_paths["orcapath"], "orca"), "inp"]
+            call = [self.paths["orcapath"], "inp"]
             subprocess.call(
                 call,
                 shell=False,
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=self.job["workdir"],
+                cwd=self.workdir,
                 stdout=outputfile,
                 env=ENVIRON,
-                )
+            )
+
+        # set results
+        result = {
+            "energy": None,
+            "success": None,
+        }
 
         # read output
         if os.path.isfile(outputpath):
             with open(outputpath, "r", encoding=CODING, newline=None) as inp:
-                stor = inp.readlines()
-                for i, line in enumerate(stor):
+                lines = inp.readlines()
+                for i, line in enumerate(lines):
                     if "FINAL SINGLE POINT ENERGY" in line:
-                        self.job["energy"] = float(line.split()[4])
+                        result["energy"] = float(line.split()[4])
+
                     # check if scf is converged:
                     if "ORCA TERMINATED NORMALLY" in line:
-                        self.job["success"] = True
+                        result["success"] = True
                     
             if not self.job["success"]:
-                self.job["energy"] = 0.0
-                self.job["success"] = False # FIXME - redundant?
+                result["success"] = False
                 print(
-                    f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.job['workdir'], 2)} "
+                    f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.workdir, 2)} "
                     "not converged!"
                 )
         else:
-            self.job["energy"] = 0.0
-            self.job["success"] = False
+            result["success"] = False
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
-        return
+        
+        return result
+
 
     def _gsolv(self):
         """
@@ -491,58 +492,59 @@ class OrcaProc(QmProc):
         functional for optimization is employed, 
         from my understanding smd is parametrized at 298 K, therefore it should only
         be used at this temperature.
-        energy --> gas phase
-        energy2 --> smd_gsolv gsolv contribution
+
+        result = {
+            "success": None,
+            "gsolv": None,
+            "energy_gas": None,
+            "energy_solv": None,
+        }
         """
-        energy_gas = None
-        energy_solv = None
         print(
             f"Running SMD_gsolv calculation in "
-            f"{last_folders(self.job['workdir'], 2)}."
+            f"{last_folders(self.workdir, 2)}."
         )
-        # calculate gas phase
-        keepsolv = self.job["solvent"]
-        keepsm = self.job["sm"]
-        self.job["solvent"] = "gas"
-        self.job["sm"] = "gas-phase"
-        self._sp(silent=True, filename="sp_gas.out")
 
-        if self.job["success"] == False:
-            self.job["energy"] = 0.0
-            self.job["energy2"] = 0.0
+        # what is returned in the end
+        result = {
+            "success": None,
+            "gsolv": None,
+            "energy_gas": None,
+            "energy_solv": None,
+        }
+
+        # calculate gas phase
+        res = self._sp(silent=True, filename="sp_gas.out", no_solv=True)
+
+        if self.job["success"]:
+            result["energy_gas"] = res["energy"]
+        else:
+            result["success"] = False
             print(
                 f"{'ERROR:':{WARNLEN}}in gas phase single-point "
-                f"of {last_folders(self.job['workdir'], 2):18}"
+                f"of {last_folders(self.workdir, 2):18}"
             )
-            return
-        else:
-            energy_gas = self.job["energy"]
-            self.job["energy"] = 0.0
+            return result
+
         # calculate in solution
-        self.job["solvent"] = keepsolv
-        self.job["sm"] = keepsm
-        self._sp(silent=True, filename="sp_solv.out")
-        if self.job["success"] == False:
-            self.job["energy"] = 0.0
-            self.job["energy2"] = 0.0
-            print(
-                f"{'ERROR:':{WARNLEN}}in gas solution phase single-point "
-                f"of {last_folders(self.job['workdir'], 2):18}"
-            )
-            return
-        else:
-            energy_solv = self.job["energy"]
-            self.job["energy"] = 0.0
+        res = self._sp(silent=True, filename="sp_solv.out")
+
         if self.job["success"]:
-            if energy_solv is None or energy_gas is None:
-                self.job["energy"] = 0.0
-                self.job["energy"] = 0.0
-                self.job["success"] = False
-                print(
-                    f"{'ERROR:':{WARNLEN}}in SMD_Gsolv calculation "
-                    f"{last_folders(self.job['workdir'], 2):18}"
-                )
-            else:
+            result["energy_solv"] = res["energy"]
+        else:
+            result["success"] = False
+            print(
+                f"{'ERROR:':{WARNLEN}}in gsolv single-point "
+                f"of {last_folders(self.workdir, 2):18}"
+            )
+            return result
+
+        # calculate solvation free enthalpy
+        result["gsolv"] = result["energy_solv"] - result["energy_gas"]        
+        result["success"] = True
+
+        """
+        TODO - same thing as for xtb_gsolv
                 self.job["energy"] = energy_gas
                 self.job["energy2"] = energy_solv - energy_gas
                 if self.job["trange"]:
@@ -556,7 +558,10 @@ class OrcaProc(QmProc):
                         self.job["temperature"]: energy_solv - energy_gas
                     }
                 self.job["success"] = True
-        return
+                """
+
+        return result
+
 
     def _xtbopt(self):
         """

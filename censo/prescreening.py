@@ -1,6 +1,5 @@
 """
-prescreening == part0, calculate cheap free energy on GFNn-xTB input geometry
-The idea is to improve on the description of E with a very fast DFT method.
+
 """
 import os
 from typing import List
@@ -34,8 +33,12 @@ class Prescreening(CensoPart):
     @timeit
     def run(self) -> None:
         """
-        Cheap prescreening of the ensemble, with single-points on combined ensemble
-        geometries.
+        prescreening == part0, calculate cheap free energy on GFNn-xTB input geometry
+        The idea is to improve on the description of E with a very fast DFT method.
+
+        Consists of two parts:
+        - DFT single-point
+        - calculation of gsolv with xTB (optional, only if run not in gas-phase)
         """
         
         """
