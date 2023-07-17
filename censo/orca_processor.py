@@ -65,7 +65,7 @@ class OrcaParser:
 
         comments get removed from the read input lines and are therefore lost
 
-        TODO - cannot deal with %coord or internal coordinates
+        TODO - cannot deal with %coord or internal cinpoordinates
         TODO - cannot deal with settings blocks with more 'end's than '%'s
         """
 
@@ -309,7 +309,7 @@ class OrcaProc(QmProc):
             elif self.instructions["func"] in self.dfa_settings.ggas:
                 indict["main"].extend(["RI", "def2/J"])    
 
-        ########################## SET GRID ############################
+        ########################## SET GRID ############################ TODO TODO TODO TODO TODO TODO
 
         # set grid
         if (
@@ -384,7 +384,7 @@ class OrcaProc(QmProc):
             )
 
 
-        ###################### SOLVENT/GEOM ########################
+        ###################### SOLVENT/GEOM ######################## TODO TODO TODO TODO
 
         # set keywords for the selected solvent model
         if not self.instructions["gas-phase"] and not no_solv:
@@ -407,7 +407,7 @@ class OrcaProc(QmProc):
         don't use this for now
         else:
             # xyz geometry
-            geom, _ = t2x(self.job["workdir"])
+            geom, _ = t2x(self.workdir)
             orcainput["geom"] = {
                 "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1]
                 "coord": []
@@ -472,7 +472,7 @@ class OrcaProc(QmProc):
                     if "ORCA TERMINATED NORMALLY" in line:
                         result["success"] = True
                     
-            if not self.job["success"]:
+            if not self.result["success"]:
                 result["success"] = False
                 print(
                     f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.workdir, 2)} "
@@ -516,7 +516,7 @@ class OrcaProc(QmProc):
         # calculate gas phase
         res = self._sp(silent=True, filename="sp_gas.out", no_solv=True)
 
-        if self.job["success"]:
+        if self.result["success"]:
             result["energy_gas"] = res["energy"]
         else:
             result["success"] = False
@@ -529,7 +529,7 @@ class OrcaProc(QmProc):
         # calculate in solution
         res = self._sp(silent=True, filename="sp_solv.out")
 
-        if self.job["success"]:
+        if self.result["success"]:
             result["energy_solv"] = res["energy"]
         else:
             result["success"] = False
@@ -565,178 +565,218 @@ class OrcaProc(QmProc):
 
     def _xtbopt(self):
         """
-        ORCA input generation and geometry optimization using ANCOPT
+        ORCA geometry optimization using ANCOPT
         implemented within xtb, generates inp.xyz, inp (orca-input) 
         and adds information to coord (xtb can then tell which file 
         orca has to use).
+
+        result = {
+            "success": None,
+            "energy": None,
+            "cycles": None,
+            "converged": None,
+            "ecyc": None,
+        }
 
         uses:
         fullopt --> outputname decision
         workdir --> folder of calculation
 
-        return:
-        cycles --> number of optimization cycles
-        ecyc --> energy at cycle
-        energy --> energy at last step
-        success --> calulation without crash
-        converged --> geometry optimization converged
+        TODO - condense this function
         """
-        error_logical = False
+        
+        # FIXME
         if self.job["fullopt"]:
             output = "opt-part2.out"
         else:
             output = "opt-part1.out"
-        outputpath = os.path.join(self.job["workdir"], output)
-        if not self.job["onlyread"]:
-            print(f"Running optimization in {last_folders(self.job['workdir'], 2):18}")
-            files = [
-                "xtbrestart",
-                "xtbtopo.mol",
-                "xcontrol-inp",
-                "wbo",
-                "charges",
-                "gfnff_topo",
-            ]
-            for file in files:
-                if os.path.isfile(os.path.join(self.job["workdir"], file)):
-                    os.remove(os.path.join(self.job["workdir"], file))
-            # convert coord to xyz, write inp.xyz
-            t2x(self.job["workdir"], writexyz=True, outfile="inp.xyz")
-            # add inputfile information to coord (xtb as a driver)
-            with open(
-                os.path.join(self.job["workdir"], "coord"), "r", newline=None
-            ) as coord:
-                tmp = coord.readlines()
-            with open(
-                os.path.join(self.job["workdir"], "coord"), "w", newline=None
-            ) as newcoord:
-                for line in tmp[:-1]:
-                    newcoord.write(line)
-                newcoord.write("$external\n")
-                newcoord.write("   orca input file= inp\n")
-                newcoord.write(
-                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
-                )
-                newcoord.write("$end\n")
+        
+        outputpath = os.path.join(self.workdir, output)
+        
+        print(f"Running optimization in {last_folders(self.workdir, 2):18}")
+        files = [
+            "xtbrestart",
+            "xtbtopo.mol",
+            "xcontrol-inp",
+            "wbo",
+            "charges",
+            "gfnff_topo",
+        ]
+        
+        # remove potentially preexisting files to avoid confusion
+        for file in files:
+            if os.path.isfile(os.path.join(self.workdir, file)):
+                os.remove(os.path.join(self.workdir, file))
+        
+        # convert coord to xyz, write inp.xyz
+        # TODO - where does coord come from?
+        t2x(self.workdir, writexyz=True, outfile="inp.xyz")
 
-            with open(
-                os.path.join(self.job["workdir"], "inp"), "w", newline=None
-            ) as inp:
-                for line in self._prep_input(xyzfile="inp.xyz"):
-                    inp.write(line + "\n")
-            # Done writing input!
-            callargs = [
-                external_paths["xtbpath"],
-                "coord",
-                "--opt",
-                self.job["optlevel"],
-                "--orca",
-                "-I",
-                "opt.inp",
-            ]
-            with open(
-                os.path.join(self.job["workdir"], "opt.inp"), "w", newline=None
-            ) as out:
-                out.write("$opt \n")
-                if (
-                    self.job["optcycles"] is not None
-                    and float(self.job["optcycles"]) > 0
-                ):
-                    out.write(f"maxcycle={str(self.job['optcycles'])} \n")
-                    out.write(f"microcycle={str(self.job['optcycles'])} \n")
-                out.write("average conv=true \n")
-                out.write(f"hlow={self.job.get('hlow', 0.01)} \n")
-                out.write("s6=30.00 \n")
-                # remove unnecessary sp/gradient call in xTB
-                out.write("engine=lbfgs\n")
-                out.write("$external\n")
-                out.write("   orca input file= inp\n")
-                out.write(
-                    f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
-                )
-                out.write("$end \n")
-            time.sleep(0.02)
-            with open(outputpath, "w", newline=None) as outputfile:
-                returncode = subprocess.call(
-                    callargs,
-                    shell=False,
-                    stdin=None,
-                    stderr=subprocess.STDOUT,
-                    universal_newlines=False,
-                    cwd=self.job["workdir"],
-                    stdout=outputfile,
-                    env=ENVIRON,
-                )
-            if returncode != 0:
-                error_logical = True
-                print(
-                    f"{'ERROR:':{WARNLEN}}optimization "
-                    f"in {last_folders(self.job['workdir'], 2):18} not converged"
-                )
-            time.sleep(0.02)
+        # add inputfile information to coord (xtb as a driver)
+        with open(
+            os.path.join(self.workdir, "coord"), "r", newline=None
+        ) as coord:
+            tmp = coord.readlines()
+        with open(
+            os.path.join(self.workdir, "coord"), "w", newline=None
+        ) as newcoord:
+            for line in tmp[:-1]:
+                newcoord.write(line)
+            newcoord.write("$external\n")
+            newcoord.write("   orca input file= inp\n")
+            newcoord.write(
+                f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
+            )
+            newcoord.write("$end\n")
+
+        # TODO - prepare orca input file
+        with open(
+            os.path.join(self.workdir, "inp"), "w", newline=None
+        ) as inp:
+            for line in self._prep_input(xyzfile="inp.xyz"):
+                inp.write(line + "\n")
+        
+        call = [
+            self.paths["xtbpath"],
+            "coord",
+            "--opt",
+            self.instructions["optlevel"],
+            "--orca",
+            "-I",
+            "opt.inp",
+        ]
+
+        # prepare configuration file for ancopt ?
+        with open(
+            os.path.join(self.workdir, "opt.inp"), "w", newline=None
+        ) as out:
+            out.write("$opt \n")
+            if (
+                self.job["optcycles"] is not None
+                and float(self.job["optcycles"]) > 0
+            ):
+                out.write(f"maxcycle={str(self.job['optcycles'])} \n")
+                out.write(f"microcycle={str(self.job['optcycles'])} \n")
+            out.write("average conv=true \n")
+            out.write(f"hlow={self.job.get('hlow', 0.01)} \n")
+            out.write("s6=30.00 \n")
+            # remove unnecessary sp/gradient call in xTB
+            out.write("engine=lbfgs\n")
+            out.write("$external\n")
+            out.write("   orca input file= inp\n")
+            out.write(
+                f"   orca bin= {self.paths['orcapath']} \n"
+            )
+            out.write("$end \n")
+
+        # TODO - ???
+        time.sleep(0.02)
+
+        # make xtb call
+        with open(outputpath, "w", newline=None) as outputfile:
+            returncode = subprocess.call(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=self.workdir,
+                stdout=outputfile,
+                env=ENVIRON,
+            )
+
+        # prepare result
+        # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
+        # 'energy' contains the final energy of the optimization (converged or unconverged)
+        result = {
+            "success": None,
+            "energy": None,
+            "cycles": None,
+            "converged": None,
+            "ecyc": None,
+        }
+        
+        # check if optimization finished correctly
+        if returncode != 0:
+            result["success"] = False
+            print(
+                f"{'ERROR:':{WARNLEN}}optimization "
+                f"in {last_folders(self.workdir, 2):18} not converged"
+            )
+            return result
+
+        # TODO - ???
+        time.sleep(0.02)
+
         # read output
-        # check if optimization finished correctly:
         if os.path.isfile(outputpath):
-            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
-                stor = inp.readlines()
-                for line in stor:
+            with open(outputpath, "r", encoding=CODING, newline=None) as file:
+                lines = file.readlines()
+
+                result["ecyc"] = []
+                result["cycles"] = 0
+
+                for line in lines:
+                    # the following is probably self explanatory
                     if (
                         "external code error" in line
                         or "|grad| > 500, something is totally wrong!" in line
                         or "abnormal termination of xtb" in line
                     ):
+                        # TODO - error handling
                         print(
                             f"{'ERROR:':{WARNLEN}}optimization in "
-                            f"{last_folders(self.job['workdir'], 2):18} not converged"
+                            f"{last_folders(self.workdir, 2):18} not converged"
                         )
-                        error_logical = True
-                        break
-                    elif " FAILED TO CONVERGE GEOMETRY " in line:
-                        self.job["cycles"] += int(line.split()[7])
-                        self.job["converged"] = False
-                    elif "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
-                        self.job["cycles"] += int(line.split()[5])
-                        self.job["converged"] = True
-                ################
-                for line in stor:
+                        result["success"] = False
+                        return result
+                    
+                    if " FAILED TO CONVERGE GEOMETRY " in line:
+                        self.result["cycles"] += int(line.split()[7])
+                        self.result["converged"] = False
+                    
+                    if "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
+                        self.result["cycles"] += int(line.split()[5])
+                        self.result["converged"] = True
+                    
                     if "av. E: " in line and "->" in line:
                         try:
-                            self.job["ecyc"].append(float(line.split("->")[-1]))
+                            self.result["ecyc"].append(float(line.split("->")[-1]))
                         except ValueError as e:
-                            error_logical = True
+                            # TODO - error handling
                             print(
                                 f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
                             )
-                            break
+                            result["success"] = False
+                            return result
+                    
                     if " :: gradient norm      " in line:
                         try:
-                            self.job["grad_norm"] = float(line.split()[3])
+                            self.result["grad_norm"] = float(line.split()[3])
                         except ValueError as e:
-                            error_logical = True
+                            # TODO - error handling
                             print(
                                 f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
                             )
-                            break
+                            result["success"] = False
+                            return result
         else:
+            # TODO - error handling
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
-            error_logical = True
-        if not error_logical:
-            try:
-                self.job["energy"] = self.job["ecyc"][-1]
-                self.job["success"] = True
-            except Exception:
-                error_logical = True
-        if error_logical:
-            self.job["energy"] = 0.0
-            self.job["success"] = False
-            self.job["converged"] = False
-            self.job["ecyc"] = []
-            self.job["grad_norm"] = 10.0
+            result["success"] = False
+            return result
+        
+        # in 'energy' store the final energy of the optimization
+        # TODO - can an unconverged optimization be called a 'success'?
+        self.result["energy"] = self.result["ecyc"][-1]
+        self.result["success"] = True
 
-        if not self.job["onlyread"]:
-            # convert optimized xyz to coord file
-            x2t(self.job["workdir"], infile="inp.xyz")
-        return
+        """if not self.job["onlyread"]:
+            # convert optimized xyz to cinpoord file
+            x2t(self.workdir, infile="inp.xyz")
+        return """
+
+        return result
 
     def _nmrS(self):
         """
@@ -744,7 +784,7 @@ class OrcaProc(QmProc):
         """
         if not self.job["onlyread"]:
             with open(
-                os.path.join(self.job["workdir"], "inpS"), "w", newline=None
+                os.path.join(self.workdir, "inpS"), "w", newline=None
             ) as inp:
                 for line in self._prep_input():
                     inp.write(line + "\n")
@@ -752,11 +792,11 @@ class OrcaProc(QmProc):
             # shielding calculation
             print(
                 "Running shielding calculation in {:18}".format(
-                    last_folders(self.job["workdir"], 2)
+                    last_folders(self.workdir, 2)
                 )
             )
             with open(
-                os.path.join(self.job["workdir"], "orcaS.out"), "w", newline=None
+                os.path.join(self.workdir, "orcaS.out"), "w", newline=None
             ) as outputfile:
                 call = [os.path.join(external_paths["orcapath"], "orca"), "inpS"]
                 subprocess.call(
@@ -765,14 +805,14 @@ class OrcaProc(QmProc):
                     stdin=None,
                     stderr=subprocess.STDOUT,
                     universal_newlines=False,
-                    cwd=self.job["workdir"],
+                    cwd=self.workdir,
                     stdout=outputfile,
                     env=ENVIRON,
                 )
             time.sleep(0.1)
         # check if calculation was successfull:
         with open(
-            os.path.join(self.job["workdir"], "orcaS.out"),
+            os.path.join(self.workdir, "orcaS.out"),
             "r",
             encoding=CODING,
             newline=None,
@@ -785,7 +825,7 @@ class OrcaProc(QmProc):
         if not self.job["success"]:
             print(
                 f"{'ERROR:':{WARNLEN}}shielding calculation in "
-                f"{last_folders(self.job['workdir'], 1):18} failed!"
+                f"{last_folders(self.workdir, 1):18} failed!"
             )
         return
 
@@ -802,7 +842,7 @@ class OrcaProc(QmProc):
         if not self.job["onlyread"]:
             # generate input   # double hybrids not implemented
             with open(
-                os.path.join(self.job["workdir"], "inpJ"), "w", newline=None
+                os.path.join(self.workdir, "inpJ"), "w", newline=None
             ) as inp:
                 for line in self._prep_input():
                     inp.write(line + "\n")
@@ -810,11 +850,11 @@ class OrcaProc(QmProc):
             # start coupling calculation
             print(
                 "Running coupling calculation in {}".format(
-                    last_folders(self.job["workdir"], 2)
+                    last_folders(self.workdir, 2)
                 )
             )
             with open(
-                os.path.join(self.job["workdir"], "orcaJ.out"), "w", newline=None
+                os.path.join(self.workdir, "orcaJ.out"), "w", newline=None
             ) as outputfile:
                 call = [os.path.join(external_paths["orcapath"], "orca"), "inpJ"]
                 subprocess.call(
@@ -823,14 +863,14 @@ class OrcaProc(QmProc):
                     stdin=None,
                     stderr=subprocess.STDOUT,
                     universal_newlines=False,
-                    cwd=self.job["workdir"],
+                    cwd=self.workdir,
                     stdout=outputfile,
                     env=ENVIRON,
                 )
             time.sleep(0.1)
         # check if calculation was successfull:
         with open(
-            os.path.join(self.job["workdir"], "orcaJ.out"),
+            os.path.join(self.workdir, "orcaJ.out"),
             "r",
             encoding=CODING,
             newline=None,
@@ -843,7 +883,7 @@ class OrcaProc(QmProc):
         if not self.job["success"]:
             print(
                 f"{'ERROR:':{WARNLEN}}coupling calculation "
-                f"in {last_folders(self.job['workdir'], 1):18} failed!"
+                f"in {last_folders(self.workdir, 1):18} failed!"
             )
         return
 
@@ -856,7 +896,7 @@ class OrcaProc(QmProc):
         sigma = []
         try:
             with open(
-                os.path.join(self.job["workdir"], fnameshield),
+                os.path.join(self.workdir, fnameshield),
                 "r",
                 encoding=CODING,
                 newline=None,
@@ -875,7 +915,7 @@ class OrcaProc(QmProc):
         except FileNotFoundError:
             print(
                 f"{'INFORMATION:':{WARNLEN}}Missing file "
-                f"{fnameshield} in {last_folders(self.job['workdir'], 2)}"
+                f"{fnameshield} in {last_folders(self.workdir, 2)}"
             )
             self.job["success"] = False
         self.job["success"] = True
@@ -885,7 +925,7 @@ class OrcaProc(QmProc):
         jab = []
         try:
             with open(
-                os.path.join(self.job["workdir"], fnamecoupl),
+                os.path.join(self.workdir, fnamecoupl),
                 "r",
                 encoding=CODING,
                 newline=None,
@@ -910,12 +950,12 @@ class OrcaProc(QmProc):
         except FileNotFoundError:
             print(
                 f"{'INFORMATION:':{WARNLEN}}Missing file "
-                f"{fnamecoupl} in {last_folders(self.job['workdir'], 2)}"
+                f"{fnamecoupl} in {last_folders(self.workdir, 2)}"
             )
             self.job["success"] = False
         self.job["success"] = True
         with open(
-            os.path.join(self.job["workdir"], "nmrprop.dat"), "w", newline=None
+            os.path.join(self.workdir, "nmrprop.dat"), "w", newline=None
         ) as out:
             s = sorted(zip(atom, sigma))
             atom, sigma = map(list, zip(*s))

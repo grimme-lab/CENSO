@@ -355,6 +355,7 @@ class QmProc:
     def _xtbrrho(self, filename="hess.out"):
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
+        
         result = {
             "energy": None,
             "success": None,
@@ -444,6 +445,7 @@ class QmProc:
         time.sleep(0.02)
         
         with open(outputpath, "w", newline=None) as outputfile:
+        # TODO - where does 'coord' come from?
             call = [
                 self.paths["xtbpath"],
                 "coord",
