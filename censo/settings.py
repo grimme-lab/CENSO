@@ -219,7 +219,7 @@ class CensoSettings:
     solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
     gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
-    # TODO - defaults for uvvis (func: w-B97X-D3)
+    # TODO - defaults for uvvis (func: wB97X-D3)
     # TODO - find solutions for "automatic" or "default"/"prog"/"whatever" cases
     # TODO - rename options but remember old names for later mapping (backwards compatibility)    # removed general:func and general:prog, added part1:func1/prog1, part2:func2/prog2
     # moved scale, imagthr, sthr to float type
@@ -660,25 +660,29 @@ class CensoSettings:
             # if ALL program paths are set, write the paths to the new rcfile
             if all([s != "" for s in self.external_paths.values()]):
                 # write stored program paths to file
-                outdata.write(f"ORCA: {self.external_paths['orcapath']}\n")
-                outdata.write(f"ORCA version: {self.external_paths['orcaversion']}\n")
-                outdata.write(f"GFN-xTB: {self.external_paths['xtbpath']}\n")
-                outdata.write(f"CREST: {self.external_paths['crestpath']}\n")
-                outdata.write(f"mpshift: {self.external_paths['mpshiftpath']}\n")
-                outdata.write(f"escf: {self.external_paths['escfpath']}\n")
-                outdata.write("\n")
-                outdata.write("#COSMO-RS\n")
-                outdata.write(f"{self.external_paths['cosmorssetup']}\n")
+                outdata.writelines([
+                    f"ORCA: {self.external_paths['orcapath']}\n",
+                    f"ORCA version: {self.external_paths['orcaversion']}\n",
+                    f"GFN-xTB: {self.external_paths['xtbpath']}\n",
+                    f"CREST: {self.external_paths['crestpath']}\n",
+                    f"mpshift: {self.external_paths['mpshiftpath']}\n",
+                    f"escf: {self.external_paths['escfpath']}\n",
+                    "\n",
+                    "#COSMO-RS\n",
+                    f"{self.external_paths['cosmorssetup']}\n",
+                ])
             else:
                 # TODO - write some other default (e.g. "") instead of paths
-                outdata.write("ORCA: /path/including/binary/orca-binary\n")
-                outdata.write("ORCA version: 4.2.1\n")
-                outdata.write("GFN-xTB: /path/including/binary/xtb-binary\n")
-                outdata.write("CREST: /path/including/binary/crest-binary\n")
-                outdata.write("mpshift: /path/including/binary/mpshift-binary\n")
-                outdata.write("escf: /path/including/binary/escf-binary\n")
-                outdata.write("\n")
-                outdata.write("#COSMO-RS\n")
+                outdata.writelines([
+                    "ORCA: /path/including/binary/orca-binary\n",
+                    "ORCA version: 4.2.1\n",
+                    "GFN-xTB: /path/including/binary/xtb-binary\n",
+                    "CREST: /path/including/binary/crest-binary\n",
+                    "mpshift: /path/including/binary/mpshift-binary\n",
+                    "escf: /path/including/binary/escf-binary\n",
+                    "\n",
+                    "#COSMO-RS\n",
+                ])
                 outdata.write(
                     "ctd = BP_TZVP_C30_1601.ctd cdir = "
                     '"/software/cluster/COSMOthermX16/COSMOtherm/CTDATA-FILES" ldir = '

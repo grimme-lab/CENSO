@@ -219,6 +219,8 @@ class OrcaParser:
 
 
 # TODO - keep output if any job fails
+# TODO - job preparations
+# TODO - __prep middle
 class OrcaProc(QmProc):
     """
     Perform calculations with ORCA
@@ -236,15 +238,15 @@ class OrcaProc(QmProc):
         
         # expand jobtypes with special orca jobtypes
         self._jobtypes = {
-            **self.__jobtypes, **{
-                "nmrS": self.__nmrS,
-                "nmrJ": self.__nmrJ,
-                "uvvis": self.__uvvis,
+            **self._jobtypes, **{
+                "nmrS": self._nmrS,
+                "nmrJ": self._nmrJ,
+                "uvvis": self._uvvis,
             }
         }
 
 
-    def __prep(self, jobtype: str, xyzfile: str = None, no_solv: bool = False) -> OrderedDict:
+    def __prep(self, conf: GeometryData, jobtype: str, xyzfile: str = None, no_solv: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
@@ -417,7 +419,7 @@ class OrcaProc(QmProc):
 
 
     #@self.__prep TODO
-    def _sp(self, silent=False, filename="sp.out", no_solv: bool = False) -> Dict[str, Any]:
+    def _sp(self, conf: GeometryData, silent=False, filename="sp.out", no_solv: bool = False) -> Dict[str, Any]:
         """
         ORCA single-point calculation
 
@@ -485,7 +487,7 @@ class OrcaProc(QmProc):
         return result
 
 
-    def _gsolv(self):
+    def _gsolv(self, conf: GeomtryData):
         """
         Calculate SMD_gsolv, needs ORCA
         if optimization is not performed with ORCA, only the density 
@@ -563,7 +565,7 @@ class OrcaProc(QmProc):
         return result
 
 
-    def _xtbopt(self):
+    def _xtbopt(self, conf: GeomtryData):
         """
         ORCA geometry optimization using ANCOPT
         implemented within xtb, generates inp.xyz, inp (orca-input) 
@@ -778,38 +780,46 @@ class OrcaProc(QmProc):
 
         return result
 
-    def _nmrS(self):
+    def _nmrS(self, conf: GeometryData):
         """
         ORCA NMR shielding constant calculation
         """
-        if not self.job["onlyread"]:
-            with open(
-                os.path.join(self.workdir, "inpS"), "w", newline=None
-            ) as inp:
-                for line in self._prep_input():
-                    inp.write(line + "\n")
-            # Done input!
-            # shielding calculation
-            print(
-                "Running shielding calculation in {:18}".format(
-                    last_folders(self.workdir, 2)
-                )
+        # TODO
+        with open(
+            os.path.join(self.workdir, "inpS"), "w", newline=None
+        ) as inp:
+            for line in self._prep_input():
+                inp.write(line + "\n")
+        
+        print(
+            "Running shielding calculation in {:18}".format(
+                last_folders(self.workdir, 2)
             )
-            with open(
-                os.path.join(self.workdir, "orcaS.out"), "w", newline=None
-            ) as outputfile:
-                call = [os.path.join(external_paths["orcapath"], "orca"), "inpS"]
-                subprocess.call(
-                    call,
-                    shell=False,
-                    stdin=None,
-                    stderr=subprocess.STDOUT,
-                    universal_newlines=False,
-                    cwd=self.workdir,
-                    stdout=outputfile,
-                    env=ENVIRON,
-                )
-            time.sleep(0.1)
+        )
+
+        with open(
+            os.path.join(self.workdir, "orcaS.out"), "w", newline=None
+        ) as outputfile:
+            call = [self.paths["orcapath"], "inpS"]
+            subprocess.call(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=self.workdir,
+                stdout=outputfile,
+                env=ENVIRON,
+            )
+
+        result = {
+            "success": None,
+
+        }
+        
+        # TODO - ???
+        time.sleep(0.1)
+        
         # check if calculation was successfull:
         with open(
             os.path.join(self.workdir, "orcaS.out"),
@@ -817,19 +827,23 @@ class OrcaProc(QmProc):
             encoding=CODING,
             newline=None,
         ) as inp:
-            store = inp.readlines()
-            self.job["success"] = False
-            for line in store:
+            lines = inp.readlines()
+            result["success"] = False
+            for line in lines:
                 if "ORCA TERMINATED NORMALLY" in line:
-                    self.job["success"] = True
-        if not self.job["success"]:
+                    result["success"] = True
+        if not result["success"]:
             print(
                 f"{'ERROR:':{WARNLEN}}shielding calculation in "
                 f"{last_folders(self.workdir, 1):18} failed!"
             )
-        return
+            result["success"] = False
+            return result
+        
+        return result
 
-    def _nmrJ(self):
+
+    def _nmrJ(self, conf: GeometryData):
         """
         ORCA NMR coupling constant calculation
 
@@ -839,35 +853,41 @@ class OrcaProc(QmProc):
         progpath
         success
         """
-        if not self.job["onlyread"]:
-            # generate input   # double hybrids not implemented
-            with open(
-                os.path.join(self.workdir, "inpJ"), "w", newline=None
-            ) as inp:
-                for line in self._prep_input():
-                    inp.write(line + "\n")
-            # Done input!
-            # start coupling calculation
-            print(
-                "Running coupling calculation in {}".format(
-                    last_folders(self.workdir, 2)
-                )
+        # generate input   # double hybrids not implemented
+        with open(
+            os.path.join(self.workdir, "inpJ"), "w", newline=None
+        ) as inp:
+            for line in self._prep_input():
+                inp.write(line + "\n")
+        
+        print(
+            "Running coupling calculation in {}".format(
+                last_folders(self.workdir, 2)
             )
-            with open(
-                os.path.join(self.workdir, "orcaJ.out"), "w", newline=None
-            ) as outputfile:
-                call = [os.path.join(external_paths["orcapath"], "orca"), "inpJ"]
-                subprocess.call(
-                    call,
-                    shell=False,
-                    stdin=None,
-                    stderr=subprocess.STDOUT,
-                    universal_newlines=False,
-                    cwd=self.workdir,
-                    stdout=outputfile,
-                    env=ENVIRON,
-                )
-            time.sleep(0.1)
+        )
+        
+        with open(
+            os.path.join(self.workdir, "orcaJ.out"), "w", newline=None
+        ) as outputfile:
+            call = [self.paths["orcapath"], "inpJ"]
+            subprocess.call(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=self.workdir,
+                stdout=outputfile,
+                env=ENVIRON,
+            )
+        
+        result = {
+            "success": None,
+        }
+
+        # TODO - ???
+        time.sleep(0.1)
+        
         # check if calculation was successfull:
         with open(
             os.path.join(self.workdir, "orcaJ.out"),
@@ -875,22 +895,32 @@ class OrcaProc(QmProc):
             encoding=CODING,
             newline=None,
         ) as inp:
-            store = inp.readlines()
+            lines = inp.readlines()
             self.job["success"] = False
-            for line in store:
+            for line in lines:
                 if "ORCA TERMINATED NORMALLY" in line:
-                    self.job["success"] = True
-        if not self.job["success"]:
+                    result["success"] = True
+        if not result["success"]:
             print(
                 f"{'ERROR:':{WARNLEN}}coupling calculation "
                 f"in {last_folders(self.workdir, 1):18} failed!"
             )
-        return
+            result["success"] = False
+            return result
+        
+        return result
 
-    def _genericoutput(self):
+
+    def _genericoutput(self, conf: GeometryData):
         """
         ORCA read shielding and coupling constants and write them to plain output
+        this output is formatted in a way that it can be read by ANMR
         """
+
+        result = {
+            "success": None,
+        }
+
         fnameshield = "orcaS.out"
         atom = []
         sigma = []
@@ -901,15 +931,24 @@ class OrcaProc(QmProc):
                 encoding=CODING,
                 newline=None,
             ) as inp:
-                data = inp.readlines()
-            for line in data:
-                if "CHEMICAL SHIELDING SUMMARY (ppm)" in line:
-                    start = data.index(line)
-            for line in data[(start + 6) :]:
-                splitted = line.split()
-                if len(splitted) == 4:
-                    atom.append(int(splitted[0]) + 1)
-                    sigma.append(float(splitted[2]))
+                lines = inp.readlines()
+
+            start = list(filter(lambda x: "CHEMICAL SHIELDING SUMMARY (ppm)" in x, lines))
+            if len(start) == 0:
+                # TODO - error handling
+                print(
+                    "Something went wrong genericout"
+                )
+                result["success"] = False
+                return result
+
+            start = lines.index(start[0])
+
+            for line in lines[start+6:]:
+                split = line.split()
+                if len(split) == 4:
+                    atom.append(int(split[0]) + 1)
+                    sigma.append(float(split[2]))
                 else:
                     break
         except FileNotFoundError:
@@ -917,8 +956,9 @@ class OrcaProc(QmProc):
                 f"{'INFORMATION:':{WARNLEN}}Missing file "
                 f"{fnameshield} in {last_folders(self.workdir, 2)}"
             )
-            self.job["success"] = False
-        self.job["success"] = True
+            result["success"] = False
+            return result
+        
         fnamecoupl = "orcaJ.out"
         atom1 = []
         atom2 = []
@@ -948,18 +988,21 @@ class OrcaProc(QmProc):
                 else:
                     pass
         except FileNotFoundError:
+            # TODO - error handling
             print(
                 f"{'INFORMATION:':{WARNLEN}}Missing file "
                 f"{fnamecoupl} in {last_folders(self.workdir, 2)}"
             )
-            self.job["success"] = False
-        self.job["success"] = True
+            result["success"] = False
+            return result
+        
+        s = sorted(zip(atom, sigma))
+        atom, sigma = map(list, zip(*s))
+        self.shieldings = dict(zip(atom, sigma))
+        
         with open(
             os.path.join(self.workdir, "nmrprop.dat"), "w", newline=None
         ) as out:
-            s = sorted(zip(atom, sigma))
-            atom, sigma = map(list, zip(*s))
-            self.shieldings = dict(zip(atom, sigma))
             for i in range(len(atom)):
                 out.write("{:{digits}} {}\n".format(atom[i], sigma[i], digits=4))
             for i in range(self.job["nat"] - len(atom)):
@@ -970,11 +1013,15 @@ class OrcaProc(QmProc):
                         atom1[i], atom2[i], jab[i], digits=4
                     )
                 )
+        
+        # TODO - ???
         time.sleep(0.02)
-        return
+
+        result["success"] = True
+        return result
 
 
-    def _uvvis(self):
+    def _uvvis(self, conf: GeometryData):
         """
         calculation of uvvis spectra
         """

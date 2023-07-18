@@ -50,6 +50,7 @@ class MoleculeData:
         self.xtb_energy: float
         
         # stores the results of the calculations
+        self.results = {}
         # should be structured like:
         # 'part': <results from part jobs/in-part-calculations>
         # => e.g. self.results["prescreening"]["gtot"] 
@@ -57,6 +58,7 @@ class MoleculeData:
         #    (not calculated with an external program)
         #
         #    self.results["prescreening"]["sp"] 
-        #    returns the energy calculated in the DFT single point in prescreening
+        #    returns the 'result' of the DFT single point in prescreening
         #    (calculated by external program)
-        self.results = {}
+        #    to get the single-point energy: self.results["prescreening"]["sp"]["energy"] 
+        #    (confer to the results for each jobtype)

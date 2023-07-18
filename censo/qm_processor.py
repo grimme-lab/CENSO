@@ -20,7 +20,6 @@ from censo.utilities import last_folders, print, frange
 from censo.datastructure import GeometryData
 from censo.settings import DfaSettings
         
-
 class QmProc:
     """
     QmProc base class with xtb as driver (see _xtb methods)
@@ -89,7 +88,7 @@ class QmProc:
         pass
 
 
-    def _sp(self, silent=False):
+    def _sp(self):
         """
         single-point calculation
         """
@@ -137,7 +136,7 @@ class QmProc:
         return symnum
 
 
-    def _xtb_sp(self, filename: str = "xtb_sp.out", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
+    def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp.out", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
         """
         Get single-point energy from xtb
         result = {
@@ -277,7 +276,7 @@ class QmProc:
         return result
 
 
-    def _xtb_gsolv(self) -> Dict[str, Any]:
+    def _xtb_gsolv(self, conf: GeometryData) -> Dict[str, Any]:
         """
         Calculate additive GBSA or ALPB solvation contribution by
         Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
@@ -352,7 +351,7 @@ class QmProc:
         pass
 
 
-    def _xtbrrho(self, filename="hess.out"):
+    def _xtbrrho(self, conf: GeometryData, filename="hess.out"):
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
         
