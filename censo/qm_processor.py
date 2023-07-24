@@ -27,8 +27,8 @@ class QmProc:
 
     def __init__(self, paths: Dict[str, str], solvents_dict: Dict = None, dfa_settings: DfaSettings = None):
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
-        # list containing the instructions of which computations to do        
-        self.jobtype: List[str]
+        # list containing the instructions of which computations to do
+        self._jobtype: List[str]
         
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
@@ -64,7 +64,6 @@ class QmProc:
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will possibly break e.g. ProcessHandler.execute
         """
-        
         res = {conformer.id: {}}
         
         for job in self.jobtype:
@@ -72,6 +71,20 @@ class QmProc:
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
+
+
+    @property
+    def jobtype(self):
+        return self._jobtype
+
+
+    @jobtype.setter
+    def jobtype(self, jobtype: List[str]):
+        if all(t in self._jobtypes.keys() for t in jobtype):
+            self._jobtype = jobtype
+        else:
+            # TODO - error handling
+            raise Exception("Jobtype not found")
 
 
     def print(self):
@@ -168,8 +181,10 @@ class QmProc:
             if os.path.isfile(os.path.join(self.workdir, file)):
                 os.remove(os.path.join(self.workdir, file))
 
+        # generate coord file for xtb
+        conf.tocoord(os.path.join(self.workdir, "coord"))
+
         # setup call for xtb single-point
-        # TODO - where does 'coord' come from?
         call = [
             self.paths["xtbpath"],
             "coord",
@@ -301,7 +316,7 @@ class QmProc:
         }
 
         # run gas-phase GFN single-point
-        res = self._xtb_sp(filename="gas.out", silent=True, no_solv=True)
+        res = self._xtb_sp(conf, filename="gas.out", silent=True, no_solv=True)
         if res["success"]:
             result["energy_xtb_gas"] = res["energy"]
         else:
@@ -315,7 +330,7 @@ class QmProc:
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        res = self._xtb_sp(filename="solv.out", silent=True)
+        res = self._xtb_sp(conf, filename="solv.out", silent=True)
         if res["success"]:
             result["energy_xtb_solv"] = res["energy"]
         else:
@@ -351,6 +366,7 @@ class QmProc:
         pass
 
 
+    # TODO - break this down
     def _xtbrrho(self, conf: GeometryData, filename="hess.out"):
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
@@ -443,41 +459,44 @@ class QmProc:
         # FIXME ???
         time.sleep(0.02)
         
+        call = [
+            self.paths["xtbpath"],
+            "coord",
+            "--" + self.instructions["gfnv"],
+            dohess,
+            olevel,
+            "--chrg",
+            self.instructions["charge"],
+            "--enso",
+            "--norestart",
+            "-I",
+            "xcontrol-inp",
+            "--parallel",
+            self.instructions["omp"],
+        ]
+
+        # add solvent to xtb call if necessary
+        if not self.instructions["gas-phase"]:
+            call.extend(
+                [
+                    "--" + self.instructions["sm_rrho"],
+                    self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
+                ]
+            )
+        
+        # if rmsd bias is used (should be defined in censo workdir (cwd))
+        if self.instructions["rmsdbias"]:
+            # move one dir up to get to cwd (FIXME)
+            cwd = os.path.join(os.path.split(self.workdir)[::-1][1:][::-1])
+
+            call.extend(
+                [
+                    "--bias-input",
+                    os.path.join(cwd, "rmsdpot.xyz"),
+                ]
+            )
+
         with open(outputpath, "w", newline=None) as outputfile:
-        # TODO - where does 'coord' come from?
-            call = [
-                self.paths["xtbpath"],
-                "coord",
-                "--" + self.instructions["gfnv"],
-                dohess,
-                olevel,
-                "--chrg",
-                self.instructions["charge"],
-                "--enso",
-                "--norestart",
-                "-I",
-                "xcontrol-inp",
-                "--parallel",
-                self.instructions["omp"],
-            ]
-            if not self.instructions["gas-phase"]:
-                call.extend(
-                    [
-                        "--" + self.instructions["sm_rrho"],
-                        self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
-                    ]
-                )
-            if self.instructions["rmsdbias"]:
-                # move one dir up to get to cwd (FIXME)
-                cwd = os.path.join(os.path.split(self.workdir)[::-1][1:][::-1])
-
-                call.extend(
-                    [
-                        "--bias-input",
-                        os.path.join(cwd, "rmsdpot.xyz"),
-                    ]
-                )
-
             # run xtb
             returncode = subprocess.call(
                 call,

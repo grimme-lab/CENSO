@@ -1,4 +1,5 @@
 from typing import Dict, List
+from functools import reduce
 
 
 class GeometryData:
@@ -27,7 +28,37 @@ class GeometryData:
                 self.xyz[element] = []
                 
             self.xyz[element].append([float(i) for i in tmp])
+
+    
+    def toorca(self) -> List:
+        """
+        method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
+        """
+        coord = []
+        for element, allcoords in self.xyz.items():
+            for atom in allcoords:
+                coord.append([element] + atom)
         
+        return coord
+
+
+    def tocoord(self, path: str) -> None:
+        """
+        method to convert the internal cartesian coordinates to a coord file (for tm or xtb)
+        
+        path: absolute path to coord file
+        """
+        coord = []
+        for element, allcoords in self.xyz.items():
+            for atom in allcoords:
+                coord.append(reduce(lambda x, y: f"{x} {y}", atom + [f"{element}\n"]))
+
+        # write coord file
+        with open(path, "w") as file:
+            file.write("$coord\n")
+            file.writelines(coord)
+            file.write("$end")
+
         
 class MoleculeData:
     """

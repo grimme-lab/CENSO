@@ -58,12 +58,16 @@ class OrcaParser:
 
         format of the result:
         "main": [...], (contains all main input line options)
+        
         "some setting": {"some option": [...], ...}, (contains a settings that is started with a % with the respective keywords and values) 
         (the list under "some option" contains just all the following substrings, nothing fancy)
+        
         "geom": {"def": ["xyz/xyzfile", ...], "coord": [...]} (contains the geometry information block definition in 'def', 'coord' only if you use the option 'xyz')
+        'coord' for e.g. H2: "coord": [["H", "0.0", "0.0", "0.0"], ["H", "0.0", "0.0", "0.7"]]
+
         "some setting after geom": {"some option": [...], ...}
 
-        comments get removed from the read input lines and are therefore lost
+        comments get removed from the lines and therefore lost
 
         TODO - cannot deal with %coord or internal cinpoordinates
         TODO - cannot deal with settings blocks with more 'end's than '%'s
@@ -219,7 +223,6 @@ class OrcaParser:
 
 
 # TODO - keep output if any job fails
-# TODO - job preparations
 # TODO - __prep middle
 class OrcaProc(QmProc):
     """
@@ -246,13 +249,12 @@ class OrcaProc(QmProc):
         }
 
 
-    def __prep(self, conf: GeometryData, jobtype: str, xyzfile: str = None, no_solv: bool = False) -> OrderedDict:
+    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
 
         TODO - NMR/OR/UVVis etc preparation steps
-        TODO - support for xyz preparation?
         TODO - externalize comp parameter setups
         """
         indict = OrderedDict()
@@ -399,12 +401,11 @@ class OrcaProc(QmProc):
                 indict["main"].append(f"CPCM({self.solvents_dict['cpcm'][1]})")
 
         # unpaired, charge, and coordinates
-        if xyzfile is not None:
-            indict["geom"] = {
-                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"]+1, xyzfile]
-            }
-        else:
-            raise Exception("no xyzfile") # TODO - error handling
+        # by default xyzfile format is unused, coordinates written directly into input file
+        indict["geom"] = {
+            "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1],
+            "coord": conf.toorca(),
+        }
         """
         don't use this for now
         else:
@@ -565,7 +566,7 @@ class OrcaProc(QmProc):
         return result
 
 
-    def _xtbopt(self, conf: GeomtryData):
+    def _xtbopt(self, conf: GeometryData):
         """
         ORCA geometry optimization using ANCOPT
         implemented within xtb, generates inp.xyz, inp (orca-input) 
@@ -610,10 +611,6 @@ class OrcaProc(QmProc):
             if os.path.isfile(os.path.join(self.workdir, file)):
                 os.remove(os.path.join(self.workdir, file))
         
-        # convert coord to xyz, write inp.xyz
-        # TODO - where does coord come from?
-        t2x(self.workdir, writexyz=True, outfile="inp.xyz")
-
         # add inputfile information to coord (xtb as a driver)
         with open(
             os.path.join(self.workdir, "coord"), "r", newline=None
@@ -631,24 +628,13 @@ class OrcaProc(QmProc):
             )
             newcoord.write("$end\n")
 
-        # TODO - prepare orca input file
-        with open(
-            os.path.join(self.workdir, "inp"), "w", newline=None
-        ) as inp:
-            for line in self._prep_input(xyzfile="inp.xyz"):
-                inp.write(line + "\n")
-        
-        call = [
-            self.paths["xtbpath"],
-            "coord",
-            "--opt",
-            self.instructions["optlevel"],
-            "--orca",
-            "-I",
-            "opt.inp",
-        ]
+        # TODO - generate orca input file
+        self.__prep(conf, "xtbopt")
 
-        # prepare configuration file for ancopt ?
+        # generate coord file to be used by xtb
+        conf.tocoord(os.path.join(self.workdir, "coord"))
+
+        # prepare configuration file for ancopt (xcontrol file)
         with open(
             os.path.join(self.workdir, "opt.inp"), "w", newline=None
         ) as out:
@@ -659,22 +645,33 @@ class OrcaProc(QmProc):
             ):
                 out.write(f"maxcycle={str(self.job['optcycles'])} \n")
                 out.write(f"microcycle={str(self.job['optcycles'])} \n")
-            out.write("average conv=true \n")
-            out.write(f"hlow={self.job.get('hlow', 0.01)} \n")
-            out.write("s6=30.00 \n")
-            # remove unnecessary sp/gradient call in xTB
-            out.write("engine=lbfgs\n")
-            out.write("$external\n")
-            out.write("   orca input file= inp\n")
-            out.write(
-                f"   orca bin= {self.paths['orcapath']} \n"
-            )
-            out.write("$end \n")
+
+            out.writelines([
+                "average conv=true \n",
+                f"hlow={self.job.get('hlow', 0.01)} \n",
+                "s6=30.00 \n",
+                # remove unnecessary sp/gradient call in xTB
+                "engine=lbfgs\n",
+                "$external\n",
+                "   orca input file= inp\n",
+                    f"   orca bin= {self.paths['orcapath']} \n",
+                "$end \n",
+            ])
 
         # TODO - ???
         time.sleep(0.02)
 
-        # make xtb call
+        call = [
+            self.paths["xtbpath"],
+            "coord", # name of the coord file generated above
+            "--opt",
+            self.instructions["optlevel"],
+            "--orca",
+            "-I",
+            "opt.inp", # name of the xcontrol file generated above
+        ]
+
+        # make xtb call, write into 'outputfile'
         with open(outputpath, "w", newline=None) as outputfile:
             returncode = subprocess.call(
                 call,
@@ -768,7 +765,7 @@ class OrcaProc(QmProc):
             result["success"] = False
             return result
         
-        # in 'energy' store the final energy of the optimization
+        # store the final energy of the optimization in 'energy' 
         # TODO - can an unconverged optimization be called a 'success'?
         self.result["energy"] = self.result["ecyc"][-1]
         self.result["success"] = True
@@ -779,6 +776,7 @@ class OrcaProc(QmProc):
         return """
 
         return result
+
 
     def _nmrS(self, conf: GeometryData):
         """
@@ -900,6 +898,7 @@ class OrcaProc(QmProc):
             for line in lines:
                 if "ORCA TERMINATED NORMALLY" in line:
                     result["success"] = True
+        
         if not result["success"]:
             print(
                 f"{'ERROR:':{WARNLEN}}coupling calculation "
