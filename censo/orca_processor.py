@@ -248,11 +248,31 @@ class OrcaProc(QmProc):
             }
         }
 
+        # contains grid settings for ORCA 5.0+ (True) and older versions (False)
+        # can be chosen by simple keyword (low/low+/high/high+) 
+        self.__gridsettings = {
+            False: {
+                "low": ["grid4", "nofinalgrid", "loosescf"],
+                "low+": ["grid4", "nofinalgrid", "scfconv6"],
+                "high": ["grid4", "nofinalgrid", "scfconv7"],
+                "high+": ["grid5", "nofinalgrid", "scfconv7"],
+            },
+            True: {
+                "low": ["DEFGRID2", "loosescf"],
+                "low+": ["! DEFGRID2", "scfconv6"],
+                "high": ["DEFGRID2", "scfconv7"],
+                "high+": ["DEFGRID2", "scfconv7"],
+            },
+        }
+        
 
-    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False) -> OrderedDict:
+
+    def __prep(self, conf: GeometryData, jobtype: str, grid: str, no_solv: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
+
+        grid: mandatory argument determining the grid settings chosen from 'gridsettings' dict
 
         TODO - NMR/OR/UVVis etc preparation steps
         TODO - externalize comp parameter setups
@@ -275,10 +295,11 @@ class OrcaProc(QmProc):
                     f"! {dfa_settings.composites.get(self.job['func']).get('orca')}"
                 ]
         else:
-        ####################### SET RI/GRID ###########################
+        ####################### SET RI ###########################
         # if not composite method
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
             # settings for double hybrids
+            # removed all settings concering grid since this is now configured by 'grid' argument by default
             if self.job["func"] in dfa_settings().dh_dfa():
                 indict["main"].extend(["def2/J", "RIJCOSX"])
 
@@ -290,7 +311,9 @@ class OrcaProc(QmProc):
                     }
                 else:
                     indict["main"].append("frozencore")
-                    orcainput["mp2"] = ["%mp2", "    RI true", "end"]
+                    indict["mp2"] = {
+                        "RI": ["true"],
+                    }
 
                 def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
                 if self.instructions["basis"].lower() in def2cbasis:
@@ -313,52 +336,19 @@ class OrcaProc(QmProc):
             elif self.instructions["func"] in self.dfa_settings.ggas:
                 indict["main"].extend(["RI", "def2/J"])    
 
-        ########################## SET GRID ############################ TODO TODO TODO TODO TODO TODO
+        ########################## SET GRID ############################ 
 
-        # set grid
-        if (
-            self.job["func"] in dfa_settings().dh_dfa()
-            or self.job["func"] in dfa_settings().hybrid_dfa()
-        ):
-            if orca5:
-                orcainput["grid"] = ["! DEFGRID2"]
-            else:
-                orcainput["grid"] = ["! grid5 nofinalgrid"]
-        else:
-            if orca5:
-                orcainput["grid"] = ["! DEFGRID1"]
-            else:
-                orcainput["grid"] = ["! grid4 nofinalgrid"]
+        """
+        used in nmr calculation
         if self.job["moread"] is not None:
             #! MORead
             #%moinp "jobname2.gbw"
-            orcainput["moread"] = self.job["moread"]
-        orcainput["scfconv"] = ["! scfconv6"]
+            orcainput["moread"] = self.job["moread"]"""
 
-        extension = {
-            "low": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! loosescf"]},
-            "low+": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! scfconv6"]},
-            "high": {"grid": ["! grid4 nofinalgrid"], "scfconv": ["! scfconv7"]},
-            "high+": {"grid": ["! grid5 nofinalgrid"], "scfconv": ["! scfconv7"]},
-        }
-        extension5 = {
-            "low": {"grid": ["! DEFGRID2"], "scfconv": ["! loosescf"]},
-            "low+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv6"]},
-            "high": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
-            "high+": {"grid": ["! DEFGRID2"], "scfconv": ["! scfconv7"]},
-        }
-        if self.job["prepinfo"]:
-            if isinstance(self.job["prepinfo"], list):
-                if self.job["prepinfo"][0] in extension.keys():
-                    if orca5:
-                        orcainput["grid"] = extension5[self.job["prepinfo"][0]]["grid"]
-                        orcainput["scfconv"] = extension5[self.job["prepinfo"][0]]["scfconv"]
-                    else:
-                        orcainput["grid"] = extension[self.job["prepinfo"][0]]["grid"]
-                        orcainput["scfconv"] = extension[self.job["prepinfo"][0]]["scfconv"]
-
+        # use 'grid' setting from function signature to quickly choose the grid settings 
+        indict["main"].extend(self.__gridsettings[orca5][grid])
         
-        ########################## DISPERSION #######################
+        ########################## DISPERSION ####################### TODO TODO TODO TODO TODO
         # add dispersion
         # dispersion correction information
         if dfa_settings.functionals.get(self.job["func"]).get("disp") == "composite":
@@ -388,7 +378,7 @@ class OrcaProc(QmProc):
             )
 
 
-        ###################### SOLVENT/GEOM ######################## TODO TODO TODO TODO
+        ###################### SOLVENT/GEOM ########################
 
         # set keywords for the selected solvent model
         if not self.instructions["gas-phase"] and not no_solv:
