@@ -166,7 +166,7 @@ class SettingsTuple(tuple):
         return None
     
     
-    def get_settings(self, types: list[type], parts: list[str], names: list[str]) -> List[Setting]:
+    def get_settings(self, types: List[type], parts: List[str], names: List[str]) -> List[Setting]:
         """
         returns a list of 'Setting' objects that match the args
         """
