@@ -12,7 +12,7 @@ from traceback import print_exc
 from censo.cfg import PLENGTH, DESCR, ASSETS_PATH, __version__
 from censo.inputhandling import cml
 from censo.utilities import print
-from censo.tutorial import interactiv_doc
+# from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
 from censo.prescreening import Prescreening
 from censo.settings import CensoSettings
@@ -77,9 +77,9 @@ def startup(argv):
     if args.version:
         print(__version__)
         sys.exit(0)
-    elif args.tutorial:
-        interactiv_doc()
-        sys.exit(0)
+    # elif args.tutorial:
+    #     interactiv_doc()
+    #     sys.exit(0)
     elif args.cleanup:
         cleanup_run(cwd)
         print("Removed files and going to exit!")
