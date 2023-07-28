@@ -1,6 +1,5 @@
 import unittest
 import os
-import numpy as np
 
 from censo.inputhandling import cml
 from censo.cfg import DESCR

@@ -7,8 +7,8 @@ from argparse import Namespace
 import os
 import sys
 from typing import Callable, Dict, List
-from numpy import exp
 from multiprocessing import Lock
+from math import exp
 
 from censo.cfg import (
     CODING,
