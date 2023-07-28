@@ -14,7 +14,7 @@ from censo.inputhandling import cml
 from censo.utilities import print
 from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
-#from censo.prescreening import Prescreening
+from censo.prescreening import Prescreening
 from censo.settings import CensoSettings
 
 # use generators for reduced memory usage?
@@ -56,7 +56,7 @@ def main(argv=None):
     run = [Prescreening, ]
 
     for part in run:
-        print(f"Ran {part.name} in {part(core).run()} seconds!")
+        print(f"Ran {part.name} in {part(core, settings).run()} seconds!")
         
     print("\nCENSO all done!")
     return 0

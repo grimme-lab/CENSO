@@ -16,7 +16,7 @@ from censo.errorswarnings import LogicError, LogicWarning
 
 class DfaSettings:
     def __init__(self, obj: Dict[str, Dict[str, Dict]]):
-        self.dfa_dict = obj
+        self.__dfa_dict = obj
 
     
     def find_func(self, part: str, prog=None):
@@ -25,7 +25,7 @@ class DfaSettings:
         """
         # TODO - turn into filter using filterfunction defined within find_func
         tmp = []
-        for k, v in self.dfa_dict["functionals"].items():
+        for k, v in self.__dfa_dict["functionals"].items():
             if part in v["part"]:
                 if prog is None:
                     tmp.append(k)
@@ -37,11 +37,16 @@ class DfaSettings:
 
 
     @property
+    def functionals(self) -> Dict[str, Dict]:
+        return self.__dfa_dict["functionals"]
+
+
+    @property
     def composite_bs(self) -> set:
         """
         return all composite method basis sets
         """
-        return set([v for v in self.dfa_dict["composite_method_basis"].values()])
+        return set([v for v in self.__dfa_dict["composite_method_basis"].values()])
 
 
     @property
@@ -49,7 +54,7 @@ class DfaSettings:
         """
         return all composite method dfas dict entries
         """
-        return set(filter(lambda x: "composite" in x["type"], self.dfa_dict["functionals"]))
+        return set(filter(lambda x: "composite" in x["type"], self.__dfa_dict["functionals"]))
 
 
     @property
@@ -57,7 +62,7 @@ class DfaSettings:
         """
         return all (m)gga dfas dict entries
         """
-        return set(filter(lambda x: "gga" in x["type"] and not "composite" in x["type"], self.dfa_dict["functionals"]))
+        return set(filter(lambda x: "gga" in x["type"] and not "composite" in x["type"], self.__dfa_dict["functionals"]))
 
 
     @property
@@ -65,7 +70,7 @@ class DfaSettings:
         """
         return all hybrid dfas dict entries
         """
-        return set(filter(lambda x: "hybrid" in x["type"] and not "composite" in x["type"], self.dfa_dict["functionals"]))
+        return set(filter(lambda x: "hybrid" in x["type"] and not "composite" in x["type"], self.__dfa_dict["functionals"]))
 
 
     @property
@@ -73,7 +78,7 @@ class DfaSettings:
         """
         return all double hybrid dfas dict entries
         """
-        return set(filter(lambda x: "double" in x["type"] and not "composite" in x["type"], self.dfa_dict["functionals"]))
+        return set(filter(lambda x: "double" in x["type"] and not "composite" in x["type"], self.__dfa_dict["functionals"]))
 
 
 

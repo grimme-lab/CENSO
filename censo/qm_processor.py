@@ -458,7 +458,10 @@ class QmProc:
 
         # FIXME ???
         time.sleep(0.02)
-        
+
+        # generate coord file for xtb
+        conf.tocoord(os.path.join(self.workdir, "coord"))
+
         call = [
             self.paths["xtbpath"],
             "coord",

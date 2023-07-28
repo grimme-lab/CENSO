@@ -266,7 +266,7 @@ class OrcaProc(QmProc):
         }
         
 
-
+    # TODO - make this better
     def __prep(self, conf: GeometryData, jobtype: str, grid: str, no_solv: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
@@ -280,27 +280,24 @@ class OrcaProc(QmProc):
         indict = OrderedDict()
         indict["main"] = []
 
-        # grab func, basis, solvation, computational parameters
-        indict["main"].append(instructions["func"])
-        indict["main"].append(instructions["basis"])
+        # grab func, basis
+        indict["main"].append(self.dfa_settings.functionals[instructions["func"]]["orca"])
+        if self.instructions["func"] not in self.dfa_settings.composites:
+            indict["main"].append(instructions["basis"])
 
         # FIXME
         if instructions["func"] in self.dfa_settings.composites:
-            if self.job["func"] == "b3lyp-3c":
-                orcainput["functional"] = [f"! {'b3lyp'}"]
-                orcainput["basis"] = [f"! {self.job['basis']}"]
-                orcainput["gcp"] = [f"! GCP(DFT/SV(P))"]
+            if self.instructions["func"] == "b3lyp-3c":
+                indict["main"].extend(["b3lyp", f"{self.instructions['basis']}", "GCP(DFT/SV(P))"])
             else:
-                orcainput["functional"] = [
-                    f"! {dfa_settings.composites.get(self.job['func']).get('orca')}"
-                ]
+                indict["main"].append(f"{self.dfa_settings.functionals.get(self.instructions['func']).get('orca')}")
         else:
         ####################### SET RI ###########################
         # if not composite method
             # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
             # settings for double hybrids
             # removed all settings concering grid since this is now configured by 'grid' argument by default
-            if self.job["func"] in dfa_settings().dh_dfa():
+            if self.instructions["func"] in dfa_settings().dh_dfa():
                 indict["main"].extend(["def2/J", "RIJCOSX"])
 
                 if "nmr" in jobtype:
@@ -351,32 +348,25 @@ class OrcaProc(QmProc):
         ########################## DISPERSION ####################### TODO TODO TODO TODO TODO
         # add dispersion
         # dispersion correction information
-        if dfa_settings.functionals.get(self.job["func"]).get("disp") == "composite":
-            if self.job["func"] == "b3lyp-3c":
-                orcainput["disp"] = ["! d3bj"]
-        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d3bj":
-            if self.job["func"] not in ("b97-d3(0)", "b97-d3"):
-                orcainput["disp"] = ["! d3bj"]
-        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d3(0)":
-            if self.job["func"] not in ("b97-d3(0)", "b97-d3"):
-                orcainput["disp"] = ["! D3ZERO"]
-        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "d4":
-            orcainput["disp"] = ["! D4"]
-        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "nl":
-            # b3lyp NL
-            if orca5:
-                orcainput["disp"] = ["! NL "]
-            else:
-                orcainput["disp"] = ["! NL vdwgrid3"]
-        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "novdw":
-            pass
-        elif dfa_settings.functionals.get(self.job["func"]).get("disp") == "included":
-            pass
+        mapping = {
+            "d3bj": "d3bj",
+            "d3(0)": "D3ZERO",
+            "d4": "d4",
+            "nl": "NL",
+        }
+
+        disp = self.dfa_settings.functionals.get(self.instructions["func"]).get("disp")
+        indict["main"].append(mapping.get(disp, ""))
+
+        if disp == "nl" and not orca5:
+            indict["main"].append("vdwgrid3")
+
+        """
         else:
             print(
-                f" {dfa_settings.functionals.get(self.job['func']).get('disp')} unknown dispersion option!"
+                f" {self.dfa_settings.functionals.get(self.instructions['func']).get('disp')} unknown dispersion option!"
             )
-
+        """
 
         ###################### SOLVENT/GEOM ########################
 

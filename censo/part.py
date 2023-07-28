@@ -19,16 +19,13 @@ from censo.settings import CensoSettings, SettingsTuple
 
 class CensoPart:
     
-    def __init__(self):
+    def __init__(self, core: CensoCore, settings: CensoSettings):
         self.core: CensoCore
         self.settings: CensoSettings
         
         # contains settings grabbed from CensoSettings instance, such as general settings etc.
         self.__instructions: Dict[str, Any]
 
-        # contains all computational parameters necessary for the respective part
-        self.__computational: Dict[str, Any]
-    
     
     @timeit
     def run(self) -> None:
