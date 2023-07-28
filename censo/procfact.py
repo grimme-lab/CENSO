@@ -1,13 +1,15 @@
+from typing import Dict
+
 from censo.qm_processor import QmProc
 from censo.orca_processor import OrcaProc
-from censo.tm_processor import TmProc
+# from censo.tm_processor import TmProc
 
 class ProcessorFactory:
     
     # for now these are the only available processor types
     __proctypes: Dict[str, type] = {
         "orca": OrcaProc,
-        "tm": TmProc,
+    #    "tm": TmProc,
     }
     
     @classmethod

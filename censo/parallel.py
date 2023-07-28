@@ -6,7 +6,7 @@ import os
 from typing import Any, Dict, List
 from concurrent.futures import ProcessPoolExecutor
 
-from censo.qm_processor import ProcessorFactory
+from censo.procfact import ProcessorFactory
 from censo.utilities import print
 from censo.datastructure import GeometryData, MoleculeData
 from censo.settings import CensoSettings

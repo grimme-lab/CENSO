@@ -20,6 +20,7 @@ from censo.cfg import (
 from censo.utilities import last_folders, t2x, x2t, print
 from censo.qm_processor import QmProc
 from censo.errorswarnings import ParsingError
+from censo.datastructure import GeometryData
 
 
 class OrcaParser:
@@ -468,7 +469,7 @@ class OrcaProc(QmProc):
         return result
 
 
-    def _gsolv(self, conf: GeomtryData):
+    def _gsolv(self, conf: GeometryData):
         """
         Calculate SMD_gsolv, needs ORCA
         if optimization is not performed with ORCA, only the density 
