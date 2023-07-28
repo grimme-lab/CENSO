@@ -317,7 +317,7 @@ class CensoSettings:
             }),
             "prescreening": MappingProxyType({
                 "func": {"default": "b97-d3(0)", "options": tuple(dfa_settings.find_func("prescreening"))},
-                "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs()) + ("def2-SV(P)", "def2-TZVP")},
+                "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs) + ("def2-SV(P)", "def2-TZVP")},
                 "prog": {"default": "tm", "options": PROGS},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
