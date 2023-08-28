@@ -24,7 +24,7 @@ class CensoPart:
         self.settings: CensoSettings
         
         # contains settings grabbed from CensoSettings instance, such as general settings etc.
-        self.__instructions: Dict[str, Any]
+        self._instructions: Dict[str, Any]
 
     
     @timeit

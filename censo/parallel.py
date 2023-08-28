@@ -115,7 +115,7 @@ class ProcessHandler:
         self.__processor = ProcessorFactory.create_processor(
             prog, 
             self.settings.external_paths,
-            solvents_dict=self.settings.solvents_db[self.instructions["solvent"]], 
+            solvents_dict=self.settings.solvents_db[instructions["solvent"]], 
             dfa_settings=self.settings.dfa_settings
         )
         self.__processor.jobtype = jobtype

@@ -310,7 +310,7 @@ class CensoSettings:
         str: MappingProxyType({
             "general": MappingProxyType({
                 # TODO - removed gas here, since there is already 'gas-phase' option (also doesn't make sense)
-                "solvent": {"default": "???", "options": tuple([k for k in solvents_db.keys()])}, 
+                "solvent": {"default": "h2o", "options": tuple([k for k in solvents_db.keys()])}, 
                 #"prog_rrho": {"default": "xtb", "options": ("xtb")}, # TODO - keep this here?
                 "sm_rrho": {"default": "alpb", "options": ("alpb", "gbsa")}, # TODO - same
                 "cosmorsparam": {"default": "automatic", "options": tuple([k for k in cosmors_param.keys()])},
@@ -318,31 +318,31 @@ class CensoSettings:
             "prescreening": MappingProxyType({
                 "func": {"default": "b97-d3(0)", "options": tuple(dfa_settings.find_func("prescreening"))},
                 "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs) + ("def2-SV(P)", "def2-TZVP")},
-                "prog": {"default": "tm", "options": PROGS},
+                "prog": {"default": "orca", "options": PROGS},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "screening": MappingProxyType({
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func1"))},
                 "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
-                "prog": {"default": "tm", "options": PROGS},
-                "smgsolv": {"default": "cosmors", "options": gsolv_mods},
+                "prog": {"default": "orca", "options": PROGS},
+                "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "optimization": MappingProxyType({
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func2"))},
                 "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
-                "prog": {"default": "tm", "options": PROGS},
+                "prog": {"default": "orca", "options": PROGS},
                 "prog2opt": {"default": "prog", "options": PROGS}, # TODO - ??? prog2 ??? # FIXME
-                "sm": {"default": "default", "options": solv_mods}, # FIXME
-                "smgsolv": {"default": "cosmors", "options": gsolv_mods},
+                "sm": {"default": "smd", "options": solv_mods}, # FIXME
+                "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
                 "optlevel2": {"default": "automatic", "options": ("crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme", "automatic")}, # TODO - what does this mean?
             }),
             "refinement": MappingProxyType({
-                "prog": {"default": "tm", "options": PROGS},
+                "prog": {"default": "orca", "options": PROGS},
                 "func": {"default": "pw6b95-d4", "options": tuple(dfa_settings.find_func("func3"))},
                 "basis": {"default": "def2-TZVPD", "options": basis_sets},
-                "smgsolv": {"default": "cosmors", "options": gsolv_mods},
+                "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
             "nmr": MappingProxyType({
@@ -430,7 +430,6 @@ class CensoSettings:
         }),
     })
 
-    @classmethod
     @property
     def settings_options(cls) -> SettingsTuple:
         """
@@ -553,10 +552,18 @@ class CensoSettings:
             
             # overwrite settings with cml arguments
             # FIXME - coverage between all actual settings and cml options?
-            if hasattr(args, setting.name):
-                setting.value = getattr(args, setting.name)
-            else:
-                print(f"Could not find {setting} in cml args.")
+            try:
+                if getattr(args, setting.name) is not None:
+                    setting.value = getattr(args, setting.name)
+                else:
+                    print(f"{setting.name} not set via cml args.")
+            # TODO - error handling
+            except Exception:
+                print(LogicWarning(
+                    f"{setting.name}",
+                    f"{setting.name} no attribute of cml args NameSpace object.",
+                    f"{setting.name} might be missing in the definition of cml args in 'inputhandling.py'.",
+                ))
               
         print(f"Remaining settings:\n{rcdata}\n") # TODO - where to print out?
         
@@ -593,22 +600,30 @@ class CensoSettings:
             # mind the ordering of csvfile.readline(), should not lead to EOF errors
             while True:
                 while not line.startswith("$"):
+                    # TODO - check if there is only one ':' in the line
                     # split the line at ':' and remove leading and trailing whitespaces
                     spl = [s.strip() for s in line.split(":")]
                     sett_type = CensoSettings.get_type(spl[0]) # FIXME - eindeutig?
                     
-                    # TODO - smells of copy paste
                     try:
+                        # create setting to be inserted
+                        if sett_type != list:
+                            sett = sett_type(spl[1])
+                        else:
+                            # further manipulation is necessary for list type
+                            # looks messy, essentially removes '[' and ']', all whitespace and splits at ','
+                            sett = spl[1][1:len(spl[1])].replace(" ", "").split(",")
+
                         # catch all cases for up until which level the dict is initialized
                         if sett_type and sett_type not in rcdata.keys():
                             # type-key not initialized
-                            rcdata[sett_type] = {part: {spl[0]: sett_type(spl[1])}}
+                            rcdata[sett_type] = {part: {spl[0]: sett}} 
                         elif sett_type and part and part not in rcdata[sett_type].keys():
                             # part-key not initialized
-                            rcdata[sett_type][part] = {spl[0]: sett_type(spl[1])}
+                            rcdata[sett_type][part] = {spl[0]: sett}
                         elif sett_type and part and spl[0] != "" and spl[0] not in rcdata[sett_type][part].keys():
                             # setting-key not initialized
-                            rcdata[sett_type][part][spl[0]] = sett_type(spl[1])
+                            rcdata[sett_type][part][spl[0]] = sett
                     except Exception:
                         raise TypeError(f"Casting failed for line '{line}' while trying to read configuration file.")
                      
@@ -753,9 +768,10 @@ class CensoSettings:
         # FIXME - not the best solution to ensure code safety
         rcpath = ""
 
+        # TODO - probably doesn't catch all cases, needs testing
         # check for .censorc in standard locations if no path is given
         if not inprcpath:
-            if all(list(check.keys())):
+            if all(list(check.keys())) and not tmp[0] == tmp[1]:
                 # ask which one to use if both are found
                 print(
                     f"Configuration files have been found, {tmp[0]} and "

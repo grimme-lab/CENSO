@@ -1,0 +1,595 @@
+{
+    "composite_method_basis": {
+        "pbeh-3c": "def2-mSVP",
+        "pbeh3c": "def2-mSVP",
+        "b97-3c": "def2-mTZVP",
+        "b973c": "def2-mTZVP",
+        "hf3c": "minix",
+        "hf-3c": "minix",
+        "r2scan-3c": "def2-mTZVPP",
+        "r2scan3c": "def2-mTZVPP",
+        "b3lyp-3c": "def2-mSVP",
+        "b3lyp3c": "def2-mSVP"
+    },
+    "relay_functionals": {
+        "pbe": "pbe-d4",
+        "tpss": "tpss-d4",
+        "b97-d": "b97-d3(0)",
+        "kt1": "kt1-novdw",
+        "kt2": "kt2-novdw",
+        "pbe0": "pbe0-d4",
+        "pw6b95": "pw6b95-d4",
+        "b3lyp": "b3lyp-d4",
+        "b3-lyp": "b3lyp-d4",
+        "dsd-blyp": "dsd-blyp-d3"
+    },
+    "functionals": {
+        "pbeh-3c": {
+            "tm": "pbeh-3c",
+            "orca": "pbeh-3c",
+            "disp": "composite",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "composite_hybrid"
+        },
+        "b97-3c": {
+            "tm": "b97-3c",
+            "orca": "b97-3c",
+            "disp": "composite",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "composite_gga"
+        },
+        "r2scan-3c": {
+            "tm": "r2scan-3c",
+            "orca": "r2scan-3c",
+            "disp": "composite",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "composite_mGGA"
+        },
+        "b3lyp-3c": {
+            "tm": "b3lyp-3c",
+            "orca": "b3lyp",
+            "disp": "composite",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "composite_hybrid"
+        },
+        "pbe-novdw": {
+            "tm": "pbe",
+            "orca": "pbe",
+            "disp": "novdw",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "pbe-d3": {
+            "tm": "pbe",
+            "orca": "pbe",
+            "disp": "d3bj",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "pbe-d3(0)": {
+            "tm": "pbe",
+            "orca": "pbe",
+            "disp": "d3(0)",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "pbe-d4": {
+            "tm": "pbe",
+            "orca": "pbe",
+            "disp": "d4",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "pbe-nl": {
+            "tm": "pbe",
+            "orca": "",
+            "disp": "nl",
+            "part": [
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s", 
+                "func_or", 
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "tpss-novdw": {
+            "tm": "tpss",
+            "orca": "tpss",
+            "disp": "novdw",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "mGGA"
+        },
+        "tpss-d3": {
+            "tm": "tpss",
+            "orca": "tpss",
+            "disp": "d3bj",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "mGGA"
+        },
+        "tpss-d3(0)": {
+            "tm": "tpss",
+            "orca": "tpss",
+            "disp": "d3(0)",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "mGGA"
+        },
+        "tpss-d4": {
+            "tm": "tpss",
+            "orca": "tpss",
+            "disp": "d4",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "mGGA"
+        },
+        "tpss-nl": {
+            "tm": "tpss",
+            "orca": "",
+            "disp": "nl",
+            "part": [
+                "func1",
+                "func2", 
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "mGGA"
+        },
+        "revtpss-novdw": {
+            "tm": "revtpss",
+            "orca": "revTPSS",
+            "disp": "novdw",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s"
+            ],
+            "type": "mGGA"
+        },
+        "b97-d3": {
+            "tm": "b97-d",
+            "orca": "b97-d3",
+            "disp": "d3bj",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "b97-d3(0)": {
+            "tm": "b97-d",
+            "orca": "",
+            "disp": "d3(0)",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "GGA"
+        },
+        "kt1-novdw": {
+            "tm": "kt1",
+            "orca": "",
+            "disp": "novdw",
+            "part": ["func_j", "func_s"],
+            "type": "GGA"
+        },
+        "kt2-novdw": {
+            "tm": "kt2",
+            "orca": "kt2",
+            "disp": "novdw",
+            "part": ["func_j", "func_s"],
+            "type": "GGA"
+        },
+        "pbe0-novdw": {
+            "tm": "pbe0",
+            "orca": "pbe0",
+            "disp": "novdw",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pbe0-d3": {
+            "tm": "pbe0",
+            "orca": "pbe0",
+            "disp": "d3bj",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pbe0-d3(0)": {
+            "tm": "pbe0",
+            "orca": "pbe0",
+            "disp": "d3(0)",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pbe0-d4": {
+            "tm": "pbe0",
+            "orca": "pbe0",
+            "disp": "d4",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pbe0-nl": {
+            "tm": "pbe0",
+            "orca": "",
+            "disp": "nl",
+            "part": [
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s", 
+                "func_or", 
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pw6b95-novdw": {
+            "tm": "pw6b95",
+            "orca": "pw6b95",
+            "disp": "novdw",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pw6b95-d3": {
+            "tm": "pw6b95",
+            "orca": "pw6b95",
+            "disp": "d3bj",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pw6b95-d3(0)": {
+            "tm": "pw6b95",
+            "orca": "pw6b95",
+            "disp": "d3(0)",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "pw6b95-d4": {
+            "tm": "pw6b95",
+            "orca": "pw6b95",
+            "disp": "d4",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "b3lyp-novdw": {
+            "tm": "b3-lyp",
+            "orca": "b3lyp",
+            "disp": "novdw",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "b3lyp-d3": {
+            "tm": "b3-lyp",
+            "orca": "b3lyp",
+            "disp": "d3bj",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "b3lyp-d3(0)": {
+            "tm": "b3-lyp",
+            "orca": "b3lyp",
+            "disp": "d3(0)",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "b3lyp-d4": {
+            "tm": "b3-lyp",
+            "orca": "b3lyp",
+            "disp": "d4",
+            "part": [
+                "prescreening",
+                "func1",
+                "func2",
+                "func3",
+                "func_j",
+                "func_s",
+                "func_or",
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "b3lyp-nl": {
+            "tm": "b3-lyp",
+            "orca": "b3lyp",
+            "disp": "nl",
+            "part": [
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s", 
+                "func_or", 
+                "func_or_scf"
+            ],
+            "type": "global_hybrid"
+        },
+        "wb97x-v": {
+            "tm": "wb97x-v",
+            "orca": "wb97x-v",
+            "disp": "included",
+            "part": [
+                "prescreening", 
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s"
+            ],
+            "type": "rsh_hybrid"
+        },
+        "wb97x-d3": {
+            "tm": "",
+            "orca": "wb97x-d3",
+            "disp": "included",
+            "part": [
+                "prescreening", 
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s"
+            ],
+            "type": "rsh_hybrid"
+        },
+        "wb97x-d3bj": {
+            "tm": "",
+            "orca": "wb97x-d3bj",
+            "disp": "included",
+            "part": [
+                "prescreening", 
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s"
+            ],
+            "type": "rsh_hybrid"
+        },
+        "wb97x-d4": {
+            "tm": "",
+            "orca": "wb97x-d4",
+            "disp": "included",
+            "part": [
+                "prescreening", 
+                "func1",
+                "func2", 
+                "func3", 
+                "func_j", 
+                "func_s"
+            ],
+            "type": "rsh_hybrid"
+        },
+        "dsd-blyp-d3": {
+            "tm": "",
+            "orca": "ri-dsd-blyp",
+            "disp": "d3bj",
+            "part": ["func3", "func_s"],
+            "type": "double"
+        }
+    }
+}

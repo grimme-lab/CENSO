@@ -17,7 +17,7 @@ from censo.datastructure import MoleculeData
 class Prescreening(CensoPart):
     
     def __init__(self, core: CensoCore, settings: CensoSettings):
-        super().__init__()
+        super().__init__(core, settings)
         
         self.core = core
 
@@ -26,9 +26,9 @@ class Prescreening(CensoPart):
         self.run_settings = settings.settings_current.bypart("general") + settings.settings_current.bypart("prescreening")
 
         # transfers settings into a dict of instructions to be passed to the process handler
-        self.__instructions = {}
+        self._instructions = {}
         for setting in self.run_settings:
-            self.__instructions[setting.name] = setting.value
+            self._instructions[setting.name] = setting.value
     
     @timeit
     def run(self) -> None:
@@ -53,7 +53,7 @@ class Prescreening(CensoPart):
         
         # set jobtype to pass to handler
         jobtype: List[str] = []
-        if self.__instructions.get("gas-phase", None):
+        if self._instructions.get("gas-phase", None):
             jobtype = ["sp"]
         else:
             jobtype = ["sp", "xtb_gsolv"]
@@ -73,7 +73,7 @@ class Prescreening(CensoPart):
         
         # compute results
         # for structure of results from handler.execute look there
-        results = handler.execute(jobtype, self.__instructions, folder)
+        results = handler.execute(jobtype, self._instructions, folder)
 
         # update results for each conformer
         for conf in self.core.conformers:
@@ -92,7 +92,7 @@ class Prescreening(CensoPart):
         )  
         
         # update conformers with threshold
-        threshold = self.__instructions.get("threshold", None)
+        threshold = self._instructions.get("threshold", None)
         if not threshold is None:
             # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
             limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]

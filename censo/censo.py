@@ -56,7 +56,7 @@ def main(argv=None):
     run = [Prescreening, ]
 
     for part in run:
-        print(f"Ran {part.name} in {part(core, settings).run()} seconds!")
+        print(f"Ran {part.__name__} in {part(core, settings).run()} seconds!")
         
     print("\nCENSO all done!")
     return 0
