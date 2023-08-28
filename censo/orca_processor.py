@@ -241,13 +241,13 @@ class OrcaProc(QmProc):
         super().__init__(*args, **kwargs)
         
         # expand jobtypes with special orca jobtypes
-        self._jobtypes = {
+        """self._jobtypes = {
             **self._jobtypes, **{
                 "nmrS": self._nmrS,
                 "nmrJ": self._nmrJ,
                 "uvvis": self._uvvis,
             }
-        }
+        }"""
 
         # contains grid settings for ORCA 5.0+ (True) and older versions (False)
         # can be chosen by simple keyword (low/low+/high/high+) 
@@ -282,23 +282,20 @@ class OrcaProc(QmProc):
         indict["main"] = []
 
         # grab func, basis
-        indict["main"].append(self.dfa_settings.functionals[instructions["func"]]["orca"])
+        indict["main"].append(self.dfa_settings.functionals[self.instructions["func"]]["orca"])
         if self.instructions["func"] not in self.dfa_settings.composites:
-            indict["main"].append(instructions["basis"])
+            indict["main"].append(self.instructions["basis"])
 
-        # FIXME
-        if instructions["func"] in self.dfa_settings.composites:
-            if self.instructions["func"] == "b3lyp-3c":
-                indict["main"].extend(["b3lyp", f"{self.instructions['basis']}", "GCP(DFT/SV(P))"])
-            else:
-                indict["main"].append(f"{self.dfa_settings.functionals.get(self.instructions['func']).get('orca')}")
+        # TODO - b3lyp-3c removed
+        # 
+        if self.instructions["func"] in self.dfa_settings.composites:
+            indict["main"].append(f"{self.dfa_settings.functionals.get(self.instructions['func']).get('orca')}")
         else:
         ####################### SET RI ###########################
-        # if not composite method
-            # set  RI def2/J,   RIJCOSX def2/J gridx6 NOFINALGRIDX,  RIJK def2/JK
+            # set  RI def2/J,   RIJCOSX def2/J
+            # this is only set if no composite DFA is used
             # settings for double hybrids
-            # removed all settings concering grid since this is now configured by 'grid' argument by default
-            if self.instructions["func"] in dfa_settings().dh_dfa():
+            if self.instructions["func"] in self.dfa_settings.doublehs:
                 indict["main"].extend(["def2/J", "RIJCOSX"])
 
                 if "nmr" in jobtype:
@@ -324,7 +321,6 @@ class OrcaProc(QmProc):
                         indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
             # settings for hybrids
-            # TODO - what about b3lyp-3c??
             elif self.instructions["func"] in self.dfa_settings.hybrids:
                 indict["main"].extend(["def2/J", "RIJCOSX"])
                 if not orca5:
@@ -357,7 +353,8 @@ class OrcaProc(QmProc):
         }
 
         disp = self.dfa_settings.functionals.get(self.instructions["func"]).get("disp")
-        indict["main"].append(mapping.get(disp, ""))
+        if disp != "composite" and disp != "included":
+            indict["main"].append(mapping.get(disp, ""))
 
         if disp == "nl" and not orca5:
             indict["main"].append("vdwgrid3")
@@ -415,7 +412,7 @@ class OrcaProc(QmProc):
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep("sp", no_solv=no_solv)
+        indict = self.__prep(conf, "sp", "low+", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low+ gridsize
         
         # write input into file "inp"
         parser.write_input(os.path.join(self.workdir, "inp"), indict)

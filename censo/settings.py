@@ -54,7 +54,8 @@ class DfaSettings:
         """
         return all composite method dfas dict entries
         """
-        return set(filter(lambda x: "composite" in x["type"], self.__dfa_dict["functionals"]))
+        functionals = self.__dfa_dict["functionals"]
+        return set(filter(lambda x: "composite" in functionals[x]["type"], functionals))
 
 
     @property
@@ -62,7 +63,8 @@ class DfaSettings:
         """
         return all (m)gga dfas dict entries
         """
-        return set(filter(lambda x: "gga" in x["type"] and not "composite" in x["type"], self.__dfa_dict["functionals"]))
+        functionals = self.__dfa_dict["functionals"]
+        return set(filter(lambda x: "gga" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals))
 
 
     @property
@@ -70,7 +72,8 @@ class DfaSettings:
         """
         return all hybrid dfas dict entries
         """
-        return set(filter(lambda x: "hybrid" in x["type"] and not "composite" in x["type"], self.__dfa_dict["functionals"]))
+        functionals = self.__dfa_dict["functionals"]
+        return set(filter(lambda x: "hybrid" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals))
 
 
     @property
@@ -78,7 +81,8 @@ class DfaSettings:
         """
         return all double hybrid dfas dict entries
         """
-        return set(filter(lambda x: "double" in x["type"] and not "composite" in x["type"], self.__dfa_dict["functionals"]))
+        functionals = self.__dfa_dict["functionals"]
+        return set(filter(lambda x: "double" in self.__dfa_dict[x]["type"] and not "composite" in self.__dfa_dict[x]["type"], self.__dfa_dict["functionals"]))
 
 
 
@@ -600,7 +604,12 @@ class CensoSettings:
             # mind the ordering of csvfile.readline(), should not lead to EOF errors
             while True:
                 while not line.startswith("$"):
-                    # TODO - check if there is only one ':' in the line
+                    # check if there is only one ':' in the line
+                    if line.count(":") != 1:
+                        print(f"Multiple or no ':' in line {line}") # FIXME 
+                        line = csvfile.readline()
+                        continue
+
                     # split the line at ':' and remove leading and trailing whitespaces
                     spl = [s.strip() for s in line.split(":")]
                     sett_type = CensoSettings.get_type(spl[0]) # FIXME - eindeutig?

@@ -8,8 +8,6 @@
         "hf-3c": "minix",
         "r2scan-3c": "def2-mTZVPP",
         "r2scan3c": "def2-mTZVPP",
-        "b3lyp-3c": "def2-mSVP",
-        "b3lyp3c": "def2-mSVP"
     },
     "relay_functionals": {
         "pbe": "pbe-d4",
@@ -71,22 +69,6 @@
                 "func_or_scf"
             ],
             "type": "composite_mGGA"
-        },
-        "b3lyp-3c": {
-            "tm": "b3lyp-3c",
-            "orca": "b3lyp",
-            "disp": "composite",
-            "part": [
-                "prescreening",
-                "func1",
-                "func2",
-                "func3",
-                "func_j",
-                "func_s",
-                "func_or",
-                "func_or_scf"
-            ],
-            "type": "composite_hybrid"
         },
         "pbe-novdw": {
             "tm": "pbe",

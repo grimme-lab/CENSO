@@ -13,7 +13,7 @@ class ProcessorFactory:
     }
     
     @classmethod
-    def create_processor(cls, *args, **kwargs) -> QmProc:
+    def create_processor(cls, prog, *args, **kwargs) -> QmProc:
         """
         returns an instance of the requested processor type (mapping with the 'prog' setting)
         for now the QmProc class uses xtb as driver (this method should be changed if additional drivers are implemented)
