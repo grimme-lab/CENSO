@@ -198,24 +198,24 @@ class OrcaParser:
         for key in allkeys[1:allkeys.index("geom")]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
-                lines.append(f"    {option} {reduce(lambda x, y: x + ' ' + y, indict[key][option])}\n")
+                lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
             lines.append("end\n")
         
         # next, write the geometry input lines
         # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0 1")
-        lines.append(f"* {reduce(lambda x, y: x + ' ' + y, indict['geom']['def'])}\n")
+        lines.append(f"* {reduce(lambda x, y: f'{x} {y}', indict['geom']['def'])}\n")
         
         # write coordinates if "xyz" keyword is used
         if indict["geom"].get("coord", False):
             for coord in indict["geom"]["coord"]:
-                lines.append(f"{reduce(lambda x, y: x + ' ' + y, coord)}\n")
+                lines.append(f"{reduce(lambda x, y: f'{x} {y}', coord)}\n")
             lines.append("*\n")
 
         # lastly, write all the keywords and options that should be placed after the geometry input (e.g. NMR settings)
         for key in allkeys[allkeys.index("geom")+1:]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
-                lines.append(f"    {option} {reduce(lambda x, y: x + ' ' + y, indict[key][option])}\n")
+                lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
             lines.append("end\n")
 
         # TODO - externalize line appending?
@@ -260,7 +260,7 @@ class OrcaProc(QmProc):
             },
             True: {
                 "low": ["DEFGRID2", "loosescf"],
-                "low+": ["! DEFGRID2", "scfconv6"],
+                "low+": ["DEFGRID2", "scfconv6"],
                 "high": ["DEFGRID2", "scfconv7"],
                 "high+": ["DEFGRID2", "scfconv7"],
             },
@@ -278,19 +278,21 @@ class OrcaProc(QmProc):
         TODO - NMR/OR/UVVis etc preparation steps
         TODO - externalize comp parameter setups
         """
+
+        # check ORCA version
+        orca5 = True if self.paths["orcaversion"].startswith("5") else False
+
         indict = OrderedDict()
         indict["main"] = []
 
         # grab func, basis
-        indict["main"].append(self.dfa_settings.functionals[self.instructions["func"]]["orca"])
-        if self.instructions["func"] not in self.dfa_settings.composites:
-            indict["main"].append(self.instructions["basis"])
+        func = self.dfa_settings.functionals.get(self.instructions["func"]).get("orca")
+        basis = self.instructions.get("basis") 
+        indict["main"].append(func)
 
         # TODO - b3lyp-3c removed
-        # 
-        if self.instructions["func"] in self.dfa_settings.composites:
-            indict["main"].append(f"{self.dfa_settings.functionals.get(self.instructions['func']).get('orca')}")
-        else:
+        if self.instructions["func"] not in self.dfa_settings.composites:
+            indict["main"].append(basis)
         ####################### SET RI ###########################
             # set  RI def2/J,   RIJCOSX def2/J
             # this is only set if no composite DFA is used
@@ -414,8 +416,8 @@ class OrcaProc(QmProc):
         parser = OrcaParser()
         indict = self.__prep(conf, "sp", "low+", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low+ gridsize
         
-        # write input into file "inp"
-        parser.write_input(os.path.join(self.workdir, "inp"), indict)
+        # write input into file "inp" in a subdir created for the worker process
+        parser.write_input(os.path.join(self.workdir, conf.id, "inp"), indict)
 
         if not silent:
             print(f"Running single-point in {last_folders(self.workdir, 2)}")
@@ -453,13 +455,13 @@ class OrcaProc(QmProc):
                     if "ORCA TERMINATED NORMALLY" in line:
                         result["success"] = True
                     
-            if not self.result["success"]:
-                result["success"] = False
+            if not result["success"]:
                 print(
                     f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.workdir, 2)} "
                     "not converged!"
                 )
         else:
+            # TODO - error handling
             result["success"] = False
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
         

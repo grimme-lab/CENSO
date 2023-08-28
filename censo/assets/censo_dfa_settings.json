@@ -7,7 +7,7 @@
         "hf3c": "minix",
         "hf-3c": "minix",
         "r2scan-3c": "def2-mTZVPP",
-        "r2scan3c": "def2-mTZVPP",
+        "r2scan3c": "def2-mTZVPP"
     },
     "relay_functionals": {
         "pbe": "pbe-d4",

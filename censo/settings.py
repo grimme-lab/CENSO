@@ -82,7 +82,7 @@ class DfaSettings:
         return all double hybrid dfas dict entries
         """
         functionals = self.__dfa_dict["functionals"]
-        return set(filter(lambda x: "double" in self.__dfa_dict[x]["type"] and not "composite" in self.__dfa_dict[x]["type"], self.__dfa_dict["functionals"]))
+        return set(filter(lambda x: "double" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals["functionals"]))
 
 
 
@@ -320,7 +320,7 @@ class CensoSettings:
                 "cosmorsparam": {"default": "automatic", "options": tuple([k for k in cosmors_param.keys()])},
             }),
             "prescreening": MappingProxyType({
-                "func": {"default": "b97-d3(0)", "options": tuple(dfa_settings.find_func("prescreening"))},
+                "func": {"default": "b97-d3", "options": tuple(dfa_settings.find_func("prescreening"))},
                 "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs) + ("def2-SV(P)", "def2-TZVP")},
                 "prog": {"default": "orca", "options": PROGS},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
@@ -621,7 +621,7 @@ class CensoSettings:
                         else:
                             # further manipulation is necessary for list type
                             # looks messy, essentially removes '[' and ']', all whitespace and splits at ','
-                            sett = spl[1][1:len(spl[1])].replace(" ", "").split(",")
+                            sett = spl[1][1:len(spl[1])-1].replace(" ", "").split(",")
 
                         # catch all cases for up until which level the dict is initialized
                         if sett_type and sett_type not in rcdata.keys():
@@ -1063,11 +1063,10 @@ class CensoSettings:
             func = getattr(settings.byname("func"), "value", None)
             basis = getattr(settings.byname("basis"), "value", None)
                 
-            if not (run is None or prog is None or func is None or basis is None):
+            if all(x is not None for x in [run, prog, func, basis]):
                 # iterate through settings and check for func
                 # TODO - handle composite method bases
                 if run and not stroptions[part] is None:
-                    # FIXME - again incorrect error because pylance is too stupid
                     if not func in stroptions[part]["func"]["options"]:
                         warnings.append(LogicWarning(
                                 "func",
@@ -1076,7 +1075,7 @@ class CensoSettings:
                             )
                         )
                     else:
-                        # FIXME - doesn't work properly yet for part4_j/s
+                        # FIXME - doesn't work properly yet
                         # check for DFA availability in prog (warning)
                         if not func in CensoSettings.dfa_settings.find_func(part, prog):
                             warnings.append(LogicWarning(
