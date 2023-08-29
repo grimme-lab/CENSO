@@ -132,11 +132,11 @@ class ProcessHandler:
         # structure of results: 
         #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
         results = reduce(lambda x, y: {**x, **y}, resiter)
-        pprint(results)
-        
+
         # assert that there is a result for every conformer
+        # TODO - error handling
         try:
-            assert all([id(conf) in results.keys() for conf in self.conformers])  
+            assert all([conf.id in results.keys() for conf in self.conformers])  
         except AssertionError:
             raise KeyError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
         

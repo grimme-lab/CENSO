@@ -66,7 +66,7 @@ class QmProc:
         """
         res = {conformer.id: {}}
         
-        for job in self.jobtype:
+        for job in self._jobtype:
             res[conformer.id][job] = self._jobtypes[job](conformer)
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
@@ -90,13 +90,6 @@ class QmProc:
     def print(self):
         """
         print method for each part, should be implemented if needed
-        """
-        pass
-
-
-    def _prep(self):
-        """
-        input preparation
         """
         pass
 
@@ -149,7 +142,7 @@ class QmProc:
         return symnum
 
 
-    def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp.out", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
+    def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
         """
         Get single-point energy from xtb
         result = {
@@ -157,15 +150,36 @@ class QmProc:
             "success": None,
         }
         """
-        
+        # set results
+        result = {
+            "energy": None,
+            "success": None,
+        }
+
+        # create dir for conf
+        confdir = os.path.join(self.workdir, conf.name)
+        if os.path.isdir(confdir):
+            # TODO - error handling warning? stderr?
+            print(f"Folder {confdir} already exists. Potentially overwriting files.")
+        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
+            print(f"Workdir for conf {conf.name} could not be created.")
+            result["success"] = False
+            return result
+
+        # set in/out path
+        inputpath = os.path.join(confdir, f"coord")
+        outputpath = os.path.join(confdir, f"{filename}.out")
+
+
         if not silent:
             print(
                 f"Running xtb_sp calculation in "
                 f"{last_folders(self.workdir, 3)}"
             )
 
-        outputpath = os.path.join(self.workdir, filename)
         # if not self.job["onlyread"]: ??? TODO
+        # cleanup
+        # TODO - why not remove coord?
         files = [
             "xtbrestart",
             "xtbtopo.mol",
@@ -173,16 +187,16 @@ class QmProc:
             "wbo",
             "charges",
             "gfnff_topo",
-            filename,
+            f"{filename}.out",
         ]
 
         # remove potentially preexisting files to avoid confusion
         for file in files:
-            if os.path.isfile(os.path.join(self.workdir, file)):
-                os.remove(os.path.join(self.workdir, file))
+            if os.path.isfile(os.path.join(confdir, file)):
+                os.remove(os.path.join(confdir, file))
 
         # generate coord file for xtb
-        conf.tocoord(os.path.join(self.workdir, "coord"))
+        conf.tocoord(inputpath)
 
         # setup call for xtb single-point
         call = [
@@ -219,7 +233,7 @@ class QmProc:
                     ]
                 )
                 with open(
-                    os.path.join(self.workdir, "xcontrol-inp"), "w", newline=None
+                    os.path.join(confdir, "xcontrol-inp"), "w", newline=None
                 ) as xcout:
                     xcout.write("$gbsa\n")
                     xcout.write("  gbsagrid=tight\n")
@@ -233,16 +247,10 @@ class QmProc:
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=self.workdir,
+                cwd=confdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
-
-        # set results
-        result = {
-            "energy": None,
-            "success": None,
-        }
 
         # if returncode != 0 then some error happened in xtb
         if returncode != 0:
@@ -316,7 +324,7 @@ class QmProc:
         }
 
         # run gas-phase GFN single-point
-        res = self._xtb_sp(conf, filename="gas.out", silent=True, no_solv=True)
+        res = self._xtb_sp(conf, filename="gas", silent=True, no_solv=True)
         if res["success"]:
             result["energy_xtb_gas"] = res["energy"]
         else:
@@ -330,7 +338,7 @@ class QmProc:
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        res = self._xtb_sp(conf, filename="solv.out", silent=True)
+        res = self._xtb_sp(conf, filename="solv", silent=True)
         if res["success"]:
             result["energy_xtb_solv"] = res["energy"]
         else:

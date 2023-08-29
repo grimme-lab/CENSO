@@ -212,7 +212,7 @@ class Prescreening(CensoPart):
         # variables for printmap
         # minimal xtb single-point energy
         xtbmin = min(
-            conf.results[self.__class__.__name__.lower()]['xtb_sp']['energy'] 
+            conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] 
             for conf in self.core.conformers
         )
         
@@ -237,8 +237,8 @@ class Prescreening(CensoPart):
         # TODO - remaining float accuracies
         printmap = {
             "CONF": lambda conf: conf.name,
-            "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_sp']['energy']}",
-            "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_sp']['energy'] - xtbmin) * AU2KCAL:.2f}",
+            "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
+            "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
             "δGsolv (xtb)": lambda conf: 
                 f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']}" 

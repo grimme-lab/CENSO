@@ -430,8 +430,8 @@ class OrcaProc(QmProc):
             return result
 
         # set in/out path
-        inputpath = os.path.join(self.workdir, conf.name, f"{filename}.inp")
-        outputpath = os.path.join(self.workdir, conf.name, f"{filename}.out")
+        inputpath = os.path.join(confdir, f"{filename}.inp")
+        outputpath = os.path.join(confdir, f"{filename}.out")
 
         # prepare input dict
         parser = OrcaParser()
@@ -453,7 +453,7 @@ class OrcaProc(QmProc):
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=os.path.join(self.workdir, conf.name),
+                cwd=confdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
