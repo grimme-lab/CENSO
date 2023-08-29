@@ -370,7 +370,7 @@ class OrcaProc(QmProc):
 
         ###################### PARALLEL ############################
         if orca5 and self.instructions["omp"] > 1:
-            indict["main"].append(f"PAL{self.instructions['omp']}")
+            indict["pal"] = {"nprocs": [self.instructions["omp"]]}
 
         ###################### SOLVENT/GEOM ########################
 
