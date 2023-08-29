@@ -266,20 +266,17 @@ class Prescreening(CensoPart):
         lines = []
         
         # add table header
-        # note: needs this amount of {}s because of one {} indicates fstring,
-        #       two {} indicates to print {}, three to not print {collen},
-        #       four {} to use collen within the header fstring variable
-        lines.append(" ".join(f"{{header:^{collen}}}" for header, collen in collens.items()) + "\n")
-        lines.append(" ".join(f"{{unit:^{collen}}}" for unit, collen in zip(units, collens.values())) + "\n")
+        lines.append(" ".join(f"{header:^{collen+6}}" for header, collen in collens.items()) + "\n")
+        lines.append(" ".join(f"{unit:^{collen+6}}" for unit, collen in zip(units, collens.values())) + "\n")
         
         # add a row for every conformer (this time sorted by name)
         for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
             # print floats with 2 digits accuracy if it is a difference, else with 6 digits
             lines.append(
                 " ".join(
-                        f"{{printmap[header](conf):^{collen}}}" 
+                        f"{printmap[header](conf):^{collen+6}}" 
                         if "Δ" in header 
-                        else f"{{printmap[header](conf):^{collen}}}" 
+                        else f"{printmap[header](conf):^{collen+6}}" 
                         for header, collen in collens.items()
                     ) 
                 # draw an arrow if conformer is the best in current ranking

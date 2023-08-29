@@ -68,7 +68,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "composite_mGGA"
+            "type": "composite_mgga"
         },
         "pbe-novdw": {
             "tm": "pbe",
@@ -84,7 +84,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "pbe-d3": {
             "tm": "pbe",
@@ -100,7 +100,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "pbe-d3(0)": {
             "tm": "pbe",
@@ -116,7 +116,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "pbe-d4": {
             "tm": "pbe",
@@ -132,7 +132,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "pbe-nl": {
             "tm": "pbe",
@@ -147,7 +147,7 @@
                 "func_or", 
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "tpss-novdw": {
             "tm": "tpss",
@@ -163,7 +163,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "mGGA"
+            "type": "mgga"
         },
         "tpss-d3": {
             "tm": "tpss",
@@ -179,7 +179,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "mGGA"
+            "type": "mgga"
         },
         "tpss-d3(0)": {
             "tm": "tpss",
@@ -195,7 +195,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "mGGA"
+            "type": "mgga"
         },
         "tpss-d4": {
             "tm": "tpss",
@@ -211,7 +211,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "mGGA"
+            "type": "mgga"
         },
         "tpss-nl": {
             "tm": "tpss",
@@ -226,7 +226,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "mGGA"
+            "type": "mgga"
         },
         "revtpss-novdw": {
             "tm": "revtpss",
@@ -240,7 +240,7 @@
                 "func_j",
                 "func_s"
             ],
-            "type": "mGGA"
+            "type": "mgga"
         },
         "b97-d3": {
             "tm": "b97-d",
@@ -256,7 +256,7 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "b97-d3(0)": {
             "tm": "b97-d",
@@ -272,21 +272,21 @@
                 "func_or",
                 "func_or_scf"
             ],
-            "type": "GGA"
+            "type": "gga"
         },
         "kt1-novdw": {
             "tm": "kt1",
             "orca": "",
             "disp": "novdw",
             "part": ["func_j", "func_s"],
-            "type": "GGA"
+            "type": "gga"
         },
         "kt2-novdw": {
             "tm": "kt2",
             "orca": "kt2",
             "disp": "novdw",
             "part": ["func_j", "func_s"],
-            "type": "GGA"
+            "type": "gga"
         },
         "pbe0-novdw": {
             "tm": "pbe0",
@@ -522,7 +522,7 @@
                 "func_j", 
                 "func_s"
             ],
-            "type": "rsh_hybrid"
+            "type": "rs_hybrid"
         },
         "wb97x-d3": {
             "tm": "",
@@ -536,7 +536,7 @@
                 "func_j", 
                 "func_s"
             ],
-            "type": "rsh_hybrid"
+            "type": "rs_hybrid"
         },
         "wb97x-d3bj": {
             "tm": "",
@@ -550,7 +550,7 @@
                 "func_j", 
                 "func_s"
             ],
-            "type": "rsh_hybrid"
+            "type": "rs_hybrid"
         },
         "wb97x-d4": {
             "tm": "",
@@ -564,7 +564,7 @@
                 "func_j", 
                 "func_s"
             ],
-            "type": "rsh_hybrid"
+            "type": "rs_hybrid"
         },
         "dsd-blyp-d3": {
             "tm": "",

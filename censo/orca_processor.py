@@ -224,7 +224,6 @@ class OrcaParser:
 
 
 # TODO - keep output if any job fails
-# TODO - __prep middle
 class OrcaProc(QmProc):
     """
     Perform calculations with ORCA
@@ -400,6 +399,10 @@ class OrcaProc(QmProc):
                 "coord": []
             }
         """
+
+        # TODO - remove this later
+        indict["main"].append("GCP(DFT/sv(p))")
+
         return indict
 
 
@@ -435,7 +438,7 @@ class OrcaProc(QmProc):
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(conf, "sp", "low+", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low+ gridsize
+        indict = self.__prep(conf, "sp", "low", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low gridsize
         
         # write input into file "{filename}.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)
