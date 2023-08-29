@@ -469,11 +469,12 @@ class OrcaProc(QmProc):
                     # check if scf is converged:
                     if "ORCA TERMINATED NORMALLY" in line:
                         result["success"] = True
+                        print(f"ORCA single-point successfull for {conf.name}.")
                     
             if not result["success"]:
+                result["success"] = False
                 print(
-                    f"{'ERROR:':{WARNLEN}}scf in {inputpath} "
-                    "not converged!"
+                    f"{'ERROR:':{WARNLEN}}ORCA single-point not converged for {conf.name}."
                 )
         else:
             # TODO - error handling

@@ -205,10 +205,10 @@ class QmProc:
             "--" + self.instructions["gfnv"],
             "--sp",
             "--chrg",
-            self.instructions["charge"],
+            f"{self.instructions['charge']}",
             "--norestart",
             "--parallel",
-            self.instructions["omp"],
+            f"{self.instructions['omp']}",
         ]
 
         # add solvent to xtb call if not a gas-phase sp 
@@ -327,6 +327,7 @@ class QmProc:
         res = self._xtb_sp(conf, filename="gas", silent=True, no_solv=True)
         if res["success"]:
             result["energy_xtb_gas"] = res["energy"]
+            print(f"xtb gas-phase single-point successfull for {conf.name}.")
         else:
             print(
                 f"{'ERROR:':{WARNLEN}}Gas phase {self.instructions['gfnv'].upper()} error in "
@@ -341,6 +342,7 @@ class QmProc:
         res = self._xtb_sp(conf, filename="solv", silent=True)
         if res["success"]:
             result["energy_xtb_solv"] = res["energy"]
+            print(f"xtb solution-phase single-point successfull for {conf.name}.")
         else:
             print(
                 f"{'ERROR:':{WARNLEN}}Solution phase {self.instructions['gfnv'].upper()} error in "

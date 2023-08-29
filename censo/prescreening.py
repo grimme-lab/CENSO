@@ -54,9 +54,9 @@ class Prescreening(CensoPart):
         # set jobtype to pass to handler
         jobtype: List[str] = []
         if self._instructions.get("gas-phase", None):
-            jobtype = ["sp"]
-        else:
             jobtype = ["sp", "xtb_gsolv"]
+        else:
+            jobtype = ["sp"]
         
         # print instructions
         self.print_info()
@@ -84,11 +84,8 @@ class Prescreening(CensoPart):
             conf.results[self.__class__.__name__.lower()]["gtot"] = self.key(conf)
         
         # sort conformers list with prescreening key (gtot)
-        # for float the default comparator sorts from highest to lowest value,
-        # so the sorting has to be reversed here, since the best conf is the one with the lowest energy
         self.core.conformers.sort(
             key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"],
-            reverse=True
         )  
         
         # update conformers with threshold
@@ -189,10 +186,10 @@ class Prescreening(CensoPart):
             "E (xtb)",
             "ΔE (xtb)",
             "E (DFT)",
-            "Gsolv (xtb)",
+            "δGsolv (xtb)",
             "Gtot",
             "ΔE (DFT)",
-            "ΔGsolv",
+            "ΔδGsolv",
             "ΔGtot",
         ]
         
@@ -272,16 +269,17 @@ class Prescreening(CensoPart):
         # note: needs this amount of {}s because of one {} indicates fstring,
         #       two {} indicates to print {}, three to not print {collen},
         #       four {} to use collen within the header fstring variable
-        lines.append(" ".join(f"{{{header:^{collen}}}}" for header, collen in collens.items()) + "\n")
+        lines.append(" ".join(f"{{header:^{collen}}}" for header, collen in collens.items()) + "\n")
+        lines.append(" ".join(f"{{unit:^{collen}}}" for unit, collen in zip(units, collens.values())) + "\n")
         
         # add a row for every conformer (this time sorted by name)
         for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
             # print floats with 2 digits accuracy if it is a difference, else with 6 digits
             lines.append(
                 " ".join(
-                        f"{{{printmap[header](conf):^{collen}.2f}}}" 
+                        f"{{printmap[header](conf):^{collen}}}" 
                         if "Δ" in header 
-                        else f"{{{printmap[header](conf):^{collen}.6f}}}" 
+                        else f"{{printmap[header](conf):^{collen}}}" 
                         for header, collen in collens.items()
                     ) 
                 # draw an arrow if conformer is the best in current ranking

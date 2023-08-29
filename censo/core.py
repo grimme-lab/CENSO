@@ -155,7 +155,7 @@ class CensoCore:
                 self.conformers[i].xtb_energy = check_for_float(lines[i*(nat+2)+1]) or 0.0
             
             # also works if xtb_energy is None for some reason (None is put first)    
-            self.conformers.sort(key=lambda x: x.xtb_energy, reverse=True)
+            self.conformers.sort(key=lambda x: x.xtb_energy)
 
 
     def update_conformers(self, filtered: List[MoleculeData]):
