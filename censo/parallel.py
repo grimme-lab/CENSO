@@ -5,6 +5,7 @@ from functools import reduce
 import os
 from typing import Any, Dict, List
 from concurrent.futures import ProcessPoolExecutor
+from pprint import pprint
 
 from censo.procfact import ProcessorFactory
 from censo.utilities import print
@@ -82,8 +83,8 @@ class ProcessHandler:
                 print("There was an error while determining the number of processes in load balancing.") # TODO
                 return False
             
-            # should always be divisible, int casting only as safeguard
-            self.__omp = int(self.__ncores / self.__nprocs)
+            # should always be divisible, floor division only as safeguard
+            self.__omp = self.__ncores // self.__nprocs
             
             return True
         else:
@@ -131,6 +132,7 @@ class ProcessHandler:
         # structure of results: 
         #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
         results = reduce(lambda x, y: {**x, **y}, resiter)
+        pprint(results)
         
         # assert that there is a result for every conformer
         try:

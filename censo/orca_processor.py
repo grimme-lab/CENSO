@@ -368,6 +368,10 @@ class OrcaProc(QmProc):
             )
         """
 
+        ###################### PARALLEL ############################
+        if orca5 and self.instructions["omp"] > 1:
+            indict["main"].append(f"PAL{self.instructions['omp']}")
+
         ###################### SOLVENT/GEOM ########################
 
         # set keywords for the selected solvent model
