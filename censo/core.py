@@ -9,6 +9,7 @@ import sys
 from typing import Callable, Dict, List
 from multiprocessing import Lock
 from math import exp
+from pprint import pprint
 
 from censo.cfg import (
     CODING,
@@ -145,13 +146,13 @@ class CensoCore:
                 self.runinfo["nconf"] = nconf
             else:
                 raise Exception # TODO
-            
+
             # get precalculated energies if possible
             for i in range(nconf):
-                self.conformers.append(MoleculeData(f"CONF{i}", lines[i*nat+2:(i+1)*nat+2]))
+                self.conformers.append(MoleculeData(f"CONF{i}", lines[2+i*(nat+2):(i+1)*(nat+2)]))
                 
                 # precalculated energy set to 0.0 if it cannot be found
-                self.conformers[i].xtb_energy = check_for_float(lines[i*nat+1]) or 0.0
+                self.conformers[i].xtb_energy = check_for_float(lines[i*(nat+2)+1]) or 0.0
             
             # also works if xtb_energy is None for some reason (None is put first)    
             self.conformers.sort(key=lambda x: x.xtb_energy, reverse=True)

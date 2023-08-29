@@ -121,15 +121,6 @@ class ProcessHandler:
         self.__processor.jobtype = jobtype
         self.__processor.instructions = instructions
         self.__processor.workdir = workdir
-        
-        # create subdirs for all the conformers considered
-        for conf in self.conformers:
-            folder = os.path.join(workdir, str(conf.id))
-            if os.path.isdir(folder):
-                # TODO - warning? stderr?
-                print(f"Folder {folder} already exists. Potentially overwriting files.")
-            elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
-                print(f"Workdir for conf {conf.id} could not be created.")
 
         # execute processes for conformers
         # TODO - set PARNODES

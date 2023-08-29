@@ -8,20 +8,23 @@ class GeometryData:
     in order to keep the object small, since it has to be pickled for multiprocessing
     """
 
-    def __init__(self, id: int, xyz):
+    def __init__(self, id: int, name: str, xyz):
         """
         takes an identifier and the geometry lines from the xyz-file as input
         """
         
         # identifier linking it to a MoleculeData object
         self.id: int = id
+
+        # name of the linked MoleculeData
+        self.name: str = name
         
         # dict with element symbols as keys and lists of three-item lists as values
         self.xyz: Dict[str, List[List[float]]] = {}
         
         # set up xyz dict from the input lines
         for line in xyz:
-            spl = [s.strip() for s in line.split(":")]
+            spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
             tmp = spl[1:]
             if element not in self.xyz.keys():
@@ -64,6 +67,8 @@ class MoleculeData:
     """
     MoleculeData contains identifier, a GeometryData object, 
     as well as the sorting keys
+
+    The confomers' MoleculeDatas are set up in censo.core.CensoCore.setup_conformers
     """
     
     def __init__(self, name: str, xyz):
@@ -75,14 +80,14 @@ class MoleculeData:
         self.name: str = name
         
         # stores the geometry info to have a small object to be used for multiprocessing
-        self.geom: GeometryData = GeometryData(id(self), xyz)
+        self.geom: GeometryData = GeometryData(id(self), self.name, xyz)
         
         # stores the initial xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float
         
         # stores the results of the calculations
         self.results = {}
-        # should be structured like:
+        # should be structured like the following:
         # 'part': <results from part jobs/in-part-calculations>
         # => e.g. self.results["prescreening"]["gtot"] 
         #    would return the free enthalpy of the conformer calculated in prescreening

@@ -400,7 +400,7 @@ class OrcaProc(QmProc):
 
 
     #@self.__prep TODO
-    def _sp(self, conf: GeometryData, silent=False, filename="sp.out", no_solv: bool = False) -> Dict[str, Any]:
+    def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:
         """
         ORCA single-point calculation
 
@@ -409,40 +409,50 @@ class OrcaProc(QmProc):
             "success": None,
         }
         """
+        # set results
+        result = {
+            "energy": None,
+            "success": None,
+        }
+
+        # create dir for conf
+        confdir = os.path.join(self.workdir, conf.name)
+        if os.path.isdir(confdir):
+            # TODO - error handling warning? stderr?
+            print(f"Folder {confdir} already exists. Potentially overwriting files.")
+        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
+            print(f"Workdir for conf {conf.name} could not be created.")
+            result["success"] = False
+            return result
+
         # set in/out path
-        inputpath = os.path.join(self.workdir, str(conf.id), "inp")
-        outputpath = os.path.join(self.workdir, str(conf.id), filename)
+        inputpath = os.path.join(self.workdir, conf.name, f"{filename}.inp")
+        outputpath = os.path.join(self.workdir, conf.name, f"{filename}.out")
 
         # prepare input dict
         parser = OrcaParser()
         indict = self.__prep(conf, "sp", "low+", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low+ gridsize
         
-        # write input into file "inp" in a subdir created for the conformer
+        # write input into file "{filename}.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)
 
         if not silent:
-            print(f"Running single-point in {last_folders(inputpath, 2)}")
+            print(f"Running single-point in {inputpath}")
         
         # start SP calculation
         with open(outputpath, "w", newline=None) as outputfile:
-            # make external call to orca with "inp" as argument
-            call = [self.paths["orcapath"], "inp"]
+            # make external call to orca with "{filename}.inp" as argument
+            call = [self.paths["orcapath"], f"{filename}.inp"]
             subprocess.call(
                 call,
                 shell=False,
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=os.path.join(self.workdir, str(conf.id)),
+                cwd=os.path.join(self.workdir, conf.name),
                 stdout=outputfile,
                 env=ENVIRON,
             )
-
-        # set results
-        result = {
-            "energy": None,
-            "success": None,
-        }
 
         # read output
         if os.path.isfile(outputpath):
@@ -458,7 +468,7 @@ class OrcaProc(QmProc):
                     
             if not result["success"]:
                 print(
-                    f"{'ERROR:':{WARNLEN}}scf in {last_folders(inputpath, 2)} "
+                    f"{'ERROR:':{WARNLEN}}scf in {inputpath} "
                     "not converged!"
                 )
         else:
@@ -484,11 +494,6 @@ class OrcaProc(QmProc):
             "energy_solv": None,
         }
         """
-        print(
-            f"Running SMD_gsolv calculation in "
-            f"{last_folders(self.workdir, 2)}."
-        )
-
         # what is returned in the end
         result = {
             "success": None,
@@ -497,8 +502,13 @@ class OrcaProc(QmProc):
             "energy_solv": None,
         }
 
+        print(
+            f"Running SMD_gsolv calculation in "
+            f"{last_folders(self.workdir, 2)}."
+        )
+
         # calculate gas phase
-        res = self._sp(silent=True, filename="sp_gas.out", no_solv=True)
+        res = self._sp(silent=True, filename="sp_gas", no_solv=True)
 
         if self.result["success"]:
             result["energy_gas"] = res["energy"]
@@ -511,7 +521,7 @@ class OrcaProc(QmProc):
             return result
 
         # calculate in solution
-        res = self._sp(silent=True, filename="sp_solv.out")
+        res = self._sp(silent=True, filename="sp_solv")
 
         if self.result["success"]:
             result["energy_solv"] = res["energy"]
@@ -568,6 +578,16 @@ class OrcaProc(QmProc):
 
         TODO - condense this function
         """
+        # prepare result
+        # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
+        # 'energy' contains the final energy of the optimization (converged or unconverged)
+        result = {
+            "success": None,
+            "energy": None,
+            "cycles": None,
+            "converged": None,
+            "ecyc": None,
+        }
         
         # FIXME
         if self.job["fullopt"]:
@@ -665,17 +685,6 @@ class OrcaProc(QmProc):
                 env=ENVIRON,
             )
 
-        # prepare result
-        # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
-        # 'energy' contains the final energy of the optimization (converged or unconverged)
-        result = {
-            "success": None,
-            "energy": None,
-            "cycles": None,
-            "converged": None,
-            "ecyc": None,
-        }
-        
         # check if optimization finished correctly
         if returncode != 0:
             result["success"] = False
