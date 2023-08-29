@@ -82,7 +82,7 @@ class DfaSettings:
         return all double hybrid dfas dict entries
         """
         functionals = self.__dfa_dict["functionals"]
-        return set(filter(lambda x: "double" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals["functionals"]))
+        return set(filter(lambda x: "double" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals))
 
 
 

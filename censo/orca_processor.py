@@ -409,18 +409,19 @@ class OrcaProc(QmProc):
             "success": None,
         }
         """
-        # set output path
-        outputpath = os.path.join(self.workdir, filename)
+        # set in/out path
+        inputpath = os.path.join(self.workdir, str(conf.id), "inp")
+        outputpath = os.path.join(self.workdir, str(conf.id), filename)
 
         # prepare input dict
         parser = OrcaParser()
         indict = self.__prep(conf, "sp", "low+", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low+ gridsize
         
-        # write input into file "inp" in a subdir created for the worker process
-        parser.write_input(os.path.join(self.workdir, conf.id, "inp"), indict)
+        # write input into file "inp" in a subdir created for the conformer
+        parser.write_input(inputpath, indict)
 
         if not silent:
-            print(f"Running single-point in {last_folders(self.workdir, 2)}")
+            print(f"Running single-point in {last_folders(inputpath, 2)}")
         
         # start SP calculation
         with open(outputpath, "w", newline=None) as outputfile:
@@ -432,7 +433,7 @@ class OrcaProc(QmProc):
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=self.workdir,
+                cwd=os.path.join(self.workdir, str(conf.id)),
                 stdout=outputfile,
                 env=ENVIRON,
             )
@@ -445,8 +446,8 @@ class OrcaProc(QmProc):
 
         # read output
         if os.path.isfile(outputpath):
-            with open(outputpath, "r", encoding=CODING, newline=None) as inp:
-                lines = inp.readlines()
+            with open(outputpath, "r", encoding=CODING, newline=None) as out:
+                lines = out.readlines()
                 for i, line in enumerate(lines):
                     if "FINAL SINGLE POINT ENERGY" in line:
                         result["energy"] = float(line.split()[4])
@@ -457,7 +458,7 @@ class OrcaProc(QmProc):
                     
             if not result["success"]:
                 print(
-                    f"{'ERROR:':{WARNLEN}}scf in {last_folders(self.workdir, 2)} "
+                    f"{'ERROR:':{WARNLEN}}scf in {last_folders(inputpath, 2)} "
                     "not converged!"
                 )
         else:
