@@ -375,8 +375,8 @@ class OrcaProc(QmProc):
 
         # set keywords for the selected solvent model
         if not self.instructions["gas-phase"] and not no_solv:
-            if self.instructions["sm"] in ("smd"):
-                orcainput["cpcm"] = {
+            if self.instructions["sm"] == "smd":
+                indict["cpcm"] = {
                     "smd": ["true"],
                     "smdsolvent": [f"{self.solvents_dict['smd'][1]}"],
                 }
@@ -384,7 +384,7 @@ class OrcaProc(QmProc):
                 indict["main"].append(f"CPCM({self.solvents_dict['cpcm'][1]})")
 
         # unpaired, charge, and coordinates
-        # by default xyzfile format is unused, coordinates written directly into input file
+        # by default coordinates are written directly into input file
         indict["geom"] = {
             "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1],
             "coord": conf.toorca(),
@@ -456,7 +456,7 @@ class OrcaProc(QmProc):
         parser.write_input(inputpath, indict)
 
         if not silent:
-            print(f"Running single-point in {inputpath}")
+            print(f"Running ORCA single-point in {inputpath}")
         
         # start SP calculation
         with open(outputpath, "w", newline=None) as outputfile:
@@ -528,7 +528,7 @@ class OrcaProc(QmProc):
         )
 
         # calculate gas phase
-        res = self._sp(silent=True, filename="sp_gas", no_solv=True)
+        res = self._sp(conf, silent=True, filename="sp_gas", no_solv=True)
 
         if self.result["success"]:
             result["energy_gas"] = res["energy"]
@@ -541,7 +541,7 @@ class OrcaProc(QmProc):
             return result
 
         # calculate in solution
-        res = self._sp(silent=True, filename="sp_solv")
+        res = self._sp(conf, silent=True, filename="sp_solv")
 
         if self.result["success"]:
             result["energy_solv"] = res["energy"]
@@ -645,7 +645,7 @@ class OrcaProc(QmProc):
             newcoord.write("$external\n")
             newcoord.write("   orca input file= inp\n")
             newcoord.write(
-                f"   orca bin= {os.path.join(external_paths['orcapath'], 'orca')} \n"
+                f"   orca bin= {os.path.join(self.paths['orcapath'], 'orca')} \n"
             )
             newcoord.write("$end\n")
 
@@ -679,9 +679,7 @@ class OrcaProc(QmProc):
                 "$end \n",
             ])
 
-        # TODO - ???
-        time.sleep(0.02)
-
+        # prepare xtb call
         call = [
             self.paths["xtbpath"],
             "coord", # name of the coord file generated above

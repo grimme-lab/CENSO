@@ -138,6 +138,7 @@ class SettingsTuple(tuple):
         returns the first 'Setting' object in itself that has the given name
         if no matching one is found 'None' is returned
         """
+        # TODO - make this more like 'bypart'
         for item in self:
             if item.name == name:
                 return item
@@ -265,7 +266,7 @@ class CensoSettings:
             "general": MappingProxyType({
                 "charge": {"default": 0, "options": (-10, 10)}, # TODO - (re)move?
                 "unpaired": {"default": 0, "options": (0, 14)}, # TODO - (re)move?
-                "maxprocs": {"default": 1, "options": (1, 1024)}, # number of processes
+                "maxprocs": {"default": 1, "options": (1, 128)}, # number of processes
                 "omp": {"default": 1, "options": (1, 256)}, # number of cores per process
             }),
             "prescreening": None,
@@ -381,7 +382,7 @@ class CensoSettings:
                 "rmsdbias": {"default": False},
                 "progress": {"default": False},
                 "check": {"default": True},
-                "balance": {"default": False},
+                "balance": {"default": True},
                 "vapor_pressure": {"default": False},
                 "nmrmode": {"default": False},
                 "gas-phase": {"default": False},

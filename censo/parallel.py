@@ -33,62 +33,20 @@ class ProcessHandler:
         try:
             self.__ncores = os.cpu_count()
         except AttributeError:
+            # TODO - error handling
             raise AttributeError("Could not determine number of cores.")
         
-        self.__nprocs = None
-        self.__omp = None
-        if (
-            getattr(self.settings.settings_current.byname("balance"), "value", False) 
-            or not self.__balance_load()
-        ):
-            print("\nNot readjusting maxprocs and omp.\n")
-            # get number of processes
-            self.__nprocs = getattr(
-                self.settings.settings_current.byname("maxprocs"), 
-                "value",
-                None
-            )
-            
-            # get number of cores per process
-            self.__omp = getattr(
-                self.settings.settings_current.byname("omp"),
-                "value",
-                None
-            )
-    
-    
-    def __balance_load(self) -> bool:
-        """
-        distribute computational load between cores
-        keeping the number of processes below number of conformers
-        trying to utilize as many cores as possible
-        """
-        # check if load can be rebalanced
-        if (
-            not self.__ncores is None 
-            and not (
-                self.__nprocs is None or self.__omp is None
-            )
-            and (
-                self.__ncores > len(self.conformers) 
-                or self.__ncores > self.__nprocs * self.__omp
-            )
-        ):
-            # you want to create a number of parallel processes that in the best case is a divisor of nconf
-            # the number of processes should allow for utilization of all cores
-            try:
-                # finds the largest divisor of ncores that is less or equal than nconf
-                self.__nprocs = max([i for i in range(self.__ncores) if self.__ncores % i and i <= len(self.conformers)])
-            except ValueError:
-                print("There was an error while determining the number of processes in load balancing.") # TODO
-                return False
-            
-            # should always be divisible, floor division only as safeguard
-            self.__omp = self.__ncores // self.__nprocs
-            
-            return True
-        else:
-            return False
+        # get number of processes
+        self.__nprocs = getattr(
+            self.settings.settings_current.byname("maxprocs"), 
+            "value"
+        )
+        
+        # get number of cores per process
+        self.__omp = getattr(
+            self.settings.settings_current.byname("omp"),
+            "value"
+        )
                 
 
     def execute(self, jobtype: List[str], instructions: Dict[str, Any], workdir: str):
@@ -100,16 +58,12 @@ class ProcessHandler:
         instructions: dict with settings from CensoSettings (specific for part, see CensoPart)
         workdir: absolute path to folder where calculations should be executed in
         """
-        # TODO - 'smart balancing'
-        # set cores per process in instructions
-        instructions["omp"] = self.__omp
-
         # try to get program from instructions
         prog = instructions.get("prog", None)
         
         if prog is None:
-            raise Exception # TODO
-        
+            raise Exception # TODO - error handling
+
         # initialize the processor for the respective program (depends on part)
         # and set the jobtype as well as instructions, also pass workdir to compute in
         # also pass a lookup dict to the processor so it can set the solvent for the program call correctly
@@ -122,16 +76,26 @@ class ProcessHandler:
         self.__processor.jobtype = jobtype
         self.__processor.instructions = instructions
         self.__processor.workdir = workdir
-
-        # execute processes for conformers
+        
         # TODO - set PARNODES
-        with ProcessPoolExecutor(max_workers=self.__nprocs) as executor:
-            resiter = executor.map(self.__processor.run, self.conformers)
-         
-        # returns merged result dicts
-        # structure of results: 
-        #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
-        results = reduce(lambda x, y: {**x, **y}, resiter)
+        if self.settings.settings_current.get_setting(str, "general", "balance"):
+            # execute processes for conformers with load balancing enabled
+            # divide the conformers into chunks, work through them one after the other
+            chunks, procs = self.__chunkate()
+                
+            # execute each chunk with dynamic queue
+            results = {}
+            for i, chunk in enumerate(chunks):
+                # TODO - this is not very nice
+                self.__processor.instructions["omp"] = self.__ncores // procs[i]
+                self.__omp = self.__ncores // procs[i]
+                self.__nprocs = procs[i]
+
+                # collect results by iteratively merging
+                results = {**results, **self.__dqp(chunk)}
+        else:
+            # execute processes without load balancing, taking the user-provided settings
+            results = self.__dqp(self.core.conformers)
 
         # assert that there is a result for every conformer
         # TODO - error handling
@@ -141,3 +105,54 @@ class ProcessHandler:
             raise KeyError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
         
         return results
+
+
+    def __dqp(self, confs: List[GeometryData]) -> Dict[str, Any]:
+        """
+        D ynamic Q ueue P rocessing
+        parallel execution of processes with settings defined in self.__processor.instructions
+        """
+        
+        # execute calculations for given list of conformers
+        with ProcessPoolExecutor(max_workers=self.__nprocs) as executor:
+            resiter = executor.map(self.__processor.run, confs) 
+        
+        # returns merged result dicts
+        # structure of results: 
+        #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
+        return reduce(lambda x, y: {**x, **y}, resiter)
+        
+        
+    def __chunkate(self) -> Tuple[List[Any]]:
+        """
+        distribute conformers until none are left
+        group chunks by number of processes
+        """ 
+        chunks, procs = []
+        
+        i = 0
+        pold = -1
+        nconf, lconf = len(self.core.conformers)
+        while nconf > 0:
+            if nconf >= self.__ncores:
+                p = self.__ncores
+            elif nconf < self.__ncores:
+                if self.__ncores % nconf:
+                    p = nconf
+                else:
+                    # largest integer smaller than self.__ncores that divides nconf
+                    p = max([j for j in range(1, self.__ncores) if self.__ncores % j == 0 and j <= nconf])
+            
+            if p != pold:
+                # if number of processes is different than before add new chunk
+                chunks.append(self.core.conformers[lconf-nconf:lconf-nconf+p])
+                procs.append(p)
+                i += 1
+            else:
+                # if number of processes didn't change, merge with the previous chunk
+                chunks[i-1].extend(self.core.conformers[lconf-nconf:lconf-nconf+p])
+            
+            pold = p
+            nconf -= p
+
+        return chunks, procs

@@ -3,6 +3,8 @@
 """
 import os
 from typing import List
+import csv
+
 from censo.cfg import PLENGTH, DIGILEN, AU2KCAL
 from censo.utilities import (
     print,
@@ -178,11 +180,12 @@ class Prescreening(CensoPart):
             E(DFT) + G_solv, 
             δ(E(DFT) + G_solv) 
             
-        TODO also writes data in easily digestible format
+        also writes data in easily digestible format
         """
+        
         # column headers
         headers = [
-            "CONF",
+            "CONF#",
             "E (xtb)",
             "ΔE (xtb)",
             "E (DFT)",
@@ -275,8 +278,6 @@ class Prescreening(CensoPart):
             lines.append(
                 " ".join(
                         f"{printmap[header](conf):^{collen+6}}" 
-                        if "Δ" in header 
-                        else f"{printmap[header](conf):^{collen+6}}" 
                         for header, collen in collens.items()
                     ) 
                 # draw an arrow if conformer is the best in current ranking
@@ -312,5 +313,15 @@ class Prescreening(CensoPart):
         lines.append(">>> END of Prescreening <<<".center(PLENGTH, " ") + "\n")
             
         # write everything to a file
-        with open(os.path.join(self.core.cwd, "prescreening.out"), "w") as outfile:
+        with open(os.path.join(self.core.cwd, "prescreening.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
+
+        # additionally, write data in csv format
+        with open(os.path.join(self.core.cwd, "prescreening.csv"), "w", newline=None) as outfile:
+            writer = csv.writer(outfile, delimiter=" ", fieldnames=headers)
+            writer.writeheader()
+            
+            for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
+                writer.writerow({header: printmap[header](conf) for header in headers})
+            
+            writer.flush()
