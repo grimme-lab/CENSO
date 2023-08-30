@@ -215,29 +215,24 @@ class QmProc:
         # (set either through run settings or by call kwarg e.g. for _xtb_gsolv)
         # note on solvents_dict (or rather censo_solvents.json): 
         # [0] is the normal name of the solvent, if it is available, [1] is the replacement
-        if not self.instructions.get("gas-phase", False) or no_solv:
+        if not (self.instructions.get("gas-phase", False) or no_solv):
             call.extend(
                 [
                     "--" + self.instructions["sm_rrho"],
                     self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
                     "reference",
+                    "-I",
+                    "xcontrol-inp"
                 ]
             )
 
-            # set gbsa grid if gbsa is used, do nothing for alpb
-            if self.instructions["sm_rrho"] == "gbsa":
-                call.extend(
-                    [
-                        "-I",
-                        "xcontrol-inp",
-                    ]
-                )
-                with open(
-                    os.path.join(confdir, "xcontrol-inp"), "w", newline=None
-                ) as xcout:
-                    xcout.write("$gbsa\n")
-                    xcout.write("  gbsagrid=tight\n")
-                    xcout.write("$end\n")
+            # set gbsa grid
+            with open(
+                os.path.join(confdir, "xcontrol-inp"), "w", newline=None
+            ) as xcout:
+                xcout.write("$gbsa\n")
+                xcout.write("  gbsagrid=tight\n")
+                xcout.write("$end\n")
 
         # call xtb and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:

@@ -1,6 +1,7 @@
 from typing import Dict, List
 from functools import reduce
 
+from censo.cfg import BOHR2ANG
 
 class GeometryData:
     """
@@ -20,6 +21,7 @@ class GeometryData:
         self.name: str = name
         
         # dict with element symbols as keys and lists of three-item lists as values
+        # the coordinates should be given in Angstrom
         self.xyz: Dict[str, List[List[float]]] = {}
         
         # set up xyz dict from the input lines
@@ -54,6 +56,7 @@ class GeometryData:
         coord = []
         for element, allcoords in self.xyz.items():
             for atom in allcoords:
+                atom = list(map(lambda x: float(x) / BOHR2ANG, atom))
                 coord.append(reduce(lambda x, y: f"{x} {y}", atom + [f"{element}\n"]))
 
         # write coord file

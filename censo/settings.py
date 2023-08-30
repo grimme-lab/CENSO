@@ -320,7 +320,7 @@ class CensoSettings:
                 "cosmorsparam": {"default": "automatic", "options": tuple([k for k in cosmors_param.keys()])},
             }),
             "prescreening": MappingProxyType({
-                "func": {"default": "b97-d3", "options": tuple(dfa_settings.find_func("prescreening"))},
+                "func": {"default": "pbe-d4", "options": tuple(dfa_settings.find_func("prescreening"))},
                 "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs) + ("def2-SV(P)", "def2-TZVP")},
                 "prog": {"default": "orca", "options": PROGS},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
@@ -344,8 +344,8 @@ class CensoSettings:
             }),
             "refinement": MappingProxyType({
                 "prog": {"default": "orca", "options": PROGS},
-                "func": {"default": "pw6b95-d4", "options": tuple(dfa_settings.find_func("func3"))},
-                "basis": {"default": "def2-TZVPD", "options": basis_sets},
+                "func": {"default": "wb97x-v", "options": tuple(dfa_settings.find_func("func3"))},
+                "basis": {"default": "def2-TZVPP", "options": basis_sets},
                 "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
                 "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
             }),
@@ -388,18 +388,22 @@ class CensoSettings:
             }),
             "prescreening": MappingProxyType({
                 "run": {"default": True},
+                "gcp": {"default": True},
             }),
             "screening": MappingProxyType({
                 "run": {"default": True},
+                "gcp": {"default": True},
             }),
             "optimization": MappingProxyType({
                 "run": {"default": True},
+                "gcp": {"default": True},
                 # "ancopt": {"default": True},
                 "opt_spearman": {"default": True},
                 "crestcheck": {"default": False},
             }),
             "refinement": MappingProxyType({
                 "run": {"default": False},
+                "gcp": {"default": True},
             }),
             "nmr": MappingProxyType({
                 "run": {"default": False},

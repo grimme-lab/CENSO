@@ -233,7 +233,7 @@ class Prescreening(CensoPart):
         # determines what to print for each conformer in each column
         # TODO - remaining float accuracies
         printmap = {
-            "CONF": lambda conf: conf.name,
+            "CONF#": lambda conf: conf.name,
             "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
             "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",

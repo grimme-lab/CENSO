@@ -400,8 +400,20 @@ class OrcaProc(QmProc):
             }
         """
 
-        # TODO - remove this later
-        indict["main"].append("GCP(DFT/sv(p))")
+        # try to apply gcp if basis set available
+        gcp_keywords = {
+            "minis": "MINIS",
+            "sv": "SV",
+            "6-31g(d)": "631GD",
+            "def2-sv(p)": "SV(P)",
+            "def2-svp": "SVP",
+            "def2-tzvp": "TZ",
+        }
+        if self.instructions["gcp"] and self.instructions["basis"].lower() in gcp_keywords.keys():
+            indict["main"].append(f"GCP(DFT/{gcp_keywords[self.instructions['basis'].lower()]})")
+        elif self.instructions["gcp"]:
+            # TODO - error handling
+            print("Selected basis not available for GCP.")
 
         return indict
 
