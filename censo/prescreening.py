@@ -318,7 +318,7 @@ class Prescreening(CensoPart):
 
         # additionally, write data in csv format
         with open(os.path.join(self.core.cwd, "prescreening.csv"), "w", newline=None) as outfile:
-            writer = csv.writer(outfile, delimiter=" ", fieldnames=headers)
+            writer = csv.DictWriter(outfile, headers, delimiter=" ")
             writer.writeheader()
             
             for conf in sorted(self.core.conformers, key=lambda conf: conf.name):

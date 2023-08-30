@@ -3,7 +3,7 @@ Performs the parallel execution of the QM calls.
 """
 from functools import reduce
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from concurrent.futures import ProcessPoolExecutor
 from pprint import pprint
 
@@ -95,7 +95,7 @@ class ProcessHandler:
                 results = {**results, **self.__dqp(chunk)}
         else:
             # execute processes without load balancing, taking the user-provided settings
-            results = self.__dqp(self.core.conformers)
+            results = self.__dqp(self.conformers)
 
         # assert that there is a result for every conformer
         # TODO - error handling
@@ -132,7 +132,7 @@ class ProcessHandler:
         
         i = 0
         pold = -1
-        nconf, lconf = len(self.core.conformers)
+        nconf, lconf = len(self.conformers)
         while nconf > 0:
             if nconf >= self.__ncores:
                 p = self.__ncores
@@ -145,12 +145,12 @@ class ProcessHandler:
             
             if p != pold:
                 # if number of processes is different than before add new chunk
-                chunks.append(self.core.conformers[lconf-nconf:lconf-nconf+p])
+                chunks.append(self.conformers[lconf-nconf:lconf-nconf+p])
                 procs.append(p)
                 i += 1
             else:
                 # if number of processes didn't change, merge with the previous chunk
-                chunks[i-1].extend(self.core.conformers[lconf-nconf:lconf-nconf+p])
+                chunks[i-1].extend(self.conformers[lconf-nconf:lconf-nconf+p])
             
             pold = p
             nconf -= p
