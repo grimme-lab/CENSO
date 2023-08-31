@@ -86,6 +86,19 @@ GSOLV_MODS = {
     "tm": ("cosmors", "cosmors-fine"),
 }
 
+GRIDOPTIONS = (
+    "low",
+    "low+",
+    "high",
+    "high+",
+)
+
+GFNOPTIONS = (
+    "gfnff",
+    "gfn1",
+    "gfn2",
+)
+
 SettingsDict = Dict[
             type, Dict[
                 str, Dict[

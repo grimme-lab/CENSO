@@ -323,5 +323,3 @@ class Prescreening(CensoPart):
             
             for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
                 writer.writerow({header: printmap[header](conf) for header in headers})
-            
-            writer.flush()

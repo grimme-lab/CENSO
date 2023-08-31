@@ -323,13 +323,13 @@ class OrcaProc(QmProc):
 
             # settings for hybrids
             elif self.instructions["func"] in self.dfa_settings.hybrids:
-                indict["main"].extend(["def2/J", "RIJCOSX"])
+                indict["main"].append("RIJCOSX")
                 if not orca5:
                     indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
             
             # settings for (m)ggas
             elif self.instructions["func"] in self.dfa_settings.ggas:
-                indict["main"].extend(["RI", "def2/J"])    
+                indict["main"].append("RI")    
 
         ########################## SET GRID ############################ 
 
@@ -340,8 +340,8 @@ class OrcaProc(QmProc):
             #%moinp "jobname2.gbw"
             orcainput["moread"] = self.job["moread"]"""
 
-        # use 'grid' setting from function signature to quickly choose the grid settings 
-        indict["main"].extend(self.__gridsettings[orca5][grid])
+        # use 'grid' setting from instructions to quickly choose the grid settings 
+        indict["main"].extend(self.__gridsettings[orca5][self.instructions["grid"]])
         
         ########################## DISPERSION ####################### TODO TODO TODO TODO TODO
         # add dispersion
@@ -450,7 +450,7 @@ class OrcaProc(QmProc):
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(conf, "sp", "low", no_solv=no_solv) # TODO - IMPORTANT not every sp should use low gridsize
+        indict = self.__prep(conf, "sp", no_solv=no_solv)
         
         # write input into file "{filename}.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)

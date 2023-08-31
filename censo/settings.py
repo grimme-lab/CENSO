@@ -1,7 +1,9 @@
+import ast
 import json
 import os
 import shutil
 import sys
+import configparser
 from argparse import Namespace
 from dataclasses import dataclass
 from functools import reduce
@@ -10,7 +12,7 @@ from types import MappingProxyType
 from typing import Any, Dict, List, Tuple, Type, Union
 
 from censo.cfg import (ASSETS_PATH, DIGILEN, GSOLV_MODS, PARTS, PLENGTH, PROGS, SOLV_MODS,
-                            WARNLEN, SettingsDict, __version__)
+                            WARNLEN, GRIDOPTIONS, GFNOPTIONS, SettingsDict, __version__)
 from censo.errorswarnings import LogicError, LogicWarning
 
 
@@ -210,7 +212,7 @@ class CensoSettings:
         "19-fine": "BP_TZVPD_FINE_19.ctd",
     }
 
-    # load up all resources to set value options in __settings_options
+    # load up all resources to set value options in settings_options
     # TODO - catch error if dfa_settings cannot be created
     try:
         with open(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"), "r") as dfa_file:
@@ -228,7 +230,153 @@ class CensoSettings:
 
     solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
     gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
-
+    
+    # default settings, defines sections and default settings
+    # they are used if settings are missing from the configuration file (TODO - provide warning!)
+    __defaults = {
+        'general': {
+            # strs
+            'cosmorsparam': 'automatic',
+            'sm_rrho': 'alpb',
+            'solvent': 'h2o',
+            # ints
+            'charge': 0,
+            'maxprocs': 1,
+            'omp': 1,
+            'unpaired': 0,
+            # floats
+            'imagethr': -100.0,
+            'scale': 1.0,
+            'sthr': 0.0,
+            'temperature': 298.15,
+            # lists
+            'trange': [273.15, 378.15, 5],
+            # bools
+            'balance': True,
+            'bhess': True,
+            'check': True,
+            'consider_sym': True,
+            'evaluate_rrho': True,
+            'gas-phase': False,
+            'multitemp': True,
+            'nmrmode': False,
+            'progress': False,
+            'rmsdbias': False,
+            'vapor_pressure': False,
+        },
+        'nmr': {
+            # strs
+            'basis_j': 'def2-TZVP',
+            'basis_s': 'def2-TZVP',
+            'c_ref': 'TMS',
+            'f_ref': 'CFCl3',
+            'func_j': 'pbe0-d4',
+            'func_s': 'pbe0-d4',
+            'h_ref': 'TMS',
+            'p_ref': 'TMP',
+            'prog4_j': 'tm',
+            'prog4_s': 'tm',
+            'si_ref': 'TMS',
+            'sm4_j': 'default',
+            'sm4_s': 'default',
+            # floats
+            'resonance_frequency': 300.0,
+            # bools
+            'c_active': True,
+            'couplings': True,
+            'f_active': False,
+            'h_active': True,
+            'p_active': False,
+            'run': False,
+            'shieldings': True,
+            'si_active': False,
+        },
+        'optimization': {
+            # strs
+            'basis': 'automatic',
+            'func': 'r2scan-3c',
+            'gfnv': 'gfn2',
+            'grid': 'high',
+            'optlevel2': 'automatic',
+            'prog': 'orca',
+            'prog2opt': 'prog',
+            'sm': 'smd',
+            'smgsolv': 'smd_gsolv',
+            # ints
+            'optcycles': 8,
+            'radsize': 10,
+            # floats
+            'hlow': 0.01,
+            'optimization_P_threshold': 99.0,
+            'spearmanthr': 0.0,
+            'threshold': 2.5,
+            # bools
+            'crestcheck': False,
+            'gcp': True,
+            'opt_spearman': True,
+            'run': True,
+        },
+        'optrot': {
+            # strs
+            'basis': 'def2-SVPD',
+            'func': 'pbe-d4',
+            'func_or_scf': 'r2scan-3c',
+            'prog': 'orca',
+            # lists
+            'freq_or': [598.0],
+            # bools
+            'run': False,
+        },
+        'prescreening': {
+            # strs
+            'basis': 'def2-SV(P)',
+            'func': 'pbe-d4',
+            'gfnv': 'gfn2',
+            'grid': 'low',
+            'prog': 'orca',
+            # floats
+            'threshold': 4.0,
+            # bools
+            'gcp': True,
+            'run': True,
+        },
+        'refinement': {
+            # strs
+            'basis': 'def2-TZVPP',
+            'func': 'wb97x-v',
+            'gfnv': 'gfn2',
+            'grid': 'high+',
+            'prog': 'orca',
+            'smgsolv': 'smd_gsolv',
+            # floats
+            'threshold': 99.0,
+            # bools
+            'gcp': True,
+            'run': False,
+        },
+        'screening': {
+            # strs
+            'basis': 'automatic',
+            'func': 'r2scan-3c',
+            'gfnv': 'gfn2',
+            'grid': 'low+',
+            'prog': 'orca',
+            'smgsolv': 'smd_gsolv',
+            # floats
+            'threshold': 3.5,
+            # bools
+            'gcp': True,
+            'run': True,
+        },
+        'uvvis': {
+            # ints
+            'nroots': 20,
+            # floats
+            'sigma': 0.1,
+            # bools
+            'run': False,
+        },
+    },
     # TODO - defaults for uvvis (func: wB97X-D3)
     # TODO - find solutions for "automatic" or "default"/"prog"/"whatever" cases
     # TODO - rename options but remember old names for later mapping (backwards compatibility)    # removed general:func and general:prog, added part1:func1/prog1, part2:func2/prog2
@@ -259,57 +407,530 @@ class CensoSettings:
     |  |  |-> setting: str, dict
     .....
     """    
+    settings_options = {
+        "general": {
+            "charge": {
+                "default": 0,
+                "range": [
+                    -10,
+                    10
+                ]
+            },
+            "unpaired": {
+                "default": 0,
+                "range": [
+                    0,
+                    14
+                ]
+            },
+            "maxprocs": {
+                "default": 1,
+                "range": [
+                    1,
+                    128
+                ]
+            },
+            "omp": {
+                "default": 1,
+                "range": [
+                    1,
+                    256
+                ]
+            },
+            "imagethr": {
+                "default": -100.0,
+                "range": [
+                    -300.0,
+                    0.0
+                ]
+            },
+            "sthr": {
+                "default": 0.0,
+                "range": [
+                    0.0,
+                    100.0
+                ]
+            },
+            "scale": {
+                "default": 1.0,
+                "range": [
+                    0.0,
+                    1.0
+                ]
+            },
+            "temperature": {
+                "default": 298.15,
+                "range": [
+                    1e-05,
+                    2000.0
+                ]
+            },
+            "solvent": {
+                "default": "h2o",
+                "options": [k for k in solvents_db.keys()]
+            },
+            "sm_rrho": {
+                "default": "alpb",
+                "options": [
+                    "alpb",
+                    "gbsa"
+                ]
+            },
+            "cosmorsparam": {
+                "default": "automatic",
+                "options": [k for k in cosmors_param.keys()]
+            },
+            "multitemp": {
+                "default": True
+            },
+            "evaluate_rrho": {
+                "default": True
+            },
+            "consider_sym": {
+                "default": True
+            },
+            "bhess": {
+                "default": True
+            },
+            "rmsdbias": {
+                "default": False
+            },
+            "progress": {
+                "default": False
+            },
+            "check": {
+                "default": True
+            },
+            "balance": {
+                "default": True
+            },
+            "vapor_pressure": {
+                "default": False
+            },
+            "nmrmode": {
+                "default": False
+            },
+            "gas-phase": {
+                "default": False
+            },
+            "trange": {
+                "default": [
+                    273.15,
+                    378.15,
+                    5
+                ]
+            }
+        },
+        "prescreening": {
+            "threshold": {
+                "default": 4.0,
+                "range": [
+                    1.0,
+                    10.0
+                ]
+            },
+            "func": {
+                "default": "pbe-d4",
+                "options": dfa_settings.find_func("prescreening")
+            },
+            "basis": {
+                "default": "def2-SV(P)",
+                "options": basis_sets
+            },
+            "prog": {
+                "default": "orca",
+                "options": PROGS
+            },
+            "gfnv": {
+                "default": "gfn2",
+                "options": GFNOPTIONS
+            },
+            "grid": {
+                "default": "low",
+                "options": GRIDOPTIONS
+            },
+            "run": {
+                "default": True
+            },
+            "gcp": {
+                "default": True
+            }
+        },
+        "screening": {
+            "threshold": {
+                "default": 3.5,
+                "range": [
+                    0.75,
+                    7.5
+                ]
+            },
+            "func": {
+                "default": "r2scan-3c",
+                "options": dfa_settings.find_func("screening")
+            },
+            "basis": {
+                "default": "def2-TZVP",
+                "options": basis_sets
+            },
+            "prog": {
+                "default": "orca",
+                "options": PROGS
+            },
+            "smgsolv": {
+                "default": "smd_gsolv",
+                "options": gsolv_mods
+            },
+            "gfnv": {
+                "default": "gfn2",
+                "options": GFNOPTIONS
+            },
+            "grid": {
+                "default": "low+",
+                "options": GRIDOPTIONS
+            },
+            "run": {
+                "default": True
+            },
+            "gcp": {
+                "default": True
+            }
+        },
+        "optimization": {
+            "optcycles": {
+                "default": 8,
+                "range": [
+                    1,
+                    100
+                ]
+            },
+            "radsize": {
+                "default": 10,
+                "range": [
+                    1,
+                    100
+                ]
+            },
+            "threshold": {
+                "default": 2.5,
+                "range": [
+                    0.5,
+                    5
+                ]
+            },
+            "hlow": {
+                "default": 0.01,
+                "range": [
+                    0.01,
+                    1.0
+                ]
+            },
+            "optimization_P_threshold": {
+                "default": 99.0,
+                "range": [
+                    1.0,
+                    10.0
+                ]
+            },
+            "spearmanthr": {
+                "default": 0.0,
+                "range": [
+                    0.0,
+                    10.0
+                ]
+            },
+            "func": {
+                "default": "r2scan-3c",
+                "options": dfa_settings.find_func("optimization")
+            },
+            "basis": {
+                "default": "def2-TZVP",
+                "options": basis_sets
+            },
+            "prog": {
+                "default": "orca",
+                "options": PROGS
+            },
+            "prog2opt": {
+                "default": "prog",
+                "options": []
+            },
+            "sm": {
+                "default": "smd",
+                "options": solv_mods
+            },
+            "smgsolv": {
+                "default": "smd_gsolv",
+                "options": gsolv_mods
+            },
+            "gfnv": {
+                "default": "gfn2",
+                "options": GFNOPTIONS
+            },
+            "optlevel2": {
+                "default": "automatic",
+                "options": [
+                    "crude",
+                    "sloppy",
+                    "loose",
+                    "lax",
+                    "normal",
+                    "tight",
+                    "vtight",
+                    "extreme",
+                    "automatic"
+                ]
+            },
+            "grid": {
+                "default": "high",
+                "options": GRIDOPTIONS
+            },
+            "run": {
+                "default": True
+            },
+            "gcp": {
+                "default": True
+            },
+            "opt_spearman": {
+                "default": True
+            },
+            "crestcheck": {
+                "default": False
+            }
+        },
+        "refinement": {
+            "threshold": {
+                "default": 99.0,
+                "min": [
+                    1.0,
+                    10.0
+                ]
+            },
+            "prog": {
+                "default": "orca",
+                "options": PROGS
+            },
+            "func": {
+                "default": "wb97x-v",
+                "options": dfa_settings.find_func("refinement")
+            },
+            "basis": {
+                "default": "def2-TZVPP",
+                "options": basis_sets
+            },
+            "smgsolv": {
+                "default": "smd_gsolv",
+                "options": gsolv_mods
+            },
+            "gfnv": {
+                "default": "gfn2",
+                "options": GFNOPTIONS
+            },
+            "grid": {
+                "default": "high+",
+                "options": GRIDOPTIONS
+            },
+            "run": {
+                "default": False
+            },
+            "gcp": {
+                "default": True
+            }
+        },
+        "nmr": {
+            "resonance_frequency": {
+                "default": 300.0,
+                "range": [
+                    150.0,
+                    1000.0
+                ]
+            },
+            "prog4_j": {
+                "default": "tm",
+                "options": PROGS
+            },
+            "func_j": {
+                "default": "pbe0-d4",
+                "options": []
+            },
+            "basis_j": {
+                "default": "def2-TZVP",
+                "options": basis_sets
+            },
+            "sm4_j": {
+                "default": "default",
+                "options": solv_mods
+            },
+            "prog4_s": {
+                "default": "tm",
+                "options": PROGS
+            },
+            "func_s": {
+                "default": "pbe0-d4",
+                "options": []
+            },
+            "basis_s": {
+                "default": "def2-TZVP",
+                "options": basis_sets
+            },
+            "sm4_s": {
+                "default": "default",
+                "options": solv_mods
+            },
+            "h_ref": {
+                "default": "TMS",
+                "options": [
+                    "TMS"
+                ]
+            },
+            "c_ref": {
+                "default": "TMS",
+                "options": [
+                    "TMS"
+                ]
+            },
+            "f_ref": {
+                "default": "CFCl3",
+                "options": [
+                    "CFCl3"
+                ]
+            },
+            "si_ref": {
+                "default": "TMS",
+                "options": [
+                    "TMS"
+                ]
+            },
+            "p_ref": {
+                "default": "TMP",
+                "options": [
+                    "TMP",
+                    "PH3"
+                ]
+            },
+            "run": {
+                "default": False
+            },
+            "couplings": {
+                "default": True
+            },
+            "shieldings": {
+                "default": True
+            },
+            "h_active": {
+                "default": True
+            },
+            "c_active": {
+                "default": True
+            },
+            "f_active": {
+                "default": False
+            },
+            "si_active": {
+                "default": False
+            },
+            "p_active": {
+                "default": False
+            }
+        },
+        "optrot": {
+            "func": {
+                "default": "pbe-d4",
+                "options": dfa_settings.find_func("optrot")
+            },
+            "func_or_scf": {
+                "default": "r2scan-3c",
+                "options": []
+            },
+            "basis": {
+                "default": "def2-SVPD",
+                "options": basis_sets
+            },
+            "prog": {
+                "default": "orca",
+                "options": [
+                    "orca"
+                ]
+            },
+            "run": {
+                "default": False
+            },
+            "freq_or": {
+                "default": [
+                    598.0
+                ]
+            }
+        },
+        "uvvis": {
+            "nroots": {
+                "default": 20,
+                "range": [
+                    1,
+                    100
+                ]
+            },
+            "sigma": {
+                "default": 0.1,
+                "range": [
+                    0.1,
+                    1.0
+                ]
+            },
+            "run": {
+                "default": False
+            }
+        },
+    }
     # TODO - solvent mapping
     # still included as fallback
-    __settings_options = MappingProxyType({
+    """settings_options = MappingProxyType({
         int: MappingProxyType({
             "general": MappingProxyType({
-                "charge": {"default": 0, "options": (-10, 10)}, # TODO - (re)move?
-                "unpaired": {"default": 0, "options": (0, 14)}, # TODO - (re)move?
-                "maxprocs": {"default": 1, "options": (1, 128)}, # number of processes
-                "omp": {"default": 1, "options": (1, 256)}, # number of cores per process
+                "charge": {"default": 0, "range": (-10, 10)}, # TODO - (re)move?
+                "unpaired": {"default": 0, "range": (0, 14)}, # TODO - (re)move?
+                "maxprocs": {"default": 1, "range": (1, 128)}, # number of processes
+                "omp": {"default": 1, "range": (1, 256)}, # number of cores per process
             }),
             "prescreening": None,
             "screening": None,
             "optimization": MappingProxyType({
-                "optcycles": {"default": 8, "options": (1, 100)}, # TODO - which value as min?
-                "radsize": {"default": 10, "options": (1, 100)}, # TODO - same
+                "optcycles": {"default": 8, "range": (1, 100)}, # TODO - which value as min?
+                "radsize": {"default": 10, "range": (1, 100)}, # TODO - same
             }),
             "refinement": None,
             "nmr": None,
             "optrot": None,
             "uvvis": MappingProxyType({
-                "nroots": {"default": 20, "options": (1, 100)}, # TODO - set dynamically
+                "nroots": {"default": 20, "range": (1, 100)}, # TODO - set dynamically
             }),
         }),
         float: MappingProxyType({
             "general": MappingProxyType({
-                "imagethr": {"default": -100.0, "options": (-300.0, 0.0)}, # TODO - threshold for imaginary frequencies
-                "sthr": {"default": 0.0, "options": (0.0, 100.0)}, # TODO - what is this?
-                "scale": {"default": 1.0, "options": (0.0, 1.0)}, # TODO - what is this?
-                "temperature": {"default": 298.15, "options": (0.00001, 2000.0)}, # TODO
+                "imagethr": {"default": -100.0, "range": (-300.0, 0.0)}, # TODO - threshold for imaginary frequencies
+                "sthr": {"default": 0.0, "range": (0.0, 100.0)}, # TODO - what is this?
+                "scale": {"default": 1.0, "range": (0.0, 1.0)}, # TODO - what is this?
+                "temperature": {"default": 298.15, "range": (0.00001, 2000.0)}, # TODO
             }),
             "prescreening": MappingProxyType({
-                "threshold": {"default": 4.0, "options": (1.0, 10.0)}, # TODO - which value as min?
+                "threshold": {"default": 4.0, "range": (1.0, 10.0)}, # TODO - which value as min?
             }),
             "screening": MappingProxyType({
-                "threshold": {"default": 3.5, "options": (0.75, 7.5)},
+                "threshold": {"default": 3.5, "range": (0.75, 7.5)},
             }),
             "optimization": MappingProxyType({
-                "threshold": {"default": 2.5, "options": (0.5, 5)}, # TODO - rename?
-                "hlow": {"default": 0.01, "options": (0.01, 1.0)}, # TODO
-                "optimization_P_threshold": {"default": 99.0, "options": (1.0, 10.0)}, # TODO
-                "spearmanthr": {"default": 0.0, "options": (0.0, 10.0)},
+                "threshold": {"default": 2.5, "range": (0.5, 5)}, # TODO - rename?
+                "hlow": {"default": 0.01, "range": (0.01, 1.0)}, # TODO
+                "optimization_P_threshold": {"default": 99.0, "range": (1.0, 10.0)}, # TODO
+                "spearmanthr": {"default": 0.0, "range": (0.0, 10.0)},
             }),
             "refinement": MappingProxyType({
-                "threshold": {"default": 99.0, "min": (1.0, 10.0)}, # TODO
+                "threshold": {"default": 99.0, "range": (1.0, 10.0)}, # TODO
             }),
             "nmr": MappingProxyType({
-                "resonance_frequency": {"default": 300.0, "options": (150.0, 1000.0)}, # TODO
+                "resonance_frequency": {"default": 300.0, "range": (150.0, 1000.0)}, # TODO
             }),
             "optrot": None,
             "uvvis": MappingProxyType({
-                "sigma": {"default": 0.1, "options": (0.1, 1.0)},
+                "sigma": {"default": 0.1, "range": (0.1, 1.0)},
             }),
         }),
         str: MappingProxyType({
@@ -324,14 +945,16 @@ class CensoSettings:
                 "func": {"default": "pbe-d4", "options": tuple(dfa_settings.find_func("prescreening"))},
                 "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs) + ("def2-SV(P)", "def2-TZVP")},
                 "prog": {"default": "orca", "options": PROGS},
-                "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
+                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+                "grid": {"default": "low", "options": GRIDOPTIONS},
             }),
             "screening": MappingProxyType({
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func1"))},
                 "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
                 "prog": {"default": "orca", "options": PROGS},
                 "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
-                "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
+                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+                "grid": {"default": "low+", "options": GRIDOPTIONS},
             }),
             "optimization": MappingProxyType({
                 "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func2"))},
@@ -340,15 +963,17 @@ class CensoSettings:
                 "prog2opt": {"default": "prog", "options": PROGS}, # TODO - ??? prog2 ??? # FIXME
                 "sm": {"default": "smd", "options": solv_mods}, # FIXME
                 "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
-                "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
+                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
                 "optlevel2": {"default": "automatic", "options": ("crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme", "automatic")}, # TODO - what does this mean?
+                "grid": {"default": "high", "options": GRIDOPTIONS},
             }),
             "refinement": MappingProxyType({
                 "prog": {"default": "orca", "options": PROGS},
                 "func": {"default": "wb97x-v", "options": tuple(dfa_settings.find_func("func3"))},
                 "basis": {"default": "def2-TZVPP", "options": basis_sets},
                 "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
-                "gfnv": {"default": "gfn2", "options": ("gfn1", "gfn2", "gfnff")},
+                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+                "grid": {"default": "high+", "options": GRIDOPTIONS},
             }),
             "nmr": MappingProxyType({
                 "prog4_j": {"default": "tm", "options": PROGS},
@@ -437,7 +1062,7 @@ class CensoSettings:
             }),
             "uvvis": None,
         }),
-    })
+    })"""
 
     @property
     def settings_options(cls) -> SettingsTuple:
@@ -446,8 +1071,8 @@ class CensoSettings:
         """
         default = SettingsTuple()
 
-        # loop over all known settings (hardcoded in __settings_options)
-        for type_t, parts in cls.__settings_options.items():
+        # loop over all known settings (hardcoded in settings_options)
+        for type_t, parts in cls.settings_options.items():
             for part, settings in parts.items():
                 if settings:
                     # if settings exist create 'Setting' objects with default settings
@@ -471,7 +1096,7 @@ class CensoSettings:
         """
         returns the type of a given setting
         """
-        for type_t, parts in cls.__settings_options.items():
+        for type_t, parts in cls.settings_options.items():
             for settings in parts.values():
                 if settings:
                     if name in settings.keys():
@@ -485,7 +1110,7 @@ class CensoSettings:
         """
         returns the definition of a given setting
         """
-        for type_t, parts in cls.__settings_options.items():
+        for type_t, parts in cls.settings_options.items():
             for settings in parts.values():
                 if settings:
                     if name in settings.keys():
@@ -499,13 +1124,23 @@ class CensoSettings:
         setup with default settings, all other attributes blank
         """   
         
-        # stores all settings in a SettingsTuple (extending built-in tuple)
-        # initialized with default settings
-        self.__settings_current: SettingsTuple = self.settings_options
+        # stores all settings, grouped by section (e.g. "general", "prescreening", ...)
+        # every string is in lower case
+        self.__settings_current: Dict[str, Dict[str, Any]]
         
-        # absolute path to configuration file
-        self.censorc_path: str
-        
+        # absolute path to configuration file, try to find .censorc on construction
+        self.censorc_path: str = self.__find_rcfile()
+
+        # assert that a config file is found before trying to read it
+        try:
+            assert self.censorc_path is not None
+        except AssertionError:
+            # TODO - error handling
+            raise Exception("Configuration file not found")
+
+        # read config file
+        self.__settings_current = self.__read_config(self.censorc_path)
+
         # TODO - try to read paths from environment vars?
         self.external_paths: Dict[str, str] = {}
         self.external_paths["orcapath"] = ""
@@ -517,6 +1152,9 @@ class CensoSettings:
         self.external_paths["cosmothermversion"] = "" # TODO - maybe remove this from here
         self.external_paths["mpshiftpath"] = ""
         self.external_paths["escfpath"] = ""
+
+        # read program paths from config file
+        self.__read_program_paths()
     
     
     def print_paths(self) -> None:
@@ -537,7 +1175,7 @@ class CensoSettings:
 
 
     @property
-    def settings_current(self) -> SettingsTuple:
+    def settings_current(self) -> Dict[str, Dict[str, Any]]:
         """
         returns the complete __settings_current
         """
@@ -554,16 +1192,17 @@ class CensoSettings:
         for setting in self.__settings_current:
             # update settings with rcfile
             try:
-                setting.value = rcdata[setting.type][setting.part][setting.name]
+                # everything converted to lower case since there is no need for case sensitivity
+                setting.value = rcdata[setting.type][setting.part][setting.name].lower()
                 rcdata[setting.type][setting.part].pop(setting.name)
             except KeyError:
                 print(f"Could not find {setting} in rcdata.")
             
-            # overwrite settings with cml arguments
-            # FIXME - coverage between all actual settings and cml options?
+            # overwrite settings with cml arguments (once again converting everything to lower case)
+            # TODO - coverage between all actual settings and cml options?
             try:
                 if getattr(args, setting.name) is not None:
-                    setting.value = getattr(args, setting.name)
+                    setting.value = getattr(args, setting.name).lower()
                 else:
                     print(f"{setting.name} not set via cml args.")
             # TODO - error handling
@@ -585,74 +1224,73 @@ class CensoSettings:
             sys.exit(1)
             
 
-    def read_config(self, censorc_path: str) -> SettingsDict:
+    def __read_config(self) -> SettingsDict:
         """
         Read from config data from file (here .censorc),
         every part has to be in rcfile
         """
-        rcdata: SettingsDict = {}
-        with open(censorc_path, "r") as csvfile:
-            # skip header
-            line = csvfile.readline()
-            while not line.startswith("$GENERAL SETTINGS"):
-                line = csvfile.readline()
-            
-            # split file into settings sections
-            """
-            sections begin with $
-            part stated in this line is first word without $
-            read lines until next $ line
-            repeat until line is $END CENSORC
-            """
-            part = "general" # FIXME - cheeky workaround, user input may be problematic
-            
-            # mind the ordering of csvfile.readline(), should not lead to EOF errors
-            while True:
-                while not line.startswith("$"):
-                    # check if there is only one ':' in the line
-                    if line.count(":") != 1:
-                        print(f"Multiple or no ':' in line {line}") # FIXME 
-                        line = csvfile.readline()
-                        continue
+        rcdata: Dict = {}
 
-                    # split the line at ':' and remove leading and trailing whitespaces
-                    spl = [s.strip() for s in line.split(":")]
-                    sett_type = CensoSettings.get_type(spl[0]) # FIXME - eindeutig?
-                    
-                    try:
-                        # create setting to be inserted
-                        if sett_type != list:
-                            sett = sett_type(spl[1])
-                        else:
-                            # further manipulation is necessary for list type
-                            # looks messy, essentially removes '[' and ']', all whitespace and splits at ','
-                            sett = spl[1][1:len(spl[1])-1].replace(" ", "").split(",")
+        # read config file
+        with open(self.censorc_path, "r") as file:
+            parser = configparser.ConfigParser(...)
+            parser.read_file(file)
 
-                        # catch all cases for up until which level the dict is initialized
-                        if sett_type and sett_type not in rcdata.keys():
-                            # type-key not initialized
-                            rcdata[sett_type] = {part: {spl[0]: sett}} 
-                        elif sett_type and part and part not in rcdata[sett_type].keys():
-                            # part-key not initialized
-                            rcdata[sett_type][part] = {spl[0]: sett}
-                        elif sett_type and part and spl[0] != "" and spl[0] not in rcdata[sett_type][part].keys():
-                            # setting-key not initialized
-                            rcdata[sett_type][part][spl[0]] = sett
-                    except Exception:
-                        raise TypeError(f"Casting failed for line '{line}' while trying to read configuration file.")
-                     
-                    line = csvfile.readline()
-                    
-                if line.startswith("$END CENSORC"):
-                    break
-                
-                # extract name of part from line
-                part = line.split()[0][1:].lower()
-                
-                # read next line
-                line = csvfile.readline()
-            
+        # validate parsed data
+        self.__validate(parser)
+
+        # convert parsed data to dict
+        for section in parser.sections():
+            rcdata[section] = {}
+            for setting in parser[section]:
+                rcdata[section][setting] = parser[section][setting]
+
         return rcdata
+
+    
+    def __validate(self, parser: configparser.ConfigParser) -> None:
+        """
+        validate the type of each setting in the given parser
+        also potentially validate if the setting is allowed by checking with CensoSettings.settings_options
+        """
+        # Create a mapping of data types to configparser methods
+        mapping = {
+            int: parser.getint,
+            float: parser.getfloat,
+            bool: parser.getboolean,
+        }
+
+        # go through each section and try to validate each setting's type
+        for part in parser.sections():
+            for setting_name in parser[part]:
+                try:
+                    mapping[self.get_type(setting_name)](part, setting_name)
+                except KeyError:
+                    # KeyError means that the type is not included in the mapping
+                    # that means it's either a list or string
+                    if self.get_type(setting_name) == list:
+                        # try to convert to list
+                        # SyntaxError not handled so it gets raised
+                        ast.literal_eval(parser[part][setting_name])
+                # ValueError not handled so it gets raised (happens if there is a type mismatch)
+
+        # passed first step of validation, now check if settings are allowed for each part that should be run
+        # (this works since for bools only the type needs to be checked to validate completely)
+        for setting_name, setting_value in parser[part].items():
+                setting_type = self.get_type(setting_name)
+                # for strings check if string is within a list of allowed values
+                if setting_type == str:
+                    options = self.settings_options[part][setting_name]['options']
+                    if setting_value not in options:
+                        # This is fatal so CENSO stops
+                        raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
+                # for numeric values check if value is within a range
+                elif setting_type in (int, float):
+                    interval = self.settings_options[part][setting_name]['range'] 
+                    if not interval[0] <= setting_value <= interval[1]:
+                        # This is fatal so CENSO stops
+                        raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
+
 
     def write_config(self, args: Namespace, cwd: str) -> str:
         """
@@ -732,7 +1370,7 @@ class CensoSettings:
                 outdata.write(f"\n${part.upper()} SETTINGS\n")
                 
                 # iterate over the values for all types (dicts mapping partnames to settings)
-                for parts in CensoSettings.__settings_options.values():
+                for parts in self.settings_options.values():
                     # get only the settings for the current part
                     settings = parts[part]
                     
@@ -756,64 +1394,48 @@ class CensoSettings:
         return path
 
 
-    def find_rcfile(self, cwd: str, inprcpath=None) -> None:
-        """check for existing censorc"""
-
-        # looks for censorc file (global configuration file)
-        # if there is no rcfile, CENSO exits
-        # looks for custom path and standard paths:
-        # cwd and $home dir
-        # absolute path to file directly
+    def __find_rcfile(self, cwd: str, inprcpath=None) -> Union[str, None]:
+        """
+        check for existing censorc
+        looks for custom path and standard paths: cwd and $home dir
+        if there is a configuration file in cwd and $home, it prioritizes no the one in cwd
+        """
 
         censorc_name = ".censorc"
 
+        # mapping the paths defined above to True/False, 
+        # depending if file exists or not
         tmp = [
             os.path.join(cwd, censorc_name),
             os.path.join(os.path.expanduser("~"), censorc_name)
         ]
-
-        # mapping the paths defined above to True/False, 
-        # depending if file exists or not
         check = {
             os.path.isfile(tmp[0]): tmp[0],
             os.path.isfile(tmp[1]): tmp[1],
         }
 
-        # FIXME - not the best solution to ensure code safety
-        rcpath = ""
+        rcpath = None
 
         # TODO - probably doesn't catch all cases, needs testing
         # check for .censorc in standard locations if no path is given
         if not inprcpath:
             if all(list(check.keys())) and not tmp[0] == tmp[1]:
-                # ask which one to use if both are found
-                print(
-                    f"Configuration files have been found, {tmp[0]} and "
-                    f"{tmp[1]}. Which one to use? (cwd/home)"
-                )
-                
-                user_input = ""
-                while user_input.strip().lower() not in ("cwd", "home"):
-                    print("Please type 'cwd' or 'home':")
-                    user_input = input()
-                
-                if user_input.strip().lower() in ("cwd"):
-                    rcpath = tmp[0]
-                elif user_input.strip().lower() in ("home"):
-                    rcpath = tmp[1]
-                    
+                # if file exists in cwd, prioritize it
+                # TODO - give a warning
+                rcpath = tmp[0]
             elif any(list(check.keys())):
                 # take the one file found
                 rcpath = check[True]
         elif inprcpath and os.path.isfile(inprcpath):
+            # if path is given and file exists, take it
             rcpath = inprcpath
-        
-        self.censorc_path = rcpath
+
+        return rcpath
 
 
-    def read_program_paths(self):
+    def __read_program_paths(self):
         """
-        Get absolute paths of external programs employed in censo
+        Set absolute paths of external programs employed in censo
         Read from the configuration file .censorc
         """
         # TODO - make this nicer?
@@ -1049,12 +1671,12 @@ class CensoSettings:
                     "Check initialization of run settings."                  
                 )
             
-        stroptions = CensoSettings.__settings_options[str]
+        stroptions = CensoSettings.settings_options[str]
 
         for part in PARTS:
             # get settings for part
             # look for func/basis
-            # check if func/basis values are allowed in __settings_options
+            # check if func/basis values are allowed in settings_options
             settings = SettingsTuple(
                 self.settings_current.get_settings(
                     [str, bool], 
