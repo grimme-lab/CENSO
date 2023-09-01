@@ -950,11 +950,11 @@ class CensoSettings:
         for part in parser.sections():
             for setting_name in parser[part]:
                 try:
-                    mapping[self.get_type(setting_name)](part, setting_name)
+                    mapping[self.get_type(part, setting_name)](part, setting_name)
                 except KeyError:
                     # KeyError means that the type is not included in the mapping
                     # that means it's either a list or string
-                    if self.get_type(setting_name) == list:
+                    if self.get_type(part, setting_name) == list:
                         # try to convert to list
                         # SyntaxError not handled so it gets raised
                         ast.literal_eval(parser[part][setting_name])
@@ -963,7 +963,7 @@ class CensoSettings:
         # passed first step of validation, now check if settings are allowed for each part that should be run
         # (this works since for bools only the type needs to be checked to validate completely)
         for setting_name, setting_value in parser[part].items():
-                setting_type = self.get_type(setting_name)
+                setting_type = self.get_type(part, setting_name)
                 # for strings check if string is within a list of allowed values
                 if setting_type == str:
                     options = self._settings_options[part][setting_name]['options']
