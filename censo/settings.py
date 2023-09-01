@@ -821,6 +821,19 @@ class CensoSettings:
     })"""
 
     
+    @classmethod
+    def get_type(cls, name: str) -> Type:
+        """
+        Get the type of the given setting.
+
+        Args:
+            name (str): The name of the setting.
+
+        Returns:
+            Type: The type of the setting.
+        """
+        return type(cls._settings_options[name]["default"])
+    
     def __init__(self):
         """
         Handles program configuration
@@ -981,7 +994,7 @@ class CensoSettings:
 
             # Read program paths from the existing configuration file 
             print("Reading program paths from existing configuration file ...")
-            external_paths = self.read_program_paths(path)
+            external_paths = self.__read_program_paths(path)
 
         print(f"Writing new configuration file to {path} (old file will be overwritten) ...")
         with open(path, "w", newline=None) as rcfile:
