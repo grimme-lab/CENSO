@@ -88,7 +88,6 @@ def startup(argv):
         print("Removed files and going to exit!")
         sys.exit(0)
         
-    # setup internal settings with default values
     settings = CensoSettings()
     
     # TODO - update the settings with cml args

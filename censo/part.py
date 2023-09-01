@@ -14,7 +14,7 @@ from typing import Dict, Any
 
 from censo.utilities import timeit
 from censo.core import CensoCore
-from censo.settings import CensoSettings, SettingsTuple
+from censo.settings import CensoSettings
 
 
 class CensoPart:

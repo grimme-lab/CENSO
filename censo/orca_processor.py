@@ -13,7 +13,6 @@ from censo.cfg import (
     CODING,
     ENVIRON,
     WARNLEN,
-    editable_ORCA_input,
     PLANCK,
     C
 )

@@ -88,7 +88,7 @@ class CensoSettings:
         "19-fine": "BP_TZVPD_FINE_19.ctd",
     }
 
-    # load up all resources to set value options in settings_options
+    # load up all resources to set value options in _settings_options
     # TODO - catch error if dfa_settings cannot be created
     try:
         with open(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"), "r") as dfa_file:
@@ -835,8 +835,9 @@ class CensoSettings:
         self.censorc_path: str = self.__find_rcfile()
 
         # if no rcfile is found create a new one in home directory
-        if not self.censorc_path:
-            self.censorc_path = self.write_rcfile(os.path.expanduser("~/.censorc"))
+        if self.censorc_path is None: 
+            self.censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
+            self.write_rcfile(self.censorc_path)
         
         # read config file
         self.__settings_current = self.__read_rcfile()
@@ -880,7 +881,7 @@ class CensoSettings:
         self.__settings_current = settings_dict
 
 
-    def __read_config(self) -> Dict[str, Dict[str, Any]]:
+    def __read_rcfile(self) -> Dict[str, Dict[str, Any]]:
         """
         Read from config data from file located at self.censorc_path 
         """
@@ -888,7 +889,7 @@ class CensoSettings:
 
         # read config file
         with open(self.censorc_path, "r") as file:
-            parser = configparser.ConfigParser(...)
+            parser = configparser.ConfigParser()
             parser.read_file(file)
 
         # Make sure that all the settings are included in the parser
@@ -911,16 +912,18 @@ class CensoSettings:
         """
         fill in missing settings with default values
         """
-        for part, settings in self.settings_options.items():
+        for part, settings in self._settings_options.items():
             for setting, definition in settings.items():
                 if setting not in parser[part]:
                     parser[part][setting] = definition["default"]
+
+        return parser
 
 
     def __validate(self, parser: configparser.ConfigParser) -> None:
         """
         validate the type of each setting in the given parser
-        also potentially validate if the setting is allowed by checking with CensoSettings.settings_options
+        also potentially validate if the setting is allowed by checking with CensoSettings._settings_options
         """
         # Create a mapping of data types to configparser methods
         mapping = {
@@ -949,18 +952,18 @@ class CensoSettings:
                 setting_type = self.get_type(setting_name)
                 # for strings check if string is within a list of allowed values
                 if setting_type == str:
-                    options = self.settings_options[part][setting_name]['options']
+                    options = self._settings_options[part][setting_name]['options']
                     if setting_value not in options and len(options) > 0:
                         # Only check if there are options
                         # This is fatal so CENSO stops
                         raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
                 # for numeric values check if value is within a range
                 elif setting_type in (int, float):
-                    interval = self.settings_options[part][setting_name]['range'] 
+                    interval = self._settings_options[part][setting_name]['range'] 
                     if not interval[0] <= setting_value <= interval[1]:
                         # This is fatal so CENSO stops
                         raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
-                # setting_type is None if setting does not exist in settings_options
+                # setting_type is None if setting does not exist in _settings_options
                 elif setting_type is None:
                     raise ValueError(f"Unknown setting type for setting '{setting_name}' in part '{part}'")
 
@@ -983,7 +986,7 @@ class CensoSettings:
         print(f"Writing new configuration file to {path} (old file will be overwritten) ...")
         with open(path, "w", newline=None) as rcfile:
             parser = configparser.ConfigParser()
-            parser.read_dict(self._settings_options)
+            parser.read_dict({part: {setting: settings[setting]['default'] for setting in settings} for part, settings in self._settings_options.items()})
 
             # Try using the paths from the old file
             if not external_paths is None:
@@ -1017,33 +1020,15 @@ class CensoSettings:
 
         censorc_name = CENSORCNAME
 
-        tmp = [
-            os.path.join(cwd, censorc_name),
-            os.path.join(os.path.expanduser("~"), censorc_name)
-        ]
-
-        # mapping the paths defined above to True/False, 
-        # depending if file exists or not
-        check = {
-            os.path.isfile(tmp[0]): tmp[0],
-            os.path.isfile(tmp[1]): tmp[1],
-        }
-
         rcpath = None
-
-        # check for .censorc in standard locations if no path is given
+        # check for .censorc in $home if no path is given 
         if not inprcpath is None:
-            if all(list(check.keys())) and not tmp[0] == tmp[1]:
-                # if file exists in cwd, prioritize it
-                # TODO - give a warning
-                rcpath = tmp[0]
-            elif any(list(check.keys())):
-                # take the one file found
-                rcpath = check[True]
+            if os.path.isfile(os.path.join(os.path.expanduser("~"), censorc_name)):
+                rcpath = os.path.join(os.path.expanduser("~"), censorc_name)
         elif inprcpath and os.path.isfile(inprcpath):
             # if path is given and file exists, take it
             rcpath = inprcpath
-        elif not os.path.isfile(inprcpath):
+        elif inprcpath and not os.path.isfile(inprcpath):
             raise FileNotFoundError(f"Configuration file {inprcpath} not found!")
 
         return rcpath
@@ -1064,7 +1049,7 @@ class CensoSettings:
             return None
 
 
-    def configure(self, args: NameSpace) -> None:
+    def configure(self, args: Namespace) -> None:
         """
         Overwrite the settings of CENSO with the given arguments
         """

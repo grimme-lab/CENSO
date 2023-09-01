@@ -99,6 +99,7 @@ GFNOPTIONS = (
     "gfn2",
 )
 
+CENSORCNAME = ".censorc"
 
 # qm_prepinfo: grid and scfconv settings for ORCA and TM
 qm_prepinfo = {
