@@ -290,7 +290,7 @@ class Prescreening(CensoPart):
         ])
 
         # append the lines for the free energy/enthalpy
-        lines.append(f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==")
+        lines.append(f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n")
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
         
         lines.append(">>> END of Prescreening <<<".center(PLENGTH, " ") + "\n")

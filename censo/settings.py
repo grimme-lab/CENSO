@@ -914,12 +914,13 @@ class CensoSettings:
         self.__validate(parser)
 
         # convert parsed data to dict while converting settings from strings to their appropiate data types
+        # TODO - since we do this in __validate anyways, this could also be combined with __validate
         for section in parser.sections():
             rcdata[section] = {}
             for setting in parser[section]:
                 setting_type = self.get_type(section, setting)
                 if setting_type != list:
-                    rcdata[section][setting] = parser[section][setting]
+                    rcdata[section][setting] = setting_type(parser[section][setting])
                 else:
                     rcdata[section][setting] = ast.literal_eval(parser[section][setting])
 

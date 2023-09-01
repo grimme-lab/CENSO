@@ -130,7 +130,7 @@ class ProcessHandler:
         
         i = 0  # Initialize a counter variable to keep track of the current chunk
         pold = -1  # Initialize a variable to store the previous number of processes used
-        nconf, lconf = len(self.__conformers)  # Get the total number of conformers
+        nconf, lconf = len(self.__conformers), len(self.__conformers) # Get the total number of conformers
         
         while nconf > 0:  # Loop until all conformers are distributed
             if nconf >= self.__ncores:  # If there are more conformers than the number of available cores
