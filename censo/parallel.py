@@ -40,16 +40,10 @@ class ProcessHandler:
             raise AttributeError("Could not determine number of cores.")
         
         # get number of processes
-        self.__nprocs = getattr(
-            self.instructions.get("maxprocs"), 
-            "value"
-        )
+        self.__nprocs = self.__instructions.get("maxprocs"), 
         
         # get number of cores per process
-        self.__omp = getattr(
-            self.instructions.get("omp"),
-            "value"
-        )
+        self.__omp = self.__instructions.get("omp"),
                 
 
     def execute(self, jobtype: List[str], workdir: str):
@@ -72,13 +66,13 @@ class ProcessHandler:
         self.__processor = ProcessorFactory.create_processor(
             prog, 
             self.__paths,
+            self.__instructions,
             jobtype,
-            instructions,
             workdir
         )
         
         # TODO - set PARNODES
-        if self.settings.settings_current.get_setting(str, "general", "balance"):
+        if self.__instructions["balance"]:
             # execute processes for conformers with load balancing enabled
             # divide the conformers into chunks, work through them one after the other
             chunks, procs = self.__chunkate()
@@ -123,42 +117,42 @@ class ProcessHandler:
         return reduce(lambda x, y: {**x, **y}, resiter)
         
         
-def __chunkate(self) -> Tuple[List[Any]]:
-    """
-    Distributes conformers until none are left.
-    Groups chunks by the number of processes.
+    def __chunkate(self) -> Tuple[List[Any]]:
+        """
+        Distributes conformers until none are left.
+        Groups chunks by the number of processes.
 
-    Returns:
-        Tuple of lists: chunks - the distributed conformers,
-                        procs - the number of processes for each chunk
-    """ 
-    chunks, procs = [], []  # Initialize empty lists to store chunks and process numbers
-    
-    i = 0  # Initialize a counter variable to keep track of the current chunk
-    pold = -1  # Initialize a variable to store the previous number of processes used
-    nconf, lconf = len(self.conformers)  # Get the total number of conformers
-    
-    while nconf > 0:  # Loop until all conformers are distributed
-        if nconf >= self.__ncores:  # If there are more conformers than the number of available cores
-            p = self.__ncores  # Set the number of processes to the number of available cores
-        elif nconf < self.__ncores:  # If there are fewer conformers than the number of available cores
-            if self.__ncores % nconf:  # Check if the number of cores is not divisible by the number of conformers
-                p = nconf  # Set the number of processes to the number of conformers
-            else:
-                # Find the largest integer smaller than the number of cores that divides the number of conformers
-                p = max([j for j in range(1, self.__ncores) if self.__ncores % j == 0 and j <= nconf])
+        Returns:
+            Tuple of lists: chunks - the distributed conformers,
+                            procs - the number of processes for each chunk
+        """ 
+        chunks, procs = [], []  # Initialize empty lists to store chunks and process numbers
         
-        if p != pold:  # If the number of processes is different than before
-            # Add a new chunk to the list of chunks, containing a subset of conformers
-            chunks.append(self.conformers[lconf-nconf:lconf-nconf+p])
-            # Add the number of processes used for the chunk to the list of process numbers
-            procs.append(p)
-            i += 1  # Increment the counter variable to keep track of the current chunk
-        else:  # If the number of processes didn't change
-            # Merge the current chunk with the previous chunk
-            chunks[i-1].extend(self.conformers[lconf-nconf:lconf-nconf+p])
+        i = 0  # Initialize a counter variable to keep track of the current chunk
+        pold = -1  # Initialize a variable to store the previous number of processes used
+        nconf, lconf = len(self.conformers)  # Get the total number of conformers
         
-        pold = p  # Update the previous number of processes used
-        nconf -= p  # Subtract the number of processes used from the remaining conformers
+        while nconf > 0:  # Loop until all conformers are distributed
+            if nconf >= self.__ncores:  # If there are more conformers than the number of available cores
+                p = self.__ncores  # Set the number of processes to the number of available cores
+            elif nconf < self.__ncores:  # If there are fewer conformers than the number of available cores
+                if self.__ncores % nconf:  # Check if the number of cores is not divisible by the number of conformers
+                    p = nconf  # Set the number of processes to the number of conformers
+                else:
+                    # Find the largest integer smaller than the number of cores that divides the number of conformers
+                    p = max([j for j in range(1, self.__ncores) if self.__ncores % j == 0 and j <= nconf])
+            
+            if p != pold:  # If the number of processes is different than before
+                # Add a new chunk to the list of chunks, containing a subset of conformers
+                chunks.append(self.conformers[lconf-nconf:lconf-nconf+p])
+                # Add the number of processes used for the chunk to the list of process numbers
+                procs.append(p)
+                i += 1  # Increment the counter variable to keep track of the current chunk
+            else:  # If the number of processes didn't change
+                # Merge the current chunk with the previous chunk
+                chunks[i-1].extend(self.conformers[lconf-nconf:lconf-nconf+p])
+            
+            pold = p  # Update the previous number of processes used
+            nconf -= p  # Subtract the number of processes used from the remaining conformers
 
-    return chunks, procs  # Return the list of chunks and the list of process numbers
+        return chunks, procs  # Return the list of chunks and the list of process numbers

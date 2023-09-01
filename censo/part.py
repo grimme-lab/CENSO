@@ -30,7 +30,7 @@ class CensoPart:
         paths = settings.settings_current.get("paths")
         general = settings.settings_current.get("general")
         specific = settings.settings_current.get(part)
-        self._instructions = paths + general + specific
+        self._instructions = {**paths, **general, **specific}
 
         # add some additional settings to _instructions so that the processors don't have to do any lookups
         # note: [1] auto-selects replacement solvent (TODO - print warning!)
@@ -46,7 +46,7 @@ class CensoPart:
 
         # set the correct name for 'func'
         self._instructions["func_name"] = settings.dfa_settings.get_name(self._instructions["func"], self._instructions["prog"])
-        self._instructions["disp"] = settings.dfa_settings.get_disp(self._instructions["func"], self._instructions["prog"])
+        self._instructions["disp"] = settings.dfa_settings.get_disp(self._instructions["func"])
     
     @timeit
     def run(self) -> None:

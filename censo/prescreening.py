@@ -47,14 +47,14 @@ class Prescreening(CensoPart):
         self.print_info()
         
         # set folder to do the calculations in for prescreening
-        folder = os.path.join(self.core.cwd, 'prescreening')
+        folder = os.path.join(self.core.workdir, 'prescreening')
         if os.path.isdir(folder):
             # TODO - warning? stderr?
             print(f"Folder {folder} already exists. Potentially overwriting files.")
         elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
             # TODO - stderr case?
-            print(f"Could not create directory for {self.__class__.__name__.lower()}. Executing calculations in {self.core.cwd}.")
-            folder = self.core.cwd
+            print(f"Could not create directory for {self.__class__.__name__.lower()}. Executing calculations in {self.core.workdir}.")
+            folder = self.core.workdir
         
         # compute results
         # for structure of results from handler.execute look there
@@ -296,11 +296,11 @@ class Prescreening(CensoPart):
         lines.append(">>> END of Prescreening <<<".center(PLENGTH, " ") + "\n")
             
         # write everything to a file
-        with open(os.path.join(self.core.cwd, "prescreening.out"), "w", newline=None) as outfile:
+        with open(os.path.join(self.core.workdir, "prescreening.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
         # additionally, write data in csv format
-        with open(os.path.join(self.core.cwd, "prescreening.csv"), "w", newline=None) as outfile:
+        with open(os.path.join(self.core.workdir, "prescreening.csv"), "w", newline=None) as outfile:
             writer = csv.DictWriter(outfile, headers, delimiter=" ")
             writer.writeheader()
             

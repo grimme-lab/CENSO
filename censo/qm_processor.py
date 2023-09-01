@@ -26,15 +26,6 @@ class QmProc:
     """
 
     def __init__(self, paths: Dict[str, str], instructions: Dict[str, Any], jobtype: List[str], workdir: str):
-        # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
-        # list containing the instructions of which computations to do
-        self._jobtype: List[str]
-        if all(t in self._jobtypes.keys() for t in jobtype):
-            self._jobtype = jobtype
-        else:
-            # TODO - error handling
-            raise Exception("Jobtype not found")
-        
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
         self.instructions: Dict[str, Any] = instructions
@@ -56,7 +47,16 @@ class QmProc:
             "xto_opt": self._xtb_opt,
             "xtb_rrho": self._xtbrrho,
         }
-
+        
+        # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
+        # list containing the instructions of which computations to do
+        self._jobtype: List[str]
+        if all(t in self._jobtypes.keys() for t in jobtype):
+            self._jobtype = jobtype
+        else:
+            # TODO - error handling
+            raise Exception("Jobtype not found")
+        
 
     def run(self, conformer: GeometryData) -> Dict[int, Dict[str, Any]]:
         """
