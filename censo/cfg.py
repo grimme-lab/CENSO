@@ -99,134 +99,22 @@ GFNOPTIONS = (
     "gfn2",
 )
 
-SettingsDict = Dict[
-            type, Dict[
-                str, Dict[
-                    str, Union[
-                        int, float, str, bool, list
-                    ]
-                ]
-            ]
-        ]
 
-#### TEST user editable ORCA input, which is supplied in each CENSO generated ORCA input!
-editable_ORCA_input = {     
-                    "default":[
-                        "! smallprint printgap noloewdin",
-                        "! NOSOSCF",
-                        "%MaxCore 8000",
-                        "%output",
-                        "       print[P_BondOrder_M] 1",
-                        "       print[P_Mayer] 1",
-                        "       print[P_basis] 2",
-                        "end",
-                    ],
-                    }
-
-#### END TEST user editabel ORCA input
-
-
-class dfa_settings:
-    """Contains information on available functionals, per part, qm code, dispersion
-    correction..."""
-
-    
-
-    def disp_already_included_in_func(self):
-        """return list of all density functionals which inherently include the description
-        of (long range) London dispersion"""
-        return [
-            func
-            for func in self.functionals
-            if self.functionals[func]["disp"] in ("included", "composite")
-        ]
-
-    def dh_dfa(self):
-        """return a list of all double hybrid density functionals"""
-        return [
-            func
-            for func in self.functionals
-            if self.functionals[func]["type"] in ("doublehybrid")
-        ]
-
-    def hybrid_dfa(self):
-        """return a list of all hybrid density functionals"""
-        return [
-            func
-            for func in self.functionals
-            if self.functionals[func]["type"]
-            in ("global_hybrid", "rsh_hybrid", "composite_hybrid")
-        ]
-
-    def infos(self, request, prog=None):
-        """get information on available functionals for parts and for QM codes"""
-        if prog is None and request in (
-            "func0",
-            "func",
-            "func3",
-            "func_j",
-            "func_s",
-            "func_or",
-            "func_or_scf",
-        ):
-            # ("func0_available", "func_available", "fun3_available",
-            # "func_j_available", "func_s_available"):
-            tmp = []
-            for func in self.functionals:
-                if request in self.functionals[func].get("part", []):
-                    tmp.append(func)
-            for func, relay in self.relay_functionals.items():
-                if request in self.functionals.get(relay, {}).get("part", []):
-                    tmp.append(func)
-            return list(set(tmp))
-        elif prog in ("tm", "orca") and request in (
-            "func0",
-            "func",
-            "func3",
-            "func_j",
-            "func_s",
-            "func_or",
-            "func_or_scf",
-        ):
-            # list with functional available in either tm or orca
-            tmp = []
-            for func in self.functionals:
-                if (
-                    request in self.functionals[func].get("part", [])
-                    and self.functionals[func].get(prog, None) is not None
-                ):
-                    tmp.append(func)
-            for func, relay in self.relay_functionals.items():
-                if (
-                    request in self.functionals.get(relay, {}).get("part", [])
-                    and self.functionals.get(relay, {}).get(prog, None) is not None
-                ):
-                    tmp.append(func)
-            return list(set(tmp))
-        elif prog not in ("tm", "orca"):
-            pass
-        else:
-            print(f"request {request} not known!")
-
-
-
-# program paths:
-external_paths = {}
-external_paths["orcapath"] = ""
-external_paths["orcaversion"] = ""
-external_paths["xtbpath"] = ""
-external_paths["crestpath"] = ""
-external_paths["cosmorssetup"] = ""
-external_paths["dbpath"] = ""  # without "DATABASE-COSMO/XXXXXXXXXX"
-external_paths["dbpath_normal"] = ""  # with "DATABASE-COSMO/BP-TZVP-COSMO"
-external_paths["dbpath_fine"] = ""  # with "DATABASE-COSMO/BP-TZVPD-FINE"
-external_paths["cosmothermversion"] = ""
-external_paths["mpshiftpath"] = ""
-external_paths["escfpath"] = ""
-external_paths["cefinepath"] = ""
-
-# information on cosmors parametrizations
-
+# qm_prepinfo: grid and scfconv settings for ORCA and TM
+qm_prepinfo = {
+    "orca": {
+        "low": ["grid4 nofinalgrid", "loosescf"],
+        "low+": ["grid4 nofinalgrid", "scfconv6"],
+        "high": ["grid4 nofinalgrid", "scfconv7"],
+        "high+": ["grid5 nofinalgrid", "scfconv7"],
+    },
+    "tm": {
+        "low": ["-grid", "m3", "-scfconv", "6"],
+        "low+": ["-grid", "m4", "-scfconv", "6"],
+        "high": ["-grid", "m4", "-scfconv", "7"],
+        "high+": ["-grid", "m5", "-scfconv", "7"],
+    },
+}
 
 def NMRRef_to_dict(self):
     """Convert NMRRef data to a dict object"""
@@ -687,20 +575,4 @@ si_bib = {
         r"  URL = {https://doi.org/10.1021/acs.jctc.1c00471},",
         r"}",
     ],
-}
-
-# qm_prepinfo: grid and scfconv settings for ORCA and TM
-qm_prepinfo = {
-    "orca": {
-        "low": ["grid4 nofinalgrid", "loosescf"],
-        "low+": ["grid4 nofinalgrid", "scfconv6"],
-        "high": ["grid4 nofinalgrid", "scfconv7"],
-        "high+": ["grid5 nofinalgrid", "scfconv7"],
-    },
-    "tm": {
-        "low": ["-grid", "m3", "-scfconv", "6"],
-        "low+": ["-grid", "m4", "-scfconv", "6"],
-        "high": ["-grid", "m4", "-scfconv", "7"],
-        "high+": ["-grid", "m5", "-scfconv", "7"],
-    },
 }
