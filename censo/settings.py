@@ -350,7 +350,7 @@ class CensoSettings:
                     1.0
                 ]
             },
-            "optimization_P_threshold": {
+            "optimization_p_threshold": {
                 "default": 99.0,
                 "range": [
                     1.0,
@@ -974,7 +974,7 @@ class CensoSettings:
                 # for numeric values check if value is within a range
                 elif setting_type in (int, float):
                     interval = self._settings_options[part][setting_name]['range'] 
-                    if not interval[0] <= setting_value <= interval[1]:
+                    if not interval[0] <= setting_type(setting_value) <= interval[1]:
                         # This is fatal so CENSO stops
                         raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
                 # setting_type is None if setting does not exist in _settings_options

@@ -89,8 +89,8 @@ class CensoCore:
 
         # set charge and unpaired via funtion args or cml args
         if not self.args is None:
-            self.runinfo["charge"] = charge or self.args.getattr("charge")
-            self.runinfo["unpaired"] = unpaired or self.args.getattr("unpaired")
+            self.runinfo["charge"] = charge or self.args.charge
+            self.runinfo["unpaired"] = unpaired or self.args.unpaired
         elif charge is None or unpaired is None:
             # TODO - error handling
             raise Exception("Charge or number of unpaired electrons not defined.") 
