@@ -822,17 +822,18 @@ class CensoSettings:
 
     
     @classmethod
-    def get_type(cls, name: str) -> Type:
+    def get_type(cls, section: str, name: str) -> Type:
         """
         Get the type of the given setting.
 
         Args:
+            section (str): The section of the setting.
             name (str): The name of the setting.
 
         Returns:
             Type: The type of the setting.
         """
-        return type(cls._settings_options[name]["default"])
+        return type(cls._settings_options[section][name]["default"])
     
     def __init__(self):
         """
