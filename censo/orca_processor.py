@@ -266,7 +266,7 @@ class OrcaProc(QmProc):
         
 
     # TODO - make this better
-    def __prep(self, conf: GeometryData, jobtype: str, grid: str, no_solv: bool = False) -> OrderedDict:
+    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
@@ -277,7 +277,7 @@ class OrcaProc(QmProc):
         """
 
         # check ORCA version
-        orca5 = True if self.paths["orcaversion"].startswith("5") else False
+        orca5 = True if self.instructions["orcaversion"].startswith("5") else False
 
         indict = OrderedDict()
         indict["main"] = []

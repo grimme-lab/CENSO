@@ -913,11 +913,15 @@ class CensoSettings:
         # validate parsed data
         self.__validate(parser)
 
-        # convert parsed data to dict
+        # convert parsed data to dict while converting settings from strings to their appropiate data types
         for section in parser.sections():
             rcdata[section] = {}
             for setting in parser[section]:
-                rcdata[section][setting] = parser[section][setting]
+                setting_type = self.get_type(section, setting)
+                if setting_type != list:
+                    rcdata[section][setting] = parser[section][setting]
+                else:
+                    rcdata[section][setting] = ast.literal_eval(parser[section][setting])
 
         return rcdata
 
@@ -1036,7 +1040,7 @@ class CensoSettings:
 
         rcpath = None
         # check for .censorc in $home if no path is given 
-        if not inprcpath is None:
+        if inprcpath is None:
             if os.path.isfile(os.path.join(os.path.expanduser("~"), censorc_name)):
                 rcpath = os.path.join(os.path.expanduser("~"), censorc_name)
         elif inprcpath and os.path.isfile(inprcpath):

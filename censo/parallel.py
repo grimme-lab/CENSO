@@ -89,12 +89,12 @@ class ProcessHandler:
                 results = {**results, **self.__dqp(chunk)}
         else:
             # execute processes without load balancing, taking the user-provided settings
-            results = self.__dqp(self.conformers)
+            results = self.__dqp(self.__conformers)
 
         # assert that there is a result for every conformer
         # TODO - error handling
         try:
-            assert all([conf.id in results.keys() for conf in self.conformers])  
+            assert all([conf.id in results.keys() for conf in self.__conformers])  
         except AssertionError:
             raise KeyError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
         
@@ -130,7 +130,7 @@ class ProcessHandler:
         
         i = 0  # Initialize a counter variable to keep track of the current chunk
         pold = -1  # Initialize a variable to store the previous number of processes used
-        nconf, lconf = len(self.conformers)  # Get the total number of conformers
+        nconf, lconf = len(self.__conformers)  # Get the total number of conformers
         
         while nconf > 0:  # Loop until all conformers are distributed
             if nconf >= self.__ncores:  # If there are more conformers than the number of available cores
@@ -144,13 +144,13 @@ class ProcessHandler:
             
             if p != pold:  # If the number of processes is different than before
                 # Add a new chunk to the list of chunks, containing a subset of conformers
-                chunks.append(self.conformers[lconf-nconf:lconf-nconf+p])
+                chunks.append(self.__conformers[lconf-nconf:lconf-nconf+p])
                 # Add the number of processes used for the chunk to the list of process numbers
                 procs.append(p)
                 i += 1  # Increment the counter variable to keep track of the current chunk
             else:  # If the number of processes didn't change
                 # Merge the current chunk with the previous chunk
-                chunks[i-1].extend(self.conformers[lconf-nconf:lconf-nconf+p])
+                chunks[i-1].extend(self.__conformers[lconf-nconf:lconf-nconf+p])
             
             pold = p  # Update the previous number of processes used
             nconf -= p  # Subtract the number of processes used from the remaining conformers
