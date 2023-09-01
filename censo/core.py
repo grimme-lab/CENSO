@@ -33,15 +33,16 @@ class CensoCore:
     """
     """
     
-    def __init__(self, args: Namespace, cwd: str):
+    def __init__(self, workdir: str, args: Namespace = None):
         """
-        store cwd and args, setup blank information storages
+        Setup a CensoCore object using the args from the command line
+        workdir is the directory where the CENSO run should be executed in
         """
 
         # current working directory
-        self.cwd: str = cwd
+        self.workdir: str = workdir
 
-        # parsed commandline arguments
+        # if args are given set accordingly, otherwise assume CENSO is used without commandline
         self.args: Nampespace = args
         
         # contains run-specific info that may change during runtime
@@ -52,6 +53,8 @@ class CensoCore:
             "maxconf": int,
             "md5": str,
             "consider_unconverged": bool,
+            "charge": int,
+            "unpaired": int,
         }
             
         # stores the conformers with all info
@@ -63,37 +66,19 @@ class CensoCore:
         # absolute path to ensemble input file
         self.ensemble_path: str
 
-        # TODO - should this be done here?
-        self.find_ensemble()
-
-    
-    def find_ensemble(self) -> None:
-        """check for ensemble input file"""
-        # if input file given via args use this path, otherwise set path to a default value
-        if self.args.inp:
-            ensemble_path = os.path.join(self.cwd, self.args.inp)
-        else:
-            ensemble_path = os.path.join(self.cwd, "crest_conformers.xyz")
-
-        if os.path.isfile(ensemble_path):
-            self.ensemble_path = ensemble_path
-        else:
-            """ print(
-                f"{'ERROR:':{WARNLEN}}The input ensemble cannot be found!"
-            ) """
-            sys.exit(1)
-            
         
-    def read_input(self) -> None:
+    def read_input(self, ensemble_path: str, charge: int = None, unpaired: int = None) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
         """
+
+        self.ensemble_path = ensemble_path
 
         # store md5 hash for quick comparison of inputs later
         self.runinfo["md5"] = do_md5(self.ensemble_path)
         
         # if $coord in file => tm format, needs to be converted to xyz
-        with open(self.ensemble_path, "r", encoding=CODING, newline=None) as inp:
+        with open(self.ensemble_path, "r") as inp:
             lines = inp.readlines()
             if any(["$coord" in line for line in lines]):
                 _, self.runinfo["nat"], self.ensemble_path = t2x(
@@ -101,7 +86,15 @@ class CensoCore:
                     )
             else:
                 self.runinfo["nat"] = int(lines[0].split()[0])
-        
+
+        # set charge and unpaired via funtion args or cml args
+        if not self.args is None:
+            self.runinfo["charge"] = charge or self.args.getattr("charge")
+            self.runinfo["unpaired"] = unpaired or self.args.getattr("unpaired")
+        elif charge is None or unpaired is None:
+            # TODO - error handling
+            raise Exception("Charge or number of unpaired electrons not defined.") 
+
         # FIXME - temporary place for remaining settings
         # FIXME - where to put spearmanthr???
         if not self.args.spearmanthr:
@@ -113,9 +106,8 @@ class CensoCore:
         
         try:
             self.setup_conformers()
-        except Exception as error: # TODO
-            print(error.with_traceback)
-            sys.exit(1)
+        except Exception as error: 
+            raise error
         
 
     def setup_conformers(self) -> None:

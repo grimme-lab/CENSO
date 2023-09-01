@@ -19,19 +19,9 @@ from censo.datastructure import MoleculeData
 class Prescreening(CensoPart):
     
     def __init__(self, core: CensoCore, settings: CensoSettings):
-        super().__init__(core, settings)
+        super().__init__(core, settings, "prescreening")
         
-        self.core = core
 
-        # grabs the settings required for this part from the passed 'CensoSettings' instance
-        self.settings = settings
-        self.run_settings = settings.settings_current.bypart("general") + settings.settings_current.bypart("prescreening")
-
-        # transfers settings into a dict of instructions to be passed to the process handler
-        self._instructions = {}
-        for setting in self.run_settings:
-            self._instructions[setting.name] = setting.value
-    
     @timeit
     def run(self) -> None:
         """
@@ -43,15 +33,8 @@ class Prescreening(CensoPart):
         - calculation of gsolv with xTB (optional, only if run not in gas-phase)
         """
         
-        """
-        1. setup job instructions (either gas phase sp or computation with solvent model)
-        2. print instructions TODO - print only when 'verbose' (for debugging basically)?
-        3. run calculations in parallel via helper
-        4. print results
-        """
-        
         # initialize process handler for current program with conformer geometries
-        handler = ProcessHandler(self.settings, [conf.geom for conf in self.core.conformers])
+        handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
         
         # set jobtype to pass to handler
         jobtype: List[str] = []
@@ -75,7 +58,7 @@ class Prescreening(CensoPart):
         
         # compute results
         # for structure of results from handler.execute look there
-        results = handler.execute(jobtype, self._instructions, folder)
+        results = handler.execute(jobtype, folder)
 
         # update results for each conformer
         for conf in self.core.conformers:

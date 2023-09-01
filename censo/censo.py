@@ -51,8 +51,7 @@ def main(argv=None):
     # standard censo setup
     core, settings = startup(argv)
 
-    ### default: part1 - 3
-    # TODO - reduce copy/paste code with list of functions which is iterated over
+    # TODO - check which part to run and include only these in 'run'
     run = [Prescreening, ]
 
     for part in run:
@@ -92,45 +91,18 @@ def startup(argv):
     # setup internal settings with default values
     settings = CensoSettings()
     
-    # look for censorc
-    settings.find_rcfile(cwd, args.inprcpath)
+    # TODO - update the settings with cml args
+    # settings.configure(args)
     
-    # TODO - where to put this?
-    # no censorc found at standard dest./given dest.
-    if settings.censorc_path == "":
-        print(
-            f"No rcfile has been found. Do you want to create a new one?\n"
-        )
-
-        user_input = ""
-        while user_input.strip().lower() not in ["yes", "y", "no", "n"]:
-            print("Please type 'yes/y' or 'no/n':")
-            user_input = input()
-        
-        if user_input.strip().lower() in ("y", "yes"):
-            settings.censorc_path = settings.write_config(args, cwd)
-        elif user_input.strip().lower() in ("n", "no"):
-            print(
-                "Configuration file needed to run CENSO!\n"
-                "Going to exit!"
-            )
-            sys.exit(1)
-    
-    # read paths for external programs (definition in rcfile?) ????
-    settings.read_program_paths()
-    
-    # update the settings with rcdata and cml args
-    settings.settings_current = args
-    
-    # initialize core with args and cwd
-    core = CensoCore(args, cwd)
+    # initialize core, constructor get runinfo from args
+    core = CensoCore(cwd, args=args)
     
     # read input and setup conformers
-    core.read_input()
+    # note: read_input used without keyword arguments because usage of this function implies cml usage of CENSO
+    core.read_input(args.inp)
 
     ### END of setup
-    # -> core.conformers contains all conformers with their info from input (sorted)
-    # -> core.ensembledata is blank
+    # -> core.conformers contains all conformers with their info from input (sorted by preliminary xtb energy if possible)
     
     return core, settings
 

@@ -38,54 +38,31 @@ class DfaSettings:
         return tmp
 
 
+    def get_name(self, func: str, prog: str):
+        """
+        return the name of a certain functional in the given qm program
+        """
+        return self.__dfa_dict["functionals"][func][prog]
+
+
+    def get_disp(self, func: str):
+        """
+        return the dispersion correction of a certain functional
+        """
+        return self.__dfa_dict["functionals"][func]['disp']
+
+
+    def get_type(self, func: str):
+        """
+        return the type of a certain functional
+        """
+        return self.__dfa_dict["functionals"][func]["type"]
+
+
     @property
     def functionals(self) -> Dict[str, Dict]:
         return self.__dfa_dict["functionals"]
 
-
-    @property
-    def composite_bs(self) -> set:
-        """
-        return all composite method basis sets
-        """
-        return set([v for v in self.__dfa_dict["composite_method_basis"].values()])
-
-
-    @property
-    def composites(self) -> set:
-        """
-        return all composite method dfas dict entries
-        """
-        functionals = self.__dfa_dict["functionals"]
-        return set(filter(lambda x: "composite" in functionals[x]["type"], functionals))
-
-
-    @property
-    def ggas(self) -> set:
-        """
-        return all (m)gga dfas dict entries
-        """
-        functionals = self.__dfa_dict["functionals"]
-        return set(filter(lambda x: "gga" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals))
-
-
-    @property
-    def hybrids(self) -> set:
-        """
-        return all hybrid dfas dict entries
-        """
-        functionals = self.__dfa_dict["functionals"]
-        return set(filter(lambda x: "hybrid" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals))
-
-
-    @property
-    def doublehs(self) -> set:
-        """
-        return all double hybrid dfas dict entries
-        """
-        functionals = self.__dfa_dict["functionals"]
-        return set(filter(lambda x: "double" in functionals[x]["type"] and not "composite" in functionals[x]["type"], functionals))
-    
 
 class CensoSettings:
     """
@@ -172,20 +149,6 @@ class CensoSettings:
         },
         # TODO - charge, unpaired should probably be removed from here and be given for each run specifically
         "general": {
-            "charge": {
-                "default": 0,
-                "range": [
-                    -10,
-                    10
-                ]
-            },
-            "unpaired": {
-                "default": 0,
-                "range": [
-                    0,
-                    14
-                ]
-            },
             "maxprocs": {
                 "default": 1,
                 "range": [
@@ -1099,3 +1062,11 @@ class CensoSettings:
         except KeyError:
             print(f"WARNING: No paths found in {path}")
             return None
+
+
+    def configure(self, args: NameSpace) -> None:
+        """
+        Overwrite the settings of CENSO with the given arguments
+        """
+        # TODO
+        pass

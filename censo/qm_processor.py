@@ -25,17 +25,25 @@ class QmProc:
     QmProc base class with xtb as driver (see _xtb methods)
     """
 
-    def __init__(self, paths: Dict[str, str], solvents_dict: Dict = None, dfa_settings: DfaSettings = None):
+    def __init__(self, paths: Dict[str, str], instructions: Dict[str, Any], jobtype: List[str], workdir: str):
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
         # list containing the instructions of which computations to do
         self._jobtype: List[str]
+        if all(t in self._jobtypes.keys() for t in jobtype):
+            self._jobtype = jobtype
+        else:
+            # TODO - error handling
+            raise Exception("Jobtype not found")
         
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
-        self.instructions: Dict[str, Any]
+        self.instructions: Dict[str, Any] = instructions
         
         # absolute path to the folder where jobs should be executed in
-        self.workdir: str
+        self.workdir: str = workdir
+
+        # stores lookup dict for external paths
+        self.paths: Dict[str, str] = paths
 
         # dict to map the jobtypes to their respective methods
         self._jobtypes: Dict[str, Callable] = {
@@ -48,15 +56,6 @@ class QmProc:
             "xto_opt": self._xtb_opt,
             "xtb_rrho": self._xtbrrho,
         }
-
-        # stores the solvent lookup dict
-        self.solvents_dict = solvents_dict
-
-        # stores the dfa lookup object
-        self.dfa_settings = dfa_settings
-
-        # stores lookup dict for external paths
-        self.paths: Dict[str, str] = paths
 
 
     def run(self, conformer: GeometryData) -> Dict[int, Dict[str, Any]]:
@@ -71,20 +70,6 @@ class QmProc:
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
-
-
-    @property
-    def jobtype(self):
-        return self._jobtype
-
-
-    @jobtype.setter
-    def jobtype(self, jobtype: List[str]):
-        if all(t in self._jobtypes.keys() for t in jobtype):
-            self._jobtype = jobtype
-        else:
-            # TODO - error handling
-            raise Exception("Jobtype not found")
 
 
     def print(self):
@@ -200,7 +185,7 @@ class QmProc:
 
         # setup call for xtb single-point
         call = [
-            self.paths["xtbpath"],
+            self.instructions["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             "--sp",
@@ -219,7 +204,7 @@ class QmProc:
             call.extend(
                 [
                     "--" + self.instructions["sm_rrho"],
-                    self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
+                    self.instructions["solvent_key_xtb"],
                     "reference",
                     "-I",
                     "xcontrol-inp"
@@ -468,7 +453,7 @@ class QmProc:
         conf.tocoord(os.path.join(self.workdir, "coord"))
 
         call = [
-            self.paths["xtbpath"],
+            self.instructions["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             dohess,
@@ -488,7 +473,7 @@ class QmProc:
             call.extend(
                 [
                     "--" + self.instructions["sm_rrho"],
-                    self.solvents_dict["xtb"][1], # auto-choose replacement solvent by default
+                    self.instructions["solvent_key_xtb"],
                 ]
             )
         

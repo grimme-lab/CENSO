@@ -275,7 +275,6 @@ class OrcaProc(QmProc):
         grid: mandatory argument determining the grid settings chosen from 'gridsettings' dict
 
         TODO - NMR/OR/UVVis etc preparation steps
-        TODO - externalize comp parameter setups
         """
 
         # check ORCA version
@@ -285,18 +284,18 @@ class OrcaProc(QmProc):
         indict["main"] = []
 
         # grab func, basis
-        func = self.dfa_settings.functionals.get(self.instructions["func"]).get("orca")
-        basis = self.instructions.get("basis") 
+        func = self.instructions["func_name"]
+        basis = self.instructions["basis"] 
         indict["main"].append(func)
 
         # TODO - b3lyp-3c removed
-        if self.instructions["func"] not in self.dfa_settings.composites:
+        if "composite" not in self.instructions["func_type"]:
             indict["main"].append(basis)
         ####################### SET RI ###########################
             # set  RI def2/J,   RIJCOSX def2/J
             # this is only set if no composite DFA is used
             # settings for double hybrids
-            if self.instructions["func"] in self.dfa_settings.doublehs:
+            if self.instructions["func_type"] == "double":
                 indict["main"].extend(["def2/J", "RIJCOSX"])
 
                 if "nmr" in jobtype:
@@ -322,13 +321,13 @@ class OrcaProc(QmProc):
                         indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
             # settings for hybrids
-            elif self.instructions["func"] in self.dfa_settings.hybrids:
+            elif "hybrid" in self.instructions["func_type"]:
                 indict["main"].append("RIJCOSX")
                 if not orca5:
                     indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
             
             # settings for (m)ggas
-            elif self.instructions["func"] in self.dfa_settings.ggas:
+            elif "gga" in self.instructions["func_type"]:
                 indict["main"].append("RI")    
 
         ########################## SET GRID ############################ 
@@ -353,7 +352,7 @@ class OrcaProc(QmProc):
             "nl": "NL",
         }
 
-        disp = self.dfa_settings.functionals.get(self.instructions["func"]).get("disp")
+        disp = self.instructions["disp"]
         if disp != "composite" and disp != "included":
             indict["main"].append(mapping.get(disp, ""))
 
@@ -378,10 +377,10 @@ class OrcaProc(QmProc):
             if self.instructions["sm"] == "smd":
                 indict["cpcm"] = {
                     "smd": ["true"],
-                    "smdsolvent": [f"{self.solvents_dict['smd'][1]}"],
+                    "smdsolvent": [f"{self.instructions['solvent_key_prog']}"],
                 }
             elif self.instuctions["sm"] == "cpcm":
-                indict["main"].append(f"CPCM({self.solvents_dict['cpcm'][1]})")
+                indict["main"].append(f"CPCM({self.instructions['solvent_key_prog']})")
 
         # unpaired, charge, and coordinates
         # by default coordinates are written directly into input file
@@ -418,7 +417,6 @@ class OrcaProc(QmProc):
         return indict
 
 
-    #@self.__prep TODO
     def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:
         """
         ORCA single-point calculation
@@ -461,7 +459,7 @@ class OrcaProc(QmProc):
         # start SP calculation
         with open(outputpath, "w", newline=None) as outputfile:
             # make external call to orca with "{filename}.inp" as argument
-            call = [self.paths["orcapath"], f"{filename}.inp"]
+            call = [self.instructions["orcapath"], f"{filename}.inp"]
             subprocess.call(
                 call,
                 shell=False,
@@ -675,13 +673,13 @@ class OrcaProc(QmProc):
                 "engine=lbfgs\n",
                 "$external\n",
                 "   orca input file= inp\n",
-                    f"   orca bin= {self.paths['orcapath']} \n",
+                    f"   orca bin= {self.instructions['orcapath']} \n",
                 "$end \n",
             ])
 
         # prepare xtb call
         call = [
-            self.paths["xtbpath"],
+            self.instructions["xtbpath"],
             "coord", # name of the coord file generated above
             "--opt",
             self.instructions["optlevel"],
