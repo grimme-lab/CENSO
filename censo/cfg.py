@@ -82,7 +82,7 @@ SOLV_MODS: Dict[str, Tuple] = {
 }
 
 GSOLV_MODS = {
-    "orca": ("gbsa_gsolv", "alpb_gsolv", "smd_gsolv"),
+    "orca": ("gbsa", "alpb", "smd"),
     "tm": ("cosmors", "cosmors-fine"),
 }
 

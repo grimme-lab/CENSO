@@ -432,7 +432,7 @@ class QmProc:
             # xcout.write("    desy=0.0\n")
 
             # set gbsa grid
-            if not self.instructions["gas-phase"] and self.instructions["sm_rrho"] == "gbsa":
+            if not self.instructions["gas-phase"]:
                 xcout.write("$gbsa\n")
                 xcout.write("  gbsagrid=tight\n")
             

@@ -302,8 +302,12 @@ class CensoSettings:
                 "default": "orca",
                 "options": PROGS
             },
+            "sm": {
+                "default": "smd",
+                "options": solv_mods
+            },
             "smgsolv": {
-                "default": "smd_gsolv",
+                "default": "smd",
                 "options": gsolv_mods
             },
             "gfnv": {
@@ -318,6 +322,9 @@ class CensoSettings:
                 "default": True
             },
             "gcp": {
+                "default": True
+            },
+            "implicit": {
                 "default": True
             }
         },
@@ -846,32 +853,60 @@ class CensoSettings:
         self.__settings_current: Dict[str, Dict[str, Any]]
         
         # absolute path to configuration file, try to find .censorc on construction
-        self.censorc_path: str = self.__find_rcfile()
+        self.__censorc_path: str = self.__find_rcfile()
 
         # if no rcfile is found create a new one in home directory
-        if self.censorc_path is None: 
-            self.censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
-            self.write_rcfile(self.censorc_path)
+        if self.__censorc_path is None: 
+            self.__censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
+            self.write_rcfile(self.__censorc_path)
         
         # read config file
         self.__settings_current = self.__read_rcfile()
     
     
-    def print_paths(self) -> None:
-        """
-        print out paths of all external qm programs
-        """
-        lines = []
+def print_paths(self) -> None:
+    """
+    Print out the paths of all external QM programs.
+    """
+    # Create an empty list to store the lines of the output.
+    lines = []
+    
+    # Append a separator line to the output.
+    lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
+    
+    # Append the title of the section to the output, centered.
+    lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
+    
+    # Append a separator line to the output.
+    lines.append("".ljust(PLENGTH, "-") + "\n")
+    
+    # Iterate over each program and its path in the settings.
+    for program, path in self.__settings_current["paths"].items():
+        # Append a line with the program and its path to the output.
+        lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
         
-        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
-        lines.append("".ljust(PLENGTH, "-") + "\n")
-        
-        for program, path in self.__settings_current["paths"].items():
-            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
-            
-        for line in lines:
-            print(line)      
+    # Print each line of the output.
+    for line in lines:
+        print(line)      
+
+
+    @property
+    def censorc_path(self) -> str:
+        """
+        returns the absolute path to the rcfile
+        """
+        return self.__censorc_path
+
+
+    @censorc_path.setter
+    def censorc_path(self, path: str) -> None:
+        """
+        sets the absolute path to the rcfile
+        """
+        if os.path.isfile(path):
+            self.__censorc_path = path
+        else:
+            raise FileNotFoundError(f"File not found: {path}")
 
 
     @property
@@ -879,7 +914,7 @@ class CensoSettings:
         """
         returns the complete __settings_current
         """
-        return self.__settings_current
+        return self.__settings_current.copy()
 
     
     @settings_current.setter
@@ -897,12 +932,12 @@ class CensoSettings:
 
     def __read_rcfile(self) -> Dict[str, Dict[str, Any]]:
         """
-        Read from config data from file located at self.censorc_path 
+        Read from config data from file located at self.__censorc_path 
         """
         rcdata: Dict = {}
 
         # read config file
-        with open(self.censorc_path, "r") as file:
+        with open(self.__censorc_path, "r") as file:
             parser = configparser.ConfigParser()
             parser.read_file(file)
 
@@ -1030,25 +1065,15 @@ class CensoSettings:
             )
 
 
-    def __find_rcfile(self, inprcpath=None) -> Union[str, None]:
+    def __find_rcfile(self) -> Union[str, None]:
         """
-        check for existing censorc
-        looks for custom path and standard paths: cwd and $home dir
-        if there is a configuration file in cwd and $home, it prioritizes no the one in cwd
+        check for existing .censorc in $home dir
         """
-
-        censorc_name = CENSORCNAME
 
         rcpath = None
-        # check for .censorc in $home if no path is given 
-        if inprcpath is None:
-            if os.path.isfile(os.path.join(os.path.expanduser("~"), censorc_name)):
-                rcpath = os.path.join(os.path.expanduser("~"), censorc_name)
-        elif inprcpath and os.path.isfile(inprcpath):
-            # if path is given and file exists, take it
-            rcpath = inprcpath
-        elif inprcpath and not os.path.isfile(inprcpath):
-            raise FileNotFoundError(f"Configuration file {inprcpath} not found!")
+        # check for .censorc in $home
+        if os.path.isfile(os.path.join(os.path.expanduser("~"), CENSORCNAME)):
+            rcpath = os.path.join(os.path.expanduser("~"), CENSORCNAME)
 
         return rcpath
 

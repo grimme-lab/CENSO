@@ -9,6 +9,7 @@ from censo.cfg import PLENGTH, DIGILEN, AU2KCAL
 from censo.utilities import (
     print,
     timeit,
+    format_data,
 )
 from censo.part import CensoPart
 from censo.core import CensoCore
@@ -25,12 +26,11 @@ class Prescreening(CensoPart):
     @timeit
     def run(self) -> None:
         """
-        prescreening == part0, calculate cheap free energy on GFNn-xTB input geometry
-        The idea is to improve on the description of E with a very fast DFT method.
+        first screening of the ensemble by doing single-point calculation on the input geometries,
+        using a (cheap) DFT method. if the ensemble optimization is not taking place in the gas-phase,
+        the gsolv contribution is calculated using xtb.
 
-        Consists of two parts:
-        - DFT single-point
-        - calculation of gsolv with xTB (optional, only if run not in gas-phase)
+        the list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
         """
         
         # initialize process handler for current program with conformer geometries
@@ -172,10 +172,10 @@ class Prescreening(CensoPart):
             "E (xtb)",
             "ΔE (xtb)",
             "E (DFT)",
-            "δGsolv (xtb)",
+            "ΔGsolv (xtb)",
             "Gtot",
             "ΔE (DFT)",
-            "ΔδGsolv",
+            "δΔGsolv",
             "ΔGtot",
         ]
         
@@ -223,50 +223,23 @@ class Prescreening(CensoPart):
             "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
             "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
-            "δGsolv (xtb)": lambda conf: 
+            "ΔGsolv (xtb)": lambda conf: 
                 f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys()
                 else "---",
             "Gtot": lambda conf: f"{self.key(conf)}",
             "ΔE (DFT)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['sp']['energy'] - dftmin) * AU2KCAL:.2f}",
-            "ΔδGsolv": lambda conf: 
+            "δΔGsolv": lambda conf: 
                 f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
                 else "---",
             "ΔGtot": lambda conf: f"{(self.key(conf) - gtotmin) * AU2KCAL:.2f}",
         }
 
-        # determine column width 'collen' of column with header 'header' 
-        # by finding the length of the maximum width entry
-        # for each column (header)
-        collens = {
-            header: collen for header, collen in zip(
-                headers,
-                (max(
-                    len(header), max(len(printmap[header](conf)) 
-                    for conf in self.core.conformers)
-                ) for header in headers)
-            )
-        }
-        
-        lines = []
-        
-        # add table header
-        lines.append(" ".join(f"{header:^{collen+6}}" for header, collen in collens.items()) + "\n")
-        lines.append(" ".join(f"{unit:^{collen+6}}" for unit, collen in zip(units, collens.values())) + "\n")
-        
-        # add a row for every conformer (this time sorted by name)
-        for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
-            # print floats with 2 digits accuracy if it is a difference, else with 6 digits
-            lines.append(
-                " ".join(
-                        f"{printmap[header](conf):^{collen+6}}" 
-                        for header, collen in collens.items()
-                    ) 
-                # draw an arrow if conformer is the best in current ranking
-                + ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
-            )
-            
+        rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
+
+        lines = format_data(headers, rows, units=units)
+
         # list all conformers still considered with their boltzmann weights
         # as well as the averaged free enthalpy of the ensemble
         lines.append(
@@ -303,6 +276,4 @@ class Prescreening(CensoPart):
         with open(os.path.join(self.core.workdir, "prescreening.csv"), "w", newline=None) as outfile:
             writer = csv.DictWriter(outfile, headers, delimiter=" ")
             writer.writeheader()
-            
-            for conf in sorted(self.core.conformers, key=lambda conf: conf.name):
-                writer.writerow({header: printmap[header](conf) for header in headers})
+            writer.writerows(sorted(rows, key=lambda x: x[0]))

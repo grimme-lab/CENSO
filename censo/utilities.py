@@ -37,6 +37,48 @@ def print(*args, **kwargs):
     print_orig(*args, sep=sep, end=end, file=file, flush=flush)
 
 
+def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = None, sortby: int = 0) -> List[str]:
+    """
+    Generates a formatted table based on the given headers, rows, units, and sortby index.
+
+    Args:
+        headers (List[str]): The list of column headers.
+        rows (List[List[Any]]): The list of rows, where each row is a list of values.
+        units (List[str], optional): The list of units for each column. Defaults to None.
+        sortby (int, optional): The index of the column to sort by. Defaults to 0.
+
+    Returns:
+        List[str]: The list of formatted lines representing the table.
+
+    """
+    lines = []
+    
+    # determine column width 'collen' of column with header 'header' 
+    # by finding the length of the maximum width entry
+    # for each column (header)
+    collens = {
+        header: collen for header, collen in zip(
+            headers,
+            (max(len(header), max(len(row) for row in rows)) for header in headers)
+        )
+    }
+    
+    # add table header
+    lines.append("\n".join(f"{header:^{collen+6}}" for header, collen in collens.items()))
+    if not units is None:
+        lines.append("\n".join(f"{unit:^{collen+6}}" for unit, collen in zip(units, collens.values())))
+    
+    # TODO - draw an arrow if conformer is the best in current ranking
+    # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
+
+    # add a line for every row, sorted by the 'sortby'th column
+    for row in sorted(rows, key=lambda x: x[sortby]):
+        lines.append("\n".join(f"{row:^{collen+6}}" for row, collen in zip(row, collens.values())))
+
+    return lines
+    
+
+
 def frange(start, end, step=1):
     """
     range with floats

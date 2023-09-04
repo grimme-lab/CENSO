@@ -14,7 +14,9 @@ from censo.cfg import (
     ENVIRON,
     WARNLEN,
     PLANCK,
-    C
+    C,
+    SOLV_MODS,
+    GSOLV_MODS,
 )
 from censo.utilities import last_folders, t2x, x2t, print
 from censo.qm_processor import QmProc
@@ -234,6 +236,12 @@ class OrcaProc(QmProc):
     - coupling constant calculations
     - writing of generic output for shielding and coupling constants
     """
+
+    # TODO - Lookup dicts for solvent models and functionals/dispersion corretions
+    _solvent_models = {
+        "sm": SOLV_MODS["orca"],
+        "smgsolv": GSOLV_MODS["orca"],
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

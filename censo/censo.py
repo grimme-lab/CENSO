@@ -89,6 +89,8 @@ def startup(argv):
         sys.exit(0)
         
     settings = CensoSettings()
+    if not args.inprcpath is None:
+        settings.censorc_path = args.inprcpath
     
     # TODO - update the settings with cml args
     # settings.configure(args)
