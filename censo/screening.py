@@ -16,10 +16,18 @@ class Screening(CensoPart):
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
+
+        Basically consists of two parts:
+            - screening of the ensemble by doing single-point calculations on the input geometries,
+            - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
         # initialize process handler for current program with conformer geometries
         handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
-        
+
+        # print instructions
+        self.print_info()
+
+        # PART (1) 
         # set jobtype to pass to handler
         jobtype: List[str] = []
         if self._instructions.get("gas-phase", None):
@@ -29,14 +37,8 @@ class Screening(CensoPart):
                 jobtype = ["sp", "xtb_gsolv"]
         else:
             jobtype = ["sp"]
-
-        if self._instructions.get("evaluate_rrho", None):
-            jobtype.append("xtb_rrho")
         
-        # print instructions
-        self.print_info()
-        
-        # set folder to do the calculations in for prescreening
+        # set folder to do the calculations in
         folder = os.path.join(self.core.workdir, 'screening')
         if os.path.isdir(folder):
             # TODO - warning? stderr?
@@ -56,6 +58,7 @@ class Screening(CensoPart):
             conf.results[self.__class__.__name__.lower()] = results[id(conf)]
             
         # sort conformers list
+        self.core.conformers.sort()
         
         # update conformers with threshold
         threshold = self._instructions.get("threshold", None)
@@ -74,7 +77,42 @@ class Screening(CensoPart):
             
             # update the conformer list in core (remove conf if below threshold)
             self.core.update_conformers(filtered)  
+        else:
+            """
+            TODO
+            print warning that no threshold could be determined
+            (should not happen but doesn't necessarily break the program)
+            """
+            print("...")
+
+        # PART (2)
+        if self._instructions["evaluate_rrho"]:
+            jobtype = ["xtb_rrho"]
+
+            # append results to previous results
+            results = handler.execute(jobtype, folder)
+            for conf in self.core.conformers:
+                conf.results[self.__class__.__name__.lower()].update(results[id(conf)])
+
+            # sort conformers list
+            self.core.conformers.sort()
+
+            # update conformers with threshold
+            # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
+            limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
             
+            # filter out all conformers below threshold
+            # so that 'filtered' contains all conformers that should not be considered any further
+            filtered = [
+                conf for conf in filter(
+                    lambda x: self.key(x) > limit + threshold, 
+                    self.core.conformers
+                )
+            ]
+            
+            # update the conformer list in core (remove conf if below threshold)
+            self.core.update_conformers(filtered)
+
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
             self.core.calc_boltzmannweights(
@@ -83,13 +121,6 @@ class Screening(CensoPart):
             )
             
             # if no conformers are filtered basically nothing happens
-        else:
-            """
-            TODO
-            print warning that no threshold could be determined
-            (should not happen but doesn't necessarily brake the program)
-            """
-            print("...")
         
         # write results (analogous to deprecated print)
         self.write_results()
@@ -242,7 +273,6 @@ class Screening(CensoPart):
 
 
 def part1(config, conformers, store_confs, ensembledata):
-    # PRINTING STUFF
     # RANDOM STUFF - configuring jobs
     # GENERAL CONFIGURATION
     # IN SHORT:

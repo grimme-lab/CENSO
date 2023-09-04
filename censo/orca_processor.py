@@ -506,12 +506,6 @@ class OrcaProc(QmProc):
 
     def _gsolv(self, conf: GeometryData):
         """
-        Calculate SMD_gsolv, needs ORCA
-        if optimization is not performed with ORCA, only the density 
-        functional for optimization is employed, 
-        from my understanding smd is parametrized at 298 K, therefore it should only
-        be used at this temperature.
-
         result = {
             "success": None,
             "gsolv": None,
