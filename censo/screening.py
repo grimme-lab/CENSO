@@ -70,7 +70,7 @@ class Screening(CensoPart):
             # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
                 conf for conf in filter(
-                    lambda x: self.key(x) > limit + threshold, 
+                    lambda x: self.key1(x) > limit + threshold, 
                     self.core.conformers
                 )
             ]
@@ -85,7 +85,10 @@ class Screening(CensoPart):
             """
             print("...")
 
+        # TODO - write results for first part
+
         # PART (2)
+        # TODO - overwrite 'gtot'?
         if self._instructions["evaluate_rrho"]:
             jobtype = ["xtb_rrho"]
 
@@ -105,7 +108,7 @@ class Screening(CensoPart):
             # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
                 conf for conf in filter(
-                    lambda x: self.key(x) > limit + threshold, 
+                    lambda x: self.key2(x) > limit + threshold, 
                     self.core.conformers
                 )
             ]
@@ -121,24 +124,54 @@ class Screening(CensoPart):
             )
             
             # if no conformers are filtered basically nothing happens
-        
-        # write results (analogous to deprecated print)
-        self.write_results()
+
+            # TODO - write results for second part
                 
         # DONE
 
 
-    def key(self, conf: CensoConformer) -> float:
+    def key1(self, conf: MoleculeData) -> float:
         """
-        Calculates the key value for the given CensoConformer object.
+        Calculate the total Gibbs free energy (Gtot) of a molecule using DFT single-point and gsolv (if included).
 
-        Args:
-            conf (CensoConformer): The CensoConformer object for which to calculate the key.
+        Parameters:
+            conf (MoleculeData): The molecule data object containing the results.
 
         Returns:
-            float: The calculated key value.
+            float: The calculated Gibbs free energy (Gtot) of the molecule.
         """
-        pass
+        # calculate Gtot = E(DFT) + Gsolv
+        gtot: float = conf.results[self.__class__.__name__.lower()]["sp"]["energy"]
+
+        # Gsolv is only calculated if prescreening is not in the gas-phase
+        if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys():
+            gtot += conf.results[self.__class__.__name__.lower()]["xtb_gsolv"]["gsolv"]
+        elif "gsolv" in conf.results[self.__class__.__name__.lower()].keys():
+            gtot += conf.results[self.__class__.__name__.lower()]["gsolv"]["gsolv"]
+
+        return gtot
+
+
+    def key2(self, conf: MoleculeData) -> float:
+        """
+        Calculate the total Gibbs free energy (Gtot) of a given molecule using DFT single-point and gsolv (if included) and RRHO contributions.
+        
+        Parameters:
+            conf (MoleculeData): The MoleculeData object containing the necessary information for the calculation.
+        
+        Returns:
+            float: The total Gibbs free energy (Gtot) of the molecule.
+        """
+        # calculate Gtot from key1
+        # Gtot = E(DFT) + Gsolv
+        gtot: float = self.key1(conf)
+
+        # include Grrho
+        # Gtot = E(DFT) + Gsolv + Grrho
+        # note: key2 should only be called if evaluate_rrho is True
+        gtot += conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["grrho"]
+
+        return gtot
 
 
     def print_info(self) -> None:

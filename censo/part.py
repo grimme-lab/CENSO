@@ -56,13 +56,6 @@ class CensoPart:
         """
         pass    
     
-    def key(self):
-        """
-        key to sort conformers list (optional)
-        """
-        pass
-    
-    
     def write_info(self):
         """
         formatted write of part instructions
