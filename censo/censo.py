@@ -52,7 +52,7 @@ def main(argv=None):
     core, settings = startup(argv)
 
     # TODO - check which part to run and include only these in 'run'
-    run = [Prescreening, ]
+    run = [Prescreening, Screening]
 
     for part in run:
         print(f"Ran {part.__name__} in {part(core, settings).run()} seconds!")

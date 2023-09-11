@@ -237,18 +237,18 @@ class Screening(Prescreening):
 
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "G (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]}", # TODO
+            "G (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}", # TODO
             "ΔG (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']] - gxtbmin) * AU2KCAL:.2f}", # TODO
-            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
+            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}",
             "ΔGsolv": lambda conf: 
                 f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}"
                 if not isclose(self.key(conf), conf.results[self.__class__.__name__.lower()]['sp']['energy'])
                 else "---", 
             "GmRRHO": lambda conf: 
-                f"{conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]}"
+                f"{conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
                 if self._instructions["evaluate_rrho"]
                 else "---", 
-            "Gtot": lambda conf: f"{self.key2(conf)}",
+            "Gtot": lambda conf: f"{self.key2(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.key2(conf) - gtotmin) * AU2KCAL:.2f}",
         }
         
