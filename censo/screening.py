@@ -170,7 +170,7 @@ class Screening(Prescreening):
                 f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() or "gsolv" in conf.results[self.__class__.__name__.lower()].keys()
                 else "---", 
-            "Gtot": lambda conf: f"{self.key(conf)}",
+            "Gtot": lambda conf: f"{self.key(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.key(conf) - gtotmin) * AU2KCAL:.2f}",
         }
 

@@ -15,6 +15,7 @@ from censo.utilities import print
 # from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
 from censo.prescreening import Prescreening
+from censo.screening import Screening
 from censo.settings import CensoSettings
 
 # use generators for reduced memory usage?

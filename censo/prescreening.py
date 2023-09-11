@@ -223,7 +223,7 @@ class Prescreening(CensoPart):
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
                 else "---",
             "ΔGtot": lambda conf: f"{(self.key(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['bmw']:.2f}",
+            "Boltzmann weight": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['bmw'] * 100:.2f}",
         }
 
         rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
