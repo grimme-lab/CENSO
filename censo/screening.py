@@ -24,7 +24,7 @@ class Screening(Prescreening):
     alt_name = "part1"
     
     def __init__(self, core: CensoCore, settings: CensoSettings):
-        CensoPart.__init__(core, settings, "screening")
+        CensoPart.__init__(self, core, settings, "screening")
 
 
     @timeit
@@ -108,7 +108,7 @@ class Screening(Prescreening):
         """
         # Gtot = E(DFT) + Gsolv + Grrho
         # note: key2 should only be called if evaluate_rrho is True
-        return self.key(conf) + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["grrho"]
+        return self.key(conf) + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["gibbs"][self._instructions["temperature"]]
 
 
     def write_results(self) -> None:
@@ -129,8 +129,8 @@ class Screening(Prescreening):
         # column headers
         headers = [
             "CONF#",
-            "E (xtb)",
-            "ΔE (xtb)",
+            "E (xTB)",
+            "ΔE (xTB)",
             "E (DFT)",
             "ΔGsolv",
             "Gtot",
@@ -163,8 +163,8 @@ class Screening(Prescreening):
         # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xtb)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']}", # TODO
-            "ΔE (xtb)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}", # TODO
+            "E (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']}", # TODO
+            "ΔE (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}", # TODO
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
             "ΔGsolv": lambda conf: 
                 f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']}" 

@@ -380,11 +380,11 @@ class OrcaProc(QmProc):
         ###################### SOLVENT/GEOM ########################
 
         # set keywords for the selected solvent model
-        if not self.instructions["gas-phase"] and not no_solv:
+        if not self.instructions["gas-phase"] and not no_solv and "sm" in self.instructions.keys():
             if self.instructions["sm"] == "smd":
                 indict["cpcm"] = {
                     "smd": ["true"],
-                    "smdsolvent": [f"{self.instructions['solvent_key_prog']}"],
+                    "smdsolvent": [f"\"{self.instructions['solvent_key_prog']}\""],
                 }
             elif self.instuctions["sm"] == "cpcm":
                 indict["main"].append(f"CPCM({self.instructions['solvent_key_prog']})")
@@ -527,9 +527,10 @@ class OrcaProc(QmProc):
         )
 
         # calculate gas phase
+        # TODO - this is redundant since a single point was probably already calculated before
         res = self._sp(conf, silent=True, filename="sp_gas", no_solv=True)
 
-        if self.result["success"]:
+        if res["success"]:
             result["energy_gas"] = res["energy"]
         else:
             result["success"] = False
@@ -542,7 +543,7 @@ class OrcaProc(QmProc):
         # calculate in solution
         res = self._sp(conf, silent=True, filename="sp_solv")
 
-        if self.result["success"]:
+        if res["success"]:
             result["energy_solv"] = res["energy"]
         else:
             result["success"] = False

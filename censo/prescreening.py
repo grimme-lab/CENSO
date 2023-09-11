@@ -40,7 +40,7 @@ class Prescreening(CensoPart):
         
         # set jobtype to pass to handler
         jobtype: List[str] = []
-        if self._instructions.get("gas-phase", None):
+        if not self._instructions.get("gas-phase", None):
             if self._instructions.get("implicit", None):
                 jobtype = ["sp", "gsolv"]
             else:
@@ -208,10 +208,10 @@ class Prescreening(CensoPart):
         # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
-            "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
+            "E (xTB)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
+            "ΔE (xTB)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
-            "ΔGsolv (xtb)": lambda conf: 
+            "ΔGsolv (xTB)": lambda conf: 
                 f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']:.6f}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys()
                 else "---",
@@ -264,4 +264,5 @@ class Prescreening(CensoPart):
         with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.csv"), "w", newline=None) as outfile:
             writer = csv.DictWriter(outfile, headers, delimiter=" ")
             writer.writeheader()
-            writer.writerows(sorted(rows, key=lambda x: x[0]))
+            rows = [{header: printmap[header](conf) for header in headers} for conf in self.core.conformers]
+            writer.writerows(rows)

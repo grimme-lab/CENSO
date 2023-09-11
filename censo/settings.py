@@ -147,7 +147,6 @@ class CensoSettings:
                 "options": []
             },
         },
-        # TODO - charge, unpaired should probably be removed from here and be given for each run specifically
         "general": {
             "maxprocs": {
                 "default": 1,
@@ -163,7 +162,7 @@ class CensoSettings:
                     256
                 ]
             },
-            "imagethr": {
+            "imagthr": {
                 "default": -100.0,
                 "range": [
                     -300.0,
@@ -225,7 +224,7 @@ class CensoSettings:
                 "default": False
             },
             "check": {
-                "default": True
+                "default": False
             },
             "balance": {
                 "default": True
@@ -668,7 +667,7 @@ class CensoSettings:
         }),
         float: MappingProxyType({
             "general": MappingProxyType({
-                "imagethr": {"default": -100.0, "range": (-300.0, 0.0)}, # TODO - threshold for imaginary frequencies
+                "imagthr": {"default": -100.0, "range": (-300.0, 0.0)}, # TODO - threshold for imaginary frequencies
                 "sthr": {"default": 0.0, "range": (0.0, 100.0)}, # TODO - what is this?
                 "scale": {"default": 1.0, "range": (0.0, 1.0)}, # TODO - what is this?
                 "temperature": {"default": 298.15, "range": (0.00001, 2000.0)}, # TODO
@@ -864,30 +863,30 @@ class CensoSettings:
         self.__settings_current = self.__read_rcfile()
     
     
-def print_paths(self) -> None:
-    """
-    Print out the paths of all external QM programs.
-    """
-    # Create an empty list to store the lines of the output.
-    lines = []
-    
-    # Append a separator line to the output.
-    lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-    
-    # Append the title of the section to the output, centered.
-    lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
-    
-    # Append a separator line to the output.
-    lines.append("".ljust(PLENGTH, "-") + "\n")
-    
-    # Iterate over each program and its path in the settings.
-    for program, path in self.__settings_current["paths"].items():
-        # Append a line with the program and its path to the output.
-        lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
+    def print_paths(self) -> None:
+        """
+        Print out the paths of all external QM programs.
+        """
+        # Create an empty list to store the lines of the output.
+        lines = []
         
-    # Print each line of the output.
-    for line in lines:
-        print(line)      
+        # Append a separator line to the output.
+        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
+        
+        # Append the title of the section to the output, centered.
+        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
+        
+        # Append a separator line to the output.
+        lines.append("".ljust(PLENGTH, "-") + "\n")
+        
+        # Iterate over each program and its path in the settings.
+        for program, path in self.__settings_current["paths"].items():
+            # Append a line with the program and its path to the output.
+            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
+            
+        # Print each line of the output.
+        for line in lines:
+            print(line)      
 
 
     @property
@@ -954,8 +953,10 @@ def print_paths(self) -> None:
             rcdata[section] = {}
             for setting in parser[section]:
                 setting_type = self.get_type(section, setting)
-                if setting_type != list:
+                if setting_type != list and setting_type != bool:
                     rcdata[section][setting] = setting_type(parser[section][setting])
+                elif setting_type == bool:
+                    rcdata[section][setting] = {"True": True, "False": False}.get(parser[section][setting])
                 else:
                     rcdata[section][setting] = ast.literal_eval(parser[section][setting])
 
@@ -969,7 +970,7 @@ def print_paths(self) -> None:
         for part, settings in self._settings_options.items():
             for setting, definition in settings.items():
                 if setting not in parser[part]:
-                    parser[part][setting] = definition["default"]
+                    parser[part][setting] = f"{definition['default']}"
 
         return parser
 

@@ -83,23 +83,13 @@ def frange(start, end, step=1):
     """
     range with floats
     """
-    try:
-        start = float(start)
-        end = float(end)
-        step = float(step)
-    except (ValueError, TypeError):
-        raise
-    if start > end:
-        tmp = start
-        start = end
-        end = tmp
-    count = 0
-    while True:
-        temp = float(start + count * step)
-        if temp >= end:
-            break
-        yield temp
-        count += 1
+    result = []
+    current = start
+    while current < end:
+        result.append(current)
+        current += step
+    return result
+
 
 
 def mkdir_p(path):
