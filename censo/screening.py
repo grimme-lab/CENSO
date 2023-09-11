@@ -1,14 +1,30 @@
 """
-prescreening == part1, calculate free energy on GFNn-xTB input geometry
-idea is to improve on E and (Gsolv)
+Screening is basically just an extension of part0 (Prescreening).
+Additionally to part0 it is also possible to calculate gsolv implicitly and include the RRHO contribution.
 """
+from typing import List
+import os
+from math import isclose
+
+from censo.prescreening import Prescreening
 from censo.part import CensoPart
 from censo.utilities import print, timeit, format_data
+from censo.parallel import ProcessHandler
+from censo.core import CensoCore
+from censo.settings import CensoSettings
+from censo.datastructure import MoleculeData
+from censo.cfg import (
+    PLENGTH,
+    AU2KCAL,
+)
 
 
-class Screening(CensoPart):
+class Screening(Prescreening):
+    
+    alt_name = "part1"
+    
     def __init__(self, core: CensoCore, settings: CensoSettings):
-        super().__init__(core, settings, "screening")
+        CensoPart.__init__(core, settings, "screening")
 
 
     @timeit
@@ -18,84 +34,33 @@ class Screening(CensoPart):
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
 
         Basically consists of two parts:
-            - screening of the ensemble by doing single-point calculations on the input geometries,
+            - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        # initialize process handler for current program with conformer geometries
-        handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
-
-        # print instructions
-        self.print_info()
-
-        # PART (1) 
-        # set jobtype to pass to handler
-        jobtype: List[str] = []
-        if self._instructions.get("gas-phase", None):
-            if self._instructions.get("implicit", None):
-                jobtype = ["sp", "gsolv"]
-            else:
-                jobtype = ["sp", "xtb_gsolv"]
-        else:
-            jobtype = ["sp"]
-        
-        # set folder to do the calculations in
-        folder = os.path.join(self.core.workdir, 'screening')
-        if os.path.isdir(folder):
-            # TODO - warning? stderr?
-            print(f"Folder {folder} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
-            # TODO - stderr case?
-            print(f"Could not create directory for {self.__class__.__name__.lower()}. Executing calculations in {self.core.workdir}.")
-            folder = self.core.workdir
-        
-        # compute results
-        # for structure of results from handler.execute look there
-        results = handler.execute(jobtype, folder)
-
-        # update results for each conformer
-        for conf in self.core.conformers:
-            # store results of single jobs for each conformer
-            conf.results[self.__class__.__name__.lower()] = results[id(conf)]
-            
-        # sort conformers list
-        self.core.conformers.sort()
-        
-        # update conformers with threshold
-        threshold = self._instructions.get("threshold", None)
-        if not threshold is None:
-            # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
-            limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
-            
-            # filter out all conformers below threshold
-            # so that 'filtered' contains all conformers that should not be considered any further
-            filtered = [
-                conf for conf in filter(
-                    lambda x: self.key1(x) > limit + threshold, 
-                    self.core.conformers
-                )
-            ]
-            
-            # update the conformer list in core (remove conf if below threshold)
-            self.core.update_conformers(filtered)  
-        else:
-            """
-            TODO
-            print warning that no threshold could be determined
-            (should not happen but doesn't necessarily break the program)
-            """
-            print("...")
-
-        # TODO - write results for first part
+        # TODO - test this
+        # TODO - maybe put folder/handler as instance variable such that it can be reused later instead of reinstantiating
+        super().run()
 
         # PART (2)
         # TODO - overwrite 'gtot'?
+        threshold = self._instructions.get("threshold", None)
+        
+        # folder should already exist if previous part didn't raise runtime error
+        folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
         if self._instructions["evaluate_rrho"]:
+            # initialize process handler for current program with conformer geometries
+            handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
+            
             jobtype = ["xtb_rrho"]
 
             # append results to previous results
             results = handler.execute(jobtype, folder)
             for conf in self.core.conformers:
+                # update results for each conformer
                 conf.results[self.__class__.__name__.lower()].update(results[id(conf)])
+                
+                # calculate new gtot including RRHO contribution
+                conf.results[self.__class__.__name__.lower()]["gtot"] = self.key2(conf)
 
             # sort conformers list
             self.core.conformers.sort()
@@ -126,30 +91,9 @@ class Screening(CensoPart):
             # if no conformers are filtered basically nothing happens
 
             # TODO - write results for second part
+            self.write_results2()
                 
         # DONE
-
-
-    def key1(self, conf: MoleculeData) -> float:
-        """
-        Calculate the total Gibbs free energy (Gtot) of a molecule using DFT single-point and gsolv (if included).
-
-        Parameters:
-            conf (MoleculeData): The molecule data object containing the results.
-
-        Returns:
-            float: The calculated Gibbs free energy (Gtot) of the molecule.
-        """
-        # calculate Gtot = E(DFT) + Gsolv
-        gtot: float = conf.results[self.__class__.__name__.lower()]["sp"]["energy"]
-
-        # Gsolv is only calculated if prescreening is not in the gas-phase
-        if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys():
-            gtot += conf.results[self.__class__.__name__.lower()]["xtb_gsolv"]["gsolv"]
-        elif "gsolv" in conf.results[self.__class__.__name__.lower()].keys():
-            gtot += conf.results[self.__class__.__name__.lower()]["gsolv"]["gsolv"]
-
-        return gtot
 
 
     def key2(self, conf: MoleculeData) -> float:
@@ -162,27 +106,14 @@ class Screening(CensoPart):
         Returns:
             float: The total Gibbs free energy (Gtot) of the molecule.
         """
-        # calculate Gtot from key1
-        # Gtot = E(DFT) + Gsolv
-        gtot: float = self.key1(conf)
-
-        # include Grrho
         # Gtot = E(DFT) + Gsolv + Grrho
         # note: key2 should only be called if evaluate_rrho is True
-        gtot += conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["grrho"]
-
-        return gtot
-
-
-    def print_info(self) -> None:
-        """
-        A function that prints information.
-        """
-        pass
+        return self.key(conf) + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["grrho"]
 
 
     def write_results(self) -> None:
         """
+        Overrides the write_results function of Prescreening.
         Write the results to a file in formatted way.
         writes (1):
             E (xtb),
@@ -191,17 +122,8 @@ class Screening(CensoPart):
             δGsolv (DFT),
             Gtot,
             δGtot
-        
-        writes (2):
-            G (xtb),
-            δG (xtb),
-            E (DFT),
-            δGsolv (DFT),
-            Grrho,
-            Gtot,
-            δGtot
-        
-        Also writes them into an easily digestible format.
+            
+        Generates NO csv file. All info is included in the file written in write_results2.
         """
         # PART (1) of writing
         # column headers
@@ -210,7 +132,7 @@ class Screening(CensoPart):
             "E (xtb)",
             "ΔE (xtb)",
             "E (DFT)",
-            "ΔGsolv (DFT)",
+            "ΔGsolv",
             "Gtot",
             "ΔGtot",
         ]
@@ -227,84 +149,119 @@ class Screening(CensoPart):
         ]
         
         # variables for printmap
-        # minimal xtb single-point energy
+        # minimal xtb single-point energy (taken from prescreening)
+        # TODO - where do prescreening and screening get xtb single-point from?
         xtbmin = min(
-            conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] 
+            conf.results["prescreening"]['xtb_gsolv']['energy_xtb_gas'] 
             for conf in self.core.conformers
         )
         
-        # minimal dft single-point energy
-        dftmin = min(
-            conf.results[self.__class__.__name__.lower()]['sp']['energy'] 
-            for conf in self.core.conformers
-        )
-        
-        # minimal solvation free enthalpy
-        gsolvmin = min(
-            conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv'] 
-            if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
-            else 0.0 
-            for conf in self.core.conformers
-        ) 
-        
-        # minimal total free enthalpy
+        # minimal total free enthalpy (single-point and potentially gsolv)
         gtotmin = min(self.key(conf) for conf in self.core.conformers)
         
         # determines what to print for each conformer in each column
         # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xtb)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
-            "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
+            "E (xtb)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']}", # TODO
+            "ΔE (xtb)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}", # TODO
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
-            "δGsolv (xtb)": lambda conf: 
-                f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']}" 
-                if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys()
-                else "---",
+            "ΔGsolv": lambda conf: 
+                f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']}" 
+                if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() or "gsolv" in conf.results[self.__class__.__name__.lower()].keys()
+                else "---", 
             "Gtot": lambda conf: f"{self.key(conf)}",
-            "ΔE (DFT)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['sp']['energy'] - dftmin) * AU2KCAL:.2f}",
-            "ΔδGsolv": lambda conf: 
-                f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}" 
-                if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
-                else "---",
             "ΔGtot": lambda conf: f"{(self.key(conf) - gtotmin) * AU2KCAL:.2f}",
         }
 
-        rows1 = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
+        rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
 
-        lines = format_data(headers, rows1, units=units)
+        lines = format_data(headers, rows, units=units)
 
-        # list all conformers still considered with their boltzmann weights
-        # as well as the averaged free enthalpy of the ensemble
-        lines.append(
-            "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
+        # write everything to a file
+        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "w", newline=None) as outfile:
+            outfile.writelines(lines)
+        
+        
+    def write_results2(self) -> None:
+        """
+        Additional write function in case RRHO is used.
+        Write the results to a file in formatted way. This is appended to the first file.
+        writes (2):
+            G (xtb),
+            δG (xtb),
+            E (DFT),
+            δGsolv (DFT),
+            Grrho,
+            Gtot,
+            δGtot
+        
+        Also writes them into an easily digestible format.
+        """
+        # column headers
+        headers = [
+            "CONF#",
+            "G (xTB)",
+            "ΔG (xTB)",
+            "E (DFT)",
+            "ΔGsolv",
+            "GmRRHO",
+            "Gtot",
+            "ΔGtot",
+        ]
+        
+        # column units
+        units = [
+            "",
+            "[Eh]",
+            "[kcal/mol]",
+            "[Eh]",
+            "[Eh]",
+            "[Eh]",
+            "[Eh]",
+            "[kcal/mol]",
+        ]
+
+        # minimal xtb energy from single-point (and mRRHO)
+        gxtbmin = min(
+            conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions["temperature"]] # TODO?
+            if self._instructions["evaluate_rrho"] else conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
+            for conf in solf.core.conformers
         )
-        lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n")
-        print("".ljust(int(PLENGTH), "-") + "\n")
 
-        # calculate averaged free enthalpy
-        avG = sum([
-            conf.results[self.__class__.__name__.lower()]["bmw"] 
-            * conf.results[self.__class__.__name__.lower()]["gtot"] 
+        # minimal gtot from E(DFT), Gsolv and GmRRHO
+        gtotmin = min(
+            self.key2(conf)
             for conf in self.core.conformers
-        ])
-        
-        # calculate averaged free energy
-        avE = sum([
-            conf.results[self.__class__.__name__.lower()]["bmw"]
-            * conf.results[self.__class__.__name__.lower()]["sp"]["energy"]
-            for conf in self.core.conformers
-        ])
+        )
 
-        # append the lines for the free energy/enthalpy
-        lines.append(f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1==\n")
-        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
+        printmap = {
+            "CONF#": lambda conf: conf.name,
+            "G (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions['temperature']]}", # TODO
+            "ΔG (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions['temperature']] - gxtbmin) * AU2KCAL:.2f}", # TODO
+            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
+            "ΔGsolv": lambda conf: 
+                f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}"
+                if not isclose(self.key(conf), conf.results[self.__class__.__name__.lower()]['sp']['energy'])
+                else "---", 
+            "GmRRHO": lambda conf: 
+                f"{conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions['temperature']]}"
+                if self._instructions["evaluate_rrho"]
+                else "---", 
+            "Gtot": lambda conf: f"{self.key2(conf)}",
+            "ΔGtot": lambda conf: f"{(self.key2(conf) - gtotmin) * AU2KCAL:.2f}",
+        }
         
-        lines.append(">>> END of Screening <<<".center(PLENGTH, " ") + "\n")
+        rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
+
+        lines = format_data(headers, rows, units=units)
         
-        # PART (2) of writing
+        # append lines to already existing file
+        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "a", newline=None) as outfile:
+            outfile.writelines(lines)
 
 
+"""
 def part1(config, conformers, store_confs, ensembledata):
     # RANDOM STUFF - configuring jobs
     # GENERAL CONFIGURATION
@@ -941,3 +898,4 @@ def part1(config, conformers, store_confs, ensembledata):
     if config.progress:
         print("#>>># CENSO: Finished part1", file=sys.stderr)
     return config, calculate, store_confs, ensembledata
+"""

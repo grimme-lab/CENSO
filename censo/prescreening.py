@@ -19,6 +19,8 @@ from censo.datastructure import MoleculeData
 
 class Prescreening(CensoPart):
     
+    alt_name = "part0"
+    
     def __init__(self, core: CensoCore, settings: CensoSettings):
         super().__init__(core, settings, "prescreening")
         
@@ -39,7 +41,10 @@ class Prescreening(CensoPart):
         # set jobtype to pass to handler
         jobtype: List[str] = []
         if self._instructions.get("gas-phase", None):
-            jobtype = ["sp", "xtb_gsolv"]
+            if self._instructions.get("implicit", None):
+                jobtype = ["sp", "gsolv"]
+            else:
+                jobtype = ["sp", "xtb_gsolv"]
         else:
             jobtype = ["sp"]
         
@@ -47,14 +52,13 @@ class Prescreening(CensoPart):
         self.print_info()
         
         # set folder to do the calculations in for prescreening
-        folder = os.path.join(self.core.workdir, 'prescreening')
+        folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
         if os.path.isdir(folder):
             # TODO - warning? stderr?
             print(f"Folder {folder} already exists. Potentially overwriting files.")
         elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
-            # TODO - stderr case?
-            print(f"Could not create directory for {self.__class__.__name__.lower()}. Executing calculations in {self.core.workdir}.")
-            folder = self.core.workdir
+            # TODO - error handling stderr case? is this reasonable?
+            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}")
         
         # compute results
         # for structure of results from handler.execute look there
@@ -73,6 +77,16 @@ class Prescreening(CensoPart):
             key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"],
         )  
         
+        # calculate boltzmann weights from gtot values calculated here
+        # trying to get temperature from instructions, set it to room temperature if that fails for some reason
+        self.core.calc_boltzmannweights(
+            self._instructions.get("temperature", 298.15),
+            self.__class__.__name__.lower()
+        )
+            
+        # write results (analogous to deprecated print)
+        self.write_results()
+                
         # update conformers with threshold
         threshold = self._instructions.get("threshold", None)
         if not threshold is None:
@@ -90,15 +104,6 @@ class Prescreening(CensoPart):
             
             # update the conformer list in core (remove conf if below threshold)
             self.core.update_conformers(filtered)  
-            
-            # calculate boltzmann weights from gtot values calculated here
-            # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-            self.core.calc_boltzmannweights(
-                self._instructions.get("temperature", 298.15),
-                self.__class__.__name__.lower()
-            )
-            
-            # if no conformers are filtered basically nothing happens
         else:
             """
             TODO
@@ -106,47 +111,28 @@ class Prescreening(CensoPart):
             (should not happen but doesn't necessarily brake the program)
             """
             print("...")
-        
-        # write results (analogous to deprecated print)
-        self.write_results()
-                
+           
+        # TODO - print out which conformers are no longer considered
+         
         # DONE
 
 
     def key(self, conf: MoleculeData) -> float:
         """
         prescreening key for conformer sorting
-        calculates Gtot = E (DFT) + Gsolv (xtb) for a given conformer
+        calculates Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT) for a given conformer
         """
         
-        # Gtot = E (DFT) + Gsolv (xtb)
+        # Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT)
         gtot: float = conf.results[self.__class__.__name__.lower()]["sp"]["energy"]
         
         # Gsolv is only calculated if prescreening is not in the gas-phase
         if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys():
             gtot += conf.results[self.__class__.__name__.lower()]["xtb_gsolv"]["gsolv"]
+        elif "gsolv" in conf.results[self.__class__.__name__.lower()].keys():
+            gtot += conf.results[self.__class__.__name__.lower()]["gsolv"]["gsolv"]
         
         return gtot
-
-
-    def print_info(self) -> None:
-        """
-        formatted write for prescreening
-        write out settings used
-        """
-        
-        lines = []
-        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-        lines.append("PRESCREENING - PART0".center(PLENGTH, " ") + "\n")
-        lines.append("".ljust(PLENGTH, "-") + "\n")
-        lines.append("\n")
-        
-        for instruction, val in self._instructions.items():
-            lines.append(f"{instruction}:".ljust(DIGILEN, " ") + f"{val}\n")
-            
-        # print everything to console TODO - to stderr instead?
-        for line in lines:
-            print(line)
 
 
     def write_results(self) -> None:
@@ -169,10 +155,10 @@ class Prescreening(CensoPart):
         # column headers
         headers = [
             "CONF#",
-            "E (xtb)",
-            "ΔE (xtb)",
+            "E (xTB)",
+            "ΔE (xTB)",
             "E (DFT)",
-            "ΔGsolv (xtb)",
+            "ΔGsolv (xTB)",
             "Gtot",
             "ΔE (DFT)",
             "δΔGsolv",
@@ -190,10 +176,12 @@ class Prescreening(CensoPart):
             "[kcal/mol]",
             "[kcal/mol]",
             "[kcal/mol]",
+            f"\% at {self._instructions.get('temperature', 298.15)} K",
         ]
         
         # variables for printmap
         # minimal xtb single-point energy
+        # TODO - where do prescreening and screening get xtb single-point from?
         xtbmin = min(
             conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] 
             for conf in self.core.conformers
@@ -224,7 +212,7 @@ class Prescreening(CensoPart):
             "ΔE (xtb)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
             "ΔGsolv (xtb)": lambda conf: 
-                f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']}" 
+                f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']:.6f}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys()
                 else "---",
             "Gtot": lambda conf: f"{self.key(conf)}",
@@ -234,14 +222,14 @@ class Prescreening(CensoPart):
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
                 else "---",
             "ΔGtot": lambda conf: f"{(self.key(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['bmw']:.2f}",
         }
 
         rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
 
         lines = format_data(headers, rows, units=units)
 
-        # list all conformers still considered with their boltzmann weights
-        # as well as the averaged free enthalpy of the ensemble
+        # list the averaged free enthalpy of the ensemble
         lines.append(
             "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
         )
@@ -266,14 +254,14 @@ class Prescreening(CensoPart):
         lines.append(f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n")
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
         
-        lines.append(">>> END of Prescreening <<<".center(PLENGTH, " ") + "\n")
+        # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
             
         # write everything to a file
-        with open(os.path.join(self.core.workdir, "prescreening.out"), "w", newline=None) as outfile:
+        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
         # additionally, write data in csv format
-        with open(os.path.join(self.core.workdir, "prescreening.csv"), "w", newline=None) as outfile:
+        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.csv"), "w", newline=None) as outfile:
             writer = csv.DictWriter(outfile, headers, delimiter=" ")
             writer.writeheader()
             writer.writerows(sorted(rows, key=lambda x: x[0]))

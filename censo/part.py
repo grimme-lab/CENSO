@@ -15,6 +15,10 @@ from typing import Dict, Any
 from censo.utilities import timeit
 from censo.core import CensoCore
 from censo.settings import CensoSettings
+from censo.cfg import (
+    PLENGTH,
+    DIGILEN
+)
 
 
 class CensoPart:
@@ -56,12 +60,24 @@ class CensoPart:
         """
         pass    
     
-    def write_info(self):
+    def print_info(self) -> None:
         """
-        formatted write of part instructions
+        formatted print for part instructions
         """
-        pass
-    
+        
+        lines = []
+        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
+        lines.append(f"{self.__class__.__name__.upper()} - {self.alt_name.upper()}".center(PLENGTH, " ") + "\n")
+        lines.append("".ljust(PLENGTH, "-") + "\n")
+        lines.append("\n")
+        
+        for instruction, val in self._instructions.items():
+            lines.append(f"{instruction}:".ljust(DIGILEN, " ") + f"{val}\n")
+            
+        # print everything to console TODO - to stderr instead?
+        for line in lines:
+            print(line)
+
     
     def write_results(self):
         """
