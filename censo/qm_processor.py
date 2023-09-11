@@ -673,3 +673,5 @@ class QmProc:
                 f"{os.path.join(self.workdir, 'xtb_enso.json')} doesn't exist!"
             )
             result["success"] = False
+
+        return result

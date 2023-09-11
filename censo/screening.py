@@ -63,7 +63,7 @@ class Screening(Prescreening):
                 conf.results[self.__class__.__name__.lower()]["gtot"] = self.key2(conf)
 
             # sort conformers list
-            self.core.conformers.sort()
+            self.core.conformers.sort(key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"])
 
             # update conformers with threshold
             # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
@@ -163,11 +163,11 @@ class Screening(Prescreening):
         # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']}", # TODO
+            "E (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']:.6f}", # TODO
             "ΔE (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}", # TODO
-            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
+            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}",
             "ΔGsolv": lambda conf: 
-                f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']}" 
+                f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() or "gsolv" in conf.results[self.__class__.__name__.lower()].keys()
                 else "---", 
             "Gtot": lambda conf: f"{self.key(conf)}",
@@ -224,9 +224,9 @@ class Screening(Prescreening):
 
         # minimal xtb energy from single-point (and mRRHO)
         gxtbmin = min(
-            conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions["temperature"]] # TODO?
+            conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions["temperature"]] # TODO?
             if self._instructions["evaluate_rrho"] else conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
-            for conf in solf.core.conformers
+            for conf in self.core.conformers
         )
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
@@ -237,15 +237,15 @@ class Screening(Prescreening):
 
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "G (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions['temperature']]}", # TODO
-            "ΔG (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions['temperature']] - gxtbmin) * AU2KCAL:.2f}", # TODO
+            "G (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]}", # TODO
+            "ΔG (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']] - gxtbmin) * AU2KCAL:.2f}", # TODO
             "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
             "ΔGsolv": lambda conf: 
                 f"{self.key(conf) - conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}"
                 if not isclose(self.key(conf), conf.results[self.__class__.__name__.lower()]['sp']['energy'])
                 else "---", 
             "GmRRHO": lambda conf: 
-                f"{conf.results[self.__class__.__name__.lower()]['xtb_grrho']['gibbs'][self._instructions['temperature']]}"
+                f"{conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]}"
                 if self._instructions["evaluate_rrho"]
                 else "---", 
             "Gtot": lambda conf: f"{self.key2(conf)}",

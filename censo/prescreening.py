@@ -163,6 +163,7 @@ class Prescreening(CensoPart):
             "ΔE (DFT)",
             "δΔGsolv",
             "ΔGtot",
+            "Boltzmann weight",
         ]
         
         # column units
@@ -208,9 +209,9 @@ class Prescreening(CensoPart):
         # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']}",
+            "E (xTB)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']:.6f}",
             "ΔE (xTB)": lambda conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
-            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']}",
+            "E (DFT)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['sp']['energy']:.6f}",
             "ΔGsolv (xTB)": lambda conf: 
                 f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']:.6f}" 
                 if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys()

@@ -64,16 +64,19 @@ def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = No
     }
     
     # add table header
-    lines.append("\n".join(f"{header:^{collen+6}}" for header, collen in collens.items()))
+    lines.append(" ".join(f"{header:^{collen+6}}" for header, collen in collens.items()))
+    lines[0] += "\n"
     if not units is None:
-        lines.append("\n".join(f"{unit:^{collen+6}}" for unit, collen in zip(units, collens.values())))
+        lines.append(" ".join(f"{unit:^{collen+6}}" for unit, collen in zip(units, collens.values())))
+        lines[1] += "\n"
     
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
 
     # add a line for every row, sorted by the 'sortby'th column
     for row in sorted(rows, key=lambda x: x[sortby]):
-        lines.append("\n".join(f"{row:^{collen+6}}" for row, collen in zip(row, collens.values())))
+        lines.append(" ".join(f"{row:^{collen+6}}" for row, collen in zip(row, collens.values())))
+        lines[-1] += "\n"
 
     return lines
     
