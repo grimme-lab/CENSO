@@ -421,6 +421,14 @@ class OrcaProc(QmProc):
             # TODO - error handling
             print("Selected basis not available for GCP.")
 
+        # add job keyword for geometry optimizations
+        # with ANCOPT
+        if jobtype == "xtbopt":
+            indict["main"].append("ENGRAD")
+        # for standard optimization
+        elif jobtype == "opt":
+            indict["main"].append("OPT")
+
         return indict
 
 
@@ -591,13 +599,8 @@ class OrcaProc(QmProc):
             "converged": None,
             "ecyc": None,
         }
-
-        uses:
-        fullopt --> outputname decision
-        workdir --> folder of calculation
-
-        TODO - condense this function
         """
+        
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
         # 'energy' contains the final energy of the optimization (converged or unconverged)
@@ -608,14 +611,9 @@ class OrcaProc(QmProc):
             "converged": None,
             "ecyc": None,
         }
-        
-        # FIXME
-        if self.job["fullopt"]:
-            output = "opt-part2.out"
-        else:
-            output = "opt-part1.out"
-        
-        outputpath = os.path.join(self.workdir, output)
+
+        confdir = os.path.join(self.workdir, conf.name) 
+        outputpath = os.path.join(confdir, output)
         
         print(f"Running optimization in {last_folders(self.workdir, 2):18}")
         files = [
@@ -629,47 +627,44 @@ class OrcaProc(QmProc):
         
         # remove potentially preexisting files to avoid confusion
         for file in files:
-            if os.path.isfile(os.path.join(self.workdir, file)):
-                os.remove(os.path.join(self.workdir, file))
+            if os.path.isfile(os.path.join(confdir, file)):
+                os.remove(os.path.join(confdir, file))
         
         # add inputfile information to coord (xtb as a driver)
         with open(
-            os.path.join(self.workdir, "coord"), "r", newline=None
+            os.path.join(confdir, "coord"), "r", newline=None
         ) as coord:
             tmp = coord.readlines()
         with open(
-            os.path.join(self.workdir, "coord"), "w", newline=None
+            os.path.join(confdir, "coord"), "w", newline=None
         ) as newcoord:
             for line in tmp[:-1]:
                 newcoord.write(line)
             newcoord.write("$external\n")
             newcoord.write("   orca input file= inp\n")
             newcoord.write(
-                f"   orca bin= {os.path.join(self.paths['orcapath'], 'orca')} \n"
+                f"   orca bin= {self.paths['orcapath']} \n"
             )
             newcoord.write("$end\n")
 
-        # TODO - generate orca input file
+        # generate orca input file
         self.__prep(conf, "xtbopt")
 
         # generate coord file to be used by xtb
-        conf.tocoord(os.path.join(self.workdir, "coord"))
+        conf.tocoord(os.path.join(confdir, "coord"))
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(
-            os.path.join(self.workdir, "opt.inp"), "w", newline=None
+            os.path.join(confdir, "xcontrol-inp"), "w", newline=None
         ) as out:
             out.write("$opt \n")
-            if (
-                self.job["optcycles"] is not None
-                and float(self.job["optcycles"]) > 0
-            ):
-                out.write(f"maxcycle={str(self.job['optcycles'])} \n")
-                out.write(f"microcycle={str(self.job['optcycles'])} \n")
+            if self.instructions["opt_spearman"]:
+                out.write(f"maxcycle={self.instructions['optcycles']} \n")
+                out.write(f"microcycle={self.instructions['optcycles']} \n")
 
             out.writelines([
                 "average conv=true \n",
-                f"hlow={self.job.get('hlow', 0.01)} \n",
+                f"hlow={self.instructions['hlow']} \n",
                 "s6=30.00 \n",
                 # remove unnecessary sp/gradient call in xTB
                 "engine=lbfgs\n",
@@ -681,13 +676,13 @@ class OrcaProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.instructions["xtbpath"],
+            self.paths["xtbpath"],
             "coord", # name of the coord file generated above
             "--opt",
             self.instructions["optlevel"],
             "--orca",
             "-I",
-            "opt.inp", # name of the xcontrol file generated above
+            "xcontrol-inp", # name of the xcontrol file generated above
         ]
 
         # make xtb call, write into 'outputfile'
@@ -698,7 +693,7 @@ class OrcaProc(QmProc):
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=self.workdir,
+                cwd=confdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
@@ -708,7 +703,7 @@ class OrcaProc(QmProc):
             result["success"] = False
             print(
                 f"{'ERROR:':{WARNLEN}}optimization "
-                f"in {last_folders(self.workdir, 2):18} not converged"
+                f"in {last_folders(self.workdir, 2):18} failed!"
             )
             return result
 
@@ -733,10 +728,12 @@ class OrcaProc(QmProc):
                         # TODO - error handling
                         print(
                             f"{'ERROR:':{WARNLEN}}optimization in "
-                            f"{last_folders(self.workdir, 2):18} not converged"
+                            f"{last_folders(self.workdir, 2):18} failed!"
                         )
                         result["success"] = False
                         return result
+
+                    result["success"] = True
                     
                     if " FAILED TO CONVERGE GEOMETRY " in line:
                         self.result["cycles"] += int(line.split()[7])
@@ -774,7 +771,6 @@ class OrcaProc(QmProc):
             return result
         
         # store the final energy of the optimization in 'energy' 
-        # TODO - can an unconverged optimization be called a 'success'?
         self.result["energy"] = self.result["ecyc"][-1]
         self.result["success"] = True
 

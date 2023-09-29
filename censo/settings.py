@@ -11,8 +11,22 @@ from multiprocessing import Lock
 from types import MappingProxyType
 from typing import Any, Dict, List, Tuple, Type, Union
 
-from censo.cfg import (ASSETS_PATH, DIGILEN, GSOLV_MODS, PARTS, PLENGTH, PROGS, SOLV_MODS,
-                            WARNLEN, GRIDOPTIONS, GFNOPTIONS, CENSORCNAME, __version__)
+from censo.cfg import (
+    ASSETS_PATH, 
+    DIGILEN, 
+    GSOLV_MODS, 
+    PARTS, 
+    PLENGTH, 
+    PROGS, 
+    SOLV_MODS,
+    WARNLEN, 
+    GRIDOPTIONS, 
+    GFNOPTIONS, 
+    CENSORCNAME, 
+    OMPMIN, 
+    OMPMAX, 
+    __version__
+)
 from censo.errorswarnings import LogicError, LogicWarning
 
 
@@ -148,7 +162,7 @@ class CensoSettings:
             },
         },
         "general": {
-            "maxprocs": {
+            "procs": {
                 "default": 1,
                 "range": [
                     1,
@@ -156,10 +170,10 @@ class CensoSettings:
                 ]
             },
             "omp": {
-                "default": 1,
+                "default": 4,
                 "range": [
-                    1,
-                    256
+                    OMPMIN,
+                    OMPMAX
                 ]
             },
             "imagthr": {
@@ -332,7 +346,7 @@ class CensoSettings:
                 "default": 8,
                 "range": [
                     1,
-                    100
+                    10
                 ]
             },
             "radsize": {
@@ -398,7 +412,7 @@ class CensoSettings:
                 "default": "gfn2",
                 "options": GFNOPTIONS
             },
-            "optlevel2": {
+            "optlevel": {
                 "default": "automatic",
                 "options": [
                     "crude",

@@ -185,7 +185,7 @@ class QmProc:
 
         # setup call for xtb single-point
         call = [
-            self.instructions["xtbpath"],
+            self.paths["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             "--sp",
@@ -464,7 +464,7 @@ class QmProc:
         conf.tocoord(os.path.join(confdir, "coord"))
 
         call = [
-            self.instructions["xtbpath"],
+            self.paths["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             dohess,

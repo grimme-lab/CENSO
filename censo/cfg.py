@@ -101,6 +101,10 @@ GFNOPTIONS = (
 
 CENSORCNAME = ".censorc"
 
+OMPMIN = 4
+
+OMPMAX = 32
+
 # qm_prepinfo: grid and scfconv settings for ORCA and TM
 qm_prepinfo = {
     "orca": {
