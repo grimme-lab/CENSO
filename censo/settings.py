@@ -356,6 +356,13 @@ class CensoSettings:
                     100
                 ]
             },
+            "maxcyc": {
+                "default": 200,
+                "range": [
+                    10,
+                    1000
+                ]
+            },
             "threshold": {
                 "default": 2.5,
                 "range": [
@@ -370,11 +377,11 @@ class CensoSettings:
                     1.0
                 ]
             },
-            "optimization_p_threshold": {
+            "boltzmann_threshold": { # boltzmann sum threshold
                 "default": 99.0,
                 "range": [
                     1.0,
-                    10.0
+                    100.0
                 ]
             },
             "spearmanthr": {

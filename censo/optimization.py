@@ -34,6 +34,7 @@ from .parallel import run_in_parallel
 
 from censo.core import CensoCore
 from censo.settings import CensoSettings
+from censo.parallel import ProcessHandler
 
 
 class Optimization(Part):
@@ -53,460 +54,114 @@ class Optimization(Part):
         by calculating the thermodynamics of the optimized geometries
 
         Alternatively just run the complete optimization for every conformer with xtb as driver (decide with 'opt_spearman')
+
+        TODO - implement regular optimization (no xtb driver)
         """
 
+        """
+        don't use this for now, use new keyword 'maxcyc' instead
         if config.nat > 200:
             # stopcycle = don't optimize more than stopcycle cycles
             stopcycle = config.nat * 2
         else:
             stopcycle = 200
+        """
+
+        handler = ProcessHandler(self._instructions)
+
+        # set folder to do the calculations in
+        folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
+        if os.path.isdir(folder):
+            # TODO - warning? stderr?
+            print(f"Folder {folder} already exists. Potentially overwriting files.")
+        elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
+            # TODO - error handling stderr case? is this reasonable?
+            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}")
 
         if self._instructions["opt_spearman"]:
             """
             optimization using spearman threshold, updated every 'optcycles' steps
             """
-            # start batch calculations:
-            while calculate:
+            # TODO - run single-point for every conformer first in order to set preliminary ordering and fuzzy threshold? or take from screening
+
+            # make a separate list of conformers that only includes (considered) conformers that are not converged
+            # at this point it's just self.core.conformers
+            confs_nc = self.core.conformers
+
+            stopcond_converged = False
+            ncyc = 0
+            while (
+                not stopcond_converged 
+                and ncyc < self._instructions["maxcyc"]
+            ):
                 # basically TL;DR:
                 # while the number of cycles is less than stopcycle, optimize for optcycles steps
                 # get resulting geometries and energies and update conformers with this
                 # update ensemble
 
+                handler.conformers = confs_nc
 
-                tic = time.perf_counter()
-                print(f"CYCLE {str(run)}".center(70, "*"))
-                # if len(calculate) == 1:
+                # update number of cycles
+                ncyc += self._instructions["optcycles"]
 
-                # if stopcycle - maxecyc <= 0:
-                #     limit = config.optcycles
-                # else:
-                #     limit = stopcycle - maxecyc
-                # instruction_opt["optcycles"] = limit
+                # run optimizations for 'optcycles' steps
+                results_opt = handler.execute(["xtb_opt"], os.path.join(folder, "opt"))
 
-                # calculate batch of optimizations
-                calculate = run_in_parallel(
-                    config,
-                    q,
-                    resultq,
-                    job,
-                    config.maxthreads,
-                    config.omp,
-                    calculate,
-                    instruction_opt,
-                    config.balance,
-                    config.func,
-                )
+                # TODO - crestcheck if ncyc >= 2
 
-                # check if optimization crashed
-                for conf in list(calculate):
-                    if not conf.job["success"]:
-                        print(f"removing CONF{conf.id} because optimization crashed.")
-                        save_errors.append(f"removed CONF{conf.id} because crashed optimization.")
-                        conf.optimization_info["info"] = "failed"
-                        conf.optimization_info["convergence"] = "not_converged"
-                        conf.optimization_info["method"] = instruction_opt["method"]
-                        store_confs.append(calculate.pop(calculate.index(conf)))
-                    elif conf.job["success"]:
-                        if conf.job["converged"]:
-                            # don't optimize further:
-                            print(
-                                f"Geometry optimization converged for: "
-                                f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
-                            )
-                            conf.optimization_info["info"] = "calculated"
-                            conf.optimization_info["energy"] = conf.job["energy"]
-                            conf.optimization_info["cycles"] = conf.job["cycles"]
-                            conf.optimization_info["ecyc"] = conf.job["ecyc"]
-                            conf.optimization_info["decyc"] = conf.job["decyc"]
-                            conf.optimization_info["convergence"] = "converged"
-                            conf.optimization_info["method"] = instruction_opt["method"]
-                            if run == 1:
-                                converged_run1.append(conf.id)
-                            else:
-                                prev_calculated.append(
-                                    calculate.pop(calculate.index(conf))
-                                )
-                        else:
-                            conf.optimization_info["energy"] = conf.job["energy"]
-                            # optimization cycles didn't result in convergence
-                            # optimize further
-                if not calculate:
-                    toc = time.perf_counter()
-                    timings.append(toc - tic)
-                    cycle_spearman.append("")
-                    nconf_cycle.append(len(calculate) + len(prev_calculated))
-                    break
-                if run == 1 and calculate and config.evaluate_rrho:
-                    # run GmRRHO on crudely optimized geometry
-                    folder_rrho_crude = os.path.join(config.func, "rrho_crude")
-                    # create folders:
-                    save_errors, store_confs, calculate = new_folders(
-                        config.cwd,
-                        calculate,
-                        folder_rrho_crude,
-                        save_errors,
-                        store_confs,
-                    )
-                    # copy optimized geoms to folder
-                    for conf in list(calculate):
-                        try:
-                            tmp_from = os.path.join(
-                                config.cwd, "CONF" + str(conf.id), config.func
-                            )
-                            tmp_to = os.path.join(
-                                config.cwd, "CONF" + str(conf.id), folder_rrho_crude
-                            )
-                            shutil.copy(
-                                os.path.join(tmp_from, "coord"),
-                                os.path.join(tmp_to, "coord"),
-                            )
-                        except shutil.SameFileError:
-                            pass
-                        except FileNotFoundError:
-                            if not os.path.isfile(os.path.join(tmp_from, "coord")):
-                                print_errors(
-                                    f"{'ERROR:':{WARNLEN}}while copying the coord file from {tmp_from}! "
-                                    "The corresponding file does not exist.",
-                                    save_errors,
-                                )
-                            elif not os.path.isdir(tmp_to):
-                                print_errors(
-                                    f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!",
-                                    save_errors,
-                                )
-                            print_errors(
-                                f"{'ERROR:':{WARNLEN}}Removing conformer {conf.name}!",
-                                save_errors,
-                            )
-                            conf.lowlevel_grrho_info["info"] = "prep-failed"
-                            store_confs.append(calculate.pop(calculate.index(conf)))
-                    # parallel execution:
-                    calculate = run_in_parallel(
-                        config,
-                        q,
-                        resultq,
-                        job,
-                        config.maxthreads,
-                        config.omp,
-                        calculate,
-                        instruction_rrho_crude,
-                        config.balance,
-                        folder_rrho_crude,
-                    )
-                    check = {True: "was successful", False: "FAILED"}
-                    # check if too many calculations failed
-                    ###
-                    if config.temperature != config.fixed_temperature:
-                        print(
-                            f"{'INFORMATION:':{WARNLEN}}The crude G_mRRHO contribution is evaluated at {config.fixed_temperature} K."
+                # run xtb_rrho for finite temperature contributions
+                # for now only after the first 'optcycles' steps or after at least 6 cycles are done
+                # TODO - make this better
+                if ncyc >= 6:
+                    """run xtb_rrho"""
+                    results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder, "rrho"))
+
+                # TODO - recalculate fuzzy threshold
+
+                # kick out conformers above threshold
+                # TODO - do this for confs_nc and self.core.conformers
+                threshold = self._instructions.get("threshold", None)
+                if not threshold is None:
+                    # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
+                    limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
+                    
+                    # filter out all conformers below threshold
+                    # so that 'filtered' contains all conformers that should not be considered any further
+                    filtered = [
+                        conf for conf in filter(
+                            lambda x: self.key(x) > limit + threshold, 
+                            self.core.conformers
                         )
-                    for conf in list(calculate):
-                        #  'rrho_optimization' used in get_mrrho
-                        print(
-                            f"The G_mRRHO calculation on crudely optimized DFT "
-                            f"geometry @ {conf.job['symmetry']} "
-                            f"{check[conf.job['success']]} for "
-                            f"{last_folders(conf.job['workdir'], 3):>{pl}}: "
-                            f"{conf.job['energy']:>.7f} "
-                            f"""S_rot(sym)= {conf.calc_entropy_sym(
-                                config.fixed_temperature,
-                                symnum=conf.job['symnum']):>.7f} """
-                            f"""using= {conf.get_mrrho(
-                                config.fixed_temperature,
-                                rrho='direct_input', 
-                                consider_sym=config.consider_sym,
-                                symnum=conf.job['symnum'],
-                                direct_input=conf.job["energy"]):>.7f}"""
-                        )
-                        if not conf.job["success"]:
-                            store_confs.append(calculate.pop(calculate.index(conf)))
-                        else:
-                            conf.optimization_info["energy_rrho"] = conf.job["energy"]
-                            conf.optimization_info[
-                                "method_rrho"
-                            ] = instruction_rrho_crude["method"]
-                            conf.optimization_info["info_rrho"] = "calculated"
-                            conf.optimization_info["symnum"] = conf.job["symnum"]
-                            conf.optimization_info["linear"] = conf.job["linear"]
-                            conf.symnum = conf.job["symnum"]
-                            conf.sym = conf.job["symmetry"]
+                    ]
+                    
+                    # update the conformer list in core (remove conf if below threshold)
+                    self.core.update_conformers(filtered)  
 
-                    for conf in list(calculate):
-                        if conf.id in converged_run1:
-                            prev_calculated.append(calculate.pop(calculate.index(conf)))
-                    if not calculate:
-                        toc = time.perf_counter()
-                        timings.append(toc - tic)
-                        cycle_spearman.append("")
-                        nconf_cycle.append(len(calculate) + len(prev_calculated))
-                        break
-                if run >= 2 and config.crestcheck:
-                    # do sorting with cregen!
-                    calculate, prev_calculated, store_confs = crest_routine(
-                        config,
-                        calculate,
-                        config.func,
-                        store_confs,
-                        prev_calculated=prev_calculated,
-                    )
-                    if not calculate:
-                        toc = time.perf_counter()
-                        timings.append(toc - tic)
-                        cycle_spearman.append("")
-                        nconf_cycle.append(len(calculate) + len(prev_calculated))
-                        break
-                maxecyc = max([len(conf.job["ecyc"]) for conf in calculate])
-                print(f"Max number of performed iterations: {maxecyc}")
-                if len(calculate + prev_calculated) == 1:
-                    # can't do spearman with only one conf
-                    run_spearman = False
-                elif len(calculate) > 1 and run > 1:
-                    run_spearman = True
+                    # also remove conformers from confs_nc
+                    for conf in filtered:
+                        confs_nc.remove(conf)
                 else:
-                    run_spearman = True
-                if run == 1:
-                    # only evaluate spearman starting from second cycle
-                    print("Spearman rank evaluation is performed in the next cycle.")
-                    cycle_spearman.append("")
-                    run_spearman = False
+                    """
+                    TODO
+                    print warning that no threshold could be determined
+                    (should not happen but doesn't necessarily brake the program)
+                    """
+                    print("...")
 
-                # lists of equal lenght:
-                for conf in sorted(
-                    calculate + prev_calculated, key=lambda x: int(x.id)
-                ):
-                    if len(conf.job["ecyc"]) < maxecyc:
-                        for _ in range(maxecyc - len(conf.job["ecyc"])):
-                            conf.job["ecyc"].append(conf.job["ecyc"][-1])
+                # update list of converged conformers
+                for conf in confs_nc:
+                    if conf.results[self.__class__.__name__.lower()]["xtb_opt"]["converged"]:
+                        confs_nc.remove(conf)
 
-                # calculate min of each cycle:
-                minecyc = []
-                if config.evaluate_rrho:
-                    # rrho_energy = "energy_rrho"
-                    rrho_energy = "rrho_optimization"
-                else:
-                    rrho_energy = None  # to get 0.0 contribution
-                for i in range(maxecyc):
-                    try:
-                        minecyc.append(
-                            min(
-                                [
-                                    conf.job["ecyc"][i]
-                                    + conf.get_mrrho(
-                                        config.fixed_temperature,
-                                        rrho=rrho_energy,
-                                        consider_sym=config.consider_sym,
-                                    )
-                                    # + getattr(conf, "optimization_info").get(
-                                    #    rrho_energy, 0.0
-                                    # )
-                                    for conf in calculate + prev_calculated
-                                    if conf.job["ecyc"][i] is not None
-                                ]
-                            )
-                        )
-                    except (ValueError) as e:
-                        minecyc.append(0.0)
-                        print(e)
-                # evalulate ΔE
-                for conf in sorted(
-                    calculate + prev_calculated, key=lambda x: int(x.id)
-                ):
-                    conf.job["decyc"] = []
-                    for i in range(maxecyc):
-                        conf.job["decyc"].append(
-                            (
-                                conf.job["ecyc"][i]
-                                + conf.get_mrrho(
-                                    config.fixed_temperature,
-                                    rrho=rrho_energy,
-                                    consider_sym=config.consider_sym,
-                                )
-                                # + getattr(conf, "optimization_info").get(
-                                #    rrho_energy, 0.0
-                                # )
-                                - minecyc[i]
-                            )
-                            * AU2KCAL
-                        )
-                if run == 1:
-                    print("")
-                    for conf in sorted(
-                        calculate + prev_calculated, key=lambda x: int(x.id)
-                    ):
-                        print(
-                            f"CONF{conf.id :<{config.lenconfx}} initial ΔG =  "
-                            f"{conf.job['decyc'][0]:^5.2f} kcal/mol and "
-                            f"current ΔG =  {conf.job['decyc'][-1]:^5.2f} kcal/mol."
-                            f" ({conf.optimization_info['convergence']})"
-                        )
-                    previouscycle = maxecyc
-                    print("")
-                else:
-                    print("")
-                    for conf in sorted(
-                        calculate + prev_calculated, key=lambda x: int(x.id)
-                    ):
-                        print(
-                            f"CONF{conf.id :<{config.lenconfx}} previous ΔG =  "
-                            f"{conf.job['decyc'][previouscycle-1]:^5.2f} kcal/mol and "
-                            f"current ΔG =  {conf.job['decyc'][-1]:^5.2f} kcal/mol."
-                            f" ({conf.optimization_info['convergence']})"
-                        )
-                    previouscycle = maxecyc
-                    print("")
-                if run_spearman:
-                    num_eval = 3
-                    try:
-                        toevaluate = []
-                        for i in range(maxecyc_prev, maxecyc):
-                            if i + num_eval <= maxecyc:
-                                toevaluate.append(i)
-                        _ = max(toevaluate)
-                        digits1 = 4
-                    except ValueError:
-                        # need to do another optimization cycle
-                        run += 1
-                        toc = time.perf_counter()
-                        timings.append(toc - tic)
-                        cycle_spearman.append("")
-                        nconf_cycle.append(len(calculate) + len(prev_calculated))
-                        print(f"CYCLE {run} performed in {toc -tic:0.4f} seconds")
-                        continue
+                # check if all (considered) conformers converged - End of While-loop
+                stopcond_converged = len(confs_nc) == 0
 
-                    evalspearman = []
-                    for i in toevaluate:
-                        deprevious = [
-                            conf.job["decyc"][i - 1]
-                            for conf in sorted(
-                                calculate + prev_calculated, key=lambda x: int(x.id)
-                            )
-                        ]
-                        decurrent = [
-                            conf.job["decyc"][i - 1 + num_eval]
-                            for conf in sorted(
-                                calculate + prev_calculated, key=lambda x: int(x.id)
-                            )
-                        ]
 
-                        spearman_v = spearman(deprevious, decurrent)
-                        if i in toevaluate[-2:]:
-                            print(
-                                f"Evaluating Spearman coeff. from {i:>{digits1}} --> "
-                                f"{i+num_eval:>{digits1}}"
-                                f" =  {spearman_v:>.4f}"
-                            )
-                            evalspearman.append(spearman_v)
-                        else:
-                            print(
-                                f"{'':>10} Spearman coeff. from {i:>{digits1}} --> "
-                                f"{i+num_eval:>{digits1}}"
-                                f" =  {spearman_v:>.4f}"
-                            )
-                    print(
-                        f"Final averaged Spearman correlation coefficient: "
-                        f"{(sum(evalspearman)/2):>.4f}"
-                    )
-                    cycle_spearman.append(f"{sum(evalspearman)/2:.3f}")
-                    if (
-                        len(evalspearman) >= 2
-                        and sum(evalspearman) / 2 >= config.spearmanthr
-                    ):
-                        print("\nPES is assumed to be parallel")
-                        # adjust threshold Ewin:
-                        if ewin > lower_limit:
-                            if (ewin - (ewin_increase / 3)) < lower_limit:
-                                ewin = lower_limit
-                            else:
-                                ewin += -(ewin_increase / 3)
-                            print(
-                                f"Updated optimization threshold to: {ewin:.2f} kcal/mol"
-                            )
-                        else:
-                            print(
-                                f"Current optimization threshold: {ewin:.2f} kcal/mol"
-                            )
+    def key(self, conf: MoleculeData) -> float:
+        """
+        Calculate Gtot from DFT energy and Gmrrho
+        """
 
-                for conf in list(calculate):
-                    if conf.job["decyc"][-1] > ewin and conf.job["grad_norm"] < 0.01:
-                        print(
-                            f"CONF{conf.id} is above {ewin} kcal/mol and gradient "
-                            f"norm ({conf.job['grad_norm']}) is below {0.01}."
-                        )
-                        if conf.job["decyc"][-1] < ewin_initial:
-                            print(
-                                f"CONF{conf.id} is removed because of the "
-                                "lowered threshold!"
-                            )
-                        # transfer energies and remove conf
-                        conf.optimization_info["energy"] = conf.job["energy"]
-                        conf.optimization_info["info"] = "calculated"
-                        conf.optimization_info["cycles"] = conf.job["cycles"]
-                        conf.optimization_info["ecyc"] = conf.job["ecyc"]
-                        conf.optimization_info["decyc"] = conf.job["decyc"]
-                        conf.optimization_info["method"] = instruction_opt["method"]
-                        conf.optimization_info[
-                            "convergence"
-                        ] = "stopped_before_converged"
-                        print(
-                            f"CONF{conf.id} is above threshold, don't optimize "
-                            f"further and remove conformer."
-                        )
-                        store_confs.append(calculate.pop(calculate.index(conf)))
-                    elif conf.job["decyc"][-1] > ewin and conf.job["grad_norm"] > 0.01:
-                        print(
-                            f"CONF{conf.id} is above {ewin} kcal/mol but "
-                            f"gradient norm ({conf.job['grad_norm']}) is "
-                            f"above {0.01} --> not sorted out!"
-                        )
-                toc = time.perf_counter()
-                timings.append(toc - tic)
-                nconf_cycle.append(len(calculate) + len(prev_calculated))
-                print(f"\nCYCLE {run} performed in { toc - tic:0.4f} seconds")
-                #
-                if maxecyc >= stopcycle:
-                    print("")
-                    for conf in list(calculate):
-                        # don't optimize further:
-                        print(
-                            f"!!! Geometry optimization STOPPED because of "
-                            f"optcycle limit of {stopcycle} cycles reached for: "
-                            f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
-                        )
-                        conf.optimization_info["info"] = "calculated"
-                        conf.optimization_info["energy"] = conf.job["energy"]
-                        conf.optimization_info["cycles"] = conf.job["cycles"]
-                        conf.optimization_info["ecyc"] = conf.job["ecyc"]
-                        conf.optimization_info["decyc"] = conf.job["decyc"]
-                        conf.optimization_info[
-                            "convergence"
-                        ] = (
-                            "converged"
-                        )  #### THIS IS NOT CORRECT /or can lead to errors!
-                        conf.optimization_info["method"] = instruction_opt["method"]
-                        prev_calculated.append(calculate.pop(calculate.index(conf)))
-                #
-                maxecyc_prev = maxecyc
-                run += 1
-                if (run >= 3 or
-                    ( (nconf_start -len(calculate)) >= 5 )):
-                    print(f"{'INFORMATION:':{WARNLEN}}Saving enso.json to update optimization information.")
-                    # save current data to jsonfile
-                    # safety measure for runs with thousands of conformers to keep
-                    # information on optimized structures and make restart easier
-                    # in case of a crash or cluster stop in part2
-                    config.write_json(
-                        config.cwd,
-                        [i.provide_runinfo() for i in calculate]
-                        + [i.provide_runinfo() for i in prev_calculated]
-                        + [i.provide_runinfo() for i in store_confs]
-                        + [ensembledata],
-                        config.provide_runinfo(),
-                    )
-            # END while loop
-        else:
-            """
-            run complete optimizations for all conformers
-            """
 
     def write_results(self) -> None:
         """
@@ -516,612 +171,6 @@ class Optimization(Part):
 
 
 def part2(config, conformers, store_confs, ensembledata):
-    save_errors = []
-    if config.progress:
-        print("#>>># CENSO: Starting part2", file=sys.stderr)
-    print("\n" + "".ljust(PLENGTH, "-"))
-    print("CRE OPTIMIZATION - PART2".center(PLENGTH, " "))
-    print("".ljust(PLENGTH, "-") + "\n")
-    # print flags for part2
-    info = []
-    info.append(["prog", "program"])
-    info.append(["prog2opt", "QM program employed only in the geometry opt."])
-    info.append(["func", "functional for part2"])
-    info.append(["basis", "basis set for part2"])
-    info.append(["ancopt", "using the xTB-optimizer for optimization"])
-    if config.opt_spearman:
-        info.append(["opt_spearman", "using the new ensemble optimizer"])
-        info.append(
-            ["opt_limit", "optimize all conformers below this G_thr(opt,2) threshold"]
-        )
-        info.append(["printoption", "Spearman threshold", f"{config.spearmanthr:.3f}"])
-        info.append(["optcycles", "number of optimization iterations"])
-        if config.func == "r2scan-3c":
-            info.append(["radsize", "radsize"])
-    if config.ancopt and config.optlevel2 is not None:
-        info.append(["optlevel2", "optimization level in part2"])
-    if config.solvent != "gas":
-        info.append(["solvent", "solvent"])
-        info.append(["sm2", "solvent model applied in the optimization"])
-        if config.smgsolv2 not in (None, "sm"):
-            info.append(["smgsolv2", "solvent model for Gsolv contribution"])
-    info.append(["temperature", "temperature"])
-    if config.multitemp:
-        info.append(["multitemp", "evalulate at different temperatures"])
-        info.append(
-            [
-                "printoption",
-                "temperature range",
-                [
-                    i
-                    for i in frange(
-                        config.trange[0], config.trange[1], config.trange[2]
-                    )
-                ],
-            ]
-        )
-    info.append(
-        ["part2_P_threshold", "Boltzmann sum threshold G_thr(2) for sorting in part2"]
-    )
-    info.append(["evaluate_rrho", "calculate mRRHO contribution"])
-    if config.evaluate_rrho:
-        info.append(["prog_rrho", "program for mRRHO contribution"])
-        if config.prog_rrho == "xtb":
-            info.append(["part2_gfnv", "GFN version for mRRHO and/or GBSA_Gsolv"])
-            if config.bhess:
-                info.append(
-                    [
-                        "bhess",
-                        "Apply constraint to input geometry during mRRHO calculation",
-                    ]
-                )
-    if config.consider_unconverged:
-        info.append(["consider_unconverged", "consider (unconverged) conformers from previous run"])
-
-    max_len_digilen = 0
-    for item in info:
-        if item[0] == "justprint":
-            if "short-notation" in item[1]:
-                tmp = len(item[1]) - len("short-notation:")
-            else:
-                tmp = len(item[1])
-        else:
-            tmp = len(item[1])
-        if tmp > max_len_digilen:
-            max_len_digilen = tmp
-    max_len_digilen += 1
-    if max_len_digilen < DIGILEN:
-        max_len_digilen = DIGILEN
-
-    optionsexchange = {True: "on", False: "off"}
-    for item in info:
-        if item[0] == "justprint":
-            print(item[1:][0])
-        else:
-            if item[0] == "printoption":
-                option = item[2]
-            else:
-                option = getattr(config, item[0])
-            if option is True or option is False:
-                option = optionsexchange[option]
-            elif isinstance(option, list):
-                option = [str(i) for i in option]
-                if len(str(option)) > 40:
-                    length = 0
-                    reduced = []
-                    for i in option:
-                        length += len(i) + 2
-                        if length < 40:
-                            reduced.append(i)
-                    reduced.append("...")
-                    option = reduced
-                    length = 0
-                option = ", ".join(option)
-            print(
-                "{}: {:{digits}} {}".format(
-                    item[1], "", option, digits=max_len_digilen - len(item[1])
-                )
-            )
-    print("")
-    # end print
-
-    calculate = []  # has to be calculated in this run
-    prev_calculated = []  # was already calculated in a previous run
-    try:
-        store_confs
-    except NameError:
-        store_confs = []  # stores all confs which are sorted out!
-
-    if config.solvent == "gas":
-        print("Optimizing geometries at DFT level!")
-    else:
-        print("Optimizing geometries at DFT level with implicit solvation!")
-
-    # setup queues
-    q = Queue()
-    resultq = Queue()
-
-    if config.prog2opt == "tm":
-        job = TmProc
-    elif config.prog2opt == "orca":
-        job = OrcaProc
-
-    for conf in list(conformers):
-        if conf.removed:
-            store_confs.append(conformers.pop(conformers.index(conf)))
-            print(f"CONF{conf.id} is removed as requested by the user!")
-            continue
-        if conf.id > config.nconf:
-            store_confs.append(conformers.pop(conformers.index(conf)))
-            continue
-        if conf.optimization_info["info"] == "not_calculated":
-            conf = conformers.pop(conformers.index(conf))
-            calculate.append(conf)
-        elif conf.optimization_info["info"] == "failed":
-            conf = conformers.pop(conformers.index(conf))
-            store_confs.append(conf)
-            print(f"Optimization of CONF{conf.id} failed in the previous run!")
-        elif conf.optimization_info["info"] == "prep-failed":
-            print(
-                f"Preparation for the optimization of CONF{conf.id} failed in the "
-                "previous run and is tried again!"
-            )
-            calculate.append(conformers.pop(conformers.index(conf)))
-        elif conf.optimization_info["info"] == "calculated":
-            conf = conformers.pop(conformers.index(conf))
-            if conf.optimization_info["convergence"] == "converged":
-                conf.job["success"] = True
-                conf.job["ecyc"] = conf.optimization_info["ecyc"]
-                conf.linear = conf.optimization_info.get("linear", conf.linear)
-                conf.symnum = conf.optimization_info.get("symnum", conf.symnum)
-                if conf.optimization_info.get("cregen_sort", "pass") == "pass":
-                    prev_calculated.append(conf)
-                elif conf.optimization_info.get("cregen_sort", "pass") == "removed":
-                    print(
-                        f"CONF{conf.id} has been sorted out by CREGEN in a previous run."
-                    )
-                    store_confs.append(conf)
-            elif (config.consider_unconverged and 
-                 conf.optimization_info["convergence"] == "stopped_before_converged"):
-                print(
-                    f"CONF{conf.id} has been sorted out in a previous run, but "
-                    "is reconsidered in the current optimization run."
-                )
-                # has already been optimized (at least some cycles)
-                calculate.append(conf)
-            else:
-                # "not_converged" 
-                store_confs.append(conf)
-    if not calculate and not prev_calculated:
-        print_errors(f"{'ERROR:':{WARNLEN}}No conformers left!", save_errors)
-        print("Going to exit!")
-        sys.exit(1)
-    if prev_calculated:
-        check_for_folder(config.cwd, [i.id for i in prev_calculated], config.func)
-        print("The optimization was performed before for:")
-        print_block(["CONF" + str(i.id) for i in prev_calculated])
-    pl = config.lenconfx + 4 + len(str("/" + config.func))
-
-    instruction_prep = {
-        "jobtype": "prep",
-        "func": config.func,
-        "basis": getattr(
-            config,
-            "basis",
-            dfa_settings.composite_method_basis.get(config.func, "def2-TZVP"),
-        ),
-        "charge": config.charge,
-        "unpaired": config.unpaired,
-        "solvent": config.solvent,
-        "sm": config.sm2,
-        "optlevel": config.optlevel2,
-        "copymos": "",
-        "energy": 0.0,
-        "energy2": 0.0,
-        "success": False,
-        "onlyread": config.onlyread,
-    }
-
-    # INSTRUCTION OPT !!!!
-    instruction_opt = {
-        "func": config.func,
-        "basis": getattr(
-            config,
-            "basis",
-            dfa_settings.composite_method_basis.get(config.func, "def2-TZVP"),
-        ),
-        "charge": config.charge,
-        "unpaired": config.unpaired,
-        "solvent": config.solvent,
-        "fullopt": True,  # output to opt-part2.out
-        "converged": False,
-        "hlow": config.hlow,
-        "sm": config.sm2,
-        "optcycles": config.optcycles,
-        "optlevel": config.optlevel2,
-        "energy": 0.0,
-        "energy2": 0.0,
-        "success": False,
-        "onlyread": config.onlyread,
-    }
-
-    instruction_rrho_crude = {
-        "jobtype": "rrhoxtb",
-        "func": getattr(config, "part2_gfnv"),
-        "gfn_version": getattr(config, "part2_gfnv"),
-        "temperature": config.fixed_temperature,  # at fixed temperature!
-        "charge": config.charge,
-        "unpaired": config.unpaired,
-        "solvent": config.solvent,
-        "bhess": config.bhess,
-        "sm_rrho": config.sm_rrho,
-        "rmsdbias": config.rmsdbias,
-        "cwd": config.cwd,
-        "energy": 0.0,
-        "energy2": 0.0,
-        "success": False,
-        "imagthr": config.imagthr,
-        "sthr": config.sthr,
-        "scale": config.scale,
-        "onlyread": config.onlyread,
-    }
-    instruction_rrho_crude["method"], _ = config.get_method_name(
-        "rrhoxtb",
-        bhess=config.bhess,
-        gfn_version=instruction_rrho_crude["gfn_version"],
-        sm=instruction_rrho_crude["sm_rrho"],
-        solvent=instruction_rrho_crude["solvent"],
-    )
-
-    # Set optlevel and scfconv stuff ---------------------------------------
-    # r2scan-3c has additional settings in tm_job._prep_cefine!
-    if config.optlevel2 in ("crude", "sloppy", "loose"):
-        instruction_prep["prepinfo"] = ["low"]
-        instruction_opt["prepinfo"] = ["low"]
-    elif config.optlevel2 == "lax":
-        instruction_prep["prepinfo"] = ["low"]
-        instruction_opt["prepinfo"] = ["low"]
-    elif config.optlevel2 == "normal":
-        instruction_prep["prepinfo"] = ["low+"]
-        instruction_opt["prepinfo"] = ["low+"]
-    elif config.optlevel2 in ("tight", "vtight", "extreme"):
-        instruction_prep["prepinfo"] = ["high"]
-        instruction_opt["prepinfo"] = ["high"]
-    else:
-        instruction_prep["prepinfo"] = ["low+"]
-        instruction_opt["prepinfo"] = ["low+"]
-    # -----------------------------------------------------------------------
-    if config.ancopt:
-        instruction_opt["jobtype"] = "xtbopt"
-        instruction_opt["xtb_driver_path"] = config.external_paths["xtbpath"]
-    else:
-        instruction_opt["jobtype"] = "opt"
-
-    if config.func == "r2scan-3c":
-        instruction_prep["prepinfo"].extend(["-radsize", str(config.radsize)])
-
-    instruction_opt["method"], _ = config.get_method_name(
-        instruction_opt["jobtype"],
-        func=instruction_opt["func"],
-        basis=instruction_opt["basis"],
-        solvent=instruction_opt["solvent"],
-        sm=instruction_opt["sm"],
-    )
-    # SI
-    if config.prog2opt == "tm":
-        ensembledata.si["part2"]["QM code Optimization"] = str(config.prog2opt).upper()
-        ensembledata.si["part2"]["Geometry"] = (
-            instruction_opt["method"]
-            + f" @optlevel: {config.optlevel2} using {' '.join(qm_prepinfo['tm'][instruction_opt['prepinfo'][0]]).replace('-', '')}"
-        )
-        if config.func == "r2scan-3c":
-            # uses m4
-            ensembledata.si["part2"]["Geometry"] = ensembledata.si["part2"][
-                "Geometry"
-            ].replace("m3", "m4")
-    elif config.prog2opt == "orca":
-        ensembledata.si["part2"]["QM code Optimization"] = str(config.prog2opt).upper()
-        ensembledata.si["part2"]["Geometry"] = (
-            instruction_opt["method"]
-            + f" @optlevel: {config.optlevel2} using {' '.join(qm_prepinfo['orca'][instruction_opt['prepinfo'][0]])}"
-        )
-    check = {True: "was successful", False: "FAILED"}
-    if calculate:
-        print("The optimization is calculated for:")
-        print_block(["CONF" + str(i.id) for i in calculate])
-        # create folders:
-        save_errors, store_confs, calculate = new_folders(
-            config.cwd, calculate, config.func, save_errors, store_confs
-        )
-        if config.consider_unconverged:
-            tmp = []
-            for conf in list(calculate):
-                if conf.optimization_info["convergence"] == "stopped_before_converged":
-                    # check if coord file exists
-                    outpath = os.path.join(config.cwd, "CONF" + str(conf.id), config.func, "coord")
-                    if os.path.isfile(outpath):
-                        print(f"Using CONF{conf.id} coordinates from a previous run.")
-                        conf = calculate.pop(calculate.index(conf))
-                        conf.optimization_info["convergence"] = "not_converged"
-                        conf.optimization_info["info"] = "not_calculated"
-                        conf.optimization_info["info_rrho"] = "not_calculated"
-                        tmp.append(conf)
-
-        # write coord to folder
-        calculate, store_confs, save_errors = ensemble2coord(
-            config, config.func, calculate, store_confs, save_errors
-        )
-        if config.consider_unconverged:
-            if tmp:
-                for conf in list(tmp):
-                    calculate.append(tmp.pop(tmp.index(conf)))
-
-        # parallel prep execution
-        calculate = run_in_parallel(
-            config,
-            q,
-            resultq,
-            job,
-            config.maxthreads,
-            config.omp,
-            calculate,
-            instruction_prep,
-            config.balance,
-            config.func,
-        )
-        # check if too many calculations failed
-
-        for conf in list(calculate):
-            if instruction_prep["jobtype"] == "prep":
-                line = (
-                    f"Preparation in {last_folders(conf.job['workdir'], 2):>{pl}} "
-                    f"{check[conf.job['success']]}."
-                )
-                if not conf.job["success"]:
-                    print(line)
-                    save_errors.append(line)
-                    conf.optimization_info["info"] = "prep-failed"
-                    store_confs.append(calculate.pop(calculate.index(conf)))
-
-        # save current data to jsonfile
-        config.write_json(
-            config.cwd,
-            [i.provide_runinfo() for i in calculate]
-            + [i.provide_runinfo() for i in prev_calculated]
-            + [i.provide_runinfo() for i in store_confs]
-            + [ensembledata],
-            config.provide_runinfo(),
-        )
-        check_tasks(calculate, config.check)
-    else:
-        print("No conformers are considered additionally.")
-    # reset
-    for conf in calculate:
-        conf.reset_job_info()
-    # ***************************************************************************
-    # NEW ENSEMBLE OPTIMIZER:
-    start_opt_time = time.perf_counter()
-    if calculate:
-        print("Starting optimizations".center(70, "*"))
-        ### settings in instruction_opt are overwriting conf.job everytime,(while loop)
-        ### therefore dont write information which has to be reaccessed to it!
-        timings = []  # time per cycle
-        cycle_spearman = []  # spearmanthr used in evaluation per cycle
-        nconf_cycle = []  # number of conformers at end of each cycle
-
-        if config.opt_spearman:
-            nconf_start = len(calculate)
-            run = 1
-            do_increase = 0.6
-            if config.opt_limit * do_increase >= 1.5:
-                ewin_increase = config.opt_limit * do_increase
-                print(
-                    f"\nStarting threshold is set to {config.opt_limit} + "
-                    f"{do_increase*100} % = {config.opt_limit + ewin_increase} kcal/mol\n"
-                )
-            else:
-                ewin_increase = 1.5
-                print(
-                    f"\nStarting threshold is set to {config.opt_limit} + "
-                    f"{ewin_increase} kcal/mol = {config.opt_limit + ewin_increase} kcal/mol\n"
-                )
-            ewin_initial = config.opt_limit + ewin_increase
-            ewin = config.opt_limit + ewin_increase
-
-            print(f"Lower limit is set to G_thr(opt,2) = {config.opt_limit} kcal/mol\n")
-            lower_limit = config.opt_limit
-            maxecyc_prev = 1
-            maxecyc = 0
-            converged_run1 = []
-            if config.nat > 200:
-                # stopcycle = don't optimize more than stopcycle cycles
-                stopcycle = config.nat * 2
-            else:
-                stopcycle = 200
-            # start batch calculations:
-            while calculate:
-                tic = time.perf_counter()
-                print(f"CYCLE {str(run)}".center(70, "*"))
-                # if len(calculate) == 1:
-
-                # if stopcycle - maxecyc <= 0:
-                #     limit = config.optcycles
-                # else:
-                #     limit = stopcycle - maxecyc
-                # instruction_opt["optcycles"] = limit
-
-                # calculate batch of optimizations
-                calculate = run_in_parallel(
-                    config,
-                    q,
-                    resultq,
-                    job,
-                    config.maxthreads,
-                    config.omp,
-                    calculate,
-                    instruction_opt,
-                    config.balance,
-                    config.func,
-                )
-
-                # check if optimization crashed
-                for conf in list(calculate):
-                    if not conf.job["success"]:
-                        print(f"removing CONF{conf.id} because optimization crashed.")
-                        save_errors.append(f"removed CONF{conf.id} because crashed optimization.")
-                        conf.optimization_info["info"] = "failed"
-                        conf.optimization_info["convergence"] = "not_converged"
-                        conf.optimization_info["method"] = instruction_opt["method"]
-                        store_confs.append(calculate.pop(calculate.index(conf)))
-                    elif conf.job["success"]:
-                        if conf.job["converged"]:
-                            # don't optimize further:
-                            print(
-                                f"Geometry optimization converged for: "
-                                f"{'CONF' + str(conf.id):{config.lenconfx+4}} within {conf.job['cycles']:>3} cycles"
-                            )
-                            conf.optimization_info["info"] = "calculated"
-                            conf.optimization_info["energy"] = conf.job["energy"]
-                            conf.optimization_info["cycles"] = conf.job["cycles"]
-                            conf.optimization_info["ecyc"] = conf.job["ecyc"]
-                            conf.optimization_info["decyc"] = conf.job["decyc"]
-                            conf.optimization_info["convergence"] = "converged"
-                            conf.optimization_info["method"] = instruction_opt["method"]
-                            if run == 1:
-                                converged_run1.append(conf.id)
-                            else:
-                                prev_calculated.append(
-                                    calculate.pop(calculate.index(conf))
-                                )
-                        else:
-                            conf.optimization_info["energy"] = conf.job["energy"]
-                            # optimization cycles didn't result in convergence
-                            # optimize further
-                if not calculate:
-                    toc = time.perf_counter()
-                    timings.append(toc - tic)
-                    cycle_spearman.append("")
-                    nconf_cycle.append(len(calculate) + len(prev_calculated))
-                    break
-                if run == 1 and calculate and config.evaluate_rrho:
-                    # run GmRRHO on crudely optimized geometry
-                    folder_rrho_crude = os.path.join(config.func, "rrho_crude")
-                    # create folders:
-                    save_errors, store_confs, calculate = new_folders(
-                        config.cwd,
-                        calculate,
-                        folder_rrho_crude,
-                        save_errors,
-                        store_confs,
-                    )
-                    # copy optimized geoms to folder
-                    for conf in list(calculate):
-                        try:
-                            tmp_from = os.path.join(
-                                config.cwd, "CONF" + str(conf.id), config.func
-                            )
-                            tmp_to = os.path.join(
-                                config.cwd, "CONF" + str(conf.id), folder_rrho_crude
-                            )
-                            shutil.copy(
-                                os.path.join(tmp_from, "coord"),
-                                os.path.join(tmp_to, "coord"),
-                            )
-                        except shutil.SameFileError:
-                            pass
-                        except FileNotFoundError:
-                            if not os.path.isfile(os.path.join(tmp_from, "coord")):
-                                print_errors(
-                                    f"{'ERROR:':{WARNLEN}}while copying the coord file from {tmp_from}! "
-                                    "The corresponding file does not exist.",
-                                    save_errors,
-                                )
-                            elif not os.path.isdir(tmp_to):
-                                print_errors(
-                                    f"{'ERROR:':{WARNLEN}}Could not create folder {tmp_to}!",
-                                    save_errors,
-                                )
-                            print_errors(
-                                f"{'ERROR:':{WARNLEN}}Removing conformer {conf.name}!",
-                                save_errors,
-                            )
-                            conf.lowlevel_grrho_info["info"] = "prep-failed"
-                            store_confs.append(calculate.pop(calculate.index(conf)))
-                    # parallel execution:
-                    calculate = run_in_parallel(
-                        config,
-                        q,
-                        resultq,
-                        job,
-                        config.maxthreads,
-                        config.omp,
-                        calculate,
-                        instruction_rrho_crude,
-                        config.balance,
-                        folder_rrho_crude,
-                    )
-                    check = {True: "was successful", False: "FAILED"}
-                    # check if too many calculations failed
-                    ###
-                    if config.temperature != config.fixed_temperature:
-                        print(
-                            f"{'INFORMATION:':{WARNLEN}}The crude G_mRRHO contribution is evaluated at {config.fixed_temperature} K."
-                        )
-                    for conf in list(calculate):
-                        #  'rrho_optimization' used in get_mrrho
-                        print(
-                            f"The G_mRRHO calculation on crudely optimized DFT "
-                            f"geometry @ {conf.job['symmetry']} "
-                            f"{check[conf.job['success']]} for "
-                            f"{last_folders(conf.job['workdir'], 3):>{pl}}: "
-                            f"{conf.job['energy']:>.7f} "
-                            f"""S_rot(sym)= {conf.calc_entropy_sym(
-                                config.fixed_temperature,
-                                symnum=conf.job['symnum']):>.7f} """
-                            f"""using= {conf.get_mrrho(
-                                config.fixed_temperature,
-                                rrho='direct_input', 
-                                consider_sym=config.consider_sym,
-                                symnum=conf.job['symnum'],
-                                direct_input=conf.job["energy"]):>.7f}"""
-                        )
-                        if not conf.job["success"]:
-                            store_confs.append(calculate.pop(calculate.index(conf)))
-                        else:
-                            conf.optimization_info["energy_rrho"] = conf.job["energy"]
-                            conf.optimization_info[
-                                "method_rrho"
-                            ] = instruction_rrho_crude["method"]
-                            conf.optimization_info["info_rrho"] = "calculated"
-                            conf.optimization_info["symnum"] = conf.job["symnum"]
-                            conf.optimization_info["linear"] = conf.job["linear"]
-                            conf.symnum = conf.job["symnum"]
-                            conf.sym = conf.job["symmetry"]
-
-                    for conf in list(calculate):
-                        if conf.id in converged_run1:
-                            prev_calculated.append(calculate.pop(calculate.index(conf)))
-                    if not calculate:
-                        toc = time.perf_counter()
-                        timings.append(toc - tic)
-                        cycle_spearman.append("")
-                        nconf_cycle.append(len(calculate) + len(prev_calculated))
-                        break
-                if run >= 2 and config.crestcheck:
-                    # do sorting with cregen!
-                    calculate, prev_calculated, store_confs = crest_routine(
-                        config,
-                        calculate,
-                        config.func,
-                        store_confs,
-                        prev_calculated=prev_calculated,
-                    )
-                    if not calculate:
-                        toc = time.perf_counter()
-                        timings.append(toc - tic)
-                        cycle_spearman.append("")
-                        nconf_cycle.append(len(calculate) + len(prev_calculated))
-                        break
                 maxecyc = max([len(conf.job["ecyc"]) for conf in calculate])
                 print(f"Max number of performed iterations: {maxecyc}")
                 if len(calculate + prev_calculated) == 1:

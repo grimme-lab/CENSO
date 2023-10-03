@@ -16,12 +16,12 @@ from censo.cfg import OMPMIN, OMPMAX
 
 class ProcessHandler:
 
-    def __init__(self, instructions: Dict[str, Any], conformers: List[GeometryData]):
+    def __init__(self, instructions: Dict[str, Any], conformers: List[GeometryData] = None):
         """
         Initializes the process handler
 
         instructions: Single-level dictionary with settings for the calculation (specific for each part)
-        conformers: List of GeometryData objects, the calculations are run using these
+        conformers (optional): List of GeometryData objects, the calculations are run using these
         """
         
         self.__instructions = instructions
@@ -64,6 +64,7 @@ class ProcessHandler:
         # initialize the processor for the respective program (depends on part)
         # and set the jobtype as well as instructions, also pass workdir to compute in
         # also pass a lookup dict to the processor so it can set the solvent for the program call correctly
+        # TODO - find a way such that the processor doesn't have to be reinitialized all the time
         self.__processor = ProcessorFactory.create_processor(
             prog, 
             self.__paths,
@@ -103,6 +104,16 @@ class ProcessHandler:
         
         return results
 
+    
+    @property
+    def conformers(self):
+        return self.__conformers
+
+    @conformers.setter
+    def conformers(self, conformers: List[GeometryData]):
+        # TODO - include check?
+        self.__conformers = conformers
+
 
     def __dqp(self, confs: List[GeometryData]) -> Dict[str, Any]:
         """
@@ -120,64 +131,64 @@ class ProcessHandler:
         return reduce(lambda x, y: {**x, **y}, resiter)
         
         
-def __chunkate(self) -> Tuple[List[Any]]:
-    """
-    Distributes conformers until none are left.
-    Groups chunks by the number of processes.
+    def __chunkate(self) -> Tuple[List[Any]]:
+        """
+        Distributes conformers until none are left.
+        Groups chunks by the number of processes.
 
-    Each process shouldn't use less than OMPMIN cores.
+        Each process shouldn't use less than OMPMIN cores.
 
-    Returns:
-        Tuple of lists: chunks - the distributed conformers,
-                        procs - the number of processes for each chunk
-    """
+        Returns:
+            Tuple of lists: chunks - the distributed conformers,
+                            procs - the number of processes for each chunk
+        """
 
-    # Initialize empty lists to store chunks and process numbers
-    chunks, procs = [], []
+        # Initialize empty lists to store chunks and process numbers
+        chunks, procs = [], []
 
-    # Initialize a counter variable to keep track of the current chunk
-    i = 0
-    
-    # Initialize a variable to store the previous number of processes used
-    pold = -1
-    
-    # Get the total number of conformers
-    nconf, lconf = len(self.__conformers), len(self.__conformers)
-
-    # Calculate the maximum and minimum number of processes
-    maxprocs = self.__ncores // OMPMIN
-    minprocs = max(1, self.__ncores // OMPMAX)
-
-    # Loop until all conformers are distributed
-    while nconf > 0:
+        # Initialize a counter variable to keep track of the current chunk
+        i = 0
         
-        # If the number of conformers is greater than or equal to the maximum number of processes
-        if nconf >= maxprocs:
-            p = maxprocs
-        # If the number of conformers is equal to the maximum number of processes
-        elif nconf == maxprocs:
-            p = nconf
-        else:
-            # Find the largest number of processes that is less than or equal to the number of conformers
-            # and is a divisor of the total number of cores (you basically never want to waste capacity)
-            p = max([j for j in range(minprocs, maxprocs) if self.__ncores % j == 0 and j <= nconf])
+        # Initialize a variable to store the previous number of processes used
+        pold = -1
+        
+        # Get the total number of conformers
+        nconf, lconf = len(self.__conformers), len(self.__conformers)
 
-        # If the number of processes is different than before
-        if p != pold:
-            # Add a new chunk to the list of chunks, containing a subset of conformers
-            chunks.append(self.__conformers[lconf-nconf:lconf-nconf+p])
-            # Add the number of processes used for the chunk to the list of process numbers
-            procs.append(p)
-            # Increment the counter variable to keep track of the current chunk
-            i += 1
-        else:
-            # If the number of processes didn't change, merge the current chunk with the previous chunk
-            chunks[i-1].extend(self.__conformers[lconf-nconf:lconf-nconf+p])
+        # Calculate the maximum and minimum number of processes
+        maxprocs = self.__ncores // OMPMIN
+        minprocs = max(1, self.__ncores // OMPMAX)
 
-        # Update the previous number of processes used
-        pold = p
-        # Subtract the number of processes used from the remaining conformers
-        nconf -= p
+        # Loop until all conformers are distributed
+        while nconf > 0:
+            
+            # If the number of conformers is greater than or equal to the maximum number of processes
+            if nconf >= maxprocs:
+                p = maxprocs
+            # If the number of conformers is equal to the maximum number of processes
+            elif nconf == maxprocs:
+                p = nconf
+            else:
+                # Find the largest number of processes that is less than or equal to the number of conformers
+                # and is a divisor of the total number of cores (you basically never want to waste capacity)
+                p = max([j for j in range(minprocs, maxprocs) if self.__ncores % j == 0 and j <= nconf])
 
-    # Return the list of chunks and the list of process numbers
-    return chunks, procs
+            # If the number of processes is different than before
+            if p != pold:
+                # Add a new chunk to the list of chunks, containing a subset of conformers
+                chunks.append(self.__conformers[lconf-nconf:lconf-nconf+p])
+                # Add the number of processes used for the chunk to the list of process numbers
+                procs.append(p)
+                # Increment the counter variable to keep track of the current chunk
+                i += 1
+            else:
+                # If the number of processes didn't change, merge the current chunk with the previous chunk
+                chunks[i-1].extend(self.__conformers[lconf-nconf:lconf-nconf+p])
+
+            # Update the previous number of processes used
+            pold = p
+            # Subtract the number of processes used from the remaining conformers
+            nconf -= p
+
+        # Return the list of chunks and the list of process numbers
+        return chunks, procs

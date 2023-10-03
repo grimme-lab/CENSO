@@ -150,7 +150,7 @@ class Screening(Prescreening):
         
         # variables for printmap
         # minimal xtb single-point energy (taken from prescreening)
-        # TODO - where do prescreening and screening get xtb single-point from?
+        # TODO - where do prescreening and screening get xtb single-point from? - if prescreening is done grab from there, otherwise xtb_sp should be run
         xtbmin = min(
             conf.results["prescreening"]['xtb_gsolv']['energy_xtb_gas'] 
             for conf in self.core.conformers

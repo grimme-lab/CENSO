@@ -423,7 +423,7 @@ class OrcaProc(QmProc):
 
         # add job keyword for geometry optimizations
         # with ANCOPT
-        if jobtype == "xtbopt":
+        if jobtype == "xtb_opt":
             indict["main"].append("ENGRAD")
         # for standard optimization
         elif jobtype == "opt":
@@ -585,7 +585,7 @@ class OrcaProc(QmProc):
         return result
 
 
-    def _xtbopt(self, conf: GeometryData):
+    def _xtb_opt(self, conf: GeometryData):
         """
         ORCA geometry optimization using ANCOPT
         implemented within xtb, generates inp.xyz, inp (orca-input) 
@@ -648,7 +648,7 @@ class OrcaProc(QmProc):
             newcoord.write("$end\n")
 
         # generate orca input file
-        self.__prep(conf, "xtbopt")
+        self.__prep(conf, "xtb_opt")
 
         # generate coord file to be used by xtb
         conf.tocoord(os.path.join(confdir, "coord"))
