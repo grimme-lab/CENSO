@@ -100,7 +100,7 @@ def startup(argv):
     core = CensoCore(cwd, args=args)
     
     # read input and setup conformers
-    # note: read_input used without keyword arguments because usage of this function implies cml usage of CENSO
+    # NOTE: read_input used without keyword arguments because usage of this function implies cml usage of CENSO
     core.read_input(args.inp)
 
     ### END of setup

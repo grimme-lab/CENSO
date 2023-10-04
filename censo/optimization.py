@@ -56,6 +56,7 @@ class Optimization(Part):
         Alternatively just run the complete optimization for every conformer with xtb as driver (decide with 'opt_spearman')
 
         TODO - implement regular optimization (no xtb driver)
+        TODO - what happens if not a single confomer converges?
         """
 
         """
@@ -90,15 +91,13 @@ class Optimization(Part):
 
             stopcond_converged = False
             ncyc = 0
+            rrho_done = False
             while (
                 not stopcond_converged 
                 and ncyc < self._instructions["maxcyc"]
             ):
-                # basically TL;DR:
-                # while the number of cycles is less than stopcycle, optimize for optcycles steps
-                # get resulting geometries and energies and update conformers with this
-                # update ensemble
-
+                # NOTE: this loop works through confs_nc, so if the optimization for a conformer is converged, all the following steps will not consider it anymore
+                # update conformers for ProcessHandler
                 handler.conformers = confs_nc
 
                 # update number of cycles
@@ -107,29 +106,39 @@ class Optimization(Part):
                 # run optimizations for 'optcycles' steps
                 results_opt = handler.execute(["xtb_opt"], os.path.join(folder, "opt"))
 
-                # TODO - crestcheck if ncyc >= 2
+                # put optimization results into conformer objects
+                for conf in self.core.conformers:
+                    conf.results[self.__class__.__name__.lower()].update(results_opt[id(conf)])
 
                 # run xtb_rrho for finite temperature contributions
                 # for now only after the first 'optcycles' steps or after at least 6 cycles are done
                 # TODO - make this better
-                if ncyc >= 6:
-                    """run xtb_rrho"""
+                if ncyc >= 6 and not rrho_done:
+                    # NOTE: conforms to general settings (if 'bhess' is false this will run 'ohess' at this point)
                     results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder, "rrho"))
+
+                    # put results into conformer objects 
+                    for conf in self.core.conformers:
+                        conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
+
+                    rrho_done = True
+
+                # TODO - crestcheck each iteration if ncyc >= 6
 
                 # TODO - recalculate fuzzy threshold
 
                 # kick out conformers above threshold
-                # TODO - do this for confs_nc and self.core.conformers
                 threshold = self._instructions.get("threshold", None)
                 if not threshold is None:
                     # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
                     limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
                     
-                    # filter out all conformers below threshold
+                    # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
                     # so that 'filtered' contains all conformers that should not be considered any further
+                    f = lambda x: self.key(x) > limit + threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"], 
                     filtered = [
                         conf for conf in filter(
-                            lambda x: self.key(x) > limit + threshold, 
+                            f,
                             self.core.conformers
                         )
                     ]
@@ -156,16 +165,46 @@ class Optimization(Part):
                 # check if all (considered) conformers converged - End of While-loop
                 stopcond_converged = len(confs_nc) == 0
 
+                # TODO - print out information about current state of the ensemble
+                self.write_update()
+        else:
+            """do normal optimization - not implemented yet"""
+            # TODO
+            pass
+
+        # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?). 
+        # we don't do that anymore and just use the final energies from the optimizations, which are done using solventmodel,
+        # since this basically makes no difference in comp time
+        # TODO - do rrho on converged geometries
+        handler.conformers = self.core.conformers
+        results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder, "rrho"))
+
+        for conf in self.core.conformers:
+            conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
+
+        # TODO - boltzmann calculations
+
+        # TODO - write final results
+
 
     def key(self, conf: MoleculeData) -> float:
         """
-        Calculate Gtot from DFT energy and Gmrrho
+        Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
         """
+        # TODO - implement branch for standard optimization (no ancopt)
+        return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"] + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
 
 
     def write_results(self) -> None:
         """
         formatted write of part results (optional)
+        """
+        pass
+
+
+    def write_update(self) -> None:
+        """
+        writes information about the current state of the ensemble
         """
         pass
 

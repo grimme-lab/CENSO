@@ -462,10 +462,10 @@ class OrcaProc(QmProc):
         outputpath = os.path.join(confdir, f"{filename}.out")
 
         # prepare input dict
-        parser = OrcaParser()
         indict = self.__prep(conf, "sp", no_solv=no_solv)
         
         # write input into file "{filename}.inp" in a subdir created for the conformer
+        parser = OrcaParser()
         parser.write_input(inputpath, indict)
 
         if not silent:
@@ -598,22 +598,24 @@ class OrcaProc(QmProc):
             "cycles": None,
             "converged": None,
             "ecyc": None,
+            "grad_norm": None,
         }
         """
         
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
         # 'energy' contains the final energy of the optimization (converged or unconverged)
+        # 'success' should only be False if the external program encounters an error
         result = {
             "success": None,
             "energy": None,
             "cycles": None,
             "converged": None,
             "ecyc": None,
+            "grad_norm": None,
         }
 
         confdir = os.path.join(self.workdir, conf.name) 
-        outputpath = os.path.join(confdir, output)
         
         print(f"Running optimization in {last_folders(self.workdir, 2):18}")
         files = [
@@ -630,28 +632,29 @@ class OrcaProc(QmProc):
             if os.path.isfile(os.path.join(confdir, file)):
                 os.remove(os.path.join(confdir, file))
         
-        # add inputfile information to coord (xtb as a driver)
-        with open(
-            os.path.join(confdir, "coord"), "r", newline=None
-        ) as coord:
-            tmp = coord.readlines()
-        with open(
-            os.path.join(confdir, "coord"), "w", newline=None
-        ) as newcoord:
-            for line in tmp[:-1]:
-                newcoord.write(line)
-            newcoord.write("$external\n")
-            newcoord.write("   orca input file= inp\n")
-            newcoord.write(
-                f"   orca bin= {self.paths['orcapath']} \n"
-            )
-            newcoord.write("$end\n")
-
-        # generate orca input file
-        self.__prep(conf, "xtb_opt")
-
-        # generate coord file to be used by xtb
+        # write conformer geometry to coord file
         conf.tocoord(os.path.join(confdir, "coord"))
+
+        # set orca in path
+        inputpath = os.path.join(confdir, f"xtb_opt.inp")
+
+        # prepare input dict
+        parser = OrcaParser()
+        indict = self.__prep(conf, "xtb_opt")
+        
+        # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
+        parser.write_input(inputpath, indict)
+
+        # append some additional lines to the coord file for ancopt
+        with open(
+            os.path.join(confdir, "coord"), "a", newline=None
+        ) as newcoord:
+            newcoord.writelines(
+                "$external\n",
+                "   orca input file= xtb_opt.inp\n",
+                f"   orca bin= {self.paths['orcapath']}\n",
+                "$end\n"
+            )
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(
@@ -684,6 +687,9 @@ class OrcaProc(QmProc):
             "-I",
             "xcontrol-inp", # name of the xcontrol file generated above
         ]
+        
+        # set path to the ancopt output file
+        outputpath = os.path.join(confdir, f"xtb_opt.out")
 
         # make xtb call, write into 'outputfile'
         with open(outputpath, "w", newline=None) as outputfile:
@@ -698,7 +704,7 @@ class OrcaProc(QmProc):
                 env=ENVIRON,
             )
 
-        # check if optimization finished correctly
+        # check if optimization finished without errors
         if returncode != 0:
             result["success"] = False
             print(
@@ -738,29 +744,26 @@ class OrcaProc(QmProc):
                     if " FAILED TO CONVERGE GEOMETRY " in line:
                         self.result["cycles"] += int(line.split()[7])
                         self.result["converged"] = False
-                    
-                    if "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
+                    elif "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
                         self.result["cycles"] += int(line.split()[5])
                         self.result["converged"] = True
-                    
-                    if "av. E: " in line and "->" in line:
+                    elif "av. E: " in line and "->" in line:
                         try:
                             self.result["ecyc"].append(float(line.split("->")[-1]))
                         except ValueError as e:
                             # TODO - error handling
                             print(
-                                f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
+                                f"{'ERROR:':{WARNLEN}}in {conf.name} calculation:\n{e}"
                             )
                             result["success"] = False
                             return result
-                    
-                    if " :: gradient norm      " in line:
+                    elif " :: gradient norm      " in line:
                         try:
                             self.result["grad_norm"] = float(line.split()[3])
                         except ValueError as e:
                             # TODO - error handling
                             print(
-                                f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation:\n{e}"
+                                f"{'ERROR:':{WARNLEN}}in {conf.name} calculation:\n{e}"
                             )
                             result["success"] = False
                             return result
@@ -773,6 +776,14 @@ class OrcaProc(QmProc):
         # store the final energy of the optimization in 'energy' 
         self.result["energy"] = self.result["ecyc"][-1]
         self.result["success"] = True
+
+        try:
+            assert self.result["converged"] is not None
+        except AssertionError:
+            # TODO - error handling
+            # this should never happen
+            result["success"] = False
+            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation\n{e}")
 
         """if not self.job["onlyread"]:
             # convert optimized xyz to cinpoord file

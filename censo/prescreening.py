@@ -67,7 +67,7 @@ class Prescreening(CensoPart):
         # update results for each conformer
         for conf in self.core.conformers:
             # store results of single jobs for each conformer
-            conf.results[self.__class__.__name__.lower()] = results[id(conf)]
+            conf.results[self.__class__.__name__.lower()].update(results[id(conf)])
             
             # calculate free enthalpy values for every conformer
             conf.results[self.__class__.__name__.lower()]["gtot"] = self.key(conf)
@@ -93,7 +93,7 @@ class Prescreening(CensoPart):
             # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
             limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
             
-            # filter out all conformers below threshold
+            # filter out all conformers above threshold
             # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
                 conf for conf in filter(
@@ -104,6 +104,8 @@ class Prescreening(CensoPart):
             
             # update the conformer list in core (remove conf if below threshold)
             self.core.update_conformers(filtered)  
+
+            # TODO - print out which conformers are no longer considered
         else:
             """
             TODO
@@ -112,8 +114,6 @@ class Prescreening(CensoPart):
             """
             print("...")
            
-        # TODO - print out which conformers are no longer considered
-         
         # DONE
 
 

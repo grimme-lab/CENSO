@@ -349,7 +349,7 @@ class CensoSettings:
                     10
                 ]
             },
-            "radsize": {
+            "radsize": { # ???
                 "default": 10,
                 "range": [
                     1,
@@ -370,14 +370,14 @@ class CensoSettings:
                     5
                 ]
             },
-            "hlow": {
+            "gradthr": {
                 "default": 0.01,
                 "range": [
                     0.01,
                     1.0
                 ]
             },
-            "boltzmann_threshold": { # boltzmann sum threshold
+            "boltzmannthr": { # boltzmann sum threshold
                 "default": 99.0,
                 "range": [
                     1.0,

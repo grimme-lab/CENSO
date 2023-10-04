@@ -37,7 +37,7 @@ class CensoPart:
         self._instructions = {**paths, **general, **specific}
 
         # add some additional settings to _instructions so that the processors don't have to do any lookups
-        # note: [1] auto-selects replacement solvent (TODO - print warning!)
+        # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
         self._instructions["solvent_key_xtb"] = settings.solvents_db.get(self._instructions["solvent"])["xtb"][1]
         if 'sm' in self._instructions.keys():
             self._instructions[f"solvent_key_prog"] = settings.solvents_db.get(self._instructions["solvent"])[self._instructions["sm"]][1]    

@@ -198,7 +198,7 @@ class QmProc:
 
         # add solvent to xtb call if not a gas-phase sp 
         # (set either through run settings or by call kwarg e.g. for _xtb_gsolv)
-        # note on solvents_dict (or rather censo_solvents.json): 
+        # NOTE on solvents_dict (or rather censo_solvents.json): 
         # [0] is the normal name of the solvent, if it is available, [1] is the replacement
         if not (self.instructions.get("gas-phase", False) or no_solv):
             call.extend(
@@ -362,7 +362,7 @@ class QmProc:
         mRRHO contribution with GFNn-xTB/GFN-FF
         
         result = {
-            "energy": None,
+            "energy": None, # contains the gibbs energy at given temperature (might be ZPVE if T = 0K)
             "success": None,
             "rmsd": None,
             "gibbs": None,

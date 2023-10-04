@@ -69,7 +69,7 @@ class Screening(Prescreening):
             # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
             limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
             
-            # filter out all conformers below threshold
+            # filter out all conformers above threshold
             # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
                 conf for conf in filter(
@@ -107,8 +107,8 @@ class Screening(Prescreening):
             float: The total Gibbs free energy (Gtot) of the molecule.
         """
         # Gtot = E(DFT) + Gsolv + Grrho
-        # note: key2 should only be called if evaluate_rrho is True
-        return self.key(conf) + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["gibbs"][self._instructions["temperature"]]
+        # NOTE: key2 should only be called if evaluate_rrho is True
+        return self.key(conf) + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
 
 
     def write_results(self) -> None:
