@@ -93,7 +93,7 @@ class Optimization(Part):
                 for conf in self.confs_nc:
                     for coreconf in self.core.conformers:
                         if id(coreconf) == conf.id:
-                            coreconf.results[self.__class__.__name__.lower()].update(results_opt[conf.id])
+                            coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])
                             break
 
                 # run xtb_rrho for finite temperature contributions

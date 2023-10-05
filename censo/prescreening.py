@@ -67,7 +67,7 @@ class Prescreening(CensoPart):
         # update results for each conformer
         for conf in self.core.conformers:
             # store results of single jobs for each conformer
-            conf.results[self.__class__.__name__.lower()].update(results[id(conf)])
+            conf.results.setdefault(self.__class__.__name__.lower(), {}).update(results[id(conf)])
             
             # calculate free enthalpy values for every conformer
             conf.results[self.__class__.__name__.lower()]["gtot"] = self.key(conf)
