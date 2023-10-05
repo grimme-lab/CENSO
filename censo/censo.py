@@ -88,6 +88,7 @@ def startup(argv):
         cleanup_run(cwd, complete=True)
         print("Removed files and going to exit!")
         sys.exit(0)
+    # TODO - insert option to just create a new censorc
         
     settings = CensoSettings()
     if not args.inprcpath is None:

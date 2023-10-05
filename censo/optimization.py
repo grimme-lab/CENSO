@@ -2,35 +2,15 @@
 Optimization == part2
 performing optimization of the CRE and provide low level free energies.
 """
-from multiprocessing import JoinableQueue as Queue
-import shutil
-import time
 import os
 import sys
 from copy import deepcopy
-from .cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN, qm_prepinfo, dfa_settings
-from .utilities import (
-    check_for_folder,
-    print_block,
-    new_folders,
+from censo.cfg import PLENGTH, CODING, AU2KCAL, DIGILEN, WARNLEN
+from censo.utilities import (
     last_folders,
-    ensemble2coord,
-    frange,
-    calc_boltzmannweights,
-    spearman,
-    printout,
-    move_recursively,
-    write_trj,
-    crest_routine,
-    check_tasks,
     print,
-    print_errors,
-    calc_weighted_std_dev,
-    conf_in_interval,
+    timeit,
 )
-from .orca_processor import OrcaProc
-from .tm_processor import TmProc
-from .parallel import run_in_parallel
 
 from censo.core import CensoCore
 from censo.settings import CensoSettings
