@@ -23,9 +23,9 @@ class ProcessHandler:
         instructions: Single-level dictionary with settings for the calculation (specific for each part)
         conformers (optional): List of GeometryData objects, the calculations are run using these
         """
-        
+
+        # all-in-one package for settings, paths, and miscellaneous information 
         self.__instructions = instructions
-        self.__paths = instructions.get("paths")
 
         # stores the conformers
         self.__conformers: List[GeometryData] = conformers
@@ -67,7 +67,6 @@ class ProcessHandler:
         # TODO - find a way such that the processor doesn't have to be reinitialized all the time
         self.__processor = ProcessorFactory.create_processor(
             prog, 
-            self.__paths,
             self.__instructions,
             jobtype,
             workdir

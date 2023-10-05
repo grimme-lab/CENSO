@@ -652,7 +652,7 @@ class OrcaProc(QmProc):
             newcoord.writelines(
                 "$external\n",
                 "   orca input file= xtb_opt.inp\n",
-                f"   orca bin= {self.paths['orcapath']}\n",
+                f"   orca bin= {self.instructions['orcapath']}\n",
                 "$end\n"
             )
 
@@ -679,7 +679,7 @@ class OrcaProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.paths["xtbpath"],
+            self.instructions["xtbpath"],
             "coord", # name of the coord file generated above
             "--opt",
             self.instructions["optlevel"],

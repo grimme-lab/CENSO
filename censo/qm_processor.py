@@ -25,16 +25,14 @@ class QmProc:
     QmProc base class with xtb as driver (see _xtb methods)
     """
 
-    def __init__(self, paths: Dict[str, str], instructions: Dict[str, Any], jobtype: List[str], workdir: str):
+    def __init__(self, instructions: Dict[str, Any], jobtype: List[str], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
+        # NOTE: paths are also included here
         self.instructions: Dict[str, Any] = instructions
         
         # absolute path to the folder where jobs should be executed in
         self.workdir: str = workdir
-
-        # stores lookup dict for external paths
-        self.paths: Dict[str, str] = paths
 
         # dict to map the jobtypes to their respective methods
         self._jobtypes: Dict[str, Callable] = {
@@ -185,7 +183,7 @@ class QmProc:
 
         # setup call for xtb single-point
         call = [
-            self.paths["xtbpath"],
+            self.instructions["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             "--sp",
@@ -464,7 +462,7 @@ class QmProc:
         conf.tocoord(os.path.join(confdir, "coord"))
 
         call = [
-            self.paths["xtbpath"],
+            self.instructions["xtbpath"],
             "coord",
             "--" + self.instructions["gfnv"],
             dohess,
