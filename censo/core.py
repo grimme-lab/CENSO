@@ -58,6 +58,7 @@ class CensoCore:
         }
             
         # stores the conformers with all info
+        # NOTE: this is deliberately chosen to be a list since lists are ordered
         self.conformers: List[MoleculeData] = []
  
         # stores the conformers which were sorted out

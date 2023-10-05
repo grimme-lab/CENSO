@@ -15,6 +15,7 @@ class GeometryData:
         """
         
         # identifier linking it to a MoleculeData object
+        # NOTE: this is runtime specific since it is set via built-in id-function
         self.id: int = id
 
         # name of the linked MoleculeData
