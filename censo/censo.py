@@ -14,8 +14,7 @@ from censo.inputhandling import cml
 from censo.utilities import print
 # from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
-from censo.prescreening import Prescreening
-from censo.screening import Screening
+from censo.parts import *
 from censo.settings import CensoSettings
 
 # use generators for reduced memory usage?
@@ -53,7 +52,7 @@ def main(argv=None):
     core, settings = startup(argv)
 
     # TODO - check which part to run and include only these in 'run'
-    run = [Prescreening, Screening]
+    run = [prescreening.Prescreening, screening.Screening, optimization.Optimization]
 
     for part in run:
         print(f"Ran {part.__name__} in {part(core, settings).run()} seconds!")
