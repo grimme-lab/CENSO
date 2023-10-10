@@ -432,6 +432,7 @@ class OrcaProc(QmProc):
         return indict
 
 
+    @self._create_jobdir
     def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:
         """
         ORCA single-point calculation
@@ -448,18 +449,18 @@ class OrcaProc(QmProc):
         }
 
         # create dir for conf
-        confdir = os.path.join(self.workdir, conf.name)
-        if os.path.isdir(confdir):
+        jobdir = os.path.join(self.workdir, conf.name)
+        if os.path.isdir(jobdir):
             # TODO - error handling warning? stderr?
-            print(f"Folder {confdir} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
+            print(f"Folder {jobdir} already exists. Potentially overwriting files.")
+        elif os.system(f"mkdir {jobdir}") != 0 and not os.path.isdir(jobdir):
             print(f"Workdir for conf {conf.name} could not be created.")
             result["success"] = False
             return result
 
         # set in/out path
-        inputpath = os.path.join(confdir, f"{filename}.inp")
-        outputpath = os.path.join(confdir, f"{filename}.out")
+        inputpath = os.path.join(jobdir, f"{filename}.inp")
+        outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # prepare input dict
         indict = self.__prep(conf, "sp", no_solv=no_solv)
@@ -481,7 +482,7 @@ class OrcaProc(QmProc):
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=confdir,
+                cwd=jobdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
@@ -529,13 +530,16 @@ class OrcaProc(QmProc):
             "energy_solv": None,
         }
 
+        # set in/out path
+
         print(
             f"Running SMD_gsolv calculation in "
-            f"{last_folders(self.workdir, 2)}."
+            f"{last_folders(jobdir, 2)}."
         )
 
         # calculate gas phase
         # TODO - this is redundant since a single point was probably already calculated before
+        # TODO - does this need it's own folder?
         res = self._sp(conf, silent=True, filename="sp_gas", no_solv=True)
 
         if res["success"]:
@@ -585,6 +589,7 @@ class OrcaProc(QmProc):
         return result
 
 
+    @self._create_jobdir
     def _xtb_opt(self, conf: GeometryData):
         """
         ORCA geometry optimization using ANCOPT
@@ -615,9 +620,9 @@ class OrcaProc(QmProc):
             "grad_norm": None,
         }
 
-        confdir = os.path.join(self.workdir, conf.name) 
+        jobdir = os.path.join(self.workdir, conf.name, self._xtb_opt.__name__[1:])
         
-        print(f"Running optimization in {last_folders(self.workdir, 2):18}")
+        print(f"Running optimization in {last_folders(jobdir, 2):18}")
         files = [
             "xtbrestart",
             "xtbtopo.mol",
@@ -629,14 +634,14 @@ class OrcaProc(QmProc):
         
         # remove potentially preexisting files to avoid confusion
         for file in files:
-            if os.path.isfile(os.path.join(confdir, file)):
-                os.remove(os.path.join(confdir, file))
+            if os.path.isfile(os.path.join(jobdir, file)):
+                os.remove(os.path.join(jobdir, file))
         
         # write conformer geometry to coord file
-        conf.tocoord(os.path.join(confdir, "coord"))
+        conf.tocoord(os.path.join(jobdir, "coord"))
 
         # set orca in path
-        inputpath = os.path.join(confdir, f"xtb_opt.inp")
+        inputpath = os.path.join(jobdir, f"xtb_opt.inp")
 
         # prepare input dict
         parser = OrcaParser()
@@ -647,7 +652,7 @@ class OrcaProc(QmProc):
 
         # append some additional lines to the coord file for ancopt
         with open(
-            os.path.join(confdir, "coord"), "a", newline=None
+            os.path.join(jobdir, "coord"), "a", newline=None
         ) as newcoord:
             newcoord.writelines(
                 "$external\n",
@@ -658,7 +663,7 @@ class OrcaProc(QmProc):
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(
-            os.path.join(confdir, "xcontrol-inp"), "w", newline=None
+            os.path.join(jobdir, "xcontrol-inp"), "w", newline=None
         ) as out:
             out.write("$opt \n")
             if self.instructions["opt_spearman"]:
@@ -689,7 +694,7 @@ class OrcaProc(QmProc):
         ]
         
         # set path to the ancopt output file
-        outputpath = os.path.join(confdir, f"xtb_opt.out")
+        outputpath = os.path.join(jobdir, f"xtb_opt.out")
 
         # make xtb call, write into 'outputfile'
         with open(outputpath, "w", newline=None) as outputfile:
@@ -699,7 +704,7 @@ class OrcaProc(QmProc):
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=confdir,
+                cwd=jobdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )

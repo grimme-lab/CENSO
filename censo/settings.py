@@ -973,13 +973,17 @@ class CensoSettings:
         for section in parser.sections():
             rcdata[section] = {}
             for setting in parser[section]:
-                setting_type = self.get_type(section, setting)
-                if setting_type != list and setting_type != bool:
-                    rcdata[section][setting] = setting_type(parser[section][setting])
-                elif setting_type == bool:
-                    rcdata[section][setting] = {"True": True, "False": False}.get(parser[section][setting])
+                # check first if the setting is even supposed to be there, if not print a warning
+                if setting in self._settings_options[section]:
+                    setting_type = self.get_type(section, setting)
+                    if setting_type != list and setting_type != bool:
+                        rcdata[section][setting] = setting_type(parser[section][setting])
+                    elif setting_type == bool:
+                        rcdata[section][setting] = {"True": True, "False": False}.get(parser[section][setting])
+                    else:
+                        rcdata[section][setting] = ast.literal_eval(parser[section][setting])
                 else:
-                    rcdata[section][setting] = ast.literal_eval(parser[section][setting])
+                    print(f"Warning: Setting {setting} is not a valid setting in {section}")
 
         return rcdata
 

@@ -5,11 +5,12 @@ code. (xTB always available)
 """
 import os
 from typing import Any, Callable, Dict, List, Union
-
 from math import isclose
 import time
 import subprocess
 import json
+import functools
+
 from censo.cfg import (
     ENVIRON,
     CODING,
@@ -42,8 +43,8 @@ class QmProc:
             "genericoutput": self._genericoutput,
             "xtb_sp": self._xtb_sp,
             "xtb_gsolv": self._xtb_gsolv,
-            "xto_opt": self._xtb_opt,
-            "xtb_rrho": self._xtbrrho,
+            "xtb_opt": self._xtb_opt,
+            "xtb_rrho": self._xtb_rrho,
         }
         
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
@@ -56,18 +57,58 @@ class QmProc:
             raise Exception("Jobtype not found")
         
 
-    def run(self, conformer: GeometryData) -> Dict[int, Dict[str, Any]]:
+    def run(self, conf: GeometryData) -> Dict[int, Dict[str, Any]]:
         """
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will possibly break e.g. ProcessHandler.execute
         """
-        res = {conformer.id: {}}
-        
+        res = {conf.id: {}}
+
+        # create a subdir for the conformer
+        confdir = os.path.join(self.workdir, conf.name)
+        if os.path.isdir(confdir):
+            # TODO - error handling warning? stderr?
+            print(f"Folder {confdir} already exists.")
+        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
+            print(f"Workdir for conf {conf.name} could not be created.")
+            raise RuntimeError
+
+        # run all the jobs
         for job in self._jobtype:
-            res[conformer.id][job] = self._jobtypes[job](conformer)
+            res[conf.id][job] = self._jobtypes[job](conf)
             
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
+
+
+    def _create_jobdir(self, job: Callable) -> Callable:
+        """
+        create a subdir in confdir for the job
+        """
+        @functools.wraps(job)
+        def wrapper(self, conf, *args, **kwargs):
+            """
+            A function that wraps the given `job` function and performs some operations before and after calling it.
+
+            Parameters:
+                self (object): The instance of the class that the function is a method of.
+                conf (object): The configuration object that contains the necessary information for the job.
+                *args (tuple): The positional arguments passed to the `job` function.
+                **kwargs (dict): The keyword arguments passed to the `job` function.
+
+            Returns:
+                The return value of the `job` function.
+            """
+            jobdir = os.path.join(self.workdir, conf.name, job.__name__[1:]) # getting the name starting from 1: to strip the _
+            try:
+                # Create the directory
+                os.makedirs(jobdir)
+            except FileExistsError:
+                print(f"Directory {jobdir} already exists!")
+            
+            return job(self, conf, *args, **kwargs)
+
+        return wrapper
 
 
     def print(self):
@@ -125,6 +166,7 @@ class QmProc:
         return symnum
 
 
+    @self._create_jobdir
     def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
         """
         Get single-point energy from xtb
@@ -139,25 +181,15 @@ class QmProc:
             "success": None,
         }
 
-        # create dir for conf
-        confdir = os.path.join(self.workdir, conf.name)
-        if os.path.isdir(confdir):
-            # TODO - error handling warning? stderr?
-            print(f"Folder {confdir} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
-            print(f"Workdir for conf {conf.name} could not be created.")
-            result["success"] = False
-            return result
-
         # set in/out path
-        inputpath = os.path.join(confdir, f"coord")
-        outputpath = os.path.join(confdir, f"{filename}.out")
-
+        jobdir = os.path.join(self.workdir, conf.name, self._xtb_sp.__name__[1:])
+        inputpath = os.path.join(jobdir, f"coord")
+        outputpath = os.path.join(jobdir, f"{filename}.out")
 
         if not silent:
             print(
                 f"Running xtb_sp calculation in "
-                f"{last_folders(self.workdir, 3)}"
+                f"{last_folders(jobdir, 3)}"
             )
 
         # if not self.job["onlyread"]: ??? TODO
@@ -175,8 +207,8 @@ class QmProc:
 
         # remove potentially preexisting files to avoid confusion
         for file in files:
-            if os.path.isfile(os.path.join(confdir, file)):
-                os.remove(os.path.join(confdir, file))
+            if os.path.isfile(os.path.join(jobdir, file)):
+                os.remove(os.path.join(jobdir, file))
 
         # generate coord file for xtb
         conf.tocoord(inputpath)
@@ -211,7 +243,7 @@ class QmProc:
 
             # set gbsa grid
             with open(
-                os.path.join(confdir, "xcontrol-inp"), "w", newline=None
+                os.path.join(jobdir, "xcontrol-inp"), "w", newline=None
             ) as xcout:
                 xcout.write("$gbsa\n")
                 xcout.write("  gbsagrid=tight\n")
@@ -225,7 +257,7 @@ class QmProc:
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=confdir,
+                cwd=jobdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
@@ -302,6 +334,7 @@ class QmProc:
         }
 
         # run gas-phase GFN single-point
+        # TODO - does this need it's own folder?
         res = self._xtb_sp(conf, filename="gas", silent=True, no_solv=True)
         if res["success"]:
             result["energy_xtb_gas"] = res["energy"]
@@ -355,6 +388,7 @@ class QmProc:
 
 
     # TODO - break this down
+    @self._create_jobdir
     def _xtbrrho(self, conf: GeometryData, filename="hess.out"):
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
@@ -370,24 +404,28 @@ class QmProc:
             "symnum": None,
         }
         """
+        # what is returned in the end
+        result = {
+            "energy": None,
+            "success": None,
+            "rmsd": None,
+            "gibbs": None,
+            "enthalpy": None,
+            "entropy": None,
+            "symmetry": None,
+            "symnum": None,
+        }
+
         # if not self.job["onlyread"]: # TODO ???
         print(
             f"Running {str(self.instructions['gfnv']).upper()} mRRHO in "
             f"{last_folders(self.workdir, 2)}"
         )
         
-        # create dir for conf
-        confdir = os.path.join(self.workdir, conf.name)
-        if os.path.isdir(confdir):
-            # TODO - error handling warning? stderr?
-            print(f"Folder {confdir} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
-            print(f"Workdir for conf {conf.name} could not be created.")
-            result["success"] = False
-            return result
-
-        outputpath = os.path.join(confdir, filename)
-        xcontrolpath = os.path.join(confdir, "xcontrol-inp")
+        # set in/out path
+        jobdir = os.path.join(self.workdir, conf.name, self._xtb_rrho.__name__[1:])
+        outputpath = os.path.join(jobdir, filename)
+        xcontrolpath = os.path.join(jobdir, "xcontrol-inp")
 
         # TODO - is this list complete?
         files = [
@@ -401,8 +439,8 @@ class QmProc:
 
         # remove potentially preexisting files to avoid confusion
         for file in files:
-            if os.path.isfile(os.path.join(confdir, file)):
-                os.remove(os.path.join(confdir, file))
+            if os.path.isfile(os.path.join(jobdir, file)):
+                os.remove(os.path.join(jobdir, file))
 
         # if a temperature in the trange is close (+-0.6) to the fixed temperature then replace this value in trange
         # don't do this for now, to make the program more predictable
@@ -459,7 +497,7 @@ class QmProc:
         time.sleep(0.02)
 
         # generate coord file for xtb
-        conf.tocoord(os.path.join(confdir, "coord"))
+        conf.tocoord(os.path.join(jobdir, "coord"))
 
         call = [
             self.instructions["xtbpath"],
@@ -506,22 +544,10 @@ class QmProc:
                 stdin=None,
                 stderr=subprocess.STDOUT,
                 universal_newlines=False,
-                cwd=confdir,
+                cwd=jobdir,
                 stdout=outputfile,
                 env=ENVIRON,
             )
-
-        # what is returned in the end
-        result = {
-            "energy": None,
-            "success": None,
-            "rmsd": None,
-            "gibbs": None,
-            "enthalpy": None,
-            "entropy": None,
-            "symmetry": None,
-            "symnum": None,
-        }
 
         # check if converged:
         if returncode != 0:
@@ -613,9 +639,9 @@ class QmProc:
 
         # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess (when a hessian is calculated)
         # contains output from xtb in json format to be more easily digestible by CENSO
-        if os.path.isfile(os.path.join(confdir, "xtb_enso.json")):
+        if os.path.isfile(os.path.join(jobdir, "xtb_enso.json")):
             with open(
-                os.path.join(confdir, "xtb_enso.json"),
+                os.path.join(jobdir, "xtb_enso.json"),
                 "r",
                 encoding=CODING,
                 newline=None,

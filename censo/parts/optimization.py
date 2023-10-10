@@ -15,7 +15,8 @@ from censo.utilities import (
 from censo.core import CensoCore
 from censo.settings import CensoSettings
 from censo.parallel import ProcessHandler
-from censo.parts import CensoPart
+from censo.parts.part import CensoPart
+from censo.datastructure import GeometryData, MoleculeData
 
 
 class Optimization(CensoPart):
@@ -88,7 +89,7 @@ class Optimization(CensoPart):
                 ncyc += self._instructions["optcycles"]
 
                 # run optimizations for 'optcycles' steps
-                results_opt = handler.execute(["xtb_opt"], os.path.join(folder, "opt"))
+                results_opt = handler.execute(["xtb_opt"], folder)
 
                 # put optimization results into conformer objects
                 for conf in self.confs_nc:
@@ -102,7 +103,7 @@ class Optimization(CensoPart):
                 # TODO - make this better
                 if ncyc >= 6 and not rrho_done:
                     # NOTE: conforms to general settings (if 'bhess' is false this will run 'ohess' at this point)
-                    results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder, "rrho"))
+                    results_rrho = handler.execute(["xtb_rrho"], folder)
 
                     # put results into conformer objects 
                     for conf in self.confs_nc:
@@ -191,7 +192,7 @@ class Optimization(CensoPart):
         formatted write of part results (optional)
         """
         # TODO
-        print("Conformers {[conf.name for conf in self.core.conformers]} remain.")
+        print(f"Conformers {[conf.name for conf in self.core.conformers]} remain.")
 
 
     def write_update(self) -> None:

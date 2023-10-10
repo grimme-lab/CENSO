@@ -54,12 +54,15 @@ class ProcessHandler:
 
         jobtype: list of ordered jobtypes (e.g. [xtb_sp, xtb_gsolv])
         workdir: absolute path to folder where calculations should be executed in
+        NOTE: automatically creates subdirs for each jobtype
         """
         # try to get program from instructions
         prog = self.__instructions.get("prog", None)
         
         if prog is None:
             raise Exception # TODO - error handling
+
+        # create subdir for each jobtype
 
         # initialize the processor for the respective program (depends on part)
         # and set the jobtype as well as instructions, also pass workdir to compute in
