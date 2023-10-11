@@ -36,8 +36,11 @@ class GeometryData:
                 
             self.xyz[element].append([float(i) for i in tmp])
 
+        # compute number of atoms
+        self.nat: int = sum(len(i) for i in self.xyz.values())
+
         # stores path to the most recent DFT MO-file (.gbw file in orca) 
-        # (FIXME - quick and dirty solution, it would seem to make more sense to put this into a MoleculeDate object)
+        # (FIXME - quick and dirty solution, it would seem to make more sense to put this into a MoleculeData object)
         self.mo_path: str = None
 
     
@@ -83,6 +86,20 @@ class GeometryData:
         for line in lines:
             if not line.startswith("$"):
                 tmp.setdefault(line.split()[-1], []).append([float(x) * BOHR2ANG for x in line.split()[:-1]])
+
+
+    def toxyz(self, path: str) -> None:
+        """
+        method to convert self.xyz to a xyz-file
+        """
+        with open(path, "w") as file:
+            file.writelines([
+                f"{self.nat}\n",
+                f"{self.name}\n",
+            ])
+            for element, allcoords in self.xyz.items():
+                for atom in allcoords:
+                    file.write(f"{element} {atom[0]:.10f} {atom[1]:.10f} {atom[2]:.10f}\n")
 
 
 class MoleculeData:

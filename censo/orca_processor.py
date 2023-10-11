@@ -208,6 +208,7 @@ class OrcaParser:
         lines.append(f"* {reduce(lambda x, y: f'{x} {y}', indict['geom']['def'])}\n")
         
         # write coordinates if "xyz" keyword is used
+        # if "xyzfile" is used, nothing more has to be done
         if indict["geom"].get("coord", False):
             for coord in indict["geom"]["coord"]:
                 lines.append(f"{reduce(lambda x, y: f'{x} {y}', coord)}\n")
@@ -219,8 +220,6 @@ class OrcaParser:
             for option in indict[key].keys():
                 lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
             lines.append("end\n")
-
-        # TODO - externalize line appending?
 
         return lines
 
@@ -275,12 +274,14 @@ class OrcaProc(QmProc):
         
 
     # TODO - make this better
-    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False) -> OrderedDict:
+    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
 
-        grid: mandatory argument determining the grid settings chosen from 'gridsettings' dict
+        xyzfile: name of the xyz-file to be used for the calculation
+
+        NOTE: the xyzfile has to already exist, this function just bluntly writes the name into the input!
 
         TODO - NMR/OR/UVVis etc preparation steps
         """
@@ -392,20 +393,15 @@ class OrcaProc(QmProc):
 
         # unpaired, charge, and coordinates
         # by default coordinates are written directly into input file
-        indict["geom"] = {
-            "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1],
-            "coord": conf.toorca(),
-        }
-        """
-        don't use this for now
-        else:
-            # xyz geometry
-            geom, _ = t2x(self.workdir)
-            orcainput["geom"] = {
-                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1]
-                "coord": []
+        if xyzfile is None:
+            indict["geom"] = {
+                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1],
+                "coord": conf.toorca(),
             }
-        """
+        else:
+            orcainput["geom"] = {
+                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"]+1, xyzfile],
+            }
 
         # try to apply gcp if basis set available
         gcp_keywords = {
@@ -606,7 +602,7 @@ class OrcaProc(QmProc):
             "grad_norm": None,
         }
         """
-        # NOTE: some "intuititivty problems":
+        # NOTE: some "intuitivity problems":
         # the first call of _xtb_opt (probably in spearman opt) generates a coord file, which is then updated externally by xtb
         # the content of this coord file is converted into conf.xyz to be used by orca
         
@@ -642,16 +638,17 @@ class OrcaProc(QmProc):
         # write conformer geometry to coord file if it does not exist
         if not os.path.isfile(os.path.join(jobdir, "coord")):
             conf.tocoord(os.path.join(jobdir, "coord"))
-        # convert content of coord into conf.xyz
+        # convert content of coord into conf.xyz and write new xyzfile
         else:
             conf.fromcoord(os.path.join(jobdir, "coord"))
+            conf.toxyz(os.path.join(jobdir, f"{filename}.xyz"))
 
         # set orca in path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(conf, filename)
+        indict = self.__prep(conf, filename, xyzfile=f"{filename}.xyz")
         
         # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)

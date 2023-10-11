@@ -187,7 +187,7 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tup
             out.write(str(len(xyzatom)) + "\n")
             for line in xyzatom:
                 out.write(line)
-    return xyzatom, len(xyzatom), os.path.join(outpath, outfile) # FIXME - last return value??
+    return xyzatom, len(xyzatom), os.path.join(outpath, outfile)
 
 
 def x2t(path, infile="inp.xyz"):
