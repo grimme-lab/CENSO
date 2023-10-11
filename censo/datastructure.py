@@ -35,6 +35,10 @@ class GeometryData:
                 
             self.xyz[element].append([float(i) for i in tmp])
 
+        # stores path to the most recent DFT MO-file (.gbw file in orca) 
+        # (FIXME - quick and dirty solution, it would seem to make more sense to put this into a MoleculeDate object)
+        self.mo_path: str
+
     
     def toorca(self) -> List:
         """

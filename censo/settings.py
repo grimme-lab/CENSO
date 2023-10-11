@@ -252,6 +252,9 @@ class CensoSettings:
             "gas-phase": {
                 "default": False
             },
+            "copy_mo": {
+                "default": True
+            },
             "trange": {
                 "default": [
                     273.15,
@@ -370,7 +373,7 @@ class CensoSettings:
                     5
                 ]
             },
-            "gradthr": {
+            "gradthr": { # used to be called 'hlow' after the setting in xtb
                 "default": 0.01,
                 "range": [
                     0.01,

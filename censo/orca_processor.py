@@ -8,6 +8,7 @@ import time
 import subprocess
 from typing import Any, Dict, List
 from functools import reduce
+import shutil
 
 from censo.cfg import (
     CODING,
@@ -448,10 +449,8 @@ class OrcaProc(QmProc):
             "success": None,
         }
 
-        # create dir for conf
-        jobdir = os.path.join(self.workdir, conf.name, self._sp.__name__[1:])
-
         # set in/out path
+        jobdir = os.path.join(self.workdir, conf.name, self._sp.__name__[1:])
         inputpath = os.path.join(jobdir, f"{filename}.inp")
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
@@ -461,6 +460,11 @@ class OrcaProc(QmProc):
         # write input into file "{filename}.inp" in a subdir created for the conformer
         parser = OrcaParser()
         parser.write_input(inputpath, indict)
+
+        # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
+        if self.instructions["copy_mo"]:
+            if os.path.isfile(conf.mo_path):
+                shutil.copy(conf.mo_path, os.path.join(jobdir, f"{filename}.gbw"))
 
         if not silent:
             print(f"Running ORCA single-point in {inputpath}")
@@ -502,7 +506,10 @@ class OrcaProc(QmProc):
             # TODO - error handling
             result["success"] = False
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
-        
+
+        # store the path to the current .gbw file as the most recent MO file for this conformer
+        conf.mo_path = os.path.join(jobdir, f"{filename}.gbw")
+
         return result
 
 
@@ -615,7 +622,6 @@ class OrcaProc(QmProc):
 
         jobdir = os.path.join(self.workdir, conf.name, self._xtb_opt.__name__[1:])
         
-        print(f"Running optimization in {last_folders(jobdir, 2):18}")
         files = [
             "xtbrestart",
             "xtbtopo.mol",
@@ -647,12 +653,12 @@ class OrcaProc(QmProc):
         with open(
             os.path.join(jobdir, "coord"), "a", newline=None
         ) as newcoord:
-            newcoord.writelines(
-                "$external\n",
-                "   orca input file= xtb_opt.inp\n",
-                f"   orca bin= {self.instructions['orcapath']}\n",
-                "$end\n"
-            )
+            newcoord.writelines([
+                    "$external\n",
+                    "   orca input file= xtb_opt.inp\n",
+                    f"   orca bin= {self.instructions['orcapath']}\n",
+                    "$end\n"
+            ])
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(
@@ -665,7 +671,7 @@ class OrcaProc(QmProc):
 
             out.writelines([
                 "average conv=true \n",
-                f"hlow={self.instructions['hlow']} \n",
+                f"hlow={self.instructions['gradthr']} \n",
                 "s6=30.00 \n",
                 # remove unnecessary sp/gradient call in xTB
                 "engine=lbfgs\n",
@@ -688,6 +694,8 @@ class OrcaProc(QmProc):
         
         # set path to the ancopt output file
         outputpath = os.path.join(jobdir, f"xtb_opt.out")
+
+        print(f"Running optimization in {last_folders(jobdir, 2):18}")
 
         # make xtb call, write into 'outputfile'
         with open(outputpath, "w", newline=None) as outputfile:
