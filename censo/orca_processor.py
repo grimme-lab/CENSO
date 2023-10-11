@@ -432,7 +432,7 @@ class OrcaProc(QmProc):
         return indict
 
 
-    @self._create_jobdir
+    @QmProc._create_jobdir
     def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:
         """
         ORCA single-point calculation
@@ -449,14 +449,7 @@ class OrcaProc(QmProc):
         }
 
         # create dir for conf
-        jobdir = os.path.join(self.workdir, conf.name)
-        if os.path.isdir(jobdir):
-            # TODO - error handling warning? stderr?
-            print(f"Folder {jobdir} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {jobdir}") != 0 and not os.path.isdir(jobdir):
-            print(f"Workdir for conf {conf.name} could not be created.")
-            result["success"] = False
-            return result
+        jobdir = os.path.join(self.workdir, conf.name, self._sp.__name__[1:])
 
         # set in/out path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -534,7 +527,7 @@ class OrcaProc(QmProc):
 
         print(
             f"Running SMD_gsolv calculation in "
-            f"{last_folders(jobdir, 2)}."
+            f"{last_folders(self.workdir, 2)}."
         )
 
         # calculate gas phase
@@ -589,7 +582,7 @@ class OrcaProc(QmProc):
         return result
 
 
-    @self._create_jobdir
+    @QmProc._create_jobdir
     def _xtb_opt(self, conf: GeometryData):
         """
         ORCA geometry optimization using ANCOPT

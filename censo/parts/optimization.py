@@ -11,6 +11,7 @@ from censo.utilities import (
     print,
     timeit,
 )
+from typing import List
 
 from censo.core import CensoCore
 from censo.settings import CensoSettings

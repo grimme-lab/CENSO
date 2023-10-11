@@ -19,7 +19,6 @@ from censo.cfg import (
 )
 from censo.utilities import last_folders, print, frange
 from censo.datastructure import GeometryData
-from censo.settings import DfaSettings
         
 class QmProc:
     """
@@ -81,9 +80,14 @@ class QmProc:
         return res
 
 
-    def _create_jobdir(self, job: Callable) -> Callable:
+    @staticmethod
+    def _create_jobdir(job: Callable) -> Callable:
         """
-        create a subdir in confdir for the job
+        Creates a subdir in confdir for the job.
+        
+        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_jobdir decorator.
+        The wrapper function within will be able to access the instance variables of the class.
+        To access this method from child classes, the decorator must be called like: @QmProc._create_jobdir.
         """
         @functools.wraps(job)
         def wrapper(self, conf, *args, **kwargs):
@@ -166,7 +170,7 @@ class QmProc:
         return symnum
 
 
-    @self._create_jobdir
+    @_create_jobdir
     def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False) -> Dict[str, Any]:
         """
         Get single-point energy from xtb
@@ -388,8 +392,8 @@ class QmProc:
 
 
     # TODO - break this down
-    @self._create_jobdir
-    def _xtbrrho(self, conf: GeometryData, filename="hess.out"):
+    @_create_jobdir
+    def _xtb_rrho(self, conf: GeometryData, filename="hess.out"):
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
         
