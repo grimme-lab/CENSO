@@ -464,6 +464,7 @@ class OrcaProc(QmProc):
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
         if self.instructions["copy_mo"]:
             if os.path.isfile(conf.mo_path):
+                print(f"Copying .gbw file from {conf.mo_path}.")
                 shutil.copy(conf.mo_path, os.path.join(jobdir, f"{filename}.gbw"))
 
         if not silent:

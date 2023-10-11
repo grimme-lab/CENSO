@@ -37,7 +37,7 @@ class GeometryData:
 
         # stores path to the most recent DFT MO-file (.gbw file in orca) 
         # (FIXME - quick and dirty solution, it would seem to make more sense to put this into a MoleculeDate object)
-        self.mo_path: str
+        self.mo_path: str = None
 
     
     def toorca(self) -> List:
@@ -91,7 +91,7 @@ class MoleculeData:
         self.geom: GeometryData = GeometryData(id(self), self.name, xyz)
         
         # stores the initial xtb energy from CREST (or whatever was used before)
-        self.xtb_energy: float
+        self.xtb_energy: float = None
         
         # stores the results of the calculations
         self.results = {}
