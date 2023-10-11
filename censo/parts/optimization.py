@@ -85,6 +85,9 @@ class Optimization(CensoPart):
             while (
                 not stopcond_converged 
                 and ncyc < self._instructions["maxcyc"]
+                # TODO - maybe make this more intelligent: 
+                # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk, 
+                # move it to a new chunk and calculate later
             ):
                 print(f"NCYC: {ncyc}")
                 # NOTE: this loop works through confs_nc, so if the optimization for a conformer is converged, all the following steps will not consider it anymore
@@ -116,6 +119,7 @@ class Optimization(CensoPart):
                         for coreconf in self.core.conformers:
                             if id(coreconf) == conf.id:
                                 coreconf.results[self.__class__.__name__.lower()].update(results_rrho[conf.id])
+                                coreconf.resutts[self.__class__.__name__.lower()]["gtot"] = self.key(conf)
                                 break
 
                     rrho_done = True

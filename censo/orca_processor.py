@@ -399,7 +399,7 @@ class OrcaProc(QmProc):
                 "coord": conf.toorca(),
             }
         else:
-            orcainput["geom"] = {
+            indict["geom"] = {
                 "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"]+1, xyzfile],
             }
 
@@ -752,14 +752,14 @@ class OrcaProc(QmProc):
                     result["success"] = True
                     
                     if " FAILED TO CONVERGE GEOMETRY " in line:
-                        self.result["cycles"] += int(line.split()[7])
-                        self.result["converged"] = False
+                        result["cycles"] += int(line.split()[7])
+                        result["converged"] = False
                     elif "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
-                        self.result["cycles"] += int(line.split()[5])
-                        self.result["converged"] = True
+                        result["cycles"] += int(line.split()[5])
+                        result["converged"] = True
                     elif "av. E: " in line and "->" in line:
                         try:
-                            self.result["ecyc"].append(float(line.split("->")[-1]))
+                            result["ecyc"].append(float(line.split("->")[-1]))
                         except ValueError as e:
                             # TODO - error handling
                             print(
@@ -769,7 +769,7 @@ class OrcaProc(QmProc):
                             return result
                     elif " :: gradient norm      " in line:
                         try:
-                            self.result["grad_norm"] = float(line.split()[3])
+                            result["grad_norm"] = float(line.split()[3])
                         except ValueError as e:
                             # TODO - error handling
                             print(
@@ -784,11 +784,11 @@ class OrcaProc(QmProc):
             return result
         
         # store the final energy of the optimization in 'energy' 
-        self.result["energy"] = self.result["ecyc"][-1]
-        self.result["success"] = True
+        result["energy"] = result["ecyc"][-1]
+        result["success"] = True
 
         try:
-            assert self.result["converged"] is not None
+            assert result["converged"] is not None
         except AssertionError:
             # TODO - error handling
             # this should never happen

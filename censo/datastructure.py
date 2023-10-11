@@ -86,6 +86,8 @@ class GeometryData:
         for line in lines:
             if not line.startswith("$"):
                 tmp.setdefault(line.split()[-1], []).append([float(x) * BOHR2ANG for x in line.split()[:-1]])
+            elif line.startswith("$end"):
+                break
 
 
     def toxyz(self, path: str) -> None:
