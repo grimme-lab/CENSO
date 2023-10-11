@@ -463,7 +463,7 @@ class OrcaProc(QmProc):
 
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
         if self.instructions["copy_mo"]:
-            if os.path.isfile(conf.mo_path):
+            if getattr(conf, "mo_path") is not None and os.path.isfile(conf.mo_path):
                 print(f"Copying .gbw file from {conf.mo_path}.")
                 shutil.copy(conf.mo_path, os.path.join(jobdir, f"{filename}.gbw"))
 
@@ -496,7 +496,6 @@ class OrcaProc(QmProc):
                     # check if scf is converged:
                     if "ORCA TERMINATED NORMALLY" in line:
                         result["success"] = True
-                        print(f"ORCA single-point successfull for {conf.name}.")
                     
             if not result["success"]:
                 result["success"] = False
@@ -591,7 +590,7 @@ class OrcaProc(QmProc):
 
 
     @QmProc._create_jobdir
-    def _xtb_opt(self, conf: GeometryData):
+    def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt"):
         """
         ORCA geometry optimization using ANCOPT
         implemented within xtb, generates inp.xyz, inp (orca-input) 
@@ -607,6 +606,9 @@ class OrcaProc(QmProc):
             "grad_norm": None,
         }
         """
+        # NOTE: some "intuititivty problems":
+        # the first call of _xtb_opt (probably in spearman opt) generates a coord file, which is then updated externally by xtb
+        # the content of this coord file is converted into conf.xyz to be used by orca
         
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
@@ -637,15 +639,19 @@ class OrcaProc(QmProc):
             if os.path.isfile(os.path.join(jobdir, file)):
                 os.remove(os.path.join(jobdir, file))
         
-        # write conformer geometry to coord file
-        conf.tocoord(os.path.join(jobdir, "coord"))
+        # write conformer geometry to coord file if it does not exist
+        if not os.path.isfile(os.path.join(jobdir, "coord")):
+            conf.tocoord(os.path.join(jobdir, "coord"))
+        # convert content of coord into conf.xyz
+        else:
+            conf.fromcoord(os.path.join(jobdir, "coord"))
 
         # set orca in path
-        inputpath = os.path.join(jobdir, f"xtb_opt.inp")
+        inputpath = os.path.join(jobdir, f"{filename}.inp")
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(conf, "xtb_opt")
+        indict = self.__prep(conf, filename)
         
         # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)
@@ -656,7 +662,7 @@ class OrcaProc(QmProc):
         ) as newcoord:
             newcoord.writelines([
                     "$external\n",
-                    "   orca input file= xtb_opt.inp\n",
+                    f"   orca input file= {filename}.inp\n",
                     f"   orca bin= {self.instructions['orcapath']}\n",
                     "$end\n"
             ])
@@ -677,8 +683,8 @@ class OrcaProc(QmProc):
                 # remove unnecessary sp/gradient call in xTB
                 "engine=lbfgs\n",
                 "$external\n",
-                "   orca input file= inp\n",
-                    f"   orca bin= {self.instructions['orcapath']} \n",
+                f"   orca input file= {filename}.inp\n",
+                f"   orca bin= {self.instructions['orcapath']} \n",
                 "$end \n",
             ])
 
@@ -694,7 +700,7 @@ class OrcaProc(QmProc):
         ]
         
         # set path to the ancopt output file
-        outputpath = os.path.join(jobdir, f"xtb_opt.out")
+        outputpath = os.path.join(jobdir, f"{filename}.out")
 
         print(f"Running optimization in {last_folders(jobdir, 2):18}")
 

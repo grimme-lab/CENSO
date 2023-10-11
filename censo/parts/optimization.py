@@ -55,6 +55,8 @@ class Optimization(CensoPart):
 
         handler = ProcessHandler(self._instructions)
 
+        self.print_info()
+
         # set folder to do the calculations in
         folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
         if os.path.isdir(folder):
@@ -68,6 +70,7 @@ class Optimization(CensoPart):
             """
             optimization using spearman threshold, updated every 'optcycles' steps
             """
+
             # TODO - run single-point for every conformer first in order to set preliminary ordering and fuzzy threshold? or take from screening
 
             # make a separate list of conformers that only includes (considered) conformers that are not converged
@@ -78,10 +81,12 @@ class Optimization(CensoPart):
             stopcond_converged = False
             ncyc = 0
             rrho_done = False
+            print(f"Optimization using Spearman threshold, {self._instructions['optcycles']} cycles per step.")
             while (
                 not stopcond_converged 
                 and ncyc < self._instructions["maxcyc"]
             ):
+                print(f"NCYC: {ncyc}")
                 # NOTE: this loop works through confs_nc, so if the optimization for a conformer is converged, all the following steps will not consider it anymore
                 # update conformers for ProcessHandler
                 handler.conformers = self.confs_nc

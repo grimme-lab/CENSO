@@ -23,6 +23,7 @@ class GeometryData:
         
         # dict with element symbols as keys and lists of three-item lists as values
         # the coordinates should be given in Angstrom
+        # self.xyz = {"H": [[0.0, 0.0, 0.0], [...], ...], "C": [[0.0, 0.0, 0.0], ...], ...}
         self.xyz: Dict[str, List[List[float]]] = {}
         
         # set up xyz dict from the input lines
@@ -68,9 +69,22 @@ class GeometryData:
         with open(path, "w") as file:
             file.write("$coord\n")
             file.writelines(coord)
-            file.write("$end")
+            file.write("$end\n")
 
-        
+
+    def fromcoord(self, path: str) -> None:
+        """
+        method to convert the content of a coord file to cartesian coordinates for the 'xyz' attribute
+        """
+        with open(path, "r") as file:
+            lines = file.readlines()
+
+        tmp = {}
+        for line in lines:
+            if not line.startswith("$"):
+                tmp.setdefault(line.split()[-1], []).append([float(x) * BOHR2ANG for x in line.split()[:-1]])
+
+
 class MoleculeData:
     """
     MoleculeData contains identifier, a GeometryData object, 

@@ -37,7 +37,6 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        # TODO - test this
         # TODO - maybe put folder/handler as instance variable such that it can be reused later instead of reinstantiating
         super().run()
 

@@ -192,8 +192,7 @@ class QmProc:
 
         if not silent:
             print(
-                f"Running xtb_sp calculation in "
-                f"{last_folders(jobdir, 3)}"
+                f"Running xtb_sp calculation for {conf.name}"
             )
 
         # if not self.job["onlyread"]: ??? TODO
@@ -290,7 +289,7 @@ class QmProc:
                             if not silent:
                                 print(
                                     f"{'ERROR:':{WARNLEN}}while converting "
-                                    f"single-point in: {last_folders(self.workdir, 2)}"
+                                    f"single-point in: {last_folders(jobdir, 4)}"
                                 )
                             result["success"] = False
                             return result
@@ -325,8 +324,7 @@ class QmProc:
         }
         """
         print(
-            f"Running xtb_gsolv calculation in "
-            f"{last_folders(self.workdir, 3)}"
+            f"Running xtb_gsolv calculation for {conf.name}."
         )
 
         # what is returned in the end
@@ -422,8 +420,7 @@ class QmProc:
 
         # if not self.job["onlyread"]: # TODO ???
         print(
-            f"Running {str(self.instructions['gfnv']).upper()} mRRHO in "
-            f"{last_folders(self.workdir, 2)}"
+            f"Running {str(self.instructions['gfnv']).upper()} mRRHO for {conf.name}."
         )
         
         # set in/out path
@@ -558,7 +555,7 @@ class QmProc:
             result["success"] = False
             print(
                 f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} ohess/bhess error in "
-                f"{last_folders(self.workdir, 2):18}"
+                f"{last_folders(jobdir, 4):18}"
             )
             return result
 
@@ -567,7 +564,7 @@ class QmProc:
         if not os.path.isfile(outputpath):
             result["success"] = False
             print(
-                f"{'ERROR:':{WARNLEN}}file {self.workdir}/hess.out could not be found!"
+                f"{'ERROR:':{WARNLEN}}file {outputpath} could not be found!"
             )
             return result
 
