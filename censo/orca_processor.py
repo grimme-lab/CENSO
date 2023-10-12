@@ -620,11 +620,12 @@ class OrcaProc(QmProc):
         }
 
         jobdir = os.path.join(self.workdir, conf.name, self._xtb_opt.__name__[1:])
+        xcontrolname = "xtb_opt-xcontrol-inp"
         
         files = [
             "xtbrestart",
             "xtbtopo.mol",
-            "xcontrol-inp",
+            xcontrolname,
             "wbo",
             "charges",
             "gfnff_topo",
@@ -636,12 +637,12 @@ class OrcaProc(QmProc):
                 os.remove(os.path.join(jobdir, file))
         
         # write conformer geometry to coord file if it does not exist
-        if not os.path.isfile(os.path.join(jobdir, "coord")):
-            conf.tocoord(os.path.join(jobdir, "coord"))
+        if not os.path.isfile(os.path.join(jobdir, f"{filename}.coord")):
+            conf.tocoord(os.path.join(jobdir, f"{filename}.coord"))
         # convert content of coord into conf.xyz and write new xyzfile
         # TODO - read the correct coord file with the optimized geometry
         else:
-            conf.fromcoord(os.path.join(jobdir, "coord"))
+            conf.fromcoord(os.path.join(jobdir, f"{filename}.coord"))
             conf.toxyz(os.path.join(jobdir, f"{filename}.xyz"))
 
         # set orca in path
@@ -656,7 +657,7 @@ class OrcaProc(QmProc):
 
         # append some additional lines to the coord file for ancopt
         with open(
-            os.path.join(jobdir, "coord"), "a", newline=None
+            os.path.join(jobdir, f"{filename}.coord"), "a", newline=None
         ) as newcoord:
             newcoord.writelines([
                     "$external\n",
@@ -667,7 +668,7 @@ class OrcaProc(QmProc):
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(
-            os.path.join(jobdir, "xcontrol-inp"), "w", newline=None
+            os.path.join(jobdir, xcontrolname), "w", newline=None
         ) as out:
             out.write("$opt \n")
             if self.instructions["opt_spearman"]:
@@ -689,12 +690,12 @@ class OrcaProc(QmProc):
         # prepare xtb call
         call = [
             self.instructions["xtbpath"],
-            "coord", # name of the coord file generated above
+            f"{filename}.coord", # name of the coord file generated above
             "--opt",
             self.instructions["optlevel"],
             "--orca",
             "-I",
-            "xcontrol-inp", # name of the xcontrol file generated above
+            xcontrolname
         ]
         
         # set path to the ancopt output file

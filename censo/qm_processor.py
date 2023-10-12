@@ -187,8 +187,9 @@ class QmProc:
 
         # set in/out path
         jobdir = os.path.join(self.workdir, conf.name, self._xtb_sp.__name__[1:])
-        inputpath = os.path.join(jobdir, f"coord")
+        inputpath = os.path.join(jobdir, f"{filename}.coord")
         outputpath = os.path.join(jobdir, f"{filename}.out")
+        xcontrolname = "xtb_sp-xcontrolinp"
 
         if not silent:
             print(
@@ -201,7 +202,7 @@ class QmProc:
         files = [
             "xtbrestart",
             "xtbtopo.mol",
-            "xcontrol-inp",
+            xcontrolname,
             "wbo",
             "charges",
             "gfnff_topo",
@@ -240,13 +241,13 @@ class QmProc:
                     self.instructions["solvent_key_xtb"],
                     "reference",
                     "-I",
-                    "xcontrol-inp"
+                    xcontrolname
                 ]
             )
 
             # set gbsa grid
             with open(
-                os.path.join(jobdir, "xcontrol-inp"), "w", newline=None
+                os.path.join(jobdir, xcontrolname), "w", newline=None
             ) as xcout:
                 xcout.write("$gbsa\n")
                 xcout.write("  gbsagrid=tight\n")
@@ -391,7 +392,7 @@ class QmProc:
 
     # TODO - break this down
     @_create_jobdir
-    def _xtb_rrho(self, conf: GeometryData, filename="hess.out"):
+    def _xtb_rrho(self, conf: GeometryData, filename: str = "xtb_rrho"):
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
         
@@ -426,13 +427,14 @@ class QmProc:
         # set in/out path
         jobdir = os.path.join(self.workdir, conf.name, self._xtb_rrho.__name__[1:])
         outputpath = os.path.join(jobdir, filename)
-        xcontrolpath = os.path.join(jobdir, "xcontrol-inp")
+        xcontrolname = "rrho-xcontrol-inp"
+        xcontrolpath = os.path.join(jobdir, xcontrolname)
 
         # TODO - is this list complete?
         files = [
             "xtbrestart",
             "xtbtopo.mol",
-            "xcontrol-inp",
+            xcontrolname,
             "wbo",
             "charges",
             "gfnff_topo",
@@ -498,11 +500,11 @@ class QmProc:
         time.sleep(0.02)
 
         # generate coord file for xtb
-        conf.tocoord(os.path.join(jobdir, "coord"))
+        conf.tocoord(os.path.join(jobdir, f"{filename}.coord"))
 
         call = [
             self.instructions["xtbpath"],
-            "coord",
+            f"{filename}.coord",
             "--" + self.instructions["gfnv"],
             dohess,
             olevel,
@@ -511,7 +513,7 @@ class QmProc:
             "--enso",
             "--norestart",
             "-I",
-            "xcontrol-inp",
+            xcontrolname,
             "--parallel",
             f"{self.instructions['omp']}",
         ]
