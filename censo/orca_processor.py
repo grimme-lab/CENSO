@@ -639,6 +639,7 @@ class OrcaProc(QmProc):
         if not os.path.isfile(os.path.join(jobdir, "coord")):
             conf.tocoord(os.path.join(jobdir, "coord"))
         # convert content of coord into conf.xyz and write new xyzfile
+        # TODO - read the correct coord file with the optimized geometry
         else:
             conf.fromcoord(os.path.join(jobdir, "coord"))
             conf.toxyz(os.path.join(jobdir, f"{filename}.xyz"))

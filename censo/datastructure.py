@@ -58,9 +58,7 @@ class GeometryData:
 
     def tocoord(self, path: str) -> None:
         """
-        method to convert the internal cartesian coordinates to a coord file (for tm or xtb)
-        
-        path: absolute path to coord file
+        method to convert the internal cartesian coordinates (self.xyz) to a coord file (for tm or xtb)
         """
         coord = []
         for element, allcoords in self.xyz.items():

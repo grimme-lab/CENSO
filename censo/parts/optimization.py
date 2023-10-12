@@ -119,7 +119,7 @@ class Optimization(CensoPart):
                         for coreconf in self.core.conformers:
                             if id(coreconf) == conf.id:
                                 coreconf.results[self.__class__.__name__.lower()].update(results_rrho[conf.id])
-                                coreconf.resutts[self.__class__.__name__.lower()]["gtot"] = self.key(conf)
+                                coreconf.results[self.__class__.__name__.lower()]["gtot"] = self.key(coreconf)
                                 break
 
                     rrho_done = True
@@ -136,7 +136,7 @@ class Optimization(CensoPart):
                     
                     # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
                     # so that 'filtered' contains all conformers that should not be considered any further
-                    f = lambda x: self.key(x) > limit + threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"], 
+                    f = lambda x: self.key(x) > limit + threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"] 
                     filtered = [
                         conf for conf in filter(
                             f,
@@ -211,4 +211,6 @@ class Optimization(CensoPart):
         """
         # TODO
         for conf in self.confs_nc:
-            print(f"{conf.name}: {conf.results[self.__class__.__name__.lower()]['xtb_opt']['energy']}")
+            for coreconf in self.core.conformers:
+                if id(coreconf) == conf.id:
+                    print(f"{coreconf.name}: {coreconf.results[self.__class__.__name__.lower()]['xtb_opt']['energy']}")
