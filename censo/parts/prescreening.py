@@ -66,6 +66,10 @@ class Prescreening(CensoPart):
 
         # update results for each conformer
         for conf in self.core.conformers:
+            # if 'copy_mo' is enabled, get the mo_path from the results and store it in the respective GeometryData object
+            if self._instructions.get("copy_mo", None):
+                conf.geom.mo_path = results[id(conf)]["mo_path"]
+
             # store results of single jobs for each conformer
             conf.results.setdefault(self.__class__.__name__.lower(), {}).update(results[id(conf)])
             

@@ -82,6 +82,7 @@ class Optimization(CensoPart):
             ncyc = 0
             rrho_done = False
             print(f"Optimization using Spearman threshold, {self._instructions['optcycles']} cycles per step.")
+            print(f"NCYC: {ncyc}")
             while (
                 not stopcond_converged 
                 and ncyc < self._instructions["maxcyc"]
@@ -89,7 +90,6 @@ class Optimization(CensoPart):
                 # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk, 
                 # move it to a new chunk and calculate later
             ):
-                print(f"NCYC: {ncyc}")
                 # NOTE: this loop works through confs_nc, so if the optimization for a conformer is converged, all the following steps will not consider it anymore
                 # update conformers for ProcessHandler
                 handler.conformers = self.confs_nc
@@ -104,6 +104,14 @@ class Optimization(CensoPart):
                 for conf in self.confs_nc:
                     for coreconf in self.core.conformers:
                         if id(coreconf) == conf.id:
+                            # store mo_path if 'copy_mo' is enabled
+                            if self._instructions.get("copy_mo", None):
+                                coreconf.geom.mo_path = results_opt[conf.id]["mo_path"]
+                            
+                            # update geometry of the conformer
+                            coreconf.geom.xyz = results_opt[conf.id]["geom"]
+
+                            # store results
                             coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])
                             break
 
@@ -164,6 +172,7 @@ class Optimization(CensoPart):
 
                 # TODO - print out information about current state of the ensemble
                 self.write_update()
+                print(f"NCYC: {ncyc}")
         else:
             """do normal optimization - not implemented yet"""
             # TODO

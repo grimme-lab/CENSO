@@ -437,12 +437,14 @@ class OrcaProc(QmProc):
         result = {
             "energy": None,
             "success": None,
+            "mo_path": None,
         }
         """
         # set results
         result = {
             "energy": None,
             "success": None,
+            "mo_path": None,
         }
 
         # set in/out path
@@ -503,8 +505,8 @@ class OrcaProc(QmProc):
             result["success"] = False
             print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
 
-        # store the path to the current .gbw file as the most recent MO file for this conformer
-        conf.mo_path = os.path.join(jobdir, f"{filename}.gbw")
+        # store the path to the current .gbw file for this conformer
+        result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # TODO - clean up
 
@@ -591,9 +593,6 @@ class OrcaProc(QmProc):
     def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt"):
         """
         ORCA geometry optimization using ANCOPT
-        implemented within xtb, generates inp.xyz, inp (orca-input) 
-        and adds information to coord (xtb can then tell which file 
-        orca has to use).
 
         result = {
             "success": None,
@@ -602,6 +601,8 @@ class OrcaProc(QmProc):
             "converged": None,
             "ecyc": None,
             "grad_norm": None,
+            "mo_path": None,
+            "geom": None,
         }
         """
         # NOTE: some "intuitivity problems":
@@ -612,6 +613,7 @@ class OrcaProc(QmProc):
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
         # 'energy' contains the final energy of the optimization (converged or unconverged)
         # 'success' should only be False if the external program encounters an error
+        # 'geom' stores the optimized geometry in GeometryData.xyz format
         result = {
             "success": None,
             "energy": None,
@@ -619,6 +621,8 @@ class OrcaProc(QmProc):
             "converged": None,
             "ecyc": None,
             "grad_norm": None,
+            "mo_path": None,
+            "geom": None,
         }
 
         jobdir = os.path.join(self.workdir, conf.name, self._xtb_opt.__name__[1:])
@@ -788,8 +792,12 @@ class OrcaProc(QmProc):
         result["energy"] = result["ecyc"][-1]
         result["success"] = True
 
+        # store the path to the current .gbw file for this conformer
+        result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+
         # read out optimized geometry und update conformer geometry with this
-        conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
+        conf.fromcoord(os.path.join(jobdir, f"{filename}.coord"))
+        result["geom"] = conf.xyz
 
         try:
             assert result["converged"] is not None
