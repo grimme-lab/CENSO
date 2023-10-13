@@ -64,13 +64,14 @@ class QmProc:
         res = {conf.id: {}}
 
         # create a subdir for the conformer
-        confdir = os.path.join(self.workdir, conf.name)
+        # TODO - maybe this is not needed?
+        """confdir = os.path.join(self.workdir, conf.name)
         if os.path.isdir(confdir):
             # TODO - error handling warning? stderr?
             print(f"Folder {confdir} already exists.")
         elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
             print(f"Workdir for conf {conf.name} could not be created.")
-            raise RuntimeError
+            raise RuntimeError"""
 
         # run all the jobs
         for job in self._jobtype:
@@ -108,7 +109,9 @@ class QmProc:
                 # Create the directory
                 os.makedirs(jobdir)
             except FileExistsError:
-                print(f"Directory {jobdir} already exists!")
+                # TODO - error handling
+                # print(f"Directory {jobdir} already exists!")
+                pass
             
             return job(self, conf, *args, **kwargs)
 
@@ -425,8 +428,8 @@ class QmProc:
         )
         
         # set in/out path
-        jobdir = os.path.join(self.workdir, conf.name, self._xtb_rrho.__name__[1:])
-        outputpath = os.path.join(jobdir, filename)
+        jobdir = os.path.join(self.workdir, conf.name, "xtb_rrho")
+        outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "rrho-xcontrol-inp"
         xcontrolpath = os.path.join(jobdir, xcontrolname)
 

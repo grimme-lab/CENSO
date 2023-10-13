@@ -506,6 +506,8 @@ class OrcaProc(QmProc):
         # store the path to the current .gbw file as the most recent MO file for this conformer
         conf.mo_path = os.path.join(jobdir, f"{filename}.gbw")
 
+        # TODO - clean up
+
         return result
 
 

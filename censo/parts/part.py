@@ -72,7 +72,7 @@ class CensoPart:
         lines.append("\n")
         
         for instruction, val in self._instructions.items():
-            lines.append(f"{instruction}:".ljust(DIGILEN, " ") + f"{val}\n")
+            lines.append(f"{instruction}:".ljust(DIGILEN / 2, " ") + f"{val}\n")
             
         # print everything to console TODO - to stderr instead?
         for line in lines:

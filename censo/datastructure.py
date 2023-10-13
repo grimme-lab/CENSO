@@ -1,5 +1,6 @@
 from typing import Dict, List
 from functools import reduce
+from collections import defaultdict
 
 from censo.cfg import BOHR2ANG
 
@@ -80,17 +81,20 @@ class GeometryData:
         with open(path, "r") as file:
             lines = file.readlines()
 
-        tmp = {}
+        self.xyz = defaultdict(list)
         for line in lines:
             if not line.startswith("$"):
-                tmp.setdefault(line.split()[-1], []).append([float(x) * BOHR2ANG for x in line.split()[:-1]])
+                coords = line.split()
+                last_coord = coords[-1]
+                cartesian_coords = [float(x) * BOHR2ANG for x in coords[:-1]]
+                self.xyz[last_coord].append(cartesian_coords)
             elif line.startswith("$end"):
                 break
 
 
     def toxyz(self, path: str) -> None:
         """
-        method to convert self.xyz to a xyz-file
+        method to convert self.xyz to an xyz-file
         """
         with open(path, "w") as file:
             file.writelines([

@@ -172,14 +172,14 @@ class Optimization(CensoPart):
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?). 
         # we don't do that anymore and just use the final energies from the optimizations, which are done using solventmodel,
         # since this basically makes no difference in comp time
-        # TODO - do rrho on converged geometries
+        # do rrho on converged geometries (overwrites old rrho calculations)
         handler.conformers = [conf.geom for conf in self.core.conformers]
-        results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder, "rrho"))
+        results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder))
 
         for conf in self.core.conformers:
             conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
 
-        # TODO - boltzmann calculations
+        # boltzmann calculations
         self.core.calc_boltzmannweights(
             self._instructions.get("temperature", 298.15),
             self.__class__.__name__.lower()
