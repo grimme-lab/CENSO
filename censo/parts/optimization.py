@@ -173,7 +173,7 @@ class Optimization(CensoPart):
         # we don't do that anymore and just use the final energies from the optimizations, which are done using solventmodel,
         # since this basically makes no difference in comp time
         # TODO - do rrho on converged geometries
-        handler.conformers = self.core.conformers
+        handler.conformers = [conf.geom for conf in self.core.conformers]
         results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder, "rrho"))
 
         for conf in self.core.conformers:
@@ -202,7 +202,8 @@ class Optimization(CensoPart):
         formatted write of part results (optional)
         """
         # TODO
-        print(f"Conformers {[conf.name for conf in self.core.conformers]} remain.")
+        with open(os.path.join(self.workdir, f"{self.__class__.__name__.lower()}.out"), "w") as f:
+            f.write(f"Conformers {[conf.name for conf in self.core.conformers]} remain.")
 
 
     def write_update(self) -> None:

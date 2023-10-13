@@ -220,7 +220,7 @@ class QmProc:
         # setup call for xtb single-point
         call = [
             self.instructions["xtbpath"],
-            "coord",
+            f"{filename}.coord",
             "--" + self.instructions["gfnv"],
             "--sp",
             "--chrg",

@@ -636,14 +636,11 @@ class OrcaProc(QmProc):
             if os.path.isfile(os.path.join(jobdir, file)):
                 os.remove(os.path.join(jobdir, file))
         
-        # write conformer geometry to coord file if it does not exist
-        if not os.path.isfile(os.path.join(jobdir, f"{filename}.coord")):
-            conf.tocoord(os.path.join(jobdir, f"{filename}.coord"))
-        # convert content of coord into conf.xyz and write new xyzfile
-        # TODO - read the correct coord file with the optimized geometry
-        else:
-            conf.fromcoord(os.path.join(jobdir, f"{filename}.coord"))
-            conf.toxyz(os.path.join(jobdir, f"{filename}.xyz"))
+        # write conformer geometry to coord file
+        conf.tocoord(os.path.join(jobdir, f"{filename}.coord"))
+        
+        # write xyz-file for orca
+        conf.toxyz(os.path.join(jobdir, f"{filename}.xyz"))
 
         # set orca in path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -789,6 +786,9 @@ class OrcaProc(QmProc):
         result["energy"] = result["ecyc"][-1]
         result["success"] = True
 
+        # read out optimized geometry und update conformer geometry with this
+        conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
+
         try:
             assert result["converged"] is not None
         except AssertionError:
@@ -796,10 +796,5 @@ class OrcaProc(QmProc):
             # this should never happen
             result["success"] = False
             print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation\n{e}")
-
-        """if not self.job["onlyread"]:
-            # convert optimized xyz to cinpoord file
-            x2t(self.workdir, infile="inp.xyz")
-        return """
 
         return result
