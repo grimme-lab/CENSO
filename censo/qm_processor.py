@@ -10,6 +10,8 @@ import time
 import subprocess
 import json
 import functools
+import atexit
+import signal
 
 from censo.cfg import (
     ENVIRON,
@@ -116,6 +118,30 @@ class QmProc:
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
 
+
+    def _make_call(self, call: List, outputpath: str, jobdir: str) -> int:
+        # call external program and write output into outputfile
+        with open(outputpath, "w", newline=None) as outputfile:
+            sub = subprocess.Popen(
+                call,
+                shell=False,
+                stdin=None,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                cwd=jobdir,
+                stdout=outputfile,
+                env=ENVIRON,
+            )
+            # make sure to send SIGTERM to subprocess if program is quit
+            atexit.register(sub.send_signal(signal.SIGTERM))
+
+            # wait for process to finish
+            returncode = sub.wait()
+
+            # unregister termination
+            atexit.unregister(sub.send_signal)
+
+        return returncode
 
 
     def print(self):
@@ -256,18 +282,8 @@ class QmProc:
                 xcout.write("  gbsagrid=tight\n")
                 xcout.write("$end\n")
 
-        # call xtb and write output into outputfile
-        with open(outputpath, "w", newline=None) as outputfile:
-            returncode = subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=jobdir,
-                stdout=outputfile,
-                env=ENVIRON,
-            )
+        # call xtb
+        returncode = self._make_call(call, outputpath, jobdir)
 
         # if returncode != 0 then some error happened in xtb
         if returncode != 0:
@@ -277,9 +293,6 @@ class QmProc:
                 f"{last_folders(self.workdir, 2)}"
             )
             return result
-
-        # FIXME - ???
-        time.sleep(0.02)
 
         # read energy from outputfile
         if os.path.isfile(outputpath):
@@ -542,18 +555,8 @@ class QmProc:
                 ]
             )
 
-        with open(outputpath, "w", newline=None) as outputfile:
-            # run xtb
-            returncode = subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=jobdir,
-                stdout=outputfile,
-                env=ENVIRON,
-            )
+        # call xtb
+        returncode = self._make_call(call, outputpath, jobdir)
 
         # check if converged:
         if returncode != 0:

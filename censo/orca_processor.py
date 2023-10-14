@@ -468,20 +468,11 @@ class OrcaProc(QmProc):
         if not silent:
             print(f"Running ORCA single-point in {inputpath}")
         
-        # start SP calculation
-        with open(outputpath, "w", newline=None) as outputfile:
-            # make external call to orca with "{filename}.inp" as argument
-            call = [self.instructions["orcapath"], f"{filename}.inp"]
-            subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=jobdir,
-                stdout=outputfile,
-                env=ENVIRON,
-            )
+        # call orca
+        call = [self.instructions["orcapath"], f"{filename}.inp"]
+        returncode = self._make_call(call, outputpath, jobdir)
+
+        # TODO - check returncode?
 
         # read output
         if os.path.isfile(outputpath):
@@ -706,18 +697,8 @@ class OrcaProc(QmProc):
 
         print(f"Running optimization in {last_folders(jobdir, 2):18}")
 
-        # make xtb call, write into 'outputfile'
-        with open(outputpath, "w", newline=None) as outputfile:
-            returncode = subprocess.call(
-                call,
-                shell=False,
-                stdin=None,
-                stderr=subprocess.STDOUT,
-                universal_newlines=False,
-                cwd=jobdir,
-                stdout=outputfile,
-                env=ENVIRON,
-            )
+        # call xtb
+        returncode = self._make_call(call, outputpath, jobdir)
 
         # check if optimization finished without errors
         if returncode != 0:
@@ -727,9 +708,6 @@ class OrcaProc(QmProc):
                 f"in {last_folders(self.workdir, 2):18} failed!"
             )
             return result
-
-        # TODO - ???
-        time.sleep(0.02)
 
         # read output
         if os.path.isfile(outputpath):

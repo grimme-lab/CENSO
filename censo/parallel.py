@@ -31,6 +31,12 @@ class ProcessHandler:
         """
         process._python_exit = True
 
+    
+    # make sure that subprocesses are terminated on interpreter exit
+    # function only needs to be registered once
+    atexit.register(__terminate)
+
+
     def __init__(self, instructions: Dict[str, Any], conformers: List[GeometryData] = None):
         """
         Initializes the process handler
@@ -62,9 +68,6 @@ class ProcessHandler:
         
         # get number of cores per process
         self.__omp = self.__instructions.get("omp")
-
-        # make sure that subprocesses are terminated on interpreter exit
-        atexit.register(self.__terminate)
                 
 
     def execute(self, jobtype: List[str], workdir: str):
