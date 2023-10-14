@@ -4,8 +4,9 @@ Performs the parallel execution of the QM calls.
 from functools import reduce
 import os
 from typing import Any, Dict, List, Tuple
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, process
 from pprint import pprint
+import atexit
 
 from censo.procfact import ProcessorFactory
 from censo.utilities import print
@@ -15,6 +16,20 @@ from censo.cfg import OMPMIN, OMPMAX
 
 
 class ProcessHandler:
+    @staticmethod
+    def __terminate():
+        """
+        Terminate the processes.
+
+        This method is a static method that terminates processes by setting the `_python_exit` attribute of the `process` class to `True`.
+
+        Parameters:
+        - None
+
+        Return:
+        - None
+        """
+        process._python_exit = True
 
     def __init__(self, instructions: Dict[str, Any], conformers: List[GeometryData] = None):
         """
@@ -43,10 +58,13 @@ class ProcessHandler:
             raise AttributeError("Could not determine number of cores.")
         
         # get number of processes
-        self.__nprocs = self.__instructions.get("procs"), 
+        self.__nprocs = self.__instructions.get("procs")
         
         # get number of cores per process
-        self.__omp = self.__instructions.get("omp"),
+        self.__omp = self.__instructions.get("omp")
+
+        # make sure that subprocesses are terminated on interpreter exit
+        atexit.register(self.__terminate)
                 
 
     def execute(self, jobtype: List[str], workdir: str):

@@ -89,8 +89,8 @@ class Screening(Prescreening):
             
             # if no conformers are filtered basically nothing happens
 
-            # TODO - write results for second part
-            self.write_results2()
+        # TODO - write results for second part
+        self.write_results2()
                 
         # DONE
 

@@ -160,7 +160,7 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tup
     for line in coord:
         if "$end" in line:  # stop at $end ...
             break
-        xyzatom.append(reduce(
+        xyzatom.append(functools.reduce(
                 lambda x, y: x + " " + y, 
                 [
                     f"{float(line.split()[0]) * BOHR2ANG:.10f}",
@@ -173,7 +173,7 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tup
       
     # get path from args without the filename of the ensemble (last element of path)
     if os.path.isfile(path):
-        outpath = reduce(
+        outpath = functools.reduce(
             lambda x, y: os.path.join(x, y), 
             list(os.path.split(path))[::-1][1:][::-1]
         )

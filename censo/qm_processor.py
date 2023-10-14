@@ -24,6 +24,42 @@ class QmProc:
     """
     QmProc base class with xtb as driver (see _xtb methods)
     """
+    @staticmethod
+    def _create_jobdir(job: Callable) -> Callable:
+        """
+        Creates a subdir in confdir for the job.
+        
+        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_jobdir decorator.
+        The wrapper function within will be able to access the instance variables of the class.
+        To access this method from child classes, the decorator must be called like: @QmProc._create_jobdir.
+        """
+        @functools.wraps(job)
+        def wrapper(self, conf, *args, **kwargs):
+            """
+            A function that wraps the given `job` function and performs some operations before and after calling it.
+
+            Parameters:
+                self (object): The instance of the class that the function is a method of.
+                conf (object): The configuration object that contains the necessary information for the job.
+                *args (tuple): The positional arguments passed to the `job` function.
+                **kwargs (dict): The keyword arguments passed to the `job` function.
+
+            Returns:
+                The return value of the `job` function.
+            """
+            jobdir = os.path.join(self.workdir, conf.name, job.__name__[1:]) # getting the name starting from 1: to strip the _
+            try:
+                # Create the directory
+                os.makedirs(jobdir)
+            except FileExistsError:
+                # TODO - error handling
+                # print(f"Directory {jobdir} already exists!")
+                pass
+            
+            return job(self, conf, *args, **kwargs)
+
+        return wrapper
+
 
     def __init__(self, instructions: Dict[str, Any], jobtype: List[str], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
@@ -80,42 +116,6 @@ class QmProc:
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
 
-
-    @staticmethod
-    def _create_jobdir(job: Callable) -> Callable:
-        """
-        Creates a subdir in confdir for the job.
-        
-        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_jobdir decorator.
-        The wrapper function within will be able to access the instance variables of the class.
-        To access this method from child classes, the decorator must be called like: @QmProc._create_jobdir.
-        """
-        @functools.wraps(job)
-        def wrapper(self, conf, *args, **kwargs):
-            """
-            A function that wraps the given `job` function and performs some operations before and after calling it.
-
-            Parameters:
-                self (object): The instance of the class that the function is a method of.
-                conf (object): The configuration object that contains the necessary information for the job.
-                *args (tuple): The positional arguments passed to the `job` function.
-                **kwargs (dict): The keyword arguments passed to the `job` function.
-
-            Returns:
-                The return value of the `job` function.
-            """
-            jobdir = os.path.join(self.workdir, conf.name, job.__name__[1:]) # getting the name starting from 1: to strip the _
-            try:
-                # Create the directory
-                os.makedirs(jobdir)
-            except FileExistsError:
-                # TODO - error handling
-                # print(f"Directory {jobdir} already exists!")
-                pass
-            
-            return job(self, conf, *args, **kwargs)
-
-        return wrapper
 
 
     def print(self):

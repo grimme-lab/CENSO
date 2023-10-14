@@ -106,10 +106,11 @@ class Optimization(CensoPart):
                         if id(coreconf) == conf.id:
                             # store mo_path if 'copy_mo' is enabled
                             if self._instructions.get("copy_mo", None):
-                                coreconf.geom.mo_path = results_opt[conf.id]["mo_path"]
+                                coreconf.geom.mo_path = results_opt[conf.id]["xtb_opt"]["mo_path"]
                             
                             # update geometry of the conformer
                             coreconf.geom.xyz = results_opt[conf.id]["geom"]
+                            conf.xyz = results_opt[conf.id]["geom"]
 
                             # store results
                             coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])
