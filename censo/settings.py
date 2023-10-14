@@ -216,7 +216,7 @@ class CensoSettings:
                 ]
             },
             "cosmorsparam": {
-                "default": "automatic",
+                "default": "12-normal",
                 "options": [k for k in cosmors_param.keys()]
             },
             "multitemp": {
@@ -868,7 +868,7 @@ class CensoSettings:
         """
         try:
             return type(cls._settings_options[section][name]["default"])
-        except Exception:
+        except KeyError:
             # TODO - error handling
             return None
     
@@ -903,13 +903,13 @@ class CensoSettings:
         
         # Append a separator line to the output.
         lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-        
+
         # Append the title of the section to the output, centered.
         lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
-        
+
         # Append a separator line to the output.
         lines.append("".ljust(PLENGTH, "-") + "\n")
-        
+
         # Iterate over each program and its path in the settings.
         for program, path in self.__settings_current["paths"].items():
             # Append a line with the program and its path to the output.
@@ -1035,7 +1035,9 @@ class CensoSettings:
                         # SyntaxError not handled so it gets raised
                         ast.literal_eval(parser[part][setting_name])
                     # the only other case that is necessary to be aware of is when self.get_type returns None
-                    # in that case the setting does not exist, therefore the setting is ignored
+                    # in that case the setting does not exist, therefore the setting is removed from the parser
+                    elif self.get_type(part, setting_name) is None:
+                        parser.remove_option(part, setting_name)
 
                 # ValueError not handled so it gets raised (happens if there is a type mismatch)
 
