@@ -109,8 +109,8 @@ class Optimization(CensoPart):
                                 coreconf.geom.mo_path = results_opt[conf.id]["xtb_opt"]["mo_path"]
                             
                             # update geometry of the conformer
-                            coreconf.geom.xyz = results_opt[conf.id]["geom"]
-                            conf.xyz = results_opt[conf.id]["geom"]
+                            coreconf.geom.xyz = results_opt[conf.id]["xtb_opt"]["geom"]
+                            conf.xyz = results_opt[conf.id]["xtb_opt"]["geom"]
 
                             # store results
                             coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])

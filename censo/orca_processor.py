@@ -616,7 +616,7 @@ class OrcaProc(QmProc):
             "geom": None,
         }
 
-        jobdir = os.path.join(self.workdir, conf.name, self._xtb_opt.__name__[1:])
+        jobdir = os.path.join(self.workdir, conf.name, "xtb_opt")
         xcontrolname = "xtb_opt-xcontrol-inp"
         
         files = [
@@ -774,7 +774,7 @@ class OrcaProc(QmProc):
         result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # read out optimized geometry und update conformer geometry with this
-        conf.fromcoord(os.path.join(jobdir, f"{filename}.coord"))
+        conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = conf.xyz
 
         try:

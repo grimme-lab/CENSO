@@ -132,8 +132,9 @@ class QmProc:
                 stdout=outputfile,
                 env=ENVIRON,
             )
+            
             # make sure to send SIGTERM to subprocess if program is quit
-            atexit.register(sub.send_signal(signal.SIGTERM))
+            atexit.register(lambda x: x.send_signal(signal.SIGTERM), sub)
 
             # wait for process to finish
             returncode = sub.wait()
