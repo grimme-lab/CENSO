@@ -855,7 +855,7 @@ class CensoSettings:
 
     
     @classmethod
-    def get_type(cls, section: str, name: str) -> Type:
+    def get_type(cls, section: str, name: str) -> Union[Type, None]:
         """
         Get the type of the given setting.
 
@@ -866,7 +866,11 @@ class CensoSettings:
         Returns:
             Type: The type of the setting.
         """
-        return type(cls._settings_options[section][name]["default"])
+        try:
+            return type(cls._settings_options[section][name]["default"])
+        except Exception:
+            # TODO - error handling
+            return None
     
     def __init__(self):
         """
@@ -963,8 +967,8 @@ class CensoSettings:
         rcdata: Dict = {}
 
         # read config file
+        parser: configparser.ConfigParser = configparser.ConfigParser()
         with open(self.__censorc_path, "r") as file:
-            parser = configparser.ConfigParser()
             parser.read_file(file)
 
         # Make sure that all the settings are included in the parser
@@ -1030,28 +1034,31 @@ class CensoSettings:
                         # try to convert to list
                         # SyntaxError not handled so it gets raised
                         ast.literal_eval(parser[part][setting_name])
+                    # the only other case that is necessary to be aware of is when self.get_type returns None
+                    # in that case the setting does not exist, therefore the setting is ignored
+
                 # ValueError not handled so it gets raised (happens if there is a type mismatch)
 
-        # passed first step of validation, now check if settings are allowed for each part that should be run
-        # (this works since for bools only the type needs to be checked to validate completely)
-        for setting_name, setting_value in parser[part].items():
-                setting_type = self.get_type(part, setting_name)
-                # for strings check if string is within a list of allowed values
-                if setting_type == str:
-                    options = self._settings_options[part][setting_name]['options']
-                    if setting_value not in options and len(options) > 0:
-                        # Only check if there are options
-                        # This is fatal so CENSO stops
-                        raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
-                # for numeric values check if value is within a range
-                elif setting_type in (int, float):
-                    interval = self._settings_options[part][setting_name]['range'] 
-                    if not interval[0] <= setting_type(setting_value) <= interval[1]:
-                        # This is fatal so CENSO stops
-                        raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
-                # setting_type is None if setting does not exist in _settings_options
-                elif setting_type is None:
-                    raise ValueError(f"Unknown setting type for setting '{setting_name}' in part '{part}'")
+            # passed first step of validation, now check if settings are allowed for each part that should be run
+            # (this works since for bools only the type needs to be checked to validate completely)
+            for setting_name, setting_value in parser[part].items():
+                    setting_type = self.get_type(part, setting_name)
+                    # for strings check if string is within a list of allowed values
+                    if setting_type == str:
+                        options = self._settings_options[part][setting_name]['options']
+                        if setting_value not in options and len(options) > 0:
+                            # Only check if there are options
+                            # This is fatal so CENSO stops
+                            raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
+                    # for numeric values check if value is within a range
+                    elif setting_type in (int, float):
+                        interval = self._settings_options[part][setting_name]['range']
+                        if not interval[0] <= setting_type(setting_value) <= interval[1]:
+                            # This is fatal so CENSO stops
+                            raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
+                    # setting_type is None if setting does not exist in _settings_options
+                    elif setting_type is None:
+                        raise ValueError(f"Unknown setting type for setting '{setting_name}' in part '{part}'")
 
 
     def write_rcfile(self, path: str) -> None:
