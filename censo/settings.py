@@ -367,13 +367,20 @@ class CensoSettings:
                 ]
             },
             "threshold": {
-                "default": 2.5,
+                "default": 2.0,
                 "range": [
                     0.5,
                     5
                 ]
             },
-            "gradthr": { # used to be called 'hlow' after the setting in xtb
+            "hlow": {
+                "default": 0.01,
+                "range": [
+                    0.001,
+                    0.1
+                ]
+            },
+            "gradthr": {
                 "default": 0.01,
                 "range": [
                     0.01,
@@ -456,9 +463,9 @@ class CensoSettings:
         "refinement": {
             "threshold": {
                 "default": 99.0,
-                "min": [
-                    1.0,
-                    10.0
+                "range": [
+                    0.1,
+                    99.9
                 ]
             },
             "prog": {

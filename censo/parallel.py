@@ -16,27 +16,6 @@ from censo.cfg import OMPMIN, OMPMAX
 
 
 class ProcessHandler:
-    @staticmethod
-    def __terminate():
-        """
-        Terminate the processes.
-
-        This method is a static method that terminates processes by setting the `_python_exit` attribute of the `process` class to `True`.
-
-        Parameters:
-        - None
-
-        Return:
-        - None
-        """
-        process._python_exit = True
-
-    
-    # make sure that subprocesses are terminated on interpreter exit
-    # function only needs to be registered once
-    atexit.register(__terminate)
-
-
     def __init__(self, instructions: Dict[str, Any], conformers: List[GeometryData] = None):
         """
         Initializes the process handler
@@ -148,6 +127,10 @@ class ProcessHandler:
         
         # execute calculations for given list of conformers
         with ProcessPoolExecutor(max_workers=self.__nprocs) as executor:
+            # make sure that the executor exits gracefully on termination
+            atexit.register(executor.shutdown, wait=True)
+            
+            # execute processes
             resiter = executor.map(self.__processor.run, confs) 
         
         # returns merged result dicts

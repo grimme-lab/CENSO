@@ -114,6 +114,13 @@ class Optimization(CensoPart):
 
                             # store results
                             coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])
+                            print(
+                                "CHECK",
+                                coreconf.name,
+                                coreconf.results["xtb_opt"]["energy"],
+                                coreconf.results["xtb_opt"]["grad_norm"],
+                                coreconf.results["xtb_opt"]["converged"]
+                            )
                             break
 
                 # run xtb_rrho for finite temperature contributions
@@ -137,6 +144,9 @@ class Optimization(CensoPart):
 
                 # TODO - recalculate fuzzy threshold
 
+                # sort conformers
+                self.core.conformers.sort(key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"])
+
                 # kick out conformers above threshold
                 threshold = self._instructions.get("threshold", None)
                 if not threshold is None:
@@ -146,7 +156,7 @@ class Optimization(CensoPart):
                     # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
                     # so that 'filtered' contains all conformers that should not be considered any further
                     f = lambda x: self.key(x) > limit + threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"] 
-                    filtered = [
+                    filtered: List[MoleculeData] = [
                         conf for conf in filter(
                             f,
                             self.core.conformers
@@ -158,6 +168,7 @@ class Optimization(CensoPart):
 
                     # also remove conformers from confs_nc
                     for conf in filtered:
+                        print(f"{conf.name} is no longer considered (δG = {(self.key(conf) - limit) * AU2KCAL:.2f}")
                         self.confs_nc.remove(conf.geom)
                 else:
                     # TODO - error handling
@@ -166,6 +177,7 @@ class Optimization(CensoPart):
                 # update list of converged conformers
                 for conf in self.confs_nc:
                     if results_opt[conf.id]["xtb_opt"]["converged"]:
+                        print(f"{conf.name} converged.")
                         self.confs_nc.remove(conf)
 
                 # check if all (considered) conformers converged - End of While-loop
@@ -184,7 +196,7 @@ class Optimization(CensoPart):
         # since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites old rrho calculations)
         handler.conformers = [conf.geom for conf in self.core.conformers]
-        results_rrho = handler.execute(["xtb_rrho"], os.path.join(folder))
+        results_rrho = handler.execute(["xtb_rrho"], folder)
 
         for conf in self.core.conformers:
             conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
@@ -212,7 +224,7 @@ class Optimization(CensoPart):
         formatted write of part results (optional)
         """
         # TODO
-        with open(os.path.join(self.workdir, f"{self.__class__.__name__.lower()}.out"), "w") as f:
+        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "w") as f:
             f.write(f"Conformers {[conf.name for conf in self.core.conformers]} remain.")
 
 

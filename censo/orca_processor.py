@@ -671,7 +671,7 @@ class OrcaProc(QmProc):
 
             out.writelines([
                 "average conv=true \n",
-                f"hlow={self.instructions['gradthr']} \n",
+                f"hlow={self.instructions['hlow']} \n",
                 "s6=30.00 \n",
                 # remove unnecessary sp/gradient call in xTB
                 "engine=lbfgs\n",
@@ -734,10 +734,10 @@ class OrcaProc(QmProc):
 
                     result["success"] = True
                     
-                    if " FAILED TO CONVERGE GEOMETRY " in line:
+                    if "failed to converge geometry" in line.lower():
                         result["cycles"] += int(line.split()[7])
                         result["converged"] = False
-                    elif "*** GEOMETRY OPTIMIZATION CONVERGED AFTER " in line:
+                    elif "geometry optimization converged" in line.lower():
                         result["cycles"] += int(line.split()[5])
                         result["converged"] = True
                     elif "av. E: " in line and "->" in line:
@@ -776,6 +776,13 @@ class OrcaProc(QmProc):
         # read out optimized geometry und update conformer geometry with this
         conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = conf.xyz
+
+        print(
+            conf.name,
+            result["energy"],
+            result["grad_norm"],
+            result["converged"]
+        )
 
         try:
             assert result["converged"] is not None
