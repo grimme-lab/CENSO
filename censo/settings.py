@@ -413,10 +413,6 @@ class CensoSettings:
                 "default": "orca",
                 "options": PROGS
             },
-            "prog2opt": {
-                "default": "prog",
-                "options": []
-            },
             "sm": {
                 "default": "smd",
                 "options": solv_mods

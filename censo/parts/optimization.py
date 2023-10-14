@@ -114,13 +114,6 @@ class Optimization(CensoPart):
 
                             # store results
                             coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])
-                            print(
-                                "CHECK",
-                                coreconf.name,
-                                coreconf.results["xtb_opt"]["energy"],
-                                coreconf.results["xtb_opt"]["grad_norm"],
-                                coreconf.results["xtb_opt"]["converged"]
-                            )
                             break
 
                 # run xtb_rrho for finite temperature contributions
@@ -149,9 +142,9 @@ class Optimization(CensoPart):
 
                 # kick out conformers above threshold
                 threshold = self._instructions.get("threshold", None)
-                if not threshold is None:
-                    # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
-                    limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
+                if threshold is not None:
+                    # pick the free enthalpy of the lowest conformer
+                    limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
                     
                     # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
                     # so that 'filtered' contains all conformers that should not be considered any further
@@ -216,6 +209,7 @@ class Optimization(CensoPart):
         Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
         """
         # TODO - implement branch for standard optimization (no ancopt)
+        # TODO - implement this for usage without rrho
         return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"] + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
 
 
@@ -225,7 +219,8 @@ class Optimization(CensoPart):
         """
         # TODO
         with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "w") as f:
-            f.write(f"Conformers {[conf.name for conf in self.core.conformers]} remain.")
+            f.write(f"Conformers {[conf.name for conf in self.core.conformers]} remain.\n")
+            f.writelines(["Final energies:\n"] + [f"{conf.name}: {self.key(conf)}\n" for conf in self.core.conformers])
 
 
     def write_update(self) -> None:

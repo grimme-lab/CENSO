@@ -128,7 +128,10 @@ class ProcessHandler:
         # execute calculations for given list of conformers
         with ProcessPoolExecutor(max_workers=self.__nprocs) as executor:
             # make sure that the executor exits gracefully on termination
-            atexit.register(executor.shutdown, wait=True)
+            # TODO - is using wait=False a good option here?
+            # should be fine since workers will kill programs with SIGTERM
+            # wait=True leads to the workers waiting for their current task to be finished before terminating
+            atexit.register(executor.shutdown, wait=False)
             
             # execute processes
             resiter = executor.map(self.__processor.run, confs) 

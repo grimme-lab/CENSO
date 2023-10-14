@@ -777,19 +777,12 @@ class OrcaProc(QmProc):
         conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = conf.xyz
 
-        print(
-            conf.name,
-            result["energy"],
-            result["grad_norm"],
-            result["converged"]
-        )
-
         try:
             assert result["converged"] is not None
-        except AssertionError:
+        except AssertionError as e:
             # TODO - error handling
             # this should never happen
             result["success"] = False
-            print(f"{'ERROR:':{WARNLEN}}in CONF{self.id} calculation\n{e}")
+            print(f"{'ERROR:':{WARNLEN}}in {conf.id} calculation\n{e}")
 
         return result

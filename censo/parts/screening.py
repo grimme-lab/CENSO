@@ -65,8 +65,8 @@ class Screening(Prescreening):
             self.core.conformers.sort(key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"])
 
             # update conformers with threshold
-            # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
-            limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
+            # pick the free enthalpy of the lowest conformer
+            limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
             
             # filter out all conformers above threshold
             # so that 'filtered' contains all conformers that should not be considered any further

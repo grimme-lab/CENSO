@@ -94,8 +94,8 @@ class Prescreening(CensoPart):
         # update conformers with threshold
         threshold = self._instructions.get("threshold", None)
         if not threshold is None:
-            # pick the free enthalpy of the first conformer as limit, since the conformer list is sorted
-            limit = self.core.conformers[0].results[self.__class__.__name__.lower()]["gtot"]
+            # pick the free enthalpy of the lowest conformer
+            limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
             
             # filter out all conformers above threshold
             # so that 'filtered' contains all conformers that should not be considered any further
