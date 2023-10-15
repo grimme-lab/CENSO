@@ -51,7 +51,17 @@ class CensoPart:
         # set the correct name for 'func'
         self._instructions["func_name"] = settings.dfa_settings.get_name(self._instructions["func"], self._instructions["prog"])
         self._instructions["disp"] = settings.dfa_settings.get_disp(self._instructions["func"])
-    
+
+        # create/set folder to do the calculations in
+        self.folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
+        if os.path.isdir(self.folder):
+            # TODO - warning? stderr?
+            print(f"Folder {self.folder} already exists. Potentially overwriting files.")
+        elif os.system(f"mkdir {self.folder}") != 0 and not os.path.isdir(self.folder):
+            # TODO - error handling stderr case? is this reasonable?
+            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}")
+
+
     @timeit
     def run(self) -> None:
         """
@@ -64,13 +74,12 @@ class CensoPart:
         """
         formatted print for part instructions
         """
-        
-        lines = []
-        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-        lines.append(f"{self.__class__.__name__.upper()} - {self.alt_name.upper()}".center(PLENGTH, " ") + "\n")
-        lines.append("".ljust(PLENGTH, "-") + "\n")
-        lines.append("\n")
-        
+
+        # header
+        lines = ["\n" + "".ljust(PLENGTH, "-") + "\n",
+                 f"{self.__class__.__name__.upper()} - {self.alt_name.upper()}".center(PLENGTH, " ") + "\n",
+                 "".ljust(PLENGTH, "-") + "\n", "\n"]
+
         for instruction, val in self._instructions.items():
             lines.append(f"{instruction}:".ljust(DIGILEN // 2, " ") + f"{val}\n")
             

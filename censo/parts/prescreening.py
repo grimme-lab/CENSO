@@ -34,10 +34,12 @@ class Prescreening(CensoPart):
 
         the list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
         """
-        
-        # initialize process handler for current program with conformer geometries
+        # print instructions
+        self.print_info()
+
+        # initialize process handler with conformer geometries
         handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
-        
+
         # set jobtype to pass to handler
         jobtype: List[str] = []
         if not self._instructions.get("gas-phase", None):
@@ -47,22 +49,10 @@ class Prescreening(CensoPart):
                 jobtype = ["sp", "xtb_gsolv"]
         else:
             jobtype = ["sp"]
-        
-        # print instructions
-        self.print_info()
-        
-        # set folder to do the calculations in for prescreening
-        folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
-        if os.path.isdir(folder):
-            # TODO - warning? stderr?
-            print(f"Folder {folder} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
-            # TODO - error handling stderr case? is this reasonable?
-            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}")
-        
+
         # compute results
         # for structure of results from handler.execute look there
-        results = handler.execute(jobtype, folder)
+        results = handler.execute(jobtype, self.folder)
 
         # update results for each conformer
         for conf in self.core.conformers:
@@ -72,52 +62,45 @@ class Prescreening(CensoPart):
 
             # store results of single jobs for each conformer
             conf.results.setdefault(self.__class__.__name__.lower(), {}).update(results[id(conf)])
-            
+
             # calculate free enthalpy values for every conformer
             conf.results[self.__class__.__name__.lower()]["gtot"] = self.key(conf)
-        
+
         # sort conformers list with prescreening key (gtot)
         self.core.conformers.sort(
             key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"],
-        )  
-        
+        )
+
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
         self.core.calc_boltzmannweights(
             self._instructions.get("temperature", 298.15),
             self.__class__.__name__.lower()
         )
-            
+
         # write results (analogous to deprecated print)
         self.write_results()
-                
-        # update conformers with threshold
-        threshold = self._instructions.get("threshold", None)
-        if not threshold is None:
-            # pick the free enthalpy of the lowest conformer
-            limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
-            
-            # filter out all conformers above threshold
-            # so that 'filtered' contains all conformers that should not be considered any further
-            filtered = [
-                conf for conf in filter(
-                    lambda x: self.key(x) > limit + threshold, 
-                    self.core.conformers
-                )
-            ]
-            
-            # update the conformer list in core (remove conf if below threshold)
-            self.core.update_conformers(filtered)  
 
-            # TODO - print out which conformers are no longer considered
-        else:
-            """
-            TODO
-            print warning that no threshold could be determined
-            (should not happen but doesn't necessarily brake the program)
-            """
-            print("...")
-           
+        # update conformers with threshold
+        threshold = self._instructions["threshold"] / AU2KCAL
+
+        # pick the free enthalpy of the lowest conformer
+        limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
+
+        # filter out all conformers above threshold
+        # so that 'filtered' contains all conformers that should not be considered any further
+        filtered = [
+            conf for conf in filter(
+                lambda x: self.key(x) > limit + threshold,
+                self.core.conformers
+            )
+        ]
+
+        # update the conformer list in core (remove conf if below threshold)
+        self.core.update_conformers(filtered)
+
+        # TODO - print out which conformers are no longer considered
+
         # DONE
 
 

@@ -418,7 +418,7 @@ class CensoSettings:
                 "options": solv_mods
             },
             "smgsolv": {
-                "default": "smd_gsolv",
+                "default": "smd",
                 "options": gsolv_mods
             },
             "gfnv": {
@@ -477,7 +477,7 @@ class CensoSettings:
                 "options": basis_sets
             },
             "smgsolv": {
-                "default": "smd_gsolv",
+                "default": "smd",
                 "options": gsolv_mods
             },
             "gfnv": {
@@ -516,7 +516,7 @@ class CensoSettings:
                 "options": basis_sets
             },
             "sm4_j": {
-                "default": "default",
+                "default": "smd",
                 "options": solv_mods
             },
             "prog4_s": {
@@ -532,7 +532,7 @@ class CensoSettings:
                 "options": basis_sets
             },
             "sm4_s": {
-                "default": "default",
+                "default": "smd",
                 "options": solv_mods
             },
             "h_ref": {

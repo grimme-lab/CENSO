@@ -53,19 +53,13 @@ class Optimization(CensoPart):
         """
         # NOTE: (IMPORTANT) this does not work for standard optimization (opt) yet!!!
 
-        handler = ProcessHandler(self._instructions)
-
+        # print instructions
         self.print_info()
 
-        # set folder to do the calculations in
-        folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
-        if os.path.isdir(folder):
-            # TODO - warning? stderr?
-            print(f"Folder {folder} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {folder}") != 0 and not os.path.isdir(folder):
-            # TODO - error handling stderr case? is this reasonable?
-            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}")
+        # setup process handler
+        handler = ProcessHandler(self._instructions)
 
+        # decide for doing spearman optimization or standard optimization (TODO)
         if self._instructions["opt_spearman"]:
             """
             optimization using spearman threshold, updated every 'optcycles' steps
@@ -135,42 +129,39 @@ class Optimization(CensoPart):
 
                 # TODO - crestcheck each iteration if ncyc >= 6
 
-                # TODO - recalculate fuzzy threshold
 
                 # sort conformers
                 self.core.conformers.sort(key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"])
 
                 # kick out conformers above threshold
-                threshold = self._instructions.get("threshold", None)
-                if threshold is not None:
-                    # pick the free enthalpy of the lowest conformer
-                    limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
-                    
-                    # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
-                    # so that 'filtered' contains all conformers that should not be considered any further
-                    f = lambda x: self.key(x) > limit + threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"] 
-                    filtered: List[MoleculeData] = [
-                        conf for conf in filter(
-                            f,
-                            self.core.conformers
-                        )
-                    ]
-                    
-                    # update the conformer list in core (remove conf if below threshold)
-                    self.core.update_conformers(filtered)  
+                # TODO - recalculate fuzzy threshold
+                threshold = self._instructions["threshold"] / AU2KCAL
 
-                    # also remove conformers from confs_nc
-                    for conf in filtered:
-                        print(f"{conf.name} is no longer considered (δG = {(self.key(conf) - limit) * AU2KCAL:.2f}")
-                        self.confs_nc.remove(conf.geom)
-                else:
-                    # TODO - error handling
-                    raise RuntimeError
+                # pick the free enthalpy of the lowest conformer
+                limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
+
+                # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
+                # so that 'filtered' contains all conformers that should not be considered any further
+                f = lambda x: self.key(x) > limit + threshold / AU2KCAL and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
+                filtered: List[MoleculeData] = [
+                    conf for conf in filter(
+                        f,
+                        self.core.conformers
+                    )
+                ]
+
+                # update the conformer list in core (remove conf if below threshold)
+                self.core.update_conformers(filtered)
+
+                # also remove conformers from confs_nc
+                for conf in filtered:
+                    print(f"{conf.name} is no longer considered (δG = {(self.key(conf) - limit) * AU2KCAL:.2f}).")
+                    self.confs_nc.remove(conf.geom)
 
                 # update list of converged conformers
                 for conf in self.confs_nc:
                     if results_opt[conf.id]["xtb_opt"]["converged"]:
-                        print(f"{conf.name} converged.")
+                        print(f"{conf.name} converged after {ncyc + results_opt[conf.id]['xtb_opt']['cycles']} steps.")
                         self.confs_nc.remove(conf)
 
                 # check if all (considered) conformers converged - End of While-loop
@@ -194,7 +185,7 @@ class Optimization(CensoPart):
         for conf in self.core.conformers:
             conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
 
-        # boltzmann calculations
+        # calculate boltzmann weights from gtot values calculated here
         self.core.calc_boltzmannweights(
             self._instructions.get("temperature", 298.15),
             self.__class__.__name__.lower()

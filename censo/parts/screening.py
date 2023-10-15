@@ -37,15 +37,14 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        # TODO - maybe put folder/handler as instance variable such that it can be reused later instead of reinstantiating
         super().run()
 
         # PART (2)
         # TODO - overwrite 'gtot'?
-        threshold = self._instructions.get("threshold", None)
+        threshold = self._instructions["threshold"] / AU2KCAL
         
-        # folder should already exist if previous part didn't raise runtime error
-        folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
+        # self.folder should already exist if previous part didn't raise runtime error
+        self.folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
         if self._instructions["evaluate_rrho"]:
             # initialize process handler for current program with conformer geometries
             handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
@@ -53,7 +52,7 @@ class Screening(Prescreening):
             jobtype = ["xtb_rrho"]
 
             # append results to previous results
-            results = handler.execute(jobtype, folder)
+            results = handler.execute(jobtype, self.folder)
             for conf in self.core.conformers:
                 # update results for each conformer
                 conf.results[self.__class__.__name__.lower()].update(results[id(conf)])
@@ -72,7 +71,7 @@ class Screening(Prescreening):
             # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
                 conf for conf in filter(
-                    lambda x: self.key2(x) > limit + threshold, 
+                    lambda x: self.key2(x) > limit + threshold,
                     self.core.conformers
                 )
             ]

@@ -42,7 +42,7 @@ class QmProc:
 
             Parameters:
                 self (object): The instance of the class that the function is a method of.
-                conf (object): The configuration object that contains the necessary information for the job.
+                conf (object): The conformer object that contains the necessary information for the job.
                 *args (tuple): The positional arguments passed to the `job` function.
                 **kwargs (dict): The keyword arguments passed to the `job` function.
 
@@ -100,16 +100,6 @@ class QmProc:
         DO NOT OVERRIDE OR OVERLOAD! this will possibly break e.g. ProcessHandler.execute
         """
         res = {conf.id: {}}
-
-        # create a subdir for the conformer
-        # TODO - maybe this is not needed?
-        """confdir = os.path.join(self.workdir, conf.name)
-        if os.path.isdir(confdir):
-            # TODO - error handling warning? stderr?
-            print(f"Folder {confdir} already exists.")
-        elif os.system(f"mkdir {confdir}") != 0 and not os.path.isdir(confdir):
-            print(f"Workdir for conf {conf.name} could not be created.")
-            raise RuntimeError"""
 
         # run all the jobs
         for job in self._jobtype:
@@ -219,7 +209,7 @@ class QmProc:
         jobdir = os.path.join(self.workdir, conf.name, self._xtb_sp.__name__[1:])
         inputpath = os.path.join(jobdir, f"{filename}.coord")
         outputpath = os.path.join(jobdir, f"{filename}.out")
-        xcontrolname = "xtb_sp-xcontrolinp"
+        xcontrolname = "xtb_sp-xcontrol-inp"
 
         if not silent:
             print(
@@ -385,17 +375,6 @@ class QmProc:
         # only reached if both gas-phase and solvated sp succeeded   
         result["gsolv"] = result["energy_xtb_solv"] - result["energy_xtb_gas"]
         result["success"] = True
-
-        # TODO - what is the sense behind this?
-        # leave this out for now, only 'calculate' this when needed
-        """if self.instructions.get("trange", None):
-            result["erange1"] = {
-                temperature: tmp_solv - tmp_gas 
-                for temperature in frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
-            }
-        else:
-            self.job["erange1"] = None"""
-
 
         return result
 
