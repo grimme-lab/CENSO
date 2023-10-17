@@ -11,6 +11,7 @@ such as conformers or ensembledata)
 - main functions with @timeit
 """
 from typing import Dict, Any
+import os
 
 from censo.utilities import timeit
 from censo.core import CensoCore

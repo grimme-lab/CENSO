@@ -19,10 +19,11 @@ from censo.settings import CensoSettings
 from censo.parallel import ProcessHandler
 from censo.parts.part import CensoPart
 from censo.datastructure import GeometryData, MoleculeData
+from censo.utilities import format_data
 
 
 class Optimization(CensoPart):
-    
+
     alt_name = "part2"
 
     def __init__(self, core: CensoCore, settings: CensoSettings):
@@ -79,7 +80,7 @@ class Optimization(CensoPart):
 
             # run optimizations using xtb as driver
             handler.conformers = [conf.geom for conf in self.core.conformers]
-            results_opt = handler.execute(["xtb_opt"], folder)
+            results_opt = handler.execute(["xtb_opt"], self.folder)
 
             # update results for each conformer
             for conf in self.core.conformers:
@@ -98,7 +99,7 @@ class Optimization(CensoPart):
         # since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
         handler.conformers = [conf.geom for conf in self.core.conformers]
-        results_rrho = handler.execute(["xtb_rrho"], folder)
+        results_rrho = handler.execute(["xtb_rrho"], self.folder)
 
         for conf in self.core.conformers:
             conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
@@ -116,10 +117,13 @@ class Optimization(CensoPart):
     def grrho(self, conf: MoleculeData) -> float:
         """
         Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
+        If no GmRRHO is calculated only the most recent DFT energy is returned
         """
         # TODO - implement branch for standard optimization (no ancopt)
-        # TODO - implement this for usage without rrho
-        return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"] + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
+        try:
+            return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"] + conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
+        except KeyError:
+            return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"]
 
 
     def __spearman_opt(self, handler: ProcessHandler):
@@ -144,11 +148,9 @@ class Optimization(CensoPart):
             # update conformers for ProcessHandler
             handler.conformers = self.confs_nc
 
-            # update number of cycles
-            ncyc += self._instructions["optcycles"]
 
             # run optimizations for 'optcycles' steps
-            results_opt = handler.execute(["xtb_opt"], folder)
+            results_opt = handler.execute(["xtb_opt"], self.folder)
 
             # put optimization results into conformer objects
             for conf in self.confs_nc:
@@ -169,9 +171,13 @@ class Optimization(CensoPart):
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
             # TODO - make this better
-            if ncyc >= 6 and not rrho_done:
-                # NOTE: conforms to general settings (if 'bhess' is false this will run 'ohess' at this point)
-                results_rrho = handler.execute(["xtb_rrho"], folder)
+            if ncyc + self._instructions["optcycles"] >= 6 and not rrho_done:
+
+                # evaluate rrho using bhess flag (reset after this)
+                tmp = self._instructions["bhess"]
+                self._instructions["bhess"] = True
+                results_rrho = handler.execute(["xtb_rrho"], self.folder)
+                self._instructions["bhess"] = tmp
 
                 # put results into conformer objects
                 for conf in self.confs_nc:
@@ -181,12 +187,10 @@ class Optimization(CensoPart):
                             coreconf.results[self.__class__.__name__.lower()]["gtot"] = self.grrho(coreconf)
                             break
 
+                # flag to make sure that rrho is only calculated once
                 rrho_done = True
 
             # TODO - crestcheck each iteration if ncyc >= 6
-
-            # sort conformers
-            self.core.conformers.sort(key=lambda conf: conf.results[self.__class__.__name__.lower()]["gtot"])
 
             # kick out conformers above threshold
             threshold = self._instructions["threshold"] / AU2KCAL
@@ -252,13 +256,13 @@ class Optimization(CensoPart):
                     )
             """
 
-            # pick the free enthalpy of the lowest conformer
-            limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
+            # sort conformers and pick the free enthalpy of the lowest conformer as limit
+            self.core.conformers.sort(key=lambda conf: self.grrho(conf))
+            limit = min([self.grrho(conf) for conf in self.core.conformers])
 
             # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
             # so that 'filtered' contains all conformers that should not be considered any further
-            f = lambda x: self.grrho(x) - limit > threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"][
-                "grad_norm"] < self._instructions["gradthr"]
+            f = lambda x: self.grrho(x) - limit > threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
             filtered: List[MoleculeData] = [
                 conf for conf in filter(
                     f,
@@ -285,6 +289,9 @@ class Optimization(CensoPart):
 
             # TODO - print out information about current state of the ensemble
             self.print_update()
+
+            # update number of cycles
+            ncyc += self._instructions["optcycles"]
             print(f"NCYC: {ncyc}")
 
     def write_results(self) -> None:
