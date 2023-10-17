@@ -352,13 +352,13 @@ class CensoSettings:
                     10
                 ]
             },
-            "radsize": { # ???
-                "default": 10,
-                "range": [
-                    1,
-                    100
-                ]
-            },
+            # "radsize": { # ???
+            #     "default": 10,
+            #     "range": [
+            #         1,
+            #         100
+            #     ]
+            # },
             "maxcyc": {
                 "default": 200,
                 "range": [
@@ -367,7 +367,7 @@ class CensoSettings:
                 ]
             },
             "threshold": {
-                "default": 2.0,
+                "default": 1.5,
                 "range": [
                     0.5,
                     5
@@ -388,19 +388,19 @@ class CensoSettings:
                 ]
             },
             "boltzmannthr": { # boltzmann sum threshold
-                "default": 99.0,
+                "default": 85.0,
                 "range": [
                     1.0,
-                    100.0
+                    99.9
                 ]
             },
-            "spearmanthr": {
-                "default": 0.0,
-                "range": [
-                    0.0,
-                    10.0
-                ]
-            },
+            # "spearmanthr": {
+            #     "default": 0.0,
+            #     "range": [
+            #         -1.0,
+            #         1.0
+            #     ]
+            # },
             "func": {
                 "default": "r2scan-3c",
                 "options": dfa_settings.find_func("optimization")
@@ -426,7 +426,7 @@ class CensoSettings:
                 "options": GFNOPTIONS
             },
             "optlevel": {
-                "default": "automatic",
+                "default": "normal",
                 "options": [
                     "crude",
                     "sloppy",
@@ -436,7 +436,6 @@ class CensoSettings:
                     "tight",
                     "vtight",
                     "extreme",
-                    "automatic"
                 ]
             },
             "grid": {
@@ -458,7 +457,7 @@ class CensoSettings:
         },
         "refinement": {
             "threshold": {
-                "default": 99.0,
+                "default": 90.0,
                 "range": [
                     0.1,
                     99.9

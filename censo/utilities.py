@@ -537,7 +537,7 @@ def pearson(A, B):
     """
     if len(A) != len(B):
         print("ERROR in PEARSON lists are not of equal length!")
-    n = float(len(A))
+    n = len(A)
     muA = sum(A) / n
     muB = sum(B) / n
     diffA = map(lambda x: x - muA, A)
