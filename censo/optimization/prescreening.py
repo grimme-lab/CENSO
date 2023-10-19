@@ -11,9 +11,9 @@ from censo.utilities import (
     timeit,
     format_data,
 )
-from censo.parts.part import CensoPart
+from censo.part import CensoPart
 from censo.core import CensoCore
-from censo.settings import CensoSettings
+from censo.settings import CensoRCParser
 from censo.parallel import ProcessHandler
 from censo.datastructure import MoleculeData
 
@@ -21,7 +21,7 @@ class Prescreening(CensoPart):
     
     alt_name = "part0"
     
-    def __init__(self, core: CensoCore, settings: CensoSettings):
+    def __init__(self, core: CensoCore, settings: CensoRCParser):
         super().__init__(core, settings, "prescreening")
         
 
@@ -42,8 +42,8 @@ class Prescreening(CensoPart):
 
         # set jobtype to pass to handler
         jobtype: List[str] = []
-        if not self._instructions.get("gas-phase", None):
-            if self._instructions.get("implicit", None):
+        if not self._instructions["gas-phase"]:
+            if self._instructions["implicit"]:
                 jobtype = ["sp", "gsolv"]
             else:
                 jobtype = ["sp", "xtb_gsolv"]
@@ -57,7 +57,7 @@ class Prescreening(CensoPart):
         # update results for each conformer
         for conf in self.core.conformers:
             # if 'copy_mo' is enabled, get the mo_path from the results and store it in the respective GeometryData object
-            if self._instructions.get("copy_mo", None):
+            if self._instructions["copy_mo"]:
                 conf.geom.mo_path = results[id(conf)]["sp"]["mo_path"]
 
             # store results of single jobs for each conformer
@@ -170,6 +170,7 @@ class Prescreening(CensoPart):
         # variables for printmap
         # minimal xtb single-point energy
         # TODO - where do prescreening and screening get xtb single-point from?
+        # FIXME FIXME FIXME
         xtbmin = min(
             conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas'] 
             for conf in self.core.conformers
@@ -182,18 +183,27 @@ class Prescreening(CensoPart):
         )
         
         # minimal solvation free enthalpy
-        gsolvmin = min(
-            conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv'] 
-            if "xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() 
-            else 0.0 
-            for conf in self.core.conformers
-        ) 
-        
+        if self._instructions["gas-phase"]:
+            gsolvmin = 0.0
+        else:
+            # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
+            if all("xtb_gsolv" in conf.results[self.__class__.__name__.lower()].keys() for conf in self.core.conformers):
+                gsolvmin = min(
+                    conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['gsolv']
+                    for conf in self.core.conformers
+                )
+            elif all("gsolv" in conf.results[self.__class__.__name__.lower()].keys() for conf in self.core.conformers):
+                gsolvmin = min(
+                    conf.results[self.__class__.__name__.lower()]['gsolv']['gsolv']
+                    for conf in self.core.conformers
+                )
+            else:
+                raise RuntimeError("The calculations should have used implicit or additive solvation for all conformers, but it is missing for at least some conformers.")
+
         # minimal total free enthalpy
         gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
         
         # determines what to print for each conformer in each column
-        # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (xTB)": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_gsolv']['energy_xtb_gas']:.6f}",

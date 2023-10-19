@@ -7,12 +7,12 @@ import os
 from math import isclose, exp
 from statistics import stdev
 
-from censo.parts.prescreening import Prescreening
-from censo.parts.part import CensoPart
+from censo.optimization.prescreening import Prescreening
+from censo.part import CensoPart
 from censo.utilities import print, timeit, format_data
 from censo.parallel import ProcessHandler
 from censo.core import CensoCore
-from censo.settings import CensoSettings
+from censo.settings import CensoRCParser
 from censo.datastructure import MoleculeData
 from censo.cfg import (
     PLENGTH,
@@ -24,7 +24,7 @@ class Screening(Prescreening):
     
     alt_name = "part1"
     
-    def __init__(self, core: CensoCore, settings: CensoSettings):
+    def __init__(self, core: CensoCore, settings: CensoRCParser):
         CensoPart.__init__(self, core, settings, "screening")
 
 
@@ -68,7 +68,7 @@ class Screening(Prescreening):
             limit = min([conf.results[self.__class__.__name__.lower()]["gtot"] for conf in self.core.conformers])
 
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (1 - exp(-5 * stdev([conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"] for conf in self.core.conformers])))
+            fuzzy = (1 / AU2KCAL) * (1 - exp(-5 * stdev([conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"] for conf in self.core.conformers]) * AU2KCAL))
             threshold += fuzzy
             print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
@@ -93,8 +93,8 @@ class Screening(Prescreening):
 
             # if no conformers are filtered basically nothing happens
 
-        # TODO - write results for second part
-        self.write_results2()
+            # second 'write_results' for the updated sorting with RRHO contributions
+            self.write_results2()
                 
         # DONE
 
@@ -163,7 +163,6 @@ class Screening(Prescreening):
         gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
         
         # determines what to print for each conformer in each column
-        # TODO - remaining float accuracies
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']:.6f}", # TODO
@@ -226,6 +225,7 @@ class Screening(Prescreening):
         ]
 
         # minimal xtb energy from single-point (and mRRHO)
+        # TODO - what if there was no prescreening?
         gxtbmin = min(
             conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self._instructions["temperature"]] # TODO?
             if self._instructions["evaluate_rrho"] else conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']

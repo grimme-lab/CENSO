@@ -15,7 +15,7 @@ import os
 
 from censo.utilities import timeit
 from censo.core import CensoCore
-from censo.settings import CensoSettings
+from censo.settings import CensoRCParser
 from censo.cfg import (
     PLENGTH,
     DIGILEN
@@ -24,9 +24,9 @@ from censo.cfg import (
 
 class CensoPart:
     
-    def __init__(self, core: CensoCore, settings: CensoSettings, part: str):
+    def __init__(self, core: CensoCore, settings: CensoRCParser, part: str):
         self.core: CensoCore = core
-        self.settings: CensoSettings = settings
+        self.settings: CensoRCParser = settings
         
         # contains settings grabbed from CensoSettings instance, such as general settings etc.
         self._instructions: Dict[str, Any]
@@ -56,11 +56,9 @@ class CensoPart:
         # create/set folder to do the calculations in
         self.folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
         if os.path.isdir(self.folder):
-            # TODO - warning? stderr?
             print(f"Folder {self.folder} already exists. Potentially overwriting files.")
         elif os.system(f"mkdir {self.folder}") != 0 and not os.path.isdir(self.folder):
-            # TODO - error handling stderr case? is this reasonable?
-            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}")
+            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}.")
 
 
     @timeit
@@ -84,13 +82,6 @@ class CensoPart:
         for instruction, val in self._instructions.items():
             lines.append(f"{instruction}:".ljust(DIGILEN // 2, " ") + f"{val}\n")
             
-        # print everything to console TODO - to stderr instead?
+        # print everything to console
         for line in lines:
             print(line)
-
-    
-    def write_results(self):
-        """
-        formatted write of part results (optional)
-        """
-        pass

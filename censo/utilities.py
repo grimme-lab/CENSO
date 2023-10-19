@@ -79,7 +79,6 @@ def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = No
         lines[-1] += "\n"
 
     return lines
-    
 
 
 def frange(start, end, step=1):

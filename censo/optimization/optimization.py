@@ -15,9 +15,9 @@ from censo.utilities import (
 from typing import List
 
 from censo.core import CensoCore
-from censo.settings import CensoSettings
+from censo.settings import CensoRCParser
 from censo.parallel import ProcessHandler
-from censo.parts.part import CensoPart
+from censo.part import CensoPart
 from censo.datastructure import GeometryData, MoleculeData
 from censo.utilities import format_data
 
@@ -26,7 +26,7 @@ class Optimization(CensoPart):
 
     alt_name = "part2"
 
-    def __init__(self, core: CensoCore, settings: CensoSettings):
+    def __init__(self, core: CensoCore, settings: CensoRCParser):
         super().__init__(core, settings, "optimization")
         self.confs_nc: List[GeometryData]
 
@@ -42,7 +42,7 @@ class Optimization(CensoPart):
         Alternatively just run the complete optimization for every conformer with xtb as driver (decide with 'opt_spearman')
 
         TODO - implement regular optimization (no xtb driver)
-        TODO - what happens if not a single confomer converges?
+        TODO - what happens if not a single conformer converges?
         """
 
         """
@@ -64,8 +64,12 @@ class Optimization(CensoPart):
         # decide for doing spearman optimization or standard optimization (TODO)
         if self._instructions["opt_spearman"] and len(self.core.conformers) > 1:
             """
-            optimization using spearman threshold, updated every 'optcycles' steps
+            optimization using macrocycles with 'optcycles' microcycles
             """
+            # if not self.args.spearmanthr:
+            #     # set spearmanthr by number of atoms:
+            #     self.spearmanthr = 1 / (exp(0.03 * (self.runinfo["nat"] ** (1 / 4))))
+
             self.__spearman_opt(handler)
         else:
             """
@@ -348,8 +352,8 @@ class Optimization(CensoPart):
 
         lines = format_data(headers, rows, units=units)
 
-        # append lines to already existing file
-        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "a", newline=None) as outfile:
+        # write lines to file
+        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
     def print_update(self) -> None:
@@ -360,4 +364,4 @@ class Optimization(CensoPart):
         for conf in self.confs_nc:
             for coreconf in self.core.conformers:
                 if id(coreconf) == conf.id:
-                    print(f"{coreconf.name}: {coreconf.results[self.__class__.__name__.lower()]['xtb_opt']['energy']}")
+                    print(f"{coreconf.name}: {self.grrho(coreconf)}")

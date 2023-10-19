@@ -4,7 +4,7 @@ from functools import reduce
 
 from censo.inputhandling import cml
 from censo.cfg import DESCR
-from censo.settings import CensoSettings
+from censo.settings import CensoRCParser
 
 
 def parentdir(path):
@@ -19,7 +19,7 @@ test_path = os.path.join(parentdir(__file__), "censorc_new")
 
 class SettingsTest(unittest.TestCase):
     def setUp(self):
-        self.test = CensoSettings()
+        self.test = CensoRCParser()
         
         
     def test_write_config(self):

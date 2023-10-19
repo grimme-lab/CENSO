@@ -19,7 +19,6 @@ from censo.cfg import (
     KB
 )
 from censo.datastructure import MoleculeData
-from censo.ensembledata import EnsembleData
 from censo.utilities import (
     check_for_float,
     do_md5,
@@ -94,23 +93,10 @@ class CensoCore:
             self.runinfo["unpaired"] = unpaired or self.args.unpaired
             
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
-            # TODO - error handling
-            raise Exception("Charge or number of unpaired electrons not defined.") 
+            raise RuntimeError("Charge or number of unpaired electrons not defined.")
 
-        # FIXME - temporary place for remaining settings
-        # FIXME - where to put spearmanthr???
-        if not self.args.spearmanthr:
-            # set spearmanthr by number of atoms:
-            self.spearmanthr = 1 / (exp(0.03 * (self.runinfo["nat"] ** (1 / 4))))
+        self.setup_conformers()
 
-        self.runinfo["consider_unconverged"] = False
-        # self.onlyread = False # FIXME - basically only used to print error???
-        
-        try:
-            self.setup_conformers()
-        except Exception as error: 
-            raise error
-        
 
     def setup_conformers(self) -> None:
         """
@@ -125,21 +111,27 @@ class CensoCore:
             nat = self.runinfo["nat"]
             
             # check for correct line count in input 
-            # assuming consecutive xyz-format coordinates
-            if len(lines) % (nat + 2) == 0:
-                if self.args.nconf:
-                    nconf = int(min(self.args.nconf, len(lines) / (nat + 2)))
-                    if self.args.nconf > nconf:
-                        print(
-                            f"{'WARNING:':{WARNLEN}}Given nconf is larger than max. number"
-                            "of conformers in input file. Setting to the max. amount automatically."
-                        )   
+            # assuming consecutive xyz-file format (every conf therefore needs nat + 2 lines)
+            if len(lines) % (nat + 2) != 0:
+                # check if the last lines contain any alphanumeric characters
+                divisor = len(lines) // (nat + 2)
+                if any([line.isalnum() for line in lines[divisor:]]):
+                    raise RuntimeError("Could not read ensemble input file.")
                 else:
-                    nconf = int(len(lines) / (nat + 2))
-                
-                self.runinfo["nconf"] = nconf
+                    # if not you can trim the last lines
+                    lines = lines[divisor:]
+
+            if self.args.nconf:
+                nconf = int(min(self.args.nconf, len(lines) / (nat + 2)))
+                if self.args.nconf > nconf:
+                    print(
+                        f"{'WARNING:':{WARNLEN}}Given nconf is larger than max. number"
+                        "of conformers in input file. Setting to the max. amount automatically."
+                    )
             else:
-                raise Exception # TODO
+                nconf = int(len(lines) / (nat + 2))
+
+            self.runinfo["nconf"] = nconf
 
             # get precalculated energies if possible
             for i in range(nconf):
@@ -168,17 +160,43 @@ class CensoCore:
         Calculate weights for boltzmann distribution of ensemble at given temperature
         and given values for free enthalpy
         """
+        # TODO - make this nicer
         # find lowest gtot value
-        minfree: float = min([conf.results[part]["gtot"] for conf in self.conformers])
-        
-        # calculate boltzmann factors
-        bmfactors = {
-            id(conf):   conf.results[part]["gtot"] 
-                        * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp)) 
-            for conf in self.conformers
-        }
-       
-        # calculate boltzmann sum from bmfactors 
+        try:
+            assert not any(["gtot" not in conf.results[part].keys() for conf in self.conformers])
+            minfree: float = min([conf.results[part]["gtot"] for conf in self.conformers])
+
+            # calculate boltzmann factors
+            bmfactors = {
+                id(conf): conf.results[part]["gtot"]
+                          * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp))
+                for conf in self.conformers
+            }
+        except AssertionError:
+            # NOTE: if anything went wrong in the single-point calculation (success: False), this should be handled before coming to this step
+            # since then the energy might be 'None'
+            if all("xtb_opt" in conf.results[part].keys() for conf in self.conformers):
+                minfree: float = min([conf.results[part]["xtb_opt"]["energy"] for conf in self.conformers])
+
+                # calculate boltzmann factors
+                bmfactors = {
+                    id(conf): conf.results[part]["xtb_opt"]["energy"]
+                              * exp(-(conf.results[part]["xtb_opt"]["energy"] - minfree) * AU2J / (KB * temp))
+                    for conf in self.conformers
+                }
+            elif all("sp" in conf.results[part].keys() for conf in self.conformers):
+                minfree: float = min([conf.results[part]["sp"]["energy"] for conf in self.conformers])
+
+                # calculate boltzmann factors
+                bmfactors = {
+                id(conf): conf.results[part]["sp"]["energy"]
+                            * exp(-(conf.results[part]["sp"]["energy"] - minfree) * AU2J / (KB * temp))
+                for conf in self.conformers
+                }
+            else:
+                raise RuntimeError("Could not find minimum free energy.")
+
+        # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())
         
         for conf in self.conformers:

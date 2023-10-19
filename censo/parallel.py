@@ -11,7 +11,7 @@ import atexit
 from censo.procfact import ProcessorFactory
 from censo.utilities import print
 from censo.datastructure import GeometryData, MoleculeData
-from censo.settings import CensoSettings
+from censo.settings import CensoRCParser
 from censo.cfg import OMPMIN, OMPMAX
 
 

@@ -14,8 +14,8 @@ from censo.inputhandling import cml
 from censo.utilities import print
 # from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
-from censo.parts import *
-from censo.settings import CensoSettings
+from censo.optimization.parts import *
+from censo.settings import CensoRCParser
 
 # use generators for reduced memory usage?
 # dict.setdefault()
@@ -89,7 +89,7 @@ def startup(argv):
         sys.exit(0)
     # TODO - insert option to just create a new censorc
         
-    settings = CensoSettings()
+    settings = CensoRCParser()
     if not args.inprcpath is None:
         settings.censorc_path = args.inprcpath
     
