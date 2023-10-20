@@ -1146,7 +1146,7 @@ class CensoRCParser:
         # if orca was found try to determine orca version from the path (kinda hacky)
         if paths["orcapath"] != "":
             try:
-                paths["orcaversion"] = os.path.split(paths["orcapath"])[-2][5:10].replace("_", ".")
+                paths["orcaversion"] = paths["orcapath"].split(os.sep)[-2][5:10].replace("_", ".")
             except Exception:
                 paths["orcaversion"] = ""
 

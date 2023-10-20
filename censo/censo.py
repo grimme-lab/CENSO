@@ -14,7 +14,7 @@ from censo.inputhandling import cml
 from censo.utilities import print
 # from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
-import censo.optimization
+from censo.optimization import *
 from censo.settings import CensoRCParser
 
 # use generators for reduced memory usage?
@@ -23,24 +23,11 @@ from censo.settings import CensoRCParser
 # remove all mutable defaults in functions
 # TODO - MAJOR - fix compatibility with old json and censorc files
 # TODO - MAJOR - introduce option to return all user customizable dbs to default
-# TODO - more stringent folder naming (not part1, part2, part3, nmr..., etc.)
-# TODO - rename functions, change respective variables and assure backwards compatibility
-# TODO - reuse gbw files for orca calculations
-# TODO - test performance of orca vs tm (same results?)
-# TODO - improve thread management
 # TODO - give meaningful help messages e.g. to avoid pitfalls for repeated calculations (too high threshold etc.)
-# TODO - ask if CENSO should do an automatic cleanup for every run?
-# TODO - assign meaning to different return values of main
 # TODO - MAJOR - make censo available as package to be easily installed via pip?
-# TODO - define custom error types
 # TODO - restore coverage of cml args and settings_options
-# TODO - error handling
 # TODO - function for user input?
 # TODO - add option to read out only specific conformers from input (e.g. 1, 3, 4)
-# TODO - introduce uniform formatting for print (utilities print redundant?)
-# TODO - fix all paths
-# TODO - output data in an easily processable format
-# TODO - print formatting
 def main(argv=None):
     """
     Execute the CENSO code.
