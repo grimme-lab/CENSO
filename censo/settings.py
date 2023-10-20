@@ -27,7 +27,6 @@ from censo.cfg import (
     OMPMAX, 
     __version__
 )
-from censo.errorswarnings import LogicError, LogicWarning
 
 
 class DfaSettings:

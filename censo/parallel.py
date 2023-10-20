@@ -39,14 +39,14 @@ class ProcessHandler:
         try:
             self.__ncores = os.cpu_count()
         except AttributeError:
-            # TODO - error handling
-            raise AttributeError("Could not determine number of cores.")
+            print(f"WARNING: Could not determine number of cores. Automatic load balancing will be disabled.")
+            self.__instructions["balance"] = False
         
         # get number of processes
-        self.__nprocs = self.__instructions.get("procs")
+        self.__nprocs = self.__instructions["procs"]
         
         # get number of cores per process
-        self.__omp = self.__instructions.get("omp")
+        self.__omp = self.__instructions["omp"]
                 
 
     def execute(self, jobtype: List[str], workdir: str):
@@ -62,14 +62,12 @@ class ProcessHandler:
         prog = self.__instructions.get("prog", None)
         
         if prog is None:
-            raise Exception # TODO - error handling
-
-        # create subdir for each jobtype
+            raise RuntimeError("Could not determine program from instructions.")
 
         # initialize the processor for the respective program (depends on part)
         # and set the jobtype as well as instructions, also pass workdir to compute in
         # also pass a lookup dict to the processor so it can set the solvent for the program call correctly
-        # TODO - find a way such that the processor doesn't have to be reinitialized all the time
+        # TODO - maybe find a way such that the processor doesn't have to be reinitialized all the time
         self.__processor = ProcessorFactory.create_processor(
             prog, 
             self.__instructions,
@@ -77,7 +75,6 @@ class ProcessHandler:
             workdir
         )
         
-        # TODO - set PARNODES
         if self.__instructions["balance"]:
             # execute processes for conformers with load balancing enabled
             # divide the conformers into chunks, work through them one after the other
@@ -96,15 +93,14 @@ class ProcessHandler:
                 # collect results by iterative merging
                 results = {**results, **self.__dqp(chunk)}
         else:
-            # execute processes without load balancing, taking the user-provided settings
+            # execute processes without automatic load balancing, taking the user-provided settings
             results = self.__dqp(self.__conformers)
 
         # assert that there is a result for every conformer
-        # TODO - error handling
         try:
             assert all([conf.id in results.keys() for conf in self.__conformers])  
         except AssertionError:
-            raise KeyError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
+            raise RuntimeError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
         
         return results
 
@@ -112,6 +108,7 @@ class ProcessHandler:
     @property
     def conformers(self):
         return self.__conformers
+
 
     @conformers.setter
     def conformers(self, conformers: List[GeometryData]):

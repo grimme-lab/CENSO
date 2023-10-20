@@ -77,7 +77,7 @@ class CensoCore:
         # store md5 hash for quick comparison of inputs later
         self.runinfo["md5"] = do_md5(self.ensemble_path)
         
-        # if $coord in file => tm format, needs to be converted to xyz
+        # if $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
             lines = inp.readlines()
             if any(["$coord" in line for line in lines]):
@@ -154,6 +154,14 @@ class CensoCore:
             # pop item from conformers and insert this item at index 0 in rem
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
+
+    def dump_ensemble(self, part: str) -> None:
+        """
+        dump the conformers to a file
+        """
+        with open(f"{self.workdir}/censo_ensemble_{part}.xyz", "w") as file:
+            for conf in self.conformers:
+                file.writelines(conf.geom.toxyz())
 
     def calc_boltzmannweights(self, temp: float, part: str) -> None:
         """

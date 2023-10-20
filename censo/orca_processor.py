@@ -21,7 +21,6 @@ from censo.cfg import (
 )
 from censo.utilities import last_folders, t2x, x2t, print
 from censo.qm_processor import QmProc
-from censo.errorswarnings import ParsingError
 from censo.datastructure import GeometryData
 
 
@@ -165,6 +164,7 @@ class OrcaParser:
                 break
 
         if end is None:
+            # TODO - error handling
             raise ParsingError()
         else:
             return end
@@ -560,23 +560,6 @@ class OrcaProc(QmProc):
         result["gsolv"] = result["energy_solv"] - result["energy_gas"]        
         result["success"] = True
 
-        """
-        TODO - same thing as for xtb_gsolv
-                self.job["energy"] = energy_gas
-                self.job["energy2"] = energy_solv - energy_gas
-                if self.job["trange"]:
-                    tmp = {}
-                    for temperature in self.job["trange"]:
-                        tmp[temperature] = energy_solv - energy_gas
-                    tmp[self.job["temperature"]] = energy_solv - energy_gas
-                    self.job["erange1"] = tmp
-                else:
-                    self.job["erange1"] = {
-                        self.job["temperature"]: energy_solv - energy_gas
-                    }
-                self.job["success"] = True
-                """
-
         return result
 
 
@@ -634,12 +617,14 @@ class OrcaProc(QmProc):
                 os.remove(os.path.join(jobdir, file))
         
         # write conformer geometry to coord file
-        conf.tocoord(os.path.join(jobdir, f"{filename}.coord"))
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
+            file.writelines(conf.tocoord())
         
         # write xyz-file for orca
-        conf.toxyz(os.path.join(jobdir, f"{filename}.xyz"))
+        with open(os.path.join(jobdir, f"{filename}.xyz"), "w", newline=None) as file:
+            file.writelines(conf.toxyz())
 
-        # set orca in path
+        # set orca input path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
 
         # prepare input dict
@@ -710,62 +695,39 @@ class OrcaProc(QmProc):
             return result
 
         # read output
-        if os.path.isfile(outputpath):
-            with open(outputpath, "r", encoding=CODING, newline=None) as file:
-                lines = file.readlines()
+        with open(outputpath, "r", encoding=CODING, newline=None) as file:
+            lines = file.readlines()
 
-                result["ecyc"] = []
-                result["cycles"] = 0
+            result["ecyc"] = []
+            result["cycles"] = 0
 
-                for line in lines:
-                    # the following is probably self explanatory
-                    if (
-                        "external code error" in line
-                        or "|grad| > 500, something is totally wrong!" in line
-                        or "abnormal termination of xtb" in line
-                    ):
-                        # TODO - error handling
-                        print(
-                            f"{'ERROR:':{WARNLEN}}optimization in "
-                            f"{last_folders(self.workdir, 2):18} failed!"
-                        )
-                        result["success"] = False
-                        return result
+            for line in lines:
+                # the following is probably self explanatory
+                if (
+                    "external code error" in line
+                    or "|grad| > 500, something is totally wrong!" in line
+                    or "abnormal termination of xtb" in line
+                ):
+                    print(
+                        f"{'WARNING:':{WARNLEN}}optimization in "
+                        f"{last_folders(jobdir, 3):18} failed!"
+                    )
+                    result["success"] = False
+                    return result
 
-                    result["success"] = True
-                    
-                    if "failed to converge geometry" in line.lower():
-                        result["cycles"] += int(line.split()[7])
-                        result["converged"] = False
-                    elif "geometry optimization converged" in line.lower():
-                        result["cycles"] += int(line.split()[5])
-                        result["converged"] = True
-                    elif "av. E: " in line and "->" in line:
-                        try:
-                            result["ecyc"].append(float(line.split("->")[-1]))
-                        except ValueError as e:
-                            # TODO - error handling
-                            print(
-                                f"{'ERROR:':{WARNLEN}}in {conf.name} calculation:\n{e}"
-                            )
-                            result["success"] = False
-                            return result
-                    elif " :: gradient norm      " in line:
-                        try:
-                            result["grad_norm"] = float(line.split()[3])
-                        except ValueError as e:
-                            # TODO - error handling
-                            print(
-                                f"{'ERROR:':{WARNLEN}}in {conf.name} calculation:\n{e}"
-                            )
-                            result["success"] = False
-                            return result
-        else:
-            # TODO - error handling
-            print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
-            result["success"] = False
-            return result
-        
+                result["success"] = True
+
+                if "failed to converge geometry" in line.lower():
+                    result["cycles"] += int(line.split()[7])
+                    result["converged"] = False
+                elif "geometry optimization converged" in line.lower():
+                    result["cycles"] += int(line.split()[5])
+                    result["converged"] = True
+                elif "av. E: " in line and "->" in line:
+                    result["ecyc"].append(float(line.split("->")[-1]))
+                elif " :: gradient norm      " in line:
+                    result["grad_norm"] = float(line.split()[3])
+
         # store the final energy of the optimization in 'energy' 
         result["energy"] = result["ecyc"][-1]
         result["success"] = True
@@ -780,9 +742,6 @@ class OrcaProc(QmProc):
         try:
             assert result["converged"] is not None
         except AssertionError as e:
-            # TODO - error handling
-            # this should never happen
-            result["success"] = False
-            print(f"{'ERROR:':{WARNLEN}}in {conf.id} calculation\n{e}")
+            raise RuntimeError("No information about convergence found! Something must've went wrong.")
 
         return result

@@ -57,21 +57,19 @@ class GeometryData:
         return coord
 
 
-    def tocoord(self, path: str) -> None:
+    def tocoord(self) -> List[str]:
         """
-        method to convert the internal cartesian coordinates (self.xyz) to a coord file (for tm or xtb)
+        method to convert the internal cartesian coordinates (self.xyz) to coord file format (for tm or xtb)
         """
-        coord = []
+        coord = ["$coord\n"]
         for element, allcoords in self.xyz.items():
             for atom in allcoords:
                 atom = list(map(lambda x: float(x) / BOHR2ANG, atom))
                 coord.append(reduce(lambda x, y: f"{x} {y}", atom + [f"{element}\n"]))
 
-        # write coord file
-        with open(path, "w") as file:
-            file.write("$coord\n")
-            file.writelines(coord)
-            file.write("$end\n")
+        coord.append("$end\n")
+
+        return coord
 
 
     def fromcoord(self, path: str) -> None:
@@ -92,18 +90,19 @@ class GeometryData:
                 break
 
 
-    def toxyz(self, path: str) -> None:
+    def toxyz(self) -> List[str]:
         """
-        method to convert self.xyz to an xyz-file
+        method to convert self.xyz to xyz-file format
         """
-        with open(path, "w") as file:
-            file.writelines([
-                f"{self.nat}\n",
-                f"{self.name}\n",
-            ])
-            for element, allcoords in self.xyz.items():
-                for atom in allcoords:
-                    file.write(f"{element} {atom[0]:.10f} {atom[1]:.10f} {atom[2]:.10f}\n")
+        lines = [
+            f"{self.nat}\n",
+            f"{self.name}\n",
+        ]
+        for element, allcoords in self.xyz.items():
+            for atom in allcoords:
+                lines.append(f"{element} {atom[0]:.10f} {atom[1]:.10f} {atom[2]:.10f}\n")
+
+        return lines
 
 
 class MoleculeData:

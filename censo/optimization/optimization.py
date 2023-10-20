@@ -114,8 +114,11 @@ class Optimization(CensoPart):
             self.__class__.__name__.lower()
         )
 
-        # TODO - write final results
+        # write final results
         self.write_results()
+
+        # dump ensemble
+        self.core.dump_ensemble(self.__class__.__name__.lower())
 
 
     def grrho(self, conf: MoleculeData) -> float:

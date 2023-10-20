@@ -101,6 +101,9 @@ class Prescreening(CensoPart):
 
         # TODO - print out which conformers are no longer considered
 
+        # dump ensemble
+        self.core.dump_ensemble(self.__class__.__name__.lower())
+
         # DONE
 
 

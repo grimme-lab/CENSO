@@ -95,7 +95,10 @@ class Screening(Prescreening):
 
             # second 'write_results' for the updated sorting with RRHO contributions
             self.write_results2()
-                
+
+        # dump ensemble
+        self.core.dump_ensemble(self.__class__.__name__.lower())
+
         # DONE
 
 

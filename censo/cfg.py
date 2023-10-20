@@ -99,7 +99,7 @@ GFNOPTIONS = (
     "gfn2",
 )
 
-CENSORCNAME = ".censorc"
+CENSORCNAME = ".censorc2"
 
 OMPMIN = 4
 
