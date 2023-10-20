@@ -43,7 +43,7 @@ class Prescreening(CensoPart):
         # set jobtype to pass to handler
         jobtype: List[str] = []
         if not self._instructions["gas-phase"]:
-            if self._instructions["implicit"]:
+            if self._instructions.get("implicit", False):
                 jobtype = ["sp", "gsolv"]
             else:
                 jobtype = ["sp", "xtb_gsolv"]

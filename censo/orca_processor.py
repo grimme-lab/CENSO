@@ -472,29 +472,25 @@ class OrcaProc(QmProc):
         call = [self.instructions["orcapath"], f"{filename}.inp"]
         returncode = self._make_call(call, outputpath, jobdir)
 
-        # TODO - check returncode?
+        # check returncode
+        if returncode != 0:
+            raise RuntimeError(
+                f"{'ERROR:':{WARNLEN}}ORCA single-point terminated abnormally for {conf.name}."
+            )
 
         # read output
-        if os.path.isfile(outputpath):
-            with open(outputpath, "r", encoding=CODING, newline=None) as out:
-                lines = out.readlines()
-                for i, line in enumerate(lines):
-                    if "FINAL SINGLE POINT ENERGY" in line:
-                        result["energy"] = float(line.split()[4])
+        with open(outputpath, "r", encoding=CODING, newline=None) as out:
+            lines = out.readlines()
+            for i, line in enumerate(lines):
+                if "FINAL SINGLE POINT ENERGY" in line:
+                    result["energy"] = float(line.split()[4])
 
-                    # check if scf is converged:
-                    if "ORCA TERMINATED NORMALLY" in line:
-                        result["success"] = True
-                    
-            if not result["success"]:
-                result["success"] = False
-                print(
-                    f"{'ERROR:':{WARNLEN}}ORCA single-point not converged for {conf.name}."
-                )
-        else:
-            # TODO - error handling
-            result["success"] = False
-            print(f"{'WARNING:':{WARNLEN}}{outputpath} doesn't exist!")
+                # check if scf is converged:
+                if "ORCA TERMINATED NORMALLY" in line:
+                    result["success"] = True
+
+        if not result["success"]:
+            print(f"{WARNING:{WARNLEN}}ORCA single-point not converged for {conf.name}.")
 
         # store the path to the current .gbw file for this conformer
         result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")

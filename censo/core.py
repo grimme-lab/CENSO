@@ -159,7 +159,7 @@ class CensoCore:
         """
         dump the conformers to a file
         """
-        with open(f"{self.workdir}/censo_ensemble_{part}.xyz", "w") as file:
+        with open(os.path.join(f"{self.workdir}", f"censo_ensemble_{part}.xyz"), "w") as file:
             for conf in self.conformers:
                 file.writelines(conf.geom.toxyz())
 

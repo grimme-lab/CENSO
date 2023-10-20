@@ -14,7 +14,7 @@ from censo.inputhandling import cml
 from censo.utilities import print
 # from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
-from censo.optimization.parts import *
+import censo.optimization
 from censo.settings import CensoRCParser
 
 # use generators for reduced memory usage?

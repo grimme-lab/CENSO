@@ -1076,7 +1076,6 @@ class CensoRCParser:
 
         print(
             f"\nA new configuration file was written into {path}.\n"
-            "Put the file either in your home directory or in the current working directory.\n"
             "You should adjust the settings to your needs and set the program paths.\n"
             "Right now only the default settings are used.\n"
         )
@@ -1147,7 +1146,7 @@ class CensoRCParser:
         # if orca was found try to determine orca version from the path (kinda hacky)
         if paths["orcapath"] != "":
             try:
-                paths["orcapath"] = os.path.split(paths["orcapath"])[-2][5:10].replace("_", ".")
+                paths["orcaversion"] = os.path.split(paths["orcapath"])[-2][5:10].replace("_", ".")
             except Exception:
                 paths["orcaversion"] = ""
 

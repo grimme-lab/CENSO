@@ -471,9 +471,6 @@ class QmProc:
             dohess = "--ohess"
             olevel = "vtight"
 
-        # FIXME ???
-        time.sleep(0.02)
-
         # generate coord file for xtb
         with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
             file.writelines(conf.tocoord())
@@ -545,47 +542,31 @@ class QmProc:
         for line in lines:
             # get rotational entropy
             if "VIB" in line:
-                try:
-                    index = lines.index(line) + 1
-                    T = float(line.split()[0])
-                    rotS[T] = float(lines[index].split()[4])
-                except (KeyError, ValueError):
-                    # TODO - error handling !!!
-                    pass
+                index = lines.index(line) + 1
+                T = float(line.split()[0])
+                rotS[T] = float(lines[index].split()[4])
 
             # get gibbs energy and enthalpy
             if "T/K" in line:
                 for line2 in lines[lines.index(line)+2:]:
                     if "----------------------------------" in line2:
                         break
-                    else:
-                        try:
-                            T = float(line2.split()[0])
-                            gt[T] = float(line2.split()[4])
-                            ht[T] = float(line2.split()[2])
-                        except (ValueError, KeyError):
-                            # TODO - error handling
-                            print(f"{'ERROR:':{WARNLEN}}can not convert G(T)")
+
+                    T = float(line2.split()[0])
+                    gt[T] = float(line2.split()[4])
+                    ht[T] = float(line2.split()[2])
 
             # extract rmsd
             if "final rmsd / " in line and self.instructions["bhess"]:
-                try:
-                    result["rmsd"] = float(line.split()[3])
-                except (ValueError, IndexError):
-                    # TODO - error handling ?
-                    result["rmsd"] = None
+                result["rmsd"] = float(line.split()[3])
 
             # extract symmetry
             if ":  linear? " in line:
                 # linear needed for symmetry and S_rot (only if considersym is turned off)
-                try:
-                    if line.split()[2] == "false":
-                        result["linear"] = False
-                    elif line.split()[2] == "true":
-                        result["linear"] = True
-                except (IndexError, Exception) as e:
-                    # TODO - error handling
-                    print(e)
+                if line.split()[2] == "false":
+                    result["linear"] = False
+                elif line.split()[2] == "true":
+                    result["linear"] = True
 
         # check if xtb calculated the temperature range correctly
         if len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS):
