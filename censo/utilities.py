@@ -11,11 +11,61 @@ import time
 import subprocess
 from copy import deepcopy
 from builtins import print as print_orig
-from typing import Any, Callable, Tuple, Union, List
+from typing import Any, Callable, Tuple, Union, List, Dict
 import functools
-from multiprocessing import Lock
 
 from censo.cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
+
+
+class DfaHelper:
+    __dfa_dict: Dict
+
+    @classmethod
+    def set_dfa_dict(cls, dfadict: Dict):
+        cls.__dfa_dict = dfadict
+
+    @classmethod
+    def find_func(cls, part: str, prog=None):
+        """
+        return all functionals available for a certain part and (optionally) program
+        """
+        # TODO - turn into filter using filterfunction defined within find_func
+        tmp = []
+        for k, v in cls.__dfa_dict["functionals"].items():
+            if part in v["part"]:
+                if prog is None:
+                    tmp.append(k)
+                else:
+                    if v[prog] != "":
+                        tmp.append(k)
+
+        return tmp
+
+    @classmethod
+    def get_name(cls, func: str, prog: str):
+        """
+        return the name of a certain functional in the given qm program
+        """
+        return cls.__dfa_dict["functionals"][func][prog]
+
+    @classmethod
+    def get_disp(cls, func: str):
+        """
+        return the dispersion correction of a certain functional
+        """
+        return cls.__dfa_dict["functionals"][func]['disp']
+
+    @classmethod
+    def get_type(cls, func: str):
+        """
+        return the type of a certain functional
+        """
+        return cls.__dfa_dict["functionals"][func]["type"]
+
+    @classmethod
+    def functionals(cls) -> Dict[str, Dict]:
+        return cls.__dfa_dict["functionals"]
+
 
 def print(*args, **kwargs):
     """
@@ -52,7 +102,7 @@ def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = No
 
     """
     lines = []
-    
+
     # determine column width 'collen' of column with header 'header' 
     # by finding the length of the maximum width entry
     # for each column (header)
@@ -62,20 +112,20 @@ def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = No
             (max(len(header), max(len(row) for row in rows)) for header in headers)
         )
     }
-    
+
     # add table header
-    lines.append(" ".join(f"{header:^{collen+6}}" for header, collen in collens.items()))
+    lines.append(" ".join(f"{header:^{collen + 6}}" for header, collen in collens.items()))
     lines[0] += "\n"
     if not units is None:
-        lines.append(" ".join(f"{unit:^{collen+6}}" for unit, collen in zip(units, collens.values())))
+        lines.append(" ".join(f"{unit:^{collen + 6}}" for unit, collen in zip(units, collens.values())))
         lines[1] += "\n"
-    
+
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
 
     # add a line for every row, sorted by the 'sortby'th column
     for row in sorted(rows, key=lambda x: x[sortby]):
-        lines.append(" ".join(f"{row:^{collen+6}}" for row, collen in zip(row, collens.values())))
+        lines.append(" ".join(f"{row:^{collen + 6}}" for row, collen in zip(row, collens.values())))
         lines[-1] += "\n"
 
     return lines
@@ -91,7 +141,6 @@ def frange(start, end, step=1):
         result.append(current)
         current += step
     return result
-
 
 
 def mkdir_p(path):
@@ -152,7 +201,7 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tup
     # read lines from coord file
     with open(path, "r", encoding=CODING, newline=None) as f:
         coord = f.readlines()
-    
+
     # read coordinates with atom labels directly into a string
     # and append the string to a list to be written/returned later
     xyzatom = []
@@ -160,26 +209,26 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tup
         if "$end" in line:  # stop at $end ...
             break
         xyzatom.append(functools.reduce(
-                lambda x, y: x + " " + y, 
-                [
-                    f"{float(line.split()[0]) * BOHR2ANG:.10f}",
-                    f"{float(line.split()[1]) * BOHR2ANG:.10f}",
-                    f"{float(line.split()[2]) * BOHR2ANG:.10f}",
-                    f"{str(line.split()[3].lower()).capitalize()}",
-                ]
-            )
+            lambda x, y: x + " " + y,
+            [
+                f"{float(line.split()[0]) * BOHR2ANG:.10f}",
+                f"{float(line.split()[1]) * BOHR2ANG:.10f}",
+                f"{float(line.split()[2]) * BOHR2ANG:.10f}",
+                f"{str(line.split()[3].lower()).capitalize()}",
+            ]
         )
-      
+        )
+
     # get path from args without the filename of the ensemble (last element of path)
     if os.path.isfile(path):
         outpath = functools.reduce(
-            lambda x, y: os.path.join(x, y), 
+            lambda x, y: os.path.join(x, y),
             list(os.path.split(path))[::-1][1:][::-1]
         )
     # or just use the given path if it is not a file path
     else:
         outpath = path
-    
+
     # write converted coordinates to xyz outfile if wanted
     if writexyz:
         with open(os.path.join(outpath, outfile), "w", encoding=CODING) as out:
@@ -208,7 +257,7 @@ def x2t(path, infile="inp.xyz"):
         for i in range(len(x)):
             coordxyz.append(f"{x[i]: .14f} {y[i]: .14f}  {z[i]: .14f}  {atom[i]}")
         with open(
-            os.path.join(os.path.split(path)[0], "coord"), "w", newline=None
+                os.path.join(os.path.split(path)[0], "coord"), "w", newline=None
         ) as coord:
             coord.write("$coord\n")
             for line in coordxyz:
@@ -217,17 +266,17 @@ def x2t(path, infile="inp.xyz"):
 
 
 def write_trj(
-    results,
-    cwd,
-    outpath,
-    optfolder,
-    nat,
-    attribute,
-    temperature,
-    consider_sym,
-    overwrite=False,
-    *args,
-    **kwargs,
+        results,
+        cwd,
+        outpath,
+        optfolder,
+        nat,
+        attribute,
+        temperature,
+        consider_sym,
+        overwrite=False,
+        *args,
+        **kwargs,
 ):
     """
     Write trajectory (multiple xyz geometries) to file.
@@ -545,7 +594,7 @@ def pearson(A, B):
     stdB = math.sqrt((1 / (n - 1)) * sum([d * d for d in diffB]))
     try:
         return (sum([A[i] * B[i] for i in range(int(n))]) - n * muA * muB) / (
-            (n - 1) * stdA * stdB
+                (n - 1) * stdA * stdB
         )
     except ZeroDivisionError as e:
         print(f"{'WARNING:':{WARNLEN}}{e}")
@@ -560,14 +609,14 @@ def spearman(A, B):
 
 
 def printout(
-    outputpath,
-    columncall,
-    columnheader,
-    columndescription,
-    columnformat,
-    calculate,
-    minfree,
-    columndescription2=None,
+        outputpath,
+        columncall,
+        columnheader,
+        columndescription,
+        columnformat,
+        calculate,
+        minfree,
+        columndescription2=None,
 ):
     """
     Create printout which is printed to stdout and file.
@@ -576,10 +625,10 @@ def printout(
         columndescription2 = []
     calculate.sort(key=lambda x: int(x.id))
     if not any(
-        [
-            len(i) == len(columncall)
-            for i in (columnheader, columndescription, columnformat)
-        ]
+            [
+                len(i) == len(columncall)
+                for i in (columnheader, columndescription, columnformat)
+            ]
     ):
         print("Lists of uneqal length!")
     collength = []
@@ -592,9 +641,9 @@ def printout(
 
     for i in range(len(columndescription)):
         if "[" in columndescription[i] and columndescription[i] not in (
-            "[Eh]",
-            "[kcal/mol]",
-            "[a.u.]",
+                "[Eh]",
+                "[kcal/mol]",
+                "[a.u.]",
         ):
             columndescription2[i] = "[" + str(columndescription[i]).split("[")[1]
             columndescription[i] = str(columndescription[i]).split("[")[0]
@@ -612,15 +661,15 @@ def printout(
             else:
                 collength.append(max([len(i) for i in map(columncall[j], calculate)]))
             if (
-                max(
-                    len(i)
-                    for i in [
-                        columndescription[j],
-                        columnheader[j],
-                        columndescription2[j],
-                    ]
-                )
-                > collength[j]
+                    max(
+                        len(i)
+                        for i in [
+                            columndescription[j],
+                            columnheader[j],
+                            columndescription2[j],
+                        ]
+                    )
+                    > collength[j]
             ):
                 collength[j] = max(
                     len(i)
@@ -710,7 +759,7 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
 
     # write conformers.xyz file
     with open(
-        os.path.join(config.cwd, dirn, fn), "w", encoding=CODING, newline=None
+            os.path.join(config.cwd, dirn, fn), "w", encoding=CODING, newline=None
     ) as out:
         for conf in allconfs:
             conf_xyz, nat = t2x(os.path.join(config.cwd, "CONF" + str(conf.id), func))
@@ -718,7 +767,7 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
             out.write(
                 "{:20.8f}        !{}\n".format(
                     getattr(conf, "optimization_info")["energy"], "CONF" + str(conf.id)
-                    #getattr(conf, "lowlevel_sp_info")["energy"], "CONF" + str(conf.id)
+                    # getattr(conf, "lowlevel_sp_info")["energy"], "CONF" + str(conf.id)
                 )
             )
             for line in conf_xyz:
@@ -750,7 +799,7 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
     ]
 
     with open(
-        os.path.join(config.cwd, dirn, "crest.out"), "w", newline=None, encoding=CODING
+            os.path.join(config.cwd, dirn, "crest.out"), "w", newline=None, encoding=CODING
     ) as outputfile:
         subprocess.call(
             crestcall,
@@ -765,10 +814,10 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
         time.sleep(0.05)
         try:
             with open(
-                os.path.join(config.cwd, dirn, "enso.tags"),
-                "r",
-                encoding=CODING,
-                newline=None,
+                    os.path.join(config.cwd, dirn, "enso.tags"),
+                    "r",
+                    encoding=CODING,
+                    newline=None,
             ) as inp:
                 store = inp.readlines()
         except (Exception) as e:
@@ -845,12 +894,12 @@ def check_tasks(results, check=False, thresh=0.25):
         sys.exit(1)
     if fail_rate >= thresh and check:
         print(
-            f"{'ERROR:':{WARNLEN}}{fail_rate*100} % of the calculations failed!"
+            f"{'ERROR:':{WARNLEN}}{fail_rate * 100} % of the calculations failed!"
             "\nGoing to exit!"
         )
         sys.exit(1)
     elif fail_rate >= thresh:
-        print(f"{'WARNING:':{WARNLEN}}{fail_rate*100} % of the calculations failed!")
+        print(f"{'WARNING:':{WARNLEN}}{fail_rate * 100} % of the calculations failed!")
 
 
 def calc_std_dev(data):
@@ -884,7 +933,7 @@ def calc_weighted_std_dev(data, weights=None):
         if i != 0.0:
             m += 1
     variance = sum([weights[i] * (data[i] - w_mean) ** 2 for i in range(n)]) / (
-        (m - 1) * sum(weights) / m
+            (m - 1) * sum(weights) / m
     )
     std_dev = math.sqrt(variance)
     return std_dev
@@ -945,11 +994,12 @@ def timeit(f) -> Callable:
     timed function should have no return value, since it is lost in the process
     calling a decorated function returns the time spent for it's execution
     """
+
     @functools.wraps(f)
     def wrapper(*args, **kwargs) -> float:
         start = time.perf_counter()
         f(*args, **kwargs)
         end = time.perf_counter()
         return end - start
-    
+
     return wrapper

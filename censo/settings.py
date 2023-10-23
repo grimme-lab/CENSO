@@ -1,296 +1,29 @@
-import ast
-import json
 import os
 import shutil
-import sys
 import configparser
-from argparse import Namespace
-from dataclasses import dataclass
-from functools import reduce
-from multiprocessing import Lock
-from types import MappingProxyType
-from typing import Any, Dict, List, Tuple, Type, Union
+from typing import Any, Dict, Union
 
 from censo.cfg import (
-    ASSETS_PATH, 
-    DIGILEN, 
-    GSOLV_MODS, 
-    PARTS, 
-    PLENGTH, 
-    PROGS, 
-    SOLV_MODS,
-    WARNLEN, 
-    GRIDOPTIONS, 
-    GFNOPTIONS, 
-    CENSORCNAME, 
-    OMPMIN, 
-    OMPMAX, 
-    __version__
+    PROGS,
+    GRIDOPTIONS,
+    GFNOPTIONS,
+    CENSORCNAME,
 )
+from censo.optimization import *
+from censo.part import CensoPart
 
-
-class DfaSettings:
-    def __init__(self, obj: Dict[str, Dict[str, Dict]]):
-        self.__dfa_dict = obj
-
-    
-    def find_func(self, part: str, prog=None):
-        """
-        return all functionals available for a certain part and (optionally) program
-        """
-        # TODO - turn into filter using filterfunction defined within find_func
-        tmp = []
-        for k, v in self.__dfa_dict["functionals"].items():
-            if part in v["part"]:
-                if prog is None:
-                    tmp.append(k)
-                else:
-                    if v[prog] != "":
-                        tmp.append(k)
-        
-        return tmp
-
-
-    def get_name(self, func: str, prog: str):
-        """
-        return the name of a certain functional in the given qm program
-        """
-        return self.__dfa_dict["functionals"][func][prog]
-
-
-    def get_disp(self, func: str):
-        """
-        return the dispersion correction of a certain functional
-        """
-        return self.__dfa_dict["functionals"][func]['disp']
-
-
-    def get_type(self, func: str):
-        """
-        return the type of a certain functional
-        """
-        return self.__dfa_dict["functionals"][func]["type"]
-
-
-    @property
-    def functionals(self) -> Dict[str, Dict]:
-        return self.__dfa_dict["functionals"]
+# map the part names to their respective classes
+parts = {
+    "general": CensoPart,
+    "prescreening": prescreening.Prescreening,
+    "screening": screening.Screening,
+    "optimization": optimization.Optimization,
+}
 
 
 class CensoRCParser:
-    """
-    TODO
-    """
-    
-    cosmors_param = {
-        "12-normal": "BP_TZVP_C30_1201.ctd",
-        "13-normal": "BP_TZVP_C30_1301.ctd",
-        "14-normal": "BP_TZVP_C30_1401.ctd",
-        "15-normal": "BP_TZVP_C30_1501.ctd",
-        "16-normal": "BP_TZVP_C30_1601.ctd",
-        "17-normal": "BP_TZVP_C30_1701.ctd",
-        "18-normal": "BP_TZVP_18.ctd",
-        "19-normal": "BP_TZVP_19.ctd",
-        "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
-        "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
-        "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
-        "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
-        "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
-        "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
-        "18-fine": "BP_TZVPD_FINE_18.ctd",
-        "19-fine": "BP_TZVPD_FINE_19.ctd",
-    }
-
-    # load up all resources to set value options in _settings_options
-    with open(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"), "r") as dfa_file:
-        dfa_settings = DfaSettings(json.load(dfa_file))
-
-    with open(os.path.join(ASSETS_PATH, "basis_sets.json"), "r") as bs_file:
-        basis_sets = tuple(json.load(bs_file))
-
-    with open(os.path.join(ASSETS_PATH, "censo_solvents_db.json"), "r") as solv_file:
-        solvents_db = json.load(solv_file)
-
-    solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
-    gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
-
-    # Available settings are defined here 
-    _settings_options = {
-        "paths": {
-            "orcapath": {
-                "default": "",
-                "options": [],
-            },
-            "orcaversion": {
-                "default": "",
-                "options": []
-            },
-            "xtbpath": {
-                "default": "",
-                "options": []
-            },
-            "crestpath": {
-                "default": "",
-                "options": []
-            },
-            "cosmorssetup": {
-                "default": "",
-                "options": []
-            },
-            "dbpath": {
-                "default": "",
-                "options": []
-            },
-            "cosmothermversion": {
-                "default": "",
-                "options": []
-            },
-            "mpshiftpath": {
-                "default": "",
-                "options": []
-            },
-            "escfpath": {
-                "default": "",
-                "options": []
-            },
-        },
-        "general": {
-            "procs": {
-                "default": 1,
-                "range": [
-                    1,
-                    128
-                ]
-            },
-            "omp": {
-                "default": 4,
-                "range": [
-                    OMPMIN,
-                    OMPMAX
-                ]
-            },
-            "imagthr": {
-                "default": -100.0,
-                "range": [
-                    -300.0,
-                    0.0
-                ]
-            },
-            "sthr": {
-                "default": 0.0,
-                "range": [
-                    0.0,
-                    100.0
-                ]
-            },
-            "scale": {
-                "default": 1.0,
-                "range": [
-                    0.0,
-                    1.0
-                ]
-            },
-            "temperature": {
-                "default": 298.15,
-                "range": [
-                    1e-05,
-                    2000.0
-                ]
-            },
-            "solvent": {
-                "default": "h2o",
-                "options": [k for k in solvents_db.keys()]
-            },
-            "sm_rrho": {
-                "default": "alpb",
-                "options": [
-                    "alpb",
-                    "gbsa"
-                ]
-            },
-            "cosmorsparam": {
-                "default": "12-normal",
-                "options": [k for k in cosmors_param.keys()]
-            },
-            "multitemp": {
-                "default": True
-            },
-            "evaluate_rrho": {
-                "default": True
-            },
-            "consider_sym": {
-                "default": True
-            },
-            "bhess": {
-                "default": True
-            },
-            "rmsdbias": {
-                "default": False
-            },
-            "progress": {
-                "default": False
-            },
-            "check": {
-                "default": False
-            },
-            "balance": {
-                "default": True
-            },
-            "vapor_pressure": {
-                "default": False
-            },
-            "nmrmode": {
-                "default": False
-            },
-            "gas-phase": {
-                "default": False
-            },
-            "copy_mo": {
-                "default": True
-            },
-            "trange": {
-                "default": [
-                    273.15,
-                    378.15,
-                    5
-                ]
-            }
-        },
-        "prescreening": {
-            "threshold": {
-                "default": 4.0,
-                "range": [
-                    1.0,
-                    10.0
-                ]
-            },
-            "func": {
-                "default": "pbe-d4",
-                "options": dfa_settings.find_func("prescreening")
-            },
-            "basis": {
-                "default": "def2-SV(P)",
-                "options": basis_sets
-            },
-            "prog": {
-                "default": "orca",
-                "options": PROGS
-            },
-            "gfnv": {
-                "default": "gfn2",
-                "options": GFNOPTIONS
-            },
-            "grid": {
-                "default": "low",
-                "options": GRIDOPTIONS
-            },
-            "run": {
-                "default": True
-            },
-            "gcp": {
-                "default": True
-            }
-        },
+    # Available settings are defined here
+    __settings_options = {
         "screening": {
             "threshold": {
                 "default": 3.5,
@@ -301,11 +34,11 @@ class CensoRCParser:
             },
             "func": {
                 "default": "r2scan-3c",
-                "options": dfa_settings.find_func("screening")
+                "options": DfaHelper.find_func("screening")
             },
             "basis": {
                 "default": "def2-TZVP",
-                "options": basis_sets
+                "options": BASIS_SETS
             },
             "prog": {
                 "default": "orca",
@@ -380,7 +113,7 @@ class CensoRCParser:
                     1.0
                 ]
             },
-            "boltzmannthr": { # boltzmann sum threshold
+            "boltzmannthr": {  # boltzmann sum threshold
                 "default": 85.0,
                 "range": [
                     1.0,
@@ -631,419 +364,41 @@ class CensoRCParser:
         #     }
         # },
     }
-    """
-    settings_options: MappingProxyType
-    |-int: type, MappingProxyType
-    |  |-general: str, MappingProxyType
-    |  |  |-> charge: str, dict
-    |  |  |   |-> default: int
-    |  |  |   |-> ~options
-    |  |  |   
-    |  |  |-> ...
-    |  | 
-    |  |-prescreening: str
-    |  |  |-> ...
-    |  | 
-    | ... 
-    | 
-    |-float: type, MappingProxyType
-    |  |-part: str, MappingProxyType
-    |  |  |-> setting: str, dict
-    .....
-    """    
-    # unused, still included as fallback
-    """settings_options = MappingProxyType({
-        int: MappingProxyType({
-            "general": MappingProxyType({
-                "charge": {"default": 0, "range": (-10, 10)}, # TODO - (re)move?
-                "unpaired": {"default": 0, "range": (0, 14)}, # TODO - (re)move?
-                "maxprocs": {"default": 1, "range": (1, 128)}, # number of processes
-                "omp": {"default": 1, "range": (1, 256)}, # number of cores per process
-            }),
-            "prescreening": None,
-            "screening": None,
-            "optimization": MappingProxyType({
-                "optcycles": {"default": 8, "range": (1, 100)}, # TODO - which value as min?
-                "radsize": {"default": 10, "range": (1, 100)}, # TODO - same
-            }),
-            "refinement": None,
-            "nmr": None,
-            "optrot": None,
-            "uvvis": MappingProxyType({
-                "nroots": {"default": 20, "range": (1, 100)}, # TODO - set dynamically
-            }),
-        }),
-        float: MappingProxyType({
-            "general": MappingProxyType({
-                "imagthr": {"default": -100.0, "range": (-300.0, 0.0)}, # TODO - threshold for imaginary frequencies
-                "sthr": {"default": 0.0, "range": (0.0, 100.0)}, # TODO - what is this?
-                "scale": {"default": 1.0, "range": (0.0, 1.0)}, # TODO - what is this?
-                "temperature": {"default": 298.15, "range": (0.00001, 2000.0)}, # TODO
-            }),
-            "prescreening": MappingProxyType({
-                "threshold": {"default": 4.0, "range": (1.0, 10.0)}, # TODO - which value as min?
-            }),
-            "screening": MappingProxyType({
-                "threshold": {"default": 3.5, "range": (0.75, 7.5)},
-            }),
-            "optimization": MappingProxyType({
-                "threshold": {"default": 2.5, "range": (0.5, 5)}, # TODO - rename?
-                "hlow": {"default": 0.01, "range": (0.01, 1.0)}, # TODO
-                "optimization_P_threshold": {"default": 99.0, "range": (1.0, 10.0)}, # TODO
-                "spearmanthr": {"default": 0.0, "range": (0.0, 10.0)},
-            }),
-            "refinement": MappingProxyType({
-                "threshold": {"default": 99.0, "range": (1.0, 10.0)}, # TODO
-            }),
-            "nmr": MappingProxyType({
-                "resonance_frequency": {"default": 300.0, "range": (150.0, 1000.0)}, # TODO
-            }),
-            "optrot": None,
-            "uvvis": MappingProxyType({
-                "sigma": {"default": 0.1, "range": (0.1, 1.0)},
-            }),
-        }),
-        str: MappingProxyType({
-            "general": MappingProxyType({
-                # TODO - removed gas here, since there is already 'gas-phase' option (also doesn't make sense)
-                "solvent": {"default": "h2o", "options": tuple([k for k in solvents_db.keys()])}, 
-                #"prog_rrho": {"default": "xtb", "options": ("xtb")}, # TODO - keep this here?
-                "sm_rrho": {"default": "alpb", "options": ("alpb", "gbsa")}, # TODO - same
-                "cosmorsparam": {"default": "automatic", "options": tuple([k for k in cosmors_param.keys()])},
-            }),
-            "prescreening": MappingProxyType({
-                "func": {"default": "pbe-d4", "options": tuple(dfa_settings.find_func("prescreening"))},
-                "basis": {"default": "def2-SV(P)", "options": ("automatic",) + tuple(dfa_settings.composite_bs) + ("def2-SV(P)", "def2-TZVP")},
-                "prog": {"default": "orca", "options": PROGS},
-                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-                "grid": {"default": "low", "options": GRIDOPTIONS},
-            }),
-            "screening": MappingProxyType({
-                "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func1"))},
-                "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
-                "prog": {"default": "orca", "options": PROGS},
-                "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
-                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-                "grid": {"default": "low+", "options": GRIDOPTIONS},
-            }),
-            "optimization": MappingProxyType({
-                "func": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func2"))},
-                "basis": {"default": "automatic", "options": ("automatic",) + basis_sets},
-                "prog": {"default": "orca", "options": PROGS},
-                "prog2opt": {"default": "prog", "options": PROGS}, # TODO - ??? prog2 ??? # FIXME
-                "sm": {"default": "smd", "options": solv_mods}, # FIXME
-                "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
-                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-                "optlevel2": {"default": "automatic", "options": ("crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme", "automatic")}, # TODO - what does this mean?
-                "grid": {"default": "high", "options": GRIDOPTIONS},
-            }),
-            "refinement": MappingProxyType({
-                "prog": {"default": "orca", "options": PROGS},
-                "func": {"default": "wb97x-v", "options": tuple(dfa_settings.find_func("func3"))},
-                "basis": {"default": "def2-TZVPP", "options": basis_sets},
-                "smgsolv": {"default": "smd_gsolv", "options": gsolv_mods},
-                "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-                "grid": {"default": "high+", "options": GRIDOPTIONS},
-            }),
-            "nmr": MappingProxyType({
-                "prog4_j": {"default": "tm", "options": PROGS},
-                "func_j": {"default": "pbe0-d4", "options": tuple(dfa_settings.find_func("func_j"))},
-                "basis_j": {"default": "def2-TZVP", "options": basis_sets},
-                "sm4_j": {"default": "default", "options": solv_mods}, # FIXME
-                "prog4_s": {"default": "tm", "options": PROGS},
-                "func_s": {"default": "pbe0-d4", "options": tuple(dfa_settings.find_func("func_s"))},
-                "basis_s": {"default": "def2-TZVP", "options": basis_sets},
-                "sm4_s": {"default": "default", "options": solv_mods}, # FIXME
-                "h_ref": {"default": "TMS", "options": ("TMS",)},
-                "c_ref": {"default": "TMS", "options": ("TMS",)},
-                "f_ref": {"default": "CFCl3", "options": ("CFCl3",)},
-                "si_ref": {"default": "TMS", "options": ("TMS",)},
-                "p_ref": {"default": "TMP", "options": ("TMP", "PH3")},
-            }),
-            "optrot": MappingProxyType({
-                "func": {"default": "pbe-d4", "options": tuple(dfa_settings.find_func("func_or"))},
-                "func_or_scf": {"default": "r2scan-3c", "options": tuple(dfa_settings.find_func("func_or_scf"))},
-                "basis": {"default": "def2-SVPD", "options": basis_sets},
-                "prog": {"default": "orca", "options": ("orca",)},
-            }),
-            "uvvis": None,
-        }),
-        bool: MappingProxyType({
-            "general": MappingProxyType({
-                "multitemp": {"default": True},
-                "evaluate_rrho": {"default": True},
-                "consider_sym": {"default": True},
-                "bhess": {"default": True},
-                "rmsdbias": {"default": False},
-                "progress": {"default": False},
-                "check": {"default": True},
-                "balance": {"default": True},
-                "vapor_pressure": {"default": False},
-                "nmrmode": {"default": False},
-                "gas-phase": {"default": False},
-            }),
-            "prescreening": MappingProxyType({
-                "run": {"default": True},
-                "gcp": {"default": True},
-            }),
-            "screening": MappingProxyType({
-                "run": {"default": True},
-                "gcp": {"default": True},
-            }),
-            "optimization": MappingProxyType({
-                "run": {"default": True},
-                "gcp": {"default": True},
-                # "ancopt": {"default": True},
-                "opt_spearman": {"default": True},
-                "crestcheck": {"default": False},
-            }),
-            "refinement": MappingProxyType({
-                "run": {"default": False},
-                "gcp": {"default": True},
-            }),
-            "nmr": MappingProxyType({
-                "run": {"default": False},
-                "couplings": {"default": True},
-                "shieldings": {"default": True},
-                "h_active": {"default": True},
-                "c_active": {"default": True},
-                "f_active": {"default": False},
-                "si_active": {"default": False},
-                "p_active": {"default": False},
-            }),
-            "optrot": MappingProxyType({
-                "run": {"default": False},
-            }),
-            "uvvis":MappingProxyType({
-                "run": {"default": False},
-            }),
-        }),
-        list: MappingProxyType({
-            "general": MappingProxyType({
-                "trange": {"default": [273.15, 378.15, 5]},
-            }),
-            "prescreening": None,
-            "screening": None,
-            "optimization": None,
-            "refinement": None,
-            "nmr": None,
-            "optrot": MappingProxyType({
-                "freq_or": {"default": [598.0]},
-            }),
-            "uvvis": None,
-        }),
-    })"""
 
-    
-    @classmethod
-    def get_type(cls, section: str, name: str) -> Union[Type, None]:
+    # try to find the .censorc2 in the user's home directory
+    __censorc_path = __find_rcfile()
+
+    # if no configuration file is found, create a new one and configure parts with default settings
+    if __censorc_path is None:
+        __censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
+        __write_rcfile(__censorc_path)  # TODO
+    # otherwise, try read the configuration file and configure the parts with the settings from it
+    else:
+        __settings = __read_rcfile(__censorc_path)
+        global parts
+        for section, settings in __settings.items():
+            try:
+                assert section in parts
+                parts[section].set_settings(settings)
+            except AssertionError:
+                pass
+
+    @staticmethod
+    def __read_rcfile(path) -> Dict[str, Dict[str, Any]]:
         """
-        Get the type of the given setting.
-
-        Args:
-            section (str): The section of the setting.
-            name (str): The name of the setting.
-
-        Returns:
-            Type: The type of the setting.
-        """
-        try:
-            return type(cls._settings_options[section][name]["default"])
-        except KeyError:
-            return None
-    
-    def __init__(self):
-        """
-        Handles program configuration
-        On creating a new CensoSettings object it will try to read the rcfile
-        If there is no rcfile it will create a new one automatically
-        """ 
-        # stores all settings, grouped by section (e.g. "general", "prescreening", ...)
-        # every string is in lower case
-        self.__settings_current: Dict[str, Dict[str, Any]]
-        
-        # absolute path to configuration file, try to find .censorc on construction
-        self.__censorc_path: str = self.__find_rcfile()
-
-        # if no rcfile is found create a new one in home directory
-        if self.__censorc_path is None: 
-            self.__censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
-            self.write_rcfile(self.__censorc_path)
-        
-        # read config file
-        self.__settings_current = self.__read_rcfile()
-    
-    
-    def print_paths(self) -> None:
-        """
-        Print out the paths of all external QM programs.
-        """
-        # Create an empty list to store the lines of the output.
-        lines = []
-        
-        # Append a separator line to the output.
-        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-
-        # Append the title of the section to the output, centered.
-        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
-
-        # Append a separator line to the output.
-        lines.append("".ljust(PLENGTH, "-") + "\n")
-
-        # Iterate over each program and its path in the settings.
-        for program, path in self.__settings_current["paths"].items():
-            # Append a line with the program and its path to the output.
-            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
-            
-        # Print each line of the output.
-        for line in lines:
-            print(line)      
-
-
-    @property
-    def censorc_path(self) -> str:
-        """
-        returns the absolute path to the rcfile
-        """
-        return self.__censorc_path
-
-
-    @censorc_path.setter
-    def censorc_path(self, path: str) -> None:
-        """
-        sets the absolute path to the rcfile
-        """
-        if os.path.isfile(path):
-            self.__censorc_path = path
-        else:
-            raise FileNotFoundError(f"File not found: {path}")
-
-
-    @property
-    def settings_current(self) -> Dict[str, Dict[str, Any]]:
-        """
-        returns the complete __settings_current
-        """
-        return self.__settings_current.copy()
-
-    
-    @settings_current.setter
-    def settings_current(self, settings_dict: Dict[str, Dict[str, Any]]) -> None:
-        """
-        Sets the __settings_current according to the settings given in settings_dict after validating them
-        """
-        # Validate settings_dict
-        self.__complete(settings_dict)
-        self.__validate(configparser.ConfigParser().read_dict(settings_dict))
-
-        # set __settings_current
-        self.__settings_current = settings_dict
-
-
-    def __read_rcfile(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Read from config data from file located at self.__censorc_path 
+        Read from config data from file located at 'path'
         """
         rcdata: Dict = {}
 
         # read config file
         parser: configparser.ConfigParser = configparser.ConfigParser()
-        with open(self.__censorc_path, "r") as file:
+        with open(path, "r") as file:
             parser.read_file(file)
-
-        # Make sure that all the settings are included in the parser
-        # If not, add defaults
-        parser = self.__complete(parser)
-
-        # validate parsed data
-        self.__validate(parser)
-
-        # convert parsed data to dict while converting settings from strings to their appropiate data types
-        # TODO - since we do this in __validate anyways, this could also be combined with __validate
-        for section in parser.sections():
-            rcdata[section] = {}
-            for setting in parser[section]:
-                # check first if the setting is even supposed to be there, if not print a warning
-                if setting in self._settings_options[section]:
-                    setting_type = self.get_type(section, setting)
-                    if setting_type != list and setting_type != bool:
-                        rcdata[section][setting] = setting_type(parser[section][setting])
-                    elif setting_type == bool:
-                        rcdata[section][setting] = {"True": True, "False": False}.get(parser[section][setting])
-                    else:
-                        rcdata[section][setting] = ast.literal_eval(parser[section][setting])
-                else:
-                    print(f"Warning: Setting {setting} is not a valid setting in {section}")
 
         return rcdata
 
-
-    def __complete(self, parser: configparser.ConfigParser) -> configparser.ConfigParser:
-        """
-        fill in missing settings with default values
-        """
-        for part, settings in self._settings_options.items():
-            for setting, definition in settings.items():
-                if setting not in parser[part]:
-                    parser[part][setting] = f"{definition['default']}"
-
-        return parser
-
-
-    def __validate(self, parser: configparser.ConfigParser) -> None:
-        """
-        validate the type of each setting in the given parser
-        also potentially validate if the setting is allowed by checking with CensoSettings._settings_options
-        """
-        # Create a mapping of data types to configparser methods
-        mapping = {
-            int: parser.getint,
-            float: parser.getfloat,
-            bool: parser.getboolean,
-        }
-
-        # go through each section and try to validate each setting's type
-        for part in parser.sections():
-            for setting_name in parser[part]:
-                try:
-                    mapping[self.get_type(part, setting_name)](part, setting_name)
-                except KeyError:
-                    # KeyError means that the type is not included in the mapping
-                    # that means it's either a list or string
-                    if self.get_type(part, setting_name) == list:
-                        # try to convert to list
-                        # SyntaxError not handled so it gets raised
-                        ast.literal_eval(parser[part][setting_name])
-                    # the only other case that is necessary to be aware of is when self.get_type returns None
-                    # in that case the setting does not exist, therefore the setting is removed from the parser
-                    elif self.get_type(part, setting_name) is None:
-                        parser.remove_option(part, setting_name)
-
-                # ValueError not handled so it gets raised (happens if there is a type mismatch)
-
-            # passed first step of validation, now check if settings are allowed for each part that should be run
-            # (this works since for bools only the type needs to be checked to validate completely)
-            for setting_name, setting_value in parser[part].items():
-                    setting_type = self.get_type(part, setting_name)
-                    # for strings check if string is within a list of allowed values
-                    if setting_type == str:
-                        options = self._settings_options[part][setting_name]['options']
-                        if setting_value not in options and len(options) > 0:
-                            # Only check if there are options
-                            # This is fatal so CENSO stops
-                            raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
-                    # for numeric values check if value is within a range
-                    elif setting_type in (int, float):
-                        interval = self._settings_options[part][setting_name]['range']
-                        if not interval[0] <= setting_type(setting_value) <= interval[1]:
-                            # This is fatal so CENSO stops
-                            raise ValueError(f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part '{part}'.")
-                    # setting_type is None if setting does not exist in _settings_options
-                    elif setting_type is None:
-                        raise ValueError(f"Unknown setting type for setting '{setting_name}' in part '{part}'")
-
-
-    def write_rcfile(self, path: str) -> None:
+    @staticmethod
+    def __write_rcfile(path: str) -> None:
         """
         write new configuration file with default settings into file at 'path' 
         """
@@ -1056,7 +411,7 @@ class CensoRCParser:
             )
             # Read program paths from the existing configuration file
             print("Reading program paths from existing configuration file ...")
-            external_paths = self.__read_program_paths(path)
+            external_paths = __read_program_paths(path)
 
             # Rename existing file
             os.rename(path, f"{path}_OLD")
@@ -1064,7 +419,9 @@ class CensoRCParser:
         print(f"Writing new configuration file to {path} ...")
         with open(path, "w", newline=None) as rcfile:
             parser = configparser.ConfigParser()
-            parser.read_dict({part: {setting: settings[setting]['default'] for setting in settings} for part, settings in self._settings_options.items()})
+            parser.read_dict(
+                {part: {setting: settings[setting]['default'] for setting in settings} for part, settings in
+                 self._settings_options.items()})
 
             # Try to get paths from 'which'
             if external_paths is None:
@@ -1086,8 +443,8 @@ class CensoRCParser:
                 f"Currently it is '{os.path.split(path)[-1]}'.\n"
             )
 
-
-    def __find_rcfile(self) -> Union[str, None]:
+    @staticmethod
+    def __find_rcfile() -> Union[str, None]:
         """
         check for existing .censorc in $home dir
         """
@@ -1099,7 +456,7 @@ class CensoRCParser:
 
         return rcpath
 
-
+    @classmethod
     def __read_program_paths(self, path: str) -> Union[Dict[str, str], None]:
         """
         Read program paths from the configuration file at 'path'
@@ -1114,7 +471,7 @@ class CensoRCParser:
             print(f"WARNING: No paths found in {path}")
             return None
 
-
+    @classmethod
     def __find_program_paths(self) -> Dict[str, str]:
         """
         Try to determine program paths automatically

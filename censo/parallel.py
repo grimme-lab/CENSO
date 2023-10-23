@@ -16,6 +16,12 @@ from censo.cfg import OMPMIN, OMPMAX
 
 
 class ProcessHandler:
+    # there might be a good argument for making this a mostly static class
+    # how to handle jobs that take too long?
+    # you don't want to terminate jobs in our case, since this might waste a lot of time
+    # instead maybe the now free workers could be used to continue with the workload after some time has passed
+    # failed jobs should be restarted (in a later chunk?) with special flags
+    # TODO - what to do if a failed job is not easily remedied?
     def __init__(self, instructions: Dict[str, Any], conformers: List[GeometryData] = None):
         """
         Initializes the process handler

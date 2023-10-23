@@ -26,6 +26,74 @@ class QmProc:
     """
     QmProc base class with xtb as driver (see _xtb methods)
     """
+
+    "paths": {
+        "orcapath": {
+            "default": "",
+            "options": [],
+        },
+        "orcaversion": {
+            "default": "",
+            "options": []
+        },
+        "xtbpath": {
+            "default": "",
+            "options": []
+        },
+        "crestpath": {
+            "default": "",
+            "options": []
+        },
+        "cosmorssetup": {
+            "default": "",
+            "options": []
+        },
+        "dbpath": {
+            "default": "",
+            "options": []
+        },
+        "cosmothermversion": {
+            "default": "",
+            "options": []
+        },
+        "mpshiftpath": {
+            "default": "",
+            "options": []
+        },
+        "escfpath": {
+            "default": "",
+            "options": []
+        },
+    },
+
+
+    @classmethod
+    def print_paths(cls) -> None:
+        """
+        Print out the paths of all external QM programs.
+        """
+        # Create an empty list to store the lines of the output.
+        lines = []
+
+        # Append a separator line to the output.
+        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
+
+        # Append the title of the section to the output, centered.
+        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
+
+        # Append a separator line to the output.
+        lines.append("".ljust(PLENGTH, "-") + "\n")
+
+        # Iterate over each program and its path in the settings.
+        for program, path in self.__settings_current["paths"].items():
+            # Append a line with the program and its path to the output.
+            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
+
+        # Print each line of the output.
+        for line in lines:
+            print(line)
+
+
     @staticmethod
     def _create_jobdir(job: Callable) -> Callable:
         """

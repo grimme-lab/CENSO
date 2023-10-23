@@ -470,13 +470,14 @@ class OrcaProc(QmProc):
         
         # call orca
         call = [self.instructions["orcapath"], f"{filename}.inp"]
-        returncode = self._make_call(call, outputpath, jobdir)
+        self._make_call(call, outputpath, jobdir)
 
-        # check returncode
-        if returncode != 0:
-            raise RuntimeError(
-                f"{'ERROR:':{WARNLEN}}ORCA single-point terminated abnormally for {conf.name}."
-            )
+        # do not check returncode, since orca doesn't give meaningful returncodes
+        # check the outputfile instead, basically if the file doesn't say "SCF CONVERGED" or "SCF NOT CONVERGED" somewhere, something went wrong
+        # easily remedied:
+        # "SCF NOT CONVERGED"
+        # "SCF CONVERGED"
+        # "Error encountered when trying to calculate the atomic fitting density!"
 
         # read output
         with open(outputpath, "r", encoding=CODING, newline=None) as out:
@@ -490,7 +491,7 @@ class OrcaProc(QmProc):
                     result["success"] = True
 
         if not result["success"]:
-            print(f"{WARNING:{WARNLEN}}ORCA single-point not converged for {conf.name}.")
+            print(f"{'WARNING:':{WARNLEN}}ORCA single-point not converged for {conf.name}.")
 
         # store the path to the current .gbw file for this conformer
         result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")

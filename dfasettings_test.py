@@ -1,13 +1,13 @@
 import unittest
 import json
 
-from censo.settings import DfaSettings
+from censo.settings import DfaHelper
 
 dfas = json.load(open("./censo/assets/censo_dfa_settings.json", "r"))
 
 class DfaSettingsTest(unittest.TestCase):
     def setUp(self):
-        self.test = DfaSettings(dfas)
+        self.test = DfaHelper(dfas)
         
         
     def test_find_func(self):

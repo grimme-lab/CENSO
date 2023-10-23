@@ -5,10 +5,11 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 import sys
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple
+import json
 
 # FIXME - not good practice?
-__version__ = "1.3.0"
+__version__ = "2.0.0"
 
 DESCR = f"""
          ______________________________________________________________
@@ -61,17 +62,6 @@ PLANCK = 6.62607015e-34
 C = 2.998e8
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
-# FIXME - include 'general' here?
-PARTS = (
-    "prescreening", 
-    "screening", 
-    "optimization", 
-    "refinement", 
-    "nmr", 
-    "optrot", 
-    "uvvis"
-)
-
 ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 
 PROGS = ("orca", "tm")
@@ -104,6 +94,11 @@ CENSORCNAME = ".censorc2"
 OMPMIN = 4
 
 OMPMAX = 32
+
+# TODO - this smells
+basis_file = open(os.path.join(ASSETS_PATH, "basis_sets.json"), "r")
+BASIS_SETS = json.load(basis_file)
+basis_file.close()
 
 # qm_prepinfo: grid and scfconv settings for ORCA and TM
 qm_prepinfo = {
