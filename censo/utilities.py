@@ -746,7 +746,7 @@ def crest_routine(config, conformers, func, store_confs, prev_calculated=None):
     allconfs = deepcopy(conformers)
     allconfs.extend(deepcopy(prev_calculated))
 
-    ### sort conformers according to energy of optimization
+    ### sort conformers according to energy of ensembleopt
     allconfs.sort(key=lambda conf: float(getattr(conf, "optimization_info")["energy"]))
     # write coord:
     try:

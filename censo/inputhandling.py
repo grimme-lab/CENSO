@@ -86,7 +86,7 @@ def cml(startup_description, argv=None):
         required=False,
         help=("Expert user option for including conformers, which were removed "
              "in a previous run ('stopped_before_converged'), "
-             "in the (current) optimization. Choices: ???." # TODO
+             "in the (current) ensembleopt. Choices: ???." # TODO
         ),
     )
     groups[0].add_argument(
@@ -344,7 +344,7 @@ def cml(startup_description, argv=None):
         action="store_true",
         required=False,
         
-        help="Option to sort out conformers after DFT optimization which CREST "
+        help="Option to sort out conformers after DFT ensembleopt which CREST "
         "identifies as identical or rotamers of each other. \nThe identification/"
         "analysis is always performed, but the removal of conformers has to "
         "be the choice of the user. Options are: [???]", # TODO
@@ -396,7 +396,7 @@ def cml(startup_description, argv=None):
         dest="radsize",
         required=False,
         type=int,
-        help="Radsize used in the optimization and only for r2scan-3c!",
+        help="Radsize used in the ensembleopt and only for r2scan-3c!",
     )
     
     ### REFINEMENT SETTINGS
@@ -492,7 +492,7 @@ def cml(startup_description, argv=None):
         action="store",
         required=False,
         
-        help="Functional for geometry optimization (used in part2) and "
+        help="Functional for geometry ensembleopt (used in part2) and "
         "single-points in part1",
     ) 
     group1.add_argument(
@@ -503,7 +503,7 @@ def cml(startup_description, argv=None):
         required=False,
         
         help="Basis set employed together with the functional (func) for the "
-        "low level single point in part1 und optimization in part2.",
+        "low level single point in part1 und ensembleopt in part2.",
     ) 
     group1.add_argument(
         "-prog",
@@ -570,9 +570,9 @@ def cml(startup_description, argv=None):
         action="store",
         required=False,
         
-        help="Solvent model employed during the geometry optimization in part2."
+        help="Solvent model employed during the geometry ensembleopt in part2."
         "The solvent model sm2 is not used for Gsolv evaluation, but for the "
-        "implicit effect on a property (e.g. the geometry in the optimization).",
+        "implicit effect on a property (e.g. the geometry in the ensembleopt).",
     ) 
     group4.add_argument(
         "-smgsolv2",
@@ -584,7 +584,7 @@ def cml(startup_description, argv=None):
         
         help="Solvent model for the Gsolv (solvation contribution to free energy) "
         "calculation in part2. Either the solvent"
-        " model of the optimization (sm2) or an additive solvation model. "
+        " model of the ensembleopt (sm2) or an additive solvation model. "
         f"Allowed values are [{', '.join(options.value_options['smgsolv2'])}]",
     ) """
     

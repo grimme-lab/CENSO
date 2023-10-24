@@ -86,7 +86,7 @@ class Prescreening(CensoPart):
     def run(self) -> None:
         """
         first screening of the ensemble by doing single-point calculation on the input geometries,
-        using a (cheap) DFT method. if the ensemble optimization is not taking place in the gas-phase,
+        using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
         the gsolv contribution is calculated using xtb.
 
         the list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).

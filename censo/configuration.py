@@ -10,7 +10,7 @@ from censo.params import (
     CENSORCNAME,
     load_dbs
 )
-from censo.optimization import *
+from censo.ensembleopt import *
 from censo.part import CensoPart
 from censo.qm_processor import QmProc
 
@@ -19,7 +19,7 @@ parts = {
     "general": CensoPart,
     "prescreening": prescreening.Prescreening,
     "screening": screening.Screening,
-    "optimization": optimization.Optimization,
+    "ensembleopt": optimization.Optimization,
 }
 
 

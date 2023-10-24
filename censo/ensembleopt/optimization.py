@@ -1,6 +1,6 @@
 """
 Optimization == part2
-performing optimization of the CRE and provide low level free energies.
+performing ensembleopt of the CRE and provide low level free energies.
 """
 import os
 from typing import List
@@ -34,7 +34,7 @@ class Optimization(CensoPart):
     __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
-        "optimization": {
+        "ensembleopt": {
             "optcycles": {
                 "default": 8,
                 "range": [
@@ -93,7 +93,7 @@ class Optimization(CensoPart):
             # },
             "func": {
                 "default": "r2scan-3c",
-                "options": DfaHelper.find_func("optimization")
+                "options": DfaHelper.find_func("ensembleopt")
             },
             "basis": {
                 "default": "def2-TZVP",
@@ -149,7 +149,7 @@ class Optimization(CensoPart):
 
     _settings = {}
 
-    def __init__(self, core: CensoCore, name: str = "optimization"):
+    def __init__(self, core: CensoCore, name: str = "ensembleopt"):
         super().__init__(core, name=name)
         self.confs_nc: List[GeometryData]
 
@@ -162,9 +162,9 @@ class Optimization(CensoPart):
         Uses xtb as driver for orca/tm, calculates hessians from orca/tm single-points and reevaluates ensemble every 'optcycles' steps
         by calculating the thermodynamics of the optimized geometries
 
-        Alternatively just run the complete optimization for every conformer with xtb as driver (decide with 'opt_spearman')
+        Alternatively just run the complete ensembleopt for every conformer with xtb as driver (decide with 'opt_spearman')
 
-        TODO - implement regular optimization (no xtb driver)
+        TODO - implement regular ensembleopt (no xtb driver)
         TODO - what happens if not a single conformer converges?
         """
 
@@ -184,10 +184,10 @@ class Optimization(CensoPart):
         # setup process handler
         handler = ProcessHandler(self.__instructions)
 
-        # decide for doing spearman optimization or standard optimization (TODO)
+        # decide for doing spearman ensembleopt or standard ensembleopt (TODO)
         if self.__instructions["opt_spearman"] and len(self.core.conformers) > 1:
             """
-            optimization using macrocycles with 'optcycles' microcycles
+            ensembleopt using macrocycles with 'optcycles' microcycles
             """
             # if not self.args.spearmanthr:
             #     # set spearmanthr by number of atoms:
@@ -196,13 +196,13 @@ class Optimization(CensoPart):
             self.__spearman_opt(handler)
         else:
             """
-            do normal optimization
+            do normal ensembleopt
             """
             if not len(self.core.conformers) > 1:
-                print(f"Only one conformer ({self.core.conformers[0].name}) is available for optimization.")
+                print(f"Only one conformer ({self.core.conformers[0].name}) is available for ensembleopt.")
 
-            # disable spearman optimization
-            print("Spearman optimization turned off.")
+            # disable spearman ensembleopt
+            print("Spearman ensembleopt turned off.")
             self.__instructions["opt_spearman"] = False
 
             # run optimizations using xtb as driver
@@ -245,10 +245,10 @@ class Optimization(CensoPart):
 
     def grrho(self, conf: MoleculeData) -> float:
         """
-        Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
+        Calculate Gtot from DFT energy (last step of running ensembleopt) and Gmrrho
         If no GmRRHO is calculated only the most recent DFT energy is returned
         """
-        # TODO - implement branch for standard optimization (no ancopt)
+        # TODO - implement branch for standard ensembleopt (no ancopt)
         try:
             return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"] + \
                 conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
@@ -257,7 +257,7 @@ class Optimization(CensoPart):
 
     def __spearman_opt(self, handler: ProcessHandler):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
-        # NOTE: this is a special step only necessary for spearman optimization
+        # NOTE: this is a special step only necessary for spearman ensembleopt
         # at this point it's just self.core.conformers
         self.confs_nc = [conf.geom for conf in self.core.conformers]
 
@@ -273,14 +273,14 @@ class Optimization(CensoPart):
                 # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk,
                 # move it to a new chunk and calculate later
         ):
-            # NOTE: this loop works through confs_nc, so if the optimization for a conformer is converged, all the following steps will not consider it anymore
+            # NOTE: this loop works through confs_nc, so if the ensembleopt for a conformer is converged, all the following steps will not consider it anymore
             # update conformers for ProcessHandler
             handler.conformers = self.confs_nc
 
             # run optimizations for 'optcycles' steps
             results_opt = handler.execute(["xtb_opt"], self.dir)
 
-            # put optimization results into conformer objects
+            # put ensembleopt results into conformer objects
             for conf in self.confs_nc:
                 for coreconf in self.core.conformers:
                     if id(coreconf) == conf.id:
@@ -326,7 +326,7 @@ class Optimization(CensoPart):
             """
             # TODO TODO TODO TODO - update threshold based on spearman coefficients (???) - leave this out for now
             minthreshold = self.__instructions["threshold"] / AU2KCAL
-            # 'decyc' contains the difference between the minimal gtot and the gtot of the conformer for every optimization cycle
+            # 'decyc' contains the difference between the minimal gtot and the gtot of the conformer for every ensembleopt cycle
             # pseudo: decyc[i] = gtot[i] - mingtot[i]
             # 'toevaluate' contains the indices of the cycles to be evaluated for spearman correlation computation (always the most current cycles)
             # this only goes unitl the third-last cycle evaluated (since deprevious and decurrent are three steps apart (why??)), can also be just one cycle
@@ -376,11 +376,11 @@ class Optimization(CensoPart):
                     else:
                         ewin += -(ewin_increase / 3)
                     print(
-                        f"Updated optimization threshold to: {ewin:.2f} kcal/mol"
+                        f"Updated ensembleopt threshold to: {ewin:.2f} kcal/mol"
                     )
                 else:
                     print(
-                        f"Current optimization threshold: {ewin:.2f} kcal/mol"
+                        f"Current ensembleopt threshold: {ewin:.2f} kcal/mol"
                     )
             """
 

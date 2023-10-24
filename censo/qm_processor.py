@@ -186,7 +186,7 @@ class QmProc:
 
     def _opt(self):
         """
-        geometry optimization
+        geometry ensembleopt
         """
         pass
 
@@ -396,7 +396,7 @@ class QmProc:
 
     def _xtb_opt(self):
         """
-        geometry optimization using xtb as driver, has to be implemented for each qm code
+        geometry ensembleopt using xtb as driver, has to be implemented for each qm code
         """
         pass
 

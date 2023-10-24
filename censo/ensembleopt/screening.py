@@ -7,7 +7,7 @@ from math import isclose, exp
 from statistics import stdev
 from functools import reduce
 
-from censo.optimization.prescreening import Prescreening
+from censo.ensembleopt.prescreening import Prescreening
 from censo.part import CensoPart
 from censo.utilities import print, timeit, format_data
 from censo.parallel import ProcessHandler

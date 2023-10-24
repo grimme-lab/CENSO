@@ -137,6 +137,7 @@ class CensoPart:
 
     @classmethod
     def get_part_settings(cls):
+        # TODO - this is not really that useful yet
         return cls._settings
 
     @classmethod
