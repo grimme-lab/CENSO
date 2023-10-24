@@ -4,24 +4,11 @@ import configparser
 from typing import Any, Dict, Union
 
 from censo.params import (
-    PROGS,
-    GRIDOPTIONS,
-    GFNOPTIONS,
     CENSORCNAME,
     load_dbs, ASSETS_PATH
 )
-from censo.ensembleopt import *
-from censo.part import CensoPart
 from censo.qm_processor import QmProc
 from censo.utilities import DfaHelper
-
-# map the part names to their respective classes
-parts = {
-    "general": CensoPart,
-    "prescreening": prescreening.Prescreening,
-    "screening": screening.Screening,
-    "ensembleopt": optimization.Optimization,
-}
 
 
 def configure(rcpath: str = None):
@@ -40,6 +27,24 @@ def configure(rcpath: str = None):
         else:
             censorc_path = rcpath
 
+    # Set up the DFAHelper
+    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
+
+    # Load the lookup tables from the assets directory
+    load_dbs()
+
+    # map the part names to their respective classes
+    # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
+    # otherwise there will be errors in the CensoPart._options
+    from censo.part import CensoPart
+    from censo.ensembleopt import prescreening, screening, optimization
+    parts = {
+        "general": CensoPart,
+        "prescreening": prescreening.Prescreening,
+        "screening": screening.Screening,
+        "ensembleopt": optimization.Optimization,
+    }
+
     # If no configuration file is found, create a new one and configure parts with default settings
     if censorc_path is None:
         censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
@@ -47,7 +52,6 @@ def configure(rcpath: str = None):
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
         settings_dict = read_rcfile(censorc_path)
-        global parts
         for section, settings in settings_dict.items():
             try:
                 assert section in parts
@@ -58,12 +62,6 @@ def configure(rcpath: str = None):
     # Update the paths for the processors
     paths = read_rcfile(censorc_path)["paths"]
     QmProc.paths = paths
-
-    # Set up the DFAHelper
-    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
-
-    # Load the databases
-    load_dbs()
 
 
 def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:

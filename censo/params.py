@@ -137,7 +137,7 @@ qm_prepinfo = {
 
 def load_dbs():
     """
-    Load the basis sets and solvents database from JSON files.
+    Load the basis sets and solvents lookup tables from JSON files.
     """
     global BASIS_SETS
     global SOLVENTS_DB
