@@ -176,13 +176,14 @@ class CensoPart:
         """
         # go through each section and try to validate each setting's type
         for part in tovalidate.keys():
+            remove = []
             for setting_name in tovalidate[part]:
                 # try to get the settings's type from the default value in the _options dict
                 try:
                     setting_type = type(cls._options[part][setting_name]["default"])
                 except KeyError:
                     # KeyError means that the setting does not exist, therefore the setting is removed
-                    tovalidate[part].pop(setting_name)
+                    remove.append(setting_name)
                     continue
 
                 # try to cast the setting-string into the correct type
@@ -219,6 +220,10 @@ class CensoPart:
 
                 # set the value in the dict tovalidate to the casted value
                 tovalidate[part][setting_name] = setting_value
+
+            # remove the invalid settings
+            for setting in remove:
+                tovalidate[part].pop(setting)
 
     @staticmethod
     def _create_dir(runner: Callable) -> Callable:

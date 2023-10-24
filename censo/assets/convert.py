@@ -14,7 +14,7 @@ def main():
             }),
             "prescreening": None,
             "screening": None,
-            "ensembleopt": MappingProxyType({
+            "optimization": MappingProxyType({
                 "optcycles": {"default": 8, "range": (1, 100)}, # TODO - which value as min?
                 "radsize": {"default": 10, "range": (1, 100)}, # TODO - same
             }),
@@ -38,7 +38,7 @@ def main():
             "screening": MappingProxyType({
                 "threshold": {"default": 3.5, "range": (0.75, 7.5)},
             }),
-            "ensembleopt": MappingProxyType({
+            "optimization": MappingProxyType({
                 "threshold": {"default": 2.5, "range": (0.5, 5)}, # TODO - rename?
                 "hlow": {"default": 0.01, "range": (0.01, 1.0)}, # TODO
                 "optimization_P_threshold": {"default": 99.0, "range": (1.0, 10.0)}, # TODO

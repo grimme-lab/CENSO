@@ -45,7 +45,7 @@ def configure(rcpath: str = None):
         "general": CensoPart,
         "prescreening": prescreening.Prescreening,
         "screening": screening.Screening,
-        "ensembleopt": optimization.Optimization,
+        "optimization": optimization.Optimization,
     }
 
     # If no configuration file is found, create a new one and configure parts with default settings

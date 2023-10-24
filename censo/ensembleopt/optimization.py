@@ -1,6 +1,6 @@
 """
 Optimization == part2
-performing ensembleopt of the CRE and provide low level free energies.
+performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
 from typing import List
@@ -164,7 +164,7 @@ class Optimization(CensoPart):
 
         Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'opt_spearman')
 
-        TODO - implement regular ensembleopt (no xtb driver)
+        TODO - implement regular geometry optimization (no xtb driver)
         TODO - what happens if not a single conformer converges?
         """
 
@@ -182,10 +182,10 @@ class Optimization(CensoPart):
         self.print_info()
 
         # setup process handler
-        handler = ProcessHandler(self.__instructions)
+        handler = ProcessHandler(self._instructions)
 
-        # decide for doing spearman ensembleopt or standard ensembleopt (TODO)
-        if self.__instructions["opt_spearman"] and len(self.core.conformers) > 1:
+        # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
+        if self._instructions["opt_spearman"] and len(self.core.conformers) > 1:
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
@@ -199,11 +199,11 @@ class Optimization(CensoPart):
             do normal geometry optimization
             """
             if not len(self.core.conformers) > 1:
-                print(f"Only one conformer ({self.core.conformers[0].name}) is available for ensembleopt.")
+                print(f"Only one conformer ({self.core.conformers[0].name}) is available for optimization.")
 
             # disable spearman ensembleopt
             print("Spearman ensembleopt turned off.")
-            self.__instructions["opt_spearman"] = False
+            self._instructions["opt_spearman"] = False
 
             # run optimizations using xtb as driver
             handler.conformers = [conf.geom for conf in self.core.conformers]
@@ -212,14 +212,14 @@ class Optimization(CensoPart):
             # update results for each conformer
             for conf in self.core.conformers:
                 # store mo_path if 'copy_mo' is enabled
-                if self.__instructions.get("copy_mo", None):
+                if self._instructions.get("copy_mo", None):
                     conf.geom.mo_path = results_opt[id(conf)]["xtb_opt"]["mo_path"]
 
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[id(conf)]["xtb_opt"]["geom"]
 
                 # store results
-                conf.results.setdefault(self.__name.lower(), {}).update(results_opt[id(conf)])
+                conf.results.setdefault(self._name.lower(), {}).update(results_opt[id(conf)])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a solvent model,
@@ -229,31 +229,31 @@ class Optimization(CensoPart):
         results_rrho = handler.execute(["xtb_rrho"], self.dir)
 
         for conf in self.core.conformers:
-            conf.results[self.__name.lower()].update(results_rrho[id(conf)])
+            conf.results[self._name.lower()].update(results_rrho[id(conf)])
 
         # calculate boltzmann weights from gtot values calculated here
         self.core.calc_boltzmannweights(
-            self.__instructions.get("temperature", 298.15),
-            self.__name.lower()
+            self._instructions.get("temperature", 298.15),
+            self._name.lower()
         )
 
         # write final results
         self.write_results()
 
         # dump ensemble
-        self.core.dump_ensemble(self.__name.lower())
+        self.core.dump_ensemble(self._name.lower())
 
     def grrho(self, conf: MoleculeData) -> float:
         """
-        Calculate Gtot from DFT energy (last step of running ensembleopt) and Gmrrho
+        Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
         If no GmRRHO is calculated only the most recent DFT energy is returned
         """
-        # TODO - implement branch for standard ensembleopt (no ancopt)
+        # TODO - implement branch for standard geometry optimization (no ancopt)
         try:
-            return conf.results[self.__name.lower()]["xtb_opt"]["energy"] + \
-                conf.results[self.__name.lower()]["xtb_rrho"]["energy"]
+            return conf.results[self._name.lower()]["xtb_opt"]["energy"] + \
+                conf.results[self._name.lower()]["xtb_rrho"]["energy"]
         except KeyError:
-            return conf.results[self.__name.lower()]["xtb_opt"]["energy"]
+            return conf.results[self._name.lower()]["xtb_opt"]["energy"]
 
     def __spearman_opt(self, handler: ProcessHandler):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
@@ -264,28 +264,28 @@ class Optimization(CensoPart):
         stopcond_converged = False
         ncyc = 0
         rrho_done = False
-        print(f"Optimization using Spearman threshold, {self.__instructions['optcycles']} cycles per step.")
+        print(f"Optimization using Spearman threshold, {self._instructions['optcycles']} cycles per step.")
         print(f"NCYC: {ncyc}")
         while (
                 not stopcond_converged
-                and ncyc < self.__instructions["maxcyc"]
+                and ncyc < self._instructions["maxcyc"]
                 # TODO - maybe make this more intelligent:
                 # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk,
                 # move it to a new chunk and calculate later
         ):
-            # NOTE: this loop works through confs_nc, so if the ensembleopt for a conformer is converged, all the following steps will not consider it anymore
+            # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged, all the following steps will not consider it anymore
             # update conformers for ProcessHandler
             handler.conformers = self.confs_nc
 
             # run optimizations for 'optcycles' steps
             results_opt = handler.execute(["xtb_opt"], self.dir)
 
-            # put ensembleopt results into conformer objects
+            # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
                 for coreconf in self.core.conformers:
                     if id(coreconf) == conf.id:
                         # store mo_path if 'copy_mo' is enabled
-                        if self.__instructions.get("copy_mo", None):
+                        if self._instructions.get("copy_mo", None):
                             coreconf.geom.mo_path = results_opt[conf.id]["xtb_opt"]["mo_path"]
 
                         # update geometry of the conformer
@@ -293,26 +293,26 @@ class Optimization(CensoPart):
                         conf.xyz = results_opt[conf.id]["xtb_opt"]["geom"]
 
                         # store results
-                        coreconf.results.setdefault(self.__name.lower(), {}).update(results_opt[conf.id])
+                        coreconf.results.setdefault(self._name.lower(), {}).update(results_opt[conf.id])
                         break
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
             # TODO - make this better
-            if ncyc + self.__instructions["optcycles"] >= 6 and not rrho_done:
+            if ncyc + self._instructions["optcycles"] >= 6 and not rrho_done:
 
                 # evaluate rrho using bhess flag (reset after this)
-                tmp = self.__instructions["bhess"]
-                self.__instructions["bhess"] = True
+                tmp = self._instructions["bhess"]
+                self._instructions["bhess"] = True
                 results_rrho = handler.execute(["xtb_rrho"], self.dir)
-                self.__instructions["bhess"] = tmp
+                self._instructions["bhess"] = tmp
 
                 # put results into conformer objects
                 for conf in self.confs_nc:
                     for coreconf in self.core.conformers:
                         if id(coreconf) == conf.id:
-                            coreconf.results[self.__name.lower()].update(results_rrho[conf.id])
-                            coreconf.results[self.__name.lower()]["gtot"] = self.grrho(coreconf)
+                            coreconf.results[self._name.lower()].update(results_rrho[conf.id])
+                            coreconf.results[self._name.lower()]["gtot"] = self.grrho(coreconf)
                             break
 
                 # flag to make sure that rrho is only calculated once
@@ -321,12 +321,12 @@ class Optimization(CensoPart):
             # TODO - crestcheck each iteration if ncyc >= 6
 
             # kick out conformers above threshold
-            threshold = self.__instructions["threshold"] / AU2KCAL
+            threshold = self._instructions["threshold"] / AU2KCAL
 
             """
             # TODO TODO TODO TODO - update threshold based on spearman coefficients (???) - leave this out for now
-            minthreshold = self.__instructions["threshold"] / AU2KCAL
-            # 'decyc' contains the difference between the minimal gtot and the gtot of the conformer for every ensembleopt cycle
+            minthreshold = self._instructions["threshold"] / AU2KCAL
+            # 'decyc' contains the difference between the minimal gtot and the gtot of the conformer for every optimization cycle
             # pseudo: decyc[i] = gtot[i] - mingtot[i]
             # 'toevaluate' contains the indices of the cycles to be evaluated for spearman correlation computation (always the most current cycles)
             # this only goes unitl the third-last cycle evaluated (since deprevious and decurrent are three steps apart (why??)), can also be just one cycle
@@ -390,8 +390,8 @@ class Optimization(CensoPart):
 
             # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
             # so that 'filtered' contains all conformers that should not be considered any further
-            f = lambda x: self.grrho(x) - limit > threshold and x.results[self.__name.lower()]["xtb_opt"][
-                "grad_norm"] < self.__instructions["gradthr"]
+            f = lambda x: self.grrho(x) - limit > threshold and x.results[self._name.lower()]["xtb_opt"][
+                "grad_norm"] < self._instructions["gradthr"]
             filtered: List[MoleculeData] = [
                 conf for conf in filter(
                     f,
@@ -420,7 +420,7 @@ class Optimization(CensoPart):
             self.print_update()
 
             # update number of cycles
-            ncyc += self.__instructions["optcycles"]
+            ncyc += self._instructions["optcycles"]
             print(f"NCYC: {ncyc}")
 
     def write_results(self) -> None:
@@ -446,7 +446,7 @@ class Optimization(CensoPart):
             "[Eh]",
             "[Eh]",
             "[kcal/mol]",
-            f"\% at {self.__instructions.get('temperature', 298.15)} K",
+            f"\% at {self._instructions.get('temperature', 298.15)} K",
         ]
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
@@ -456,23 +456,23 @@ class Optimization(CensoPart):
         )
 
         dftmin = min(
-            conf.results[self.__name.lower()]["xtb_opt"]["energy"]
+            conf.results[self._name.lower()]["xtb_opt"]["energy"]
             for conf in self.core.conformers
         )
 
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda
-                conf: f"{conf.results[self.__name.lower()]['xtb_opt']['energy']:.6f}",
+                conf: f"{conf.results[self._name.lower()]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)": lambda
-                conf: f"{(conf.results[self.__name.lower()]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
+                conf: f"{(conf.results[self._name.lower()]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf:
-            f"{conf.results[self.__name.lower()]['xtb_rrho']['gibbs'][self.__instructions['temperature']]:.6f}"
-            if self.__instructions["evaluate_rrho"]
+            f"{conf.results[self._name.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
+            if self._instructions["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self.__name.lower()]['bmw'] * 100:.2f}",
+            "Boltzmann weight": lambda conf: f"{conf.results[self._name.lower()]['bmw'] * 100:.2f}",
         }
 
         rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
@@ -480,7 +480,7 @@ class Optimization(CensoPart):
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
-        with open(os.path.join(self.core.workdir, f"{self.__name.lower()}.out"), "w",
+        with open(os.path.join(self.core.workdir, f"{self._name.lower()}.out"), "w",
                   newline=None) as outfile:
             outfile.writelines(lines)
 

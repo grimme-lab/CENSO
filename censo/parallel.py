@@ -32,7 +32,7 @@ class ProcessHandler:
         self.__instructions = instructions
 
         # stores the conformers
-        # NOTE: why not just inject core here as well? because for e.g. 'ensembleopt' you don't actually use all of the core.conformers for every step,
+        # NOTE: why not just inject core here as well? because for e.g. 'optimization' you don't actually use all of the core.conformers for every step,
         # since some might converge sooner. this is more flexible
         self.__conformers: List[GeometryData] = conformers
 
