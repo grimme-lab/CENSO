@@ -1,6 +1,6 @@
 import unittest
 
-from censo.cfg import DESCR
+from censo.params import DESCR
 from censo.inputhandling import cml
 
 class CmlTest(unittest.TestCase):

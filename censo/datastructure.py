@@ -2,7 +2,8 @@ from typing import Dict, List
 from functools import reduce
 from collections import defaultdict
 
-from censo.cfg import BOHR2ANG
+from censo.params import BOHR2ANG
+
 
 class GeometryData:
     """
@@ -10,23 +11,23 @@ class GeometryData:
     in order to keep the object small, since it has to be pickled for multiprocessing
     """
 
-    def __init__(self, id: int, name: str, xyz):
+    def __init__(self, identifier: int, name: str, xyz):
         """
         takes an identifier and the geometry lines from the xyz-file as input
         """
-        
+
         # identifier linking it to a MoleculeData object
         # NOTE: this is runtime specific since it is set via built-in id-function
-        self.id: int = id
+        self.id: int = identifier
 
         # name of the linked MoleculeData
         self.name: str = name
-        
+
         # dict with element symbols as keys and lists of three-item lists as values
         # the coordinates should be given in Angstrom
         # self.xyz = {"H": [[0.0, 0.0, 0.0], [...], ...], "C": [[0.0, 0.0, 0.0], ...], ...}
         self.xyz: Dict[str, List[List[float]]] = {}
-        
+
         # set up xyz dict from the input lines
         for line in xyz:
             spl = [s.strip() for s in line.split()]
@@ -34,7 +35,7 @@ class GeometryData:
             tmp = spl[1:]
             if element not in self.xyz.keys():
                 self.xyz[element] = []
-                
+
             self.xyz[element].append([float(i) for i in tmp])
 
         # compute number of atoms
@@ -44,7 +45,6 @@ class GeometryData:
         # (FIXME - quick and dirty solution, it would seem to make more sense to put this into a MoleculeData object)
         self.mo_path: str = None
 
-    
     def toorca(self) -> List:
         """
         method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
@@ -53,9 +53,8 @@ class GeometryData:
         for element, allcoords in self.xyz.items():
             for atom in allcoords:
                 coord.append([element] + atom)
-        
-        return coord
 
+        return coord
 
     def tocoord(self) -> List[str]:
         """
@@ -70,7 +69,6 @@ class GeometryData:
         coord.append("$end\n")
 
         return coord
-
 
     def fromcoord(self, path: str) -> None:
         """
@@ -88,7 +86,6 @@ class GeometryData:
                 self.xyz[last_coord].append(cartesian_coords)
             elif line.startswith("$end"):
                 break
-
 
     def toxyz(self) -> List[str]:
         """
@@ -112,21 +109,21 @@ class MoleculeData:
 
     The confomers' MoleculeDatas are set up in censo.core.CensoCore.setup_conformers
     """
-    
+
     def __init__(self, name: str, xyz):
         """
         takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor
         """
-        
+
         # stores a name for printing and (limited) between-run comparisons
         self.name: str = name
-        
+
         # stores the geometry info to have a small object to be used for multiprocessing
         self.geom: GeometryData = GeometryData(id(self), self.name, xyz)
-        
+
         # stores the initial xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float = None
-        
+
         # stores the results of the calculations
         self.results = {}
         # should be structured like the following:

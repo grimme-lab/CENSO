@@ -4,15 +4,13 @@ Performs the parallel execution of the QM calls.
 from functools import reduce
 import os
 from typing import Any, Dict, List, Tuple
-from concurrent.futures import ProcessPoolExecutor, process
-from pprint import pprint
+from concurrent.futures import ProcessPoolExecutor
 import atexit
 
 from censo.procfact import ProcessorFactory
 from censo.utilities import print
-from censo.datastructure import GeometryData, MoleculeData
-from censo.settings import CensoRCParser
-from censo.cfg import OMPMIN, OMPMAX
+from censo.datastructure import GeometryData
+from censo.params import OMPMIN, OMPMAX
 
 
 class ProcessHandler:
@@ -37,23 +35,22 @@ class ProcessHandler:
         # NOTE: why not just inject core here as well? because for e.g. 'optimization' you don't actually use all of the core.conformers for every step,
         # since some might converge sooner. this is more flexible
         self.__conformers: List[GeometryData] = conformers
-        
+
         # stores the processor
         self.__processor = None
-        
+
         # get number of cores
         try:
             self.__ncores = os.cpu_count()
         except AttributeError:
             print(f"WARNING: Could not determine number of cores. Automatic load balancing will be disabled.")
             self.__instructions["balance"] = False
-        
+
         # get number of processes
         self.__nprocs = self.__instructions["procs"]
-        
+
         # get number of cores per process
         self.__omp = self.__instructions["omp"]
-                
 
     def execute(self, jobtype: List[str], workdir: str):
         """
@@ -66,7 +63,7 @@ class ProcessHandler:
         """
         # try to get program from instructions
         prog = self.__instructions.get("prog", None)
-        
+
         if prog is None:
             raise RuntimeError("Could not determine program from instructions.")
 
@@ -75,17 +72,17 @@ class ProcessHandler:
         # also pass a lookup dict to the processor so it can set the solvent for the program call correctly
         # TODO - maybe find a way such that the processor doesn't have to be reinitialized all the time
         self.__processor = ProcessorFactory.create_processor(
-            prog, 
+            prog,
             self.__instructions,
             jobtype,
             workdir
         )
-        
+
         if self.__instructions["balance"]:
             # execute processes for conformers with load balancing enabled
             # divide the conformers into chunks, work through them one after the other
             chunks, procs = self.__chunkate()
-                
+
             # execute each chunk with dynamic queue
             # TODO - add capability to use free workers after some time has elapsed (average time for each conformers per number of cores)
             # to avoid single conformers to clog up the queue for a chunk (basically move conformers between chunks?)
@@ -104,30 +101,28 @@ class ProcessHandler:
 
         # assert that there is a result for every conformer
         try:
-            assert all([conf.id in results.keys() for conf in self.__conformers])  
+            assert all([conf.id in results.keys() for conf in self.__conformers])
         except AssertionError:
-            raise RuntimeError("There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
-        
+            raise RuntimeError(
+                "There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
+
         return results
 
-    
     @property
     def conformers(self):
         return self.__conformers
-
 
     @conformers.setter
     def conformers(self, conformers: List[GeometryData]):
         # TODO - include check?
         self.__conformers = conformers
 
-
     def __dqp(self, confs: List[GeometryData]) -> Dict[str, Any]:
         """
         D ynamic Q ueue P rocessing
         parallel execution of processes with settings defined in self.__processor.instructions
         """
-        
+
         # execute calculations for given list of conformers
         with ProcessPoolExecutor(max_workers=self.__nprocs) as executor:
             # make sure that the executor exits gracefully on termination
@@ -135,17 +130,16 @@ class ProcessHandler:
             # should be fine since workers will kill programs with SIGTERM
             # wait=True leads to the workers waiting for their current task to be finished before terminating
             atexit.register(executor.shutdown, wait=False)
-            
+
             # execute processes
-            resiter = executor.map(self.__processor.run, confs) 
-        
-        # returns merged result dicts
+            resiter = executor.map(self.__processor.run, confs)
+
+            # returns merged result dicts
         # structure of results: 
         #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
         return reduce(lambda x, y: {**x, **y}, resiter)
-        
-        
-    def __chunkate(self) -> Tuple[List[Any]]:
+
+    def __chunkate(self) -> tuple[list[list[GeometryData]], list[int | Any]]:
         """
         Distributes conformers until none are left.
         Groups chunks by the number of processes.
@@ -162,10 +156,10 @@ class ProcessHandler:
 
         # Initialize a counter variable to keep track of the current chunk
         i = 0
-        
+
         # Initialize a variable to store the previous number of processes used
         pold = -1
-        
+
         # Get the total number of conformers
         nconf, lconf = len(self.__conformers), len(self.__conformers)
 
@@ -175,7 +169,7 @@ class ProcessHandler:
 
         # Loop until all conformers are distributed
         while nconf > 0:
-            
+
             # If the number of conformers is greater than or equal to the maximum number of processes
             if nconf >= maxprocs:
                 p = maxprocs
@@ -190,14 +184,14 @@ class ProcessHandler:
             # If the number of processes is different than before
             if p != pold:
                 # Add a new chunk to the list of chunks, containing a subset of conformers
-                chunks.append(self.__conformers[lconf-nconf:lconf-nconf+p])
+                chunks.append(self.__conformers[lconf - nconf:lconf - nconf + p])
                 # Add the number of processes used for the chunk to the list of process numbers
                 procs.append(p)
                 # Increment the counter variable to keep track of the current chunk
                 i += 1
             else:
                 # If the number of processes didn't change, merge the current chunk with the previous chunk
-                chunks[i-1].extend(self.__conformers[lconf-nconf:lconf-nconf+p])
+                chunks[i - 1].extend(self.__conformers[lconf - nconf:lconf - nconf + p])
 
             # Update the previous number of processes used
             pold = p

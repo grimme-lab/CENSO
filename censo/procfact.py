@@ -2,16 +2,17 @@ from typing import Dict
 
 from censo.qm_processor import QmProc
 from censo.orca_processor import OrcaProc
+
+
 # from censo.tm_processor import TmProc
 
 class ProcessorFactory:
-    
     # for now these are the only available processor types
     __proctypes: Dict[str, type] = {
         "orca": OrcaProc,
-    #    "tm": TmProc,
+        #    "tm": TmProc,
     }
-    
+
     @classmethod
     def create_processor(cls, prog, *args, **kwargs) -> QmProc:
         """
@@ -23,7 +24,7 @@ class ProcessorFactory:
         (lookup the constructors for the processor types for further documentation)
         """
         type_t: type = cls.__proctypes.get(prog, None)
-        
+
         if not type_t is None:
             return type_t(*args, **kwargs)
         else:

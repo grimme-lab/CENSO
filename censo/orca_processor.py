@@ -3,23 +3,15 @@ Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
 from collections import OrderedDict
 import os
-import sys
-import time
-import subprocess
 from typing import Any, Dict, List
 from functools import reduce
 import shutil
 
-from censo.cfg import (
+from censo.params import (
     CODING,
-    ENVIRON,
     WARNLEN,
-    PLANCK,
-    C,
-    SOLV_MODS,
-    GSOLV_MODS,
 )
-from censo.utilities import last_folders, t2x, x2t, print
+from censo.utilities import last_folders, print
 from censo.qm_processor import QmProc
 from censo.datastructure import GeometryData
 
@@ -30,9 +22,9 @@ class OrcaParser:
     can read input files and transpile them to ordered dict
     also capable of writing an input file from a properly ordered dict (see __todict for format)
     """
+
     def __init__(self):
         pass
-
 
     def read_input(self, path: str) -> OrderedDict:
         """
@@ -45,14 +37,12 @@ class OrcaParser:
 
         return converted
 
-
     def write_input(self, path: str, indict: OrderedDict) -> None:
         """
         write an orca input file at 'path' from an ordered dict
         """
         with open(path, "w") as outfile:
             outfile.writelines(self.__tolines(indict))
-
 
     def __todict(self, lines: List[str]) -> OrderedDict:
         """
@@ -87,7 +77,7 @@ class OrcaParser:
             # main input line found
             if line.startswith("!"):
                 # get rid of '!'
-                line =  line[1:]
+                line = line[1:]
 
                 # orca input may have multiple lines beginning with '!'
                 # account for that and read options from line
@@ -120,7 +110,7 @@ class OrcaParser:
                     converted[setting][option].remove("end")
                 # consume remaining definitions
                 else:
-                    for line2 in lines[i+1:end]:
+                    for line2 in lines[i + 1:end]:
                         split = line2.split()
                         option = split[0]
                         converted[setting][option] = split[1:]
@@ -133,8 +123,8 @@ class OrcaParser:
                 elif "xyz" in line.split()[0] or "xyz" in line.split()[1]:
                     converted["geom"]["def"] = ["xyz"]
                 else:
-                    raise ParsingError()
-                
+                    raise RuntimeError("Error parsing ORCA input file.")
+
                 # add the remaining line to the dict
                 # get rid of '*'
                 line = line[1:]
@@ -145,13 +135,12 @@ class OrcaParser:
                     converted["geom"]["coord"] = []
                     # find end of definition block
                     # start search from next line since geometry definition starts with an '*'
-                    end = i + self.__eob(lines[i+1:], endchar="*") + 1
+                    end = i + self.__eob(lines[i + 1:], endchar="*") + 1
 
-                    for line2 in lines[i+1:end]:
+                    for line2 in lines[i + 1:end]:
                         converted["geom"]["coord"].append(line2.split())
 
         return converted
-
 
     def __eob(self, lines: List[str], endchar: str = "end") -> int:
         """
@@ -164,11 +153,9 @@ class OrcaParser:
                 break
 
         if end is None:
-            # TODO - error handling
-            raise ParsingError()
+            raise RuntimeError("Error parsing ORCA input file.")
         else:
             return end
-
 
     def __remove_comments(self, inlist: List) -> None:
         """
@@ -178,7 +165,7 @@ class OrcaParser:
             if "#" in inlist[i]:
                 index = inlist[i].index("#")
                 inlist[i] = inlist[i][:index]
-    
+
     def __tolines(self, indict: OrderedDict) -> List[str]:
         """
         convert ordered dict to lines for orca input
@@ -202,11 +189,11 @@ class OrcaParser:
             for option in indict[key].keys():
                 lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
             lines.append("end\n")
-        
+
         # next, write the geometry input lines
         # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0 1")
         lines.append(f"* {reduce(lambda x, y: f'{x} {y}', indict['geom']['def'])}\n")
-        
+
         # write coordinates if "xyz" keyword is used
         # if "xyzfile" is used, nothing more has to be done
         if indict["geom"].get("coord", False):
@@ -215,7 +202,7 @@ class OrcaParser:
             lines.append("*\n")
 
         # lastly, write all the keywords and options that should be placed after the geometry input (e.g. NMR settings)
-        for key in allkeys[allkeys.index("geom")+1:]:
+        for key in allkeys[allkeys.index("geom") + 1:]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
                 lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
@@ -237,15 +224,9 @@ class OrcaProc(QmProc):
     - writing of generic output for shielding and coupling constants
     """
 
-    # TODO - Lookup dicts for solvent models and functionals/dispersion corretions
-    _solvent_models = {
-        "sm": SOLV_MODS["orca"],
-        "smgsolv": GSOLV_MODS["orca"],
-    }
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
         # expand jobtypes with special orca jobtypes
         """self._jobtypes = {
             **self._jobtypes, **{
@@ -271,7 +252,6 @@ class OrcaProc(QmProc):
                 "high+": ["DEFGRID2", "scfconv7"],
             },
         }
-        
 
     # TODO - make this better
     def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
@@ -294,13 +274,13 @@ class OrcaProc(QmProc):
 
         # grab func, basis
         func = self.instructions["func_name"]
-        basis = self.instructions["basis"] 
+        basis = self.instructions["basis"]
         indict["main"].append(func)
 
         # TODO - b3lyp-3c removed
         if "composite" not in self.instructions["func_type"]:
             indict["main"].append(basis)
-        ####################### SET RI ###########################
+            ####################### SET RI ###########################
             # set  RI def2/J,   RIJCOSX def2/J
             # this is only set if no composite DFA is used
             # settings for double hybrids
@@ -334,12 +314,12 @@ class OrcaProc(QmProc):
                 indict["main"].append("RIJCOSX")
                 if not orca5:
                     indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
-            
+
             # settings for (m)ggas
             elif "gga" in self.instructions["func_type"]:
-                indict["main"].append("RI")    
+                indict["main"].append("RI")
 
-        ########################## SET GRID ############################ 
+                ########################## SET GRID ############################
 
         """
         used in nmr calculation
@@ -350,7 +330,7 @@ class OrcaProc(QmProc):
 
         # use 'grid' setting from instructions to quickly choose the grid settings 
         indict["main"].extend(self.__gridsettings[orca5][self.instructions["grid"]])
-        
+
         ########################## DISPERSION ####################### TODO TODO TODO TODO TODO
         # add dispersion
         # dispersion correction information
@@ -395,12 +375,12 @@ class OrcaProc(QmProc):
         # by default coordinates are written directly into input file
         if xyzfile is None:
             indict["geom"] = {
-                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"]+1],
+                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"] + 1],
                 "coord": conf.toorca(),
             }
         else:
             indict["geom"] = {
-                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"]+1, xyzfile],
+                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"] + 1, xyzfile],
             }
 
         # try to apply gcp if basis set available
@@ -428,7 +408,6 @@ class OrcaProc(QmProc):
 
         return indict
 
-
     @QmProc._create_jobdir
     def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:
         """
@@ -454,7 +433,7 @@ class OrcaProc(QmProc):
 
         # prepare input dict
         indict = self.__prep(conf, "sp", no_solv=no_solv)
-        
+
         # write input into file "{filename}.inp" in a subdir created for the conformer
         parser = OrcaParser()
         parser.write_input(inputpath, indict)
@@ -467,7 +446,7 @@ class OrcaProc(QmProc):
 
         if not silent:
             print(f"Running ORCA single-point in {inputpath}")
-        
+
         # call orca
         call = [self.instructions["orcapath"], f"{filename}.inp"]
         self._make_call(call, outputpath, jobdir)
@@ -499,7 +478,6 @@ class OrcaProc(QmProc):
         # TODO - clean up
 
         return result
-
 
     def _gsolv(self, conf: GeometryData):
         """
@@ -554,11 +532,10 @@ class OrcaProc(QmProc):
             return result
 
         # calculate solvation free enthalpy
-        result["gsolv"] = result["energy_solv"] - result["energy_gas"]        
+        result["gsolv"] = result["energy_solv"] - result["energy_gas"]
         result["success"] = True
 
         return result
-
 
     @QmProc._create_jobdir
     def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt"):
@@ -579,7 +556,7 @@ class OrcaProc(QmProc):
         # NOTE: some "intuitivity problems":
         # the first call of _xtb_opt (probably in spearman opt) generates a coord file, which is then updated externally by xtb
         # the content of this coord file is converted into conf.xyz to be used by orca
-        
+
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
         # 'energy' contains the final energy of the optimization (converged or unconverged)
@@ -598,7 +575,7 @@ class OrcaProc(QmProc):
 
         jobdir = os.path.join(self.workdir, conf.name, "xtb_opt")
         xcontrolname = "xtb_opt-xcontrol-inp"
-        
+
         files = [
             "xtbrestart",
             "xtbtopo.mol",
@@ -607,16 +584,16 @@ class OrcaProc(QmProc):
             "charges",
             "gfnff_topo",
         ]
-        
+
         # remove potentially preexisting files to avoid confusion
         for file in files:
             if os.path.isfile(os.path.join(jobdir, file)):
                 os.remove(os.path.join(jobdir, file))
-        
+
         # write conformer geometry to coord file
         with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
             file.writelines(conf.tocoord())
-        
+
         # write xyz-file for orca
         with open(os.path.join(jobdir, f"{filename}.xyz"), "w", newline=None) as file:
             file.writelines(conf.toxyz())
@@ -627,24 +604,24 @@ class OrcaProc(QmProc):
         # prepare input dict
         parser = OrcaParser()
         indict = self.__prep(conf, filename, xyzfile=f"{filename}.xyz")
-        
+
         # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)
 
         # append some additional lines to the coord file for ancopt
         with open(
-            os.path.join(jobdir, f"{filename}.coord"), "a", newline=None
+                os.path.join(jobdir, f"{filename}.coord"), "a", newline=None
         ) as newcoord:
             newcoord.writelines([
-                    "$external\n",
-                    f"   orca input file= {filename}.inp\n",
-                    f"   orca bin= {self.instructions['orcapath']}\n",
-                    "$end\n"
+                "$external\n",
+                f"   orca input file= {filename}.inp\n",
+                f"   orca bin= {self.instructions['orcapath']}\n",
+                "$end\n"
             ])
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(
-            os.path.join(jobdir, xcontrolname), "w", newline=None
+                os.path.join(jobdir, xcontrolname), "w", newline=None
         ) as out:
             out.write("$opt \n")
             if self.instructions["opt_spearman"]:
@@ -666,14 +643,14 @@ class OrcaProc(QmProc):
         # prepare xtb call
         call = [
             self.instructions["xtbpath"],
-            f"{filename}.coord", # name of the coord file generated above
+            f"{filename}.coord",  # name of the coord file generated above
             "--opt",
             self.instructions["optlevel"],
             "--orca",
             "-I",
             xcontrolname
         ]
-        
+
         # set path to the ancopt output file
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
@@ -701,9 +678,9 @@ class OrcaProc(QmProc):
             for line in lines:
                 # the following is probably self explanatory
                 if (
-                    "external code error" in line
-                    or "|grad| > 500, something is totally wrong!" in line
-                    or "abnormal termination of xtb" in line
+                        "external code error" in line
+                        or "|grad| > 500, something is totally wrong!" in line
+                        or "abnormal termination of xtb" in line
                 ):
                     print(
                         f"{'WARNING:':{WARNLEN}}optimization in "

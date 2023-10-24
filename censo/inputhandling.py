@@ -6,7 +6,7 @@ cml parsing
 import argparse
 import os
 from typing import List
-from censo.cfg import (
+from censo.params import (
     __version__,
 )
 

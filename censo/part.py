@@ -1,18 +1,19 @@
-from typing import Dict, Any, Type, Union
+import functools
+from typing import Dict, Any, Callable
 import os
 import ast
-from functools import reduce
-import json
 
-from censo.utilities import timeit
 from censo.core import CensoCore
-from censo.settings import CensoRCParser
-from censo.cfg import (
+from censo.params import (
     PLENGTH,
     DIGILEN,
     OMPMIN,
     OMPMAX,
-    ASSETS_PATH,
+    SOLVENTS_DB,
+    COSMORS_PARAM,
+)
+from censo.utilities import (
+    DfaHelper
 )
 
 """
@@ -22,27 +23,6 @@ implement complete OOP approach.
 
 
 class CensoPart:
-    __cosmors_param = {
-        "12-normal": "BP_TZVP_C30_1201.ctd",
-        "13-normal": "BP_TZVP_C30_1301.ctd",
-        "14-normal": "BP_TZVP_C30_1401.ctd",
-        "15-normal": "BP_TZVP_C30_1501.ctd",
-        "16-normal": "BP_TZVP_C30_1601.ctd",
-        "17-normal": "BP_TZVP_C30_1701.ctd",
-        "18-normal": "BP_TZVP_18.ctd",
-        "19-normal": "BP_TZVP_19.ctd",
-        "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
-        "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
-        "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
-        "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
-        "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
-        "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
-        "18-fine": "BP_TZVPD_FINE_18.ctd",
-        "19-fine": "BP_TZVPD_FINE_19.ctd",
-    }
-
-    with open(os.path.join(ASSETS_PATH, "censo_solvents_db.json"), "r") as solv_file:
-        __solvents_db = json.load(solv_file)
 
     _options = {
         "general": {
@@ -90,7 +70,7 @@ class CensoPart:
             },
             "solvent": {
                 "default": "h2o",
-                "options": [k for k in __solvents_db.keys()]
+                "options": [k for k in SOLVENTS_DB.keys()]
             },
             "sm_rrho": {
                 "default": "alpb",
@@ -101,7 +81,7 @@ class CensoPart:
             },
             "cosmorsparam": {
                 "default": "12-normal",
-                "options": [k for k in __cosmors_param.keys()]
+                "options": [k for k in COSMORS_PARAM.keys()]
             },
             "multitemp": {
                 "default": True
@@ -153,6 +133,10 @@ class CensoPart:
 
     @classmethod
     def get_settings(cls):
+        return {**cls._settings, **CensoPart._settings}
+
+    @classmethod
+    def get_part_settings(cls):
         return cls._settings
 
     @classmethod
@@ -160,6 +144,14 @@ class CensoPart:
         cls._validate(settings)
         settings = cls._complete(settings)
         cls._settings = settings
+
+    @classmethod
+    def get_options(cls):
+        return {**cls._options, **CensoPart._options}
+
+    @classmethod
+    def get_part_options(cls):
+        return cls._options
 
     @classmethod
     def _complete(cls, tocomplete: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -227,45 +219,60 @@ class CensoPart:
                 # set the value in the dict tovalidate to the casted value
                 tovalidate[part][setting_name] = setting_value
 
-    def __init__(self, core: CensoCore, settings: CensoRCParser, part: str):
+    @staticmethod
+    def _create_dir(runner: Callable) -> Callable:
+        """
+        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_dir decorator.
+        The wrapper function within will be able to access the instance variables of the class.
+        To access this method from child classes, the decorator must be called like: @CensoPart._create_dir.
+        """
+        @functools.wraps(runner)
+        def wrapper(self, *args, **kwargs):
+            # create/set folder to do the calculations in
+            self.dir = os.path.join(self.core.workdir, self.__name)
+            if os.path.isdir(self.dir):
+                print(f"Folder {self.dir} already exists. Potentially overwriting files.")
+            elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
+                raise RuntimeError(f"Could not create directory for {self.__name}.")
+
+            return runner(self, *args, **kwargs)
+
+        return wrapper
+
+    def __init__(self, core: CensoCore, name: str = None):
+        if name is None:
+            name = self.__class__.__name__.lower()
+
+        # sets the name of the part (used for printing and folder creation)
+        self.__name: str = name
+
+        # every part instance depends on a core instance to manage the conformers
         self.core: CensoCore = core
-        self.settings: CensoRCParser = settings
 
-        # contains settings grabbed from CensoSettings instance, such as general settings etc.
-        self._instructions: Dict[str, Any]
+        # dictionary with instructions that get passed to the processors
+        # basically collapses the first level of nesting into a dict that is not divided into parts
+        self.__instructions: Dict[str, Any] = \
+            {key: value for nested_dict in self.get_settings().values() for key, value in nested_dict.items()}
 
-        # grabs the settings required for this part from the passed 'CensoSettings' instance
-        paths = settings.settings_current.get("paths")
-        general = settings.settings_current.get("general")
-        specific = settings.settings_current.get(part)
-        self._instructions = {**paths, **general, **specific}
-
-        # add some additional settings to _instructions so that the processors don't have to do any lookups
+        # add some additional settings to instructions so that the processors don't have to do any lookups
         # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-        self._instructions["solvent_key_xtb"] = settings.solvents_db.get(self._instructions["solvent"])["xtb"][1]
-        if 'sm' in self._instructions.keys():
-            self._instructions[f"solvent_key_prog"] = \
-                settings.solvents_db.get(self._instructions["solvent"])[self._instructions["sm"]][1]
+        self.__instructions["solvent_key_xtb"] = SOLVENTS_DB.get(self.__instructions["solvent"])["xtb"][1]
+        if 'sm' in self.__instructions.keys():
+            self.__instructions["solvent_key_prog"] = \
+                SOLVENTS_DB.get(self.__instructions["solvent"])[self.__instructions["sm"]][1]
             # TODO - doesn't work yet for parts where 'func' keyword doesn't exist or there are multiple functionals
-        self._instructions["func_type"] = settings.dfa_settings.get_type(self._instructions["func"])
+        self.__instructions["func_type"] = DfaHelper.get_type(self.__instructions["func"])
 
         # add 'charge' and 'unpaired' to instructions
-        self._instructions["charge"] = core.runinfo.get("charge")
-        self._instructions["unpaired"] = core.runinfo.get("unpaired")
+        self.__instructions["charge"] = core.runinfo.get("charge")
+        self.__instructions["unpaired"] = core.runinfo.get("unpaired")
 
         # set the correct name for 'func'
-        self._instructions["func_name"] = settings.dfa_settings.get_name(self._instructions["func"],
-                                                                         self._instructions["prog"])
-        self._instructions["disp"] = settings.dfa_settings.get_disp(self._instructions["func"])
+        self.__instructions["func_name"] = DfaHelper.get_name(self.__instructions["func"], self.__instructions["prog"])
+        self.__instructions["disp"] = DfaHelper.get_disp(self.__instructions["func"])
 
-        # create/set folder to do the calculations in
-        self.folder = os.path.join(self.core.workdir, self.__class__.__name__.lower())
-        if os.path.isdir(self.folder):
-            print(f"Folder {self.folder} already exists. Potentially overwriting files.")
-        elif os.system(f"mkdir {self.folder}") != 0 and not os.path.isdir(self.folder):
-            raise RuntimeError(f"Could not create directory for {self.__class__.__name__.lower()}.")
+        self.dir: str = None
 
-    @timeit
     def run(self) -> None:
         """
         what gets executed if the part is run
@@ -280,10 +287,10 @@ class CensoPart:
 
         # header
         lines = ["\n" + "".ljust(PLENGTH, "-") + "\n",
-                 f"{self.__class__.__name__.upper()} - {self.alt_name.upper()}".center(PLENGTH, " ") + "\n",
+                 f"{self.__class__.__name__.upper()} - {self.__name.upper()}".center(PLENGTH, " ") + "\n",
                  "".ljust(PLENGTH, "-") + "\n", "\n"]
 
-        for instruction, val in self._instructions.items():
+        for instruction, val in self.get_settings().items():
             lines.append(f"{instruction}:".ljust(DIGILEN // 2, " ") + f"{val}\n")
 
         # print everything to console

@@ -2,7 +2,7 @@ import unittest
 import os
 
 from censo.inputhandling import cml
-from censo.cfg import DESCR
+from censo.params import DESCR
 from censo.core import CensoCore
 
 test_args = cml(DESCR, "-inp testfiles/crest_conformers.xyz".split())

@@ -14,7 +14,7 @@ from builtins import print as print_orig
 from typing import Any, Callable, Tuple, Union, List, Dict
 import functools
 
-from censo.cfg import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
+from censo.params import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
 
 
 class DfaHelper:
@@ -116,7 +116,7 @@ def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = No
     # add table header
     lines.append(" ".join(f"{header:^{collen + 6}}" for header, collen in collens.items()))
     lines[0] += "\n"
-    if not units is None:
+    if units is not None:
         lines.append(" ".join(f"{unit:^{collen + 6}}" for unit, collen in zip(units, collens.values())))
         lines[1] += "\n"
 

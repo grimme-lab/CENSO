@@ -9,13 +9,13 @@ from time import perf_counter
 import sys
 from traceback import print_exc
 
-from censo.cfg import PLENGTH, DESCR, ASSETS_PATH, __version__
+from censo.params import PLENGTH, DESCR, ASSETS_PATH, __version__
 from censo.inputhandling import cml
 from censo.utilities import print
 # from censo.tutorial import interactiv_doc
 from censo.core import CensoCore
 from censo.optimization import *
-from censo.settings import CensoRCParser
+from censo.configuration import CensoRCParser
 
 # use generators for reduced memory usage?
 # dict.setdefault()

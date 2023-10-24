@@ -95,10 +95,28 @@ OMPMIN = 4
 
 OMPMAX = 32
 
-# TODO - this smells
-basis_file = open(os.path.join(ASSETS_PATH, "basis_sets.json"), "r")
-BASIS_SETS = json.load(basis_file)
-basis_file.close()
+BASIS_SETS = {}
+
+SOLVENTS_DB = {}
+
+COSMORS_PARAM = {
+    "12-normal": "BP_TZVP_C30_1201.ctd",
+    "13-normal": "BP_TZVP_C30_1301.ctd",
+    "14-normal": "BP_TZVP_C30_1401.ctd",
+    "15-normal": "BP_TZVP_C30_1501.ctd",
+    "16-normal": "BP_TZVP_C30_1601.ctd",
+    "17-normal": "BP_TZVP_C30_1701.ctd",
+    "18-normal": "BP_TZVP_18.ctd",
+    "19-normal": "BP_TZVP_19.ctd",
+    "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
+    "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
+    "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
+    "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
+    "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
+    "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
+    "18-fine": "BP_TZVPD_FINE_18.ctd",
+    "19-fine": "BP_TZVPD_FINE_19.ctd",
+}
 
 # qm_prepinfo: grid and scfconv settings for ORCA and TM
 qm_prepinfo = {
@@ -116,6 +134,18 @@ qm_prepinfo = {
     },
 }
 
+
+def load_dbs():
+    global BASIS_SETS
+    global SOLVENTS_DB
+
+    with open(os.path.join(ASSETS_PATH, "basis_sets.json"), "r") as f:
+        BASIS_SETS = json.load(f)
+
+    with open(os.path.join(ASSETS_PATH, "censo_solvents_db.json"), "r") as f:
+        SOLVENTS_DB = json.load(f)
+
+
 def NMRRef_to_dict(self):
     """Convert NMRRef data to a dict object"""
     dict_ret = dict(
@@ -131,6 +161,7 @@ def NMRRef_to_dict(self):
         p_orca_shieldings=self.p_orca_shieldings,
     )
     return dict_ret
+
 
 def dict_to_NMRRef(self, dictionary):
     """Convert dict object to NMRRef data """
@@ -203,7 +234,6 @@ rot_sym_num = {
     "oh": 24,
     "ih": 60,
 }
-
 
 si_bib = {
     "tm": [

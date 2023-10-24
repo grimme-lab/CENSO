@@ -1,7 +1,7 @@
 import unittest
 import json
 
-from censo.settings import DfaHelper
+from censo.configuration import DfaHelper
 
 dfas = json.load(open("./censo/assets/censo_dfa_settings.json", "r"))
 

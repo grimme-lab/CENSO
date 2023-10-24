@@ -3,8 +3,8 @@ import os
 from functools import reduce
 
 from censo.inputhandling import cml
-from censo.cfg import DESCR
-from censo.settings import CensoRCParser
+from censo.params import DESCR
+from censo.configuration import CensoRCParser
 
 
 def parentdir(path):

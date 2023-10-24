@@ -5,16 +5,11 @@ functionality for program setup
 
 from argparse import Namespace
 import os
-import sys
-from typing import Callable, Dict, List
-from multiprocessing import Lock
+from typing import List
 from math import exp
-from pprint import pprint
 
-from censo.cfg import (
-    CODING,
+from censo.params import (
     WARNLEN,
-    __version__,
     AU2J,
     KB
 )
@@ -31,7 +26,7 @@ from censo.utilities import (
 class CensoCore:
     """
     """
-    
+
     def __init__(self, workdir: str, args: Namespace = None):
         """
         Setup a CensoCore object using the args from the command line
@@ -42,8 +37,8 @@ class CensoCore:
         self.workdir: str = workdir
 
         # if args are given set accordingly, otherwise assume CENSO is used without commandline
-        self.args: Nampespace = args
-        
+        self.args: Namespace = args
+
         # contains run-specific info that may change during runtime
         # initialized in CensoCore.read_input
         self.runinfo = {
@@ -55,18 +50,17 @@ class CensoCore:
             "charge": int,
             "unpaired": int,
         }
-            
+
         # stores the conformers with all info
         # NOTE: this is deliberately chosen to be a list since lists are ordered
         self.conformers: List[MoleculeData] = []
- 
+
         # stores the conformers which were sorted out
-        self.rem: List[MoleculeData] = []       
-        
+        self.rem: List[MoleculeData] = []
+
         # absolute path to ensemble input file
         self.ensemble_path: str
 
-        
     def read_input(self, ensemble_path: str, charge: int = None, unpaired: int = None) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
@@ -76,27 +70,26 @@ class CensoCore:
 
         # store md5 hash for quick comparison of inputs later
         self.runinfo["md5"] = do_md5(self.ensemble_path)
-        
+
         # if $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
             lines = inp.readlines()
             if any(["$coord" in line for line in lines]):
                 _, self.runinfo["nat"], self.ensemble_path = t2x(
-                        self.ensemble_path, writexyz=True, outfile="converted.xyz"
-                    )
+                    self.ensemble_path, writexyz=True, outfile="converted.xyz"
+                )
             else:
                 self.runinfo["nat"] = int(lines[0].split()[0])
 
         # set charge and unpaired via funtion args or cml args
-        if not self.args is None:
+        if self.args is not None:
             self.runinfo["charge"] = charge or self.args.charge
             self.runinfo["unpaired"] = unpaired or self.args.unpaired
-            
+
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError("Charge or number of unpaired electrons not defined.")
 
         self.setup_conformers()
-
 
     def setup_conformers(self) -> None:
         """
@@ -109,7 +102,7 @@ class CensoCore:
         with open(self.ensemble_path, "r") as file:
             lines = file.readlines()
             nat = self.runinfo["nat"]
-            
+
             # check for correct line count in input 
             # assuming consecutive xyz-file format (every conf therefore needs nat + 2 lines)
             if len(lines) % (nat + 2) != 0:
@@ -135,14 +128,13 @@ class CensoCore:
 
             # get precalculated energies if possible
             for i in range(nconf):
-                self.conformers.append(MoleculeData(f"CONF{i+1}", lines[2+i*(nat+2):(i+1)*(nat+2)]))
-                
+                self.conformers.append(MoleculeData(f"CONF{i + 1}", lines[2 + i * (nat + 2):(i + 1) * (nat + 2)]))
+
                 # precalculated energy set to 0.0 if it cannot be found
-                self.conformers[i].xtb_energy = check_for_float(lines[i*(nat+2)+1]) or 0.0
-            
+                self.conformers[i].xtb_energy = check_for_float(lines[i * (nat + 2) + 1]) or 0.0
+
             # also works if xtb_energy is None for some reason (None is put first)    
             self.conformers.sort(key=lambda x: x.xtb_energy)
-
 
     def update_conformers(self, filtered: List[MoleculeData]):
         """
@@ -153,7 +145,6 @@ class CensoCore:
         for conf in filtered:
             # pop item from conformers and insert this item at index 0 in rem
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
-
 
     def dump_ensemble(self, part: str) -> None:
         """
@@ -197,15 +188,15 @@ class CensoCore:
 
                 # calculate boltzmann factors
                 bmfactors = {
-                id(conf): conf.results[part]["sp"]["energy"]
-                            * exp(-(conf.results[part]["sp"]["energy"] - minfree) * AU2J / (KB * temp))
-                for conf in self.conformers
+                    id(conf): conf.results[part]["sp"]["energy"]
+                              * exp(-(conf.results[part]["sp"]["energy"] - minfree) * AU2J / (KB * temp))
+                    for conf in self.conformers
                 }
             else:
                 raise RuntimeError("Could not find minimum free energy.")
 
         # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())
-        
+
         for conf in self.conformers:
             conf.results[part]["bmw"] = bmfactors[id(conf)] / bsum

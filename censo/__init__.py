@@ -1,1 +1,3 @@
-from censo.settings import CensoRCParser
+from censo.configuration import configure
+
+configure()
