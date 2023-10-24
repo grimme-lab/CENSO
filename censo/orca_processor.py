@@ -368,7 +368,7 @@ class OrcaProc(QmProc):
                     "smd": ["true"],
                     "smdsolvent": [f"\"{self.instructions['solvent_key_prog']}\""],
                 }
-            elif self.instuctions["sm"] == "cpcm":
+            elif self.instructions["sm"] == "cpcm":
                 indict["main"].append(f"CPCM({self.instructions['solvent_key_prog']})")
 
         # unpaired, charge, and coordinates

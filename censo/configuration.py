@@ -65,7 +65,7 @@ def configure(rcpath: str = None):
 
     # Update the paths for the processors
     paths = read_rcfile(censorc_path)["paths"]
-    QmProc.paths = paths
+    QmProc._paths.update(paths)
 
 
 def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
