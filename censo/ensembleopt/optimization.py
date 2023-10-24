@@ -34,7 +34,7 @@ class Optimization(CensoPart):
     __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
-        "ensembleopt": {
+        "optimization": {
             "optcycles": {
                 "default": 8,
                 "range": [
@@ -93,7 +93,7 @@ class Optimization(CensoPart):
             # },
             "func": {
                 "default": "r2scan-3c",
-                "options": DfaHelper.find_func("ensembleopt")
+                "options": DfaHelper.find_func("optimization")
             },
             "basis": {
                 "default": "def2-TZVP",
@@ -149,7 +149,7 @@ class Optimization(CensoPart):
 
     _settings = {}
 
-    def __init__(self, core: CensoCore, name: str = "ensembleopt"):
+    def __init__(self, core: CensoCore, name: str = "optimization"):
         super().__init__(core, name=name)
         self.confs_nc: List[GeometryData]
 
@@ -162,7 +162,7 @@ class Optimization(CensoPart):
         Uses xtb as driver for orca/tm, calculates hessians from orca/tm single-points and reevaluates ensemble every 'optcycles' steps
         by calculating the thermodynamics of the optimized geometries
 
-        Alternatively just run the complete ensembleopt for every conformer with xtb as driver (decide with 'opt_spearman')
+        Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'opt_spearman')
 
         TODO - implement regular ensembleopt (no xtb driver)
         TODO - what happens if not a single conformer converges?
@@ -196,7 +196,7 @@ class Optimization(CensoPart):
             self.__spearman_opt(handler)
         else:
             """
-            do normal ensembleopt
+            do normal geometry optimization
             """
             if not len(self.core.conformers) > 1:
                 print(f"Only one conformer ({self.core.conformers[0].name}) is available for ensembleopt.")
@@ -219,7 +219,7 @@ class Optimization(CensoPart):
                 conf.geom.xyz = results_opt[id(conf)]["xtb_opt"]["geom"]
 
                 # store results
-                conf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[id(conf)])
+                conf.results.setdefault(self.__name.lower(), {}).update(results_opt[id(conf)])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a solvent model,
@@ -229,19 +229,19 @@ class Optimization(CensoPart):
         results_rrho = handler.execute(["xtb_rrho"], self.dir)
 
         for conf in self.core.conformers:
-            conf.results[self.__class__.__name__.lower()].update(results_rrho[id(conf)])
+            conf.results[self.__name.lower()].update(results_rrho[id(conf)])
 
         # calculate boltzmann weights from gtot values calculated here
         self.core.calc_boltzmannweights(
             self.__instructions.get("temperature", 298.15),
-            self.__class__.__name__.lower()
+            self.__name.lower()
         )
 
         # write final results
         self.write_results()
 
         # dump ensemble
-        self.core.dump_ensemble(self.__class__.__name__.lower())
+        self.core.dump_ensemble(self.__name.lower())
 
     def grrho(self, conf: MoleculeData) -> float:
         """
@@ -250,10 +250,10 @@ class Optimization(CensoPart):
         """
         # TODO - implement branch for standard ensembleopt (no ancopt)
         try:
-            return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"] + \
-                conf.results[self.__class__.__name__.lower()]["xtb_rrho"]["energy"]
+            return conf.results[self.__name.lower()]["xtb_opt"]["energy"] + \
+                conf.results[self.__name.lower()]["xtb_rrho"]["energy"]
         except KeyError:
-            return conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"]
+            return conf.results[self.__name.lower()]["xtb_opt"]["energy"]
 
     def __spearman_opt(self, handler: ProcessHandler):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
@@ -293,7 +293,7 @@ class Optimization(CensoPart):
                         conf.xyz = results_opt[conf.id]["xtb_opt"]["geom"]
 
                         # store results
-                        coreconf.results.setdefault(self.__class__.__name__.lower(), {}).update(results_opt[conf.id])
+                        coreconf.results.setdefault(self.__name.lower(), {}).update(results_opt[conf.id])
                         break
 
             # run xtb_rrho for finite temperature contributions
@@ -311,8 +311,8 @@ class Optimization(CensoPart):
                 for conf in self.confs_nc:
                     for coreconf in self.core.conformers:
                         if id(coreconf) == conf.id:
-                            coreconf.results[self.__class__.__name__.lower()].update(results_rrho[conf.id])
-                            coreconf.results[self.__class__.__name__.lower()]["gtot"] = self.grrho(coreconf)
+                            coreconf.results[self.__name.lower()].update(results_rrho[conf.id])
+                            coreconf.results[self.__name.lower()]["gtot"] = self.grrho(coreconf)
                             break
 
                 # flag to make sure that rrho is only calculated once
@@ -390,7 +390,7 @@ class Optimization(CensoPart):
 
             # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
             # so that 'filtered' contains all conformers that should not be considered any further
-            f = lambda x: self.grrho(x) - limit > threshold and x.results[self.__class__.__name__.lower()]["xtb_opt"][
+            f = lambda x: self.grrho(x) - limit > threshold and x.results[self.__name.lower()]["xtb_opt"][
                 "grad_norm"] < self.__instructions["gradthr"]
             filtered: List[MoleculeData] = [
                 conf for conf in filter(
@@ -456,23 +456,23 @@ class Optimization(CensoPart):
         )
 
         dftmin = min(
-            conf.results[self.__class__.__name__.lower()]["xtb_opt"]["energy"]
+            conf.results[self.__name.lower()]["xtb_opt"]["energy"]
             for conf in self.core.conformers
         )
 
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda
-                conf: f"{conf.results[self.__class__.__name__.lower()]['xtb_opt']['energy']:.6f}",
+                conf: f"{conf.results[self.__name.lower()]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)": lambda
-                conf: f"{(conf.results[self.__class__.__name__.lower()]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
+                conf: f"{(conf.results[self.__name.lower()]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf:
-            f"{conf.results[self.__class__.__name__.lower()]['xtb_rrho']['gibbs'][self.__instructions['temperature']]:.6f}"
+            f"{conf.results[self.__name.lower()]['xtb_rrho']['gibbs'][self.__instructions['temperature']]:.6f}"
             if self.__instructions["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self.__class__.__name__.lower()]['bmw'] * 100:.2f}",
+            "Boltzmann weight": lambda conf: f"{conf.results[self.__name.lower()]['bmw'] * 100:.2f}",
         }
 
         rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
@@ -480,7 +480,7 @@ class Optimization(CensoPart):
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
-        with open(os.path.join(self.core.workdir, f"{self.__class__.__name__.lower()}.out"), "w",
+        with open(os.path.join(self.core.workdir, f"{self.__name.lower()}.out"), "w",
                   newline=None) as outfile:
             outfile.writelines(lines)
 

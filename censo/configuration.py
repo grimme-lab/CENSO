@@ -10,6 +10,8 @@ from censo.params import (
 from censo.qm_processor import QmProc
 from censo.utilities import DfaHelper
 
+parts = {}
+
 
 def configure(rcpath: str = None):
     """
@@ -38,6 +40,7 @@ def configure(rcpath: str = None):
     # otherwise there will be errors in the CensoPart._options
     from censo.part import CensoPart
     from censo.ensembleopt import prescreening, screening, optimization
+    global parts
     parts = {
         "general": CensoPart,
         "prescreening": prescreening.Prescreening,
@@ -55,7 +58,8 @@ def configure(rcpath: str = None):
         for section, settings in settings_dict.items():
             try:
                 assert section in parts
-                parts[section].set_settings(settings)
+                # TODO - this is a bit wacky
+                parts[section].set_settings({section: settings})
             except AssertionError:
                 pass
 
@@ -68,14 +72,12 @@ def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
     """
     Read from config data from file located at 'path'
     """
-    rcdata: Dict = {}
-
     # read config file
     parser: configparser.ConfigParser = configparser.ConfigParser()
     with open(path, "r") as file:
         parser.read_file(file)
 
-    return rcdata
+    return {section: dict(parser[section]) for section in parser.sections()}
 
 
 def write_rcfile(path: str) -> None:
@@ -103,7 +105,7 @@ def write_rcfile(path: str) -> None:
         global parts
         parser.read_dict({
             partname: {
-                settingname: setting["default"] for settingname, setting in part.get_part_options()
+                settingname: setting["default"] for settingname, setting in part.get_part_options()[partname].items()
             } for partname, part in parts.items()
         })
 

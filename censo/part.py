@@ -230,11 +230,11 @@ class CensoPart:
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(self.core.workdir, self.__name)
+            self.dir = os.path.join(self.core.workdir, self._name)
             if os.path.isdir(self.dir):
                 print(f"Folder {self.dir} already exists. Potentially overwriting files.")
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
-                raise RuntimeError(f"Could not create directory for {self.__name}.")
+                raise RuntimeError(f"Could not create directory for {self._name}.")
 
             return runner(self, *args, **kwargs)
 
@@ -245,32 +245,32 @@ class CensoPart:
             name = self.__class__.__name__.lower()
 
         # sets the name of the part (used for printing and folder creation)
-        self.__name: str = name
+        self._name: str = name
 
         # every part instance depends on a core instance to manage the conformers
         self.core: CensoCore = core
 
         # dictionary with instructions that get passed to the processors
         # basically collapses the first level of nesting into a dict that is not divided into parts
-        self.__instructions: Dict[str, Any] = \
+        self._instructions: Dict[str, Any] = \
             {key: value for nested_dict in self.get_settings().values() for key, value in nested_dict.items()}
 
         # add some additional settings to instructions so that the processors don't have to do any lookups
         # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-        self.__instructions["solvent_key_xtb"] = SOLVENTS_DB.get(self.__instructions["solvent"])["xtb"][1]
-        if 'sm' in self.__instructions.keys():
-            self.__instructions["solvent_key_prog"] = \
-                SOLVENTS_DB.get(self.__instructions["solvent"])[self.__instructions["sm"]][1]
+        self._instructions["solvent_key_xtb"] = SOLVENTS_DB.get(self._instructions["solvent"])["xtb"][1]
+        if 'sm' in self._instructions.keys():
+            self._instructions["solvent_key_prog"] = \
+                SOLVENTS_DB.get(self._instructions["solvent"])[self._instructions["sm"]][1]
             # TODO - doesn't work yet for parts where 'func' keyword doesn't exist or there are multiple functionals
-        self.__instructions["func_type"] = DfaHelper.get_type(self.__instructions["func"])
+        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
 
         # add 'charge' and 'unpaired' to instructions
-        self.__instructions["charge"] = core.runinfo.get("charge")
-        self.__instructions["unpaired"] = core.runinfo.get("unpaired")
+        self._instructions["charge"] = core.runinfo.get("charge")
+        self._instructions["unpaired"] = core.runinfo.get("unpaired")
 
         # set the correct name for 'func'
-        self.__instructions["func_name"] = DfaHelper.get_name(self.__instructions["func"], self.__instructions["prog"])
-        self.__instructions["disp"] = DfaHelper.get_disp(self.__instructions["func"])
+        self._instructions["func_name"] = DfaHelper.get_name(self._instructions["func"], self._instructions["prog"])
+        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
 
         self.dir: str = None
 
@@ -288,7 +288,7 @@ class CensoPart:
 
         # header
         lines = ["\n" + "".ljust(PLENGTH, "-") + "\n",
-                 f"{self.__class__.__name__.upper()} - {self.__name.upper()}".center(PLENGTH, " ") + "\n",
+                 f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(PLENGTH, " ") + "\n",
                  "".ljust(PLENGTH, "-") + "\n", "\n"]
 
         for instruction, val in self.get_settings().items():

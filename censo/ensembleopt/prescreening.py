@@ -95,12 +95,12 @@ class Prescreening(CensoPart):
         self.print_info()
 
         # initialize process handler with conformer geometries
-        handler = ProcessHandler(self.__instructions, [conf.geom for conf in self.core.conformers])
+        handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
 
         # set jobtype to pass to handler
         jobtype: List[str] = []
-        if not self.__instructions["gas-phase"]:
-            if self.__instructions.get("implicit", False):
+        if not self._instructions["gas-phase"]:
+            if self._instructions.get("implicit", False):
                 jobtype = ["sp", "gsolv"]
             else:
                 jobtype = ["sp", "xtb_gsolv"]
@@ -114,35 +114,35 @@ class Prescreening(CensoPart):
         # update results for each conformer
         for conf in self.core.conformers:
             # if 'copy_mo' is enabled, get the mo_path from the results and store it in the respective GeometryData object
-            if self.__instructions["copy_mo"]:
+            if self._instructions["copy_mo"]:
                 conf.geom.mo_path = results[id(conf)]["sp"]["mo_path"]
 
             # store results of single jobs for each conformer
-            conf.results.setdefault(self.__name, {}).update(results[id(conf)])
+            conf.results.setdefault(self._name, {}).update(results[id(conf)])
 
             # calculate free enthalpy values for every conformer
-            conf.results[self.__name]["gtot"] = self.gtot(conf)
+            conf.results[self._name]["gtot"] = self.gtot(conf)
 
         # sort conformers list with prescreening key (gtot)
         self.core.conformers.sort(
-            key=lambda conf: conf.results[self.__name]["gtot"],
+            key=lambda conf: conf.results[self._name]["gtot"],
         )
 
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
         self.core.calc_boltzmannweights(
-            self.__instructions.get("temperature", 298.15),
-            self.__name
+            self._instructions.get("temperature", 298.15),
+            self._name
         )
 
         # write results (analogous to deprecated print)
         self.write_results()
 
         # update conformers with threshold
-        threshold = self.__instructions["threshold"] / AU2KCAL
+        threshold = self._instructions["threshold"] / AU2KCAL
 
         # pick the free enthalpy of the lowest conformer
-        limit = min([conf.results[self.__name]["gtot"] for conf in self.core.conformers])
+        limit = min([conf.results[self._name]["gtot"] for conf in self.core.conformers])
 
         # filter out all conformers above threshold
         # so that 'filtered' contains all conformers that should not be considered any further
@@ -159,7 +159,7 @@ class Prescreening(CensoPart):
         # TODO - print out which conformers are no longer considered
 
         # dump ensemble
-        self.core.dump_ensemble(self.__name)
+        self.core.dump_ensemble(self._name)
 
         # DONE
 
@@ -170,13 +170,13 @@ class Prescreening(CensoPart):
         """
 
         # Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT)
-        gtot: float = conf.results[self.__name]["sp"]["energy"]
+        gtot: float = conf.results[self._name]["sp"]["energy"]
 
         # Gsolv is only calculated if prescreening is not in the gas-phase
-        if "xtb_gsolv" in conf.results[self.__name].keys():
-            gtot += conf.results[self.__name]["xtb_gsolv"]["gsolv"]
-        elif "gsolv" in conf.results[self.__name].keys():
-            gtot += conf.results[self.__name]["gsolv"]["gsolv"]
+        if "xtb_gsolv" in conf.results[self._name].keys():
+            gtot += conf.results[self._name]["xtb_gsolv"]["gsolv"]
+        elif "gsolv" in conf.results[self._name].keys():
+            gtot += conf.results[self._name]["gsolv"]["gsolv"]
 
         return gtot
 
@@ -222,7 +222,7 @@ class Prescreening(CensoPart):
             "[kcal/mol]",
             "[kcal/mol]",
             "[kcal/mol]",
-            f"\% at {self.__instructions.get('temperature', 298.15)} K",
+            f"\% at {self._instructions.get('temperature', 298.15)} K",
         ]
 
         # variables for printmap
@@ -230,30 +230,30 @@ class Prescreening(CensoPart):
         # TODO - where do prescreening and screening get xtb single-point from?
         # FIXME FIXME FIXME
         xtbmin = min(
-            conf.results[self.__name]['xtb_gsolv']['energy_xtb_gas']
+            conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']
             for conf in self.core.conformers
         )
 
         # minimal dft single-point energy
         dftmin = min(
-            conf.results[self.__name]['sp']['energy']
+            conf.results[self._name]['sp']['energy']
             for conf in self.core.conformers
         )
 
         # minimal solvation free enthalpy
-        if self.__instructions["gas-phase"]:
+        if self._instructions["gas-phase"]:
             gsolvmin = 0.0
         else:
             # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
-            if all("xtb_gsolv" in conf.results[self.__name].keys() for conf in
+            if all("xtb_gsolv" in conf.results[self._name].keys() for conf in
                    self.core.conformers):
                 gsolvmin = min(
-                    conf.results[self.__name]['xtb_gsolv']['gsolv']
+                    conf.results[self._name]['xtb_gsolv']['gsolv']
                     for conf in self.core.conformers
                 )
-            elif all("gsolv" in conf.results[self.__name].keys() for conf in self.core.conformers):
+            elif all("gsolv" in conf.results[self._name].keys() for conf in self.core.conformers):
                 gsolvmin = min(
-                    conf.results[self.__name]['gsolv']['gsolv']
+                    conf.results[self._name]['gsolv']['gsolv']
                     for conf in self.core.conformers
                 )
             else:
@@ -267,23 +267,23 @@ class Prescreening(CensoPart):
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (xTB)": lambda
-                conf: f"{conf.results[self.__name]['xtb_gsolv']['energy_xtb_gas']:.6f}",
+                conf: f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}",
             "ΔE (xTB)": lambda
-                conf: f"{(conf.results[self.__name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
-            "E (DFT)": lambda conf: f"{conf.results[self.__name]['sp']['energy']:.6f}",
+                conf: f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
+            "E (DFT)": lambda conf: f"{conf.results[self._name]['sp']['energy']:.6f}",
             "ΔGsolv (xTB)": lambda conf:
-            f"{conf.results[self.__name]['xtb_gsolv']['gsolv']:.6f}"
-            if "xtb_gsolv" in conf.results[self.__name].keys()
+            f"{conf.results[self._name]['xtb_gsolv']['gsolv']:.6f}"
+            if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
             "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
             "ΔE (DFT)": lambda
-                conf: f"{(conf.results[self.__name]['sp']['energy'] - dftmin) * AU2KCAL:.2f}",
+                conf: f"{(conf.results[self._name]['sp']['energy'] - dftmin) * AU2KCAL:.2f}",
             "δΔGsolv": lambda conf:
-            f"{(conf.results[self.__name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
-            if "xtb_gsolv" in conf.results[self.__name].keys()
+            f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
+            if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
             "ΔGtot": lambda conf: f"{(self.gtot(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self.__name]['bmw'] * 100:.2f}",
+            "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
         rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
@@ -299,32 +299,32 @@ class Prescreening(CensoPart):
 
         # calculate averaged free enthalpy
         avG = sum([
-            conf.results[self.__name]["bmw"]
-            * conf.results[self.__name]["gtot"]
+            conf.results[self._name]["bmw"]
+            * conf.results[self._name]["gtot"]
             for conf in self.core.conformers
         ])
 
         # calculate averaged free energy
         avE = sum([
-            conf.results[self.__name]["bmw"]
-            * conf.results[self.__name]["sp"]["energy"]
+            conf.results[self._name]["bmw"]
+            * conf.results[self._name]["sp"]["energy"]
             for conf in self.core.conformers
         ])
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.__instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n")
+            f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n")
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
 
         # write everything to a file
-        with open(os.path.join(self.core.workdir, f"{self.__name}.out"), "w",
+        with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w",
                   newline=None) as outfile:
             outfile.writelines(lines)
 
         # additionally, write data in csv format
-        with open(os.path.join(self.core.workdir, f"{self.__name}.csv"), "w",
+        with open(os.path.join(self.core.workdir, f"{self._name}.csv"), "w",
                   newline=None) as outfile:
             writer = csv.DictWriter(outfile, headers, delimiter=" ")
             writer.writeheader()

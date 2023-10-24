@@ -37,7 +37,7 @@ def main(argv=None):
     core = startup(argv)
 
     run = filter(
-        lambda x: x.get_part_settings()[x.__name__]["run"],
+        lambda x: x.get_part_settings()[x.__name__.lower()]["run"],
         [prescreening.Prescreening, screening.Screening, optimization.Optimization]
     )
 
