@@ -2,6 +2,7 @@
 Utility functions which are used in the CENSO modules. From creating folders to
 printout routines.
 """
+import json
 import os
 import sys
 import shutil
@@ -21,8 +22,9 @@ class DfaHelper:
     __dfa_dict: Dict
 
     @classmethod
-    def set_dfa_dict(cls, dfadict: Dict):
-        cls.__dfa_dict = dfadict
+    def set_dfa_dict(cls, dfadict_path: str):
+        with open(dfadict_path, "r") as f:
+            cls.__dfa_dict = json.load(f)
 
     @classmethod
     def find_func(cls, part: str, prog=None):

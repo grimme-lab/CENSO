@@ -8,11 +8,12 @@ from censo.params import (
     GRIDOPTIONS,
     GFNOPTIONS,
     CENSORCNAME,
-    load_dbs
+    load_dbs, ASSETS_PATH
 )
 from censo.ensembleopt import *
 from censo.part import CensoPart
 from censo.qm_processor import QmProc
+from censo.utilities import DfaHelper
 
 # map the part names to their respective classes
 parts = {
@@ -57,6 +58,9 @@ def configure(rcpath: str = None):
     # Update the paths for the processors
     paths = read_rcfile(censorc_path)["paths"]
     QmProc.paths = paths
+
+    # Set up the DFAHelper
+    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
 
     # Load the databases
     load_dbs()
