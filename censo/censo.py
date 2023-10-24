@@ -43,7 +43,7 @@ def main(argv=None):
 
     for part in run:
         tmp = part(core)
-        print(f"Ran {tmp.__name} in {tmp.run()} seconds!")
+        print(f"Ran {tmp._name} in {tmp.run()} seconds!")
 
     print("\nCENSO all done!")
     return 0

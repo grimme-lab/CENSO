@@ -27,7 +27,7 @@ class QmProc:
     QmProc base class
     """
 
-    paths = {
+    _paths = {
         "orcapath": "",
         "orcaversion": "",
         "xtbpath": "",
@@ -57,7 +57,7 @@ class QmProc:
         lines.append("".ljust(PLENGTH, "-") + "\n")
 
         # Iterate over each program and its path in the settings.
-        for program, path in cls.paths.items():
+        for program, path in cls._paths.items():
             # Append a line with the program and its path to the output.
             lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
 
@@ -104,7 +104,6 @@ class QmProc:
     def __init__(self, instructions: Dict[str, Any], jobtype: List[str], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
-        # NOTE: paths are also included here
         self.instructions: Dict[str, Any] = instructions
 
         # absolute path to the folder where jobs should be executed in
@@ -241,7 +240,7 @@ class QmProc:
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, conf.name, self._xtb_sp.__name__[1:])
+        jobdir = os.path.join(self.workdir, conf.name, "xtb_sp")
         inputpath = os.path.join(jobdir, f"{filename}.coord")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "xtb_sp-xcontrol-inp"
@@ -273,7 +272,7 @@ class QmProc:
 
         # setup call for xtb single-point
         call = [
-            self.instructions["xtbpath"],
+            self._paths["xtbpath"],
             f"{filename}.coord",
             "--" + self.instructions["gfnv"],
             "--sp",
@@ -511,7 +510,7 @@ class QmProc:
             file.writelines(conf.tocoord())
 
         call = [
-            self.instructions["xtbpath"],
+            self._paths["xtbpath"],
             f"{filename}.coord",
             "--" + self.instructions["gfnv"],
             dohess,

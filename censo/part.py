@@ -296,7 +296,7 @@ class CensoPart:
                  f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(PLENGTH, " ") + "\n",
                  "".ljust(PLENGTH, "-") + "\n", "\n"]
 
-        for instruction, val in self.get_settings().items():
+        for instruction, val in self.get_part_settings()[self._name].items():
             lines.append(f"{instruction}:".ljust(DIGILEN // 2, " ") + f"{val}\n")
 
         # print everything to console

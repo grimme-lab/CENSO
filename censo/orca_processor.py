@@ -267,7 +267,7 @@ class OrcaProc(QmProc):
         """
 
         # check ORCA version
-        orca5 = True if self.instructions["orcaversion"].startswith("5") else False
+        orca5 = True if self._paths["orcaversion"].startswith("5") else False
 
         indict = OrderedDict()
         indict["main"] = []
@@ -448,7 +448,7 @@ class OrcaProc(QmProc):
             print(f"Running ORCA single-point in {inputpath}")
 
         # call orca
-        call = [self.instructions["orcapath"], f"{filename}.inp"]
+        call = [self._paths["orcapath"], f"{filename}.inp"]
         self._make_call(call, outputpath, jobdir)
 
         # do not check returncode, since orca doesn't give meaningful returncodes
@@ -615,7 +615,7 @@ class OrcaProc(QmProc):
             newcoord.writelines([
                 "$external\n",
                 f"   orca input file= {filename}.inp\n",
-                f"   orca bin= {self.instructions['orcapath']}\n",
+                f"   orca bin= {self._paths['orcapath']}\n",
                 "$end\n"
             ])
 
@@ -636,7 +636,7 @@ class OrcaProc(QmProc):
                 "engine=lbfgs\n",
                 "$external\n",
                 f"   orca input file= {filename}.inp\n",
-                f"   orca bin= {self.instructions['orcapath']} \n",
+                f"   orca bin= {self._paths['orcapath']} \n",
                 "$end \n",
             ])
 
