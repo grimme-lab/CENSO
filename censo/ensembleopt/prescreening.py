@@ -35,51 +35,45 @@ class Prescreening(CensoPart):
     __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
-
-        "prescreening": {
-            "threshold": {
-                "default": 4.0,
-                "range": [
-                    1.0,
-                    10.0
-                ]
-            },
-            "func": {
-                "default": "pbe-d4",
-                "options": DfaHelper.find_func("prescreening")
-            },
-            "basis": {
-                "default": "def2-SV(P)",
-                "options": BASIS_SETS
-            },
-            "prog": {
-                "default": "orca",
-                "options": PROGS
-            },
-            "gfnv": {
-                "default": "gfn2",
-                "options": GFNOPTIONS
-            },
-            "grid": {
-                "default": "low",
-                "options": GRIDOPTIONS
-            },
-            "run": {
-                "default": True
-            },
-            "gcp": {
-                "default": True
-            }
+        "threshold": {
+            "default": 4.0,
+            "range": [
+                1.0,
+                10.0
+            ]
         },
+        "func": {
+            "default": "pbe-d4",
+            "options": DfaHelper.find_func("prescreening")
+        },
+        "basis": {
+            "default": "def2-SV(P)",
+            "options": BASIS_SETS
+        },
+        "prog": {
+            "default": "orca",
+            "options": PROGS
+        },
+        "gfnv": {
+            "default": "gfn2",
+            "options": GFNOPTIONS
+        },
+        "grid": {
+            "default": "low",
+            "options": GRIDOPTIONS
+        },
+        "run": {
+            "default": True
+        },
+        "gcp": {
+            "default": True
+        }
     }
+
     _settings = {}
 
-    @classmethod
-    def get_settings(cls):
-        return {**CensoPart.get_settings(), **cls._settings}
-
-    def __init__(self, core: CensoCore, name: str = "prescreening"):
-        super().__init__(core, name=name)
+    def __init__(self, core: CensoCore):
+        super().__init__(core)
 
     @timeit
     @CensoPart._create_dir
@@ -98,7 +92,6 @@ class Prescreening(CensoPart):
         handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
 
         # set jobtype to pass to handler
-        jobtype: List[str] = []
         if not self._instructions["gas-phase"]:
             if self._instructions.get("implicit", False):
                 jobtype = ["sp", "gsolv"]

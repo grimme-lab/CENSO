@@ -15,10 +15,6 @@ from censo.core import CensoCore
 from censo.ensembleopt import *
 
 
-# use generators for reduced memory usage?
-# dict.setdefault()
-# join dicts with merged_dict = {**d1, **d2}
-# remove all mutable defaults in functions
 # TODO - MAJOR - fix compatibility with old json and censorc files
 # TODO - MAJOR - introduce option to return all user customizable dbs to default
 # TODO - give meaningful help messages e.g. to avoid pitfalls for repeated calculations (too high threshold etc.)

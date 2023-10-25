@@ -42,7 +42,6 @@ def configure(rcpath: str = None):
     from censo.ensembleopt import prescreening, screening, optimization
     global parts
     parts = {
-        "general": CensoPart,
         "prescreening": prescreening.Prescreening,
         "screening": screening.Screening,
         "optimization": optimization.Optimization,
@@ -55,13 +54,15 @@ def configure(rcpath: str = None):
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
         settings_dict = read_rcfile(censorc_path)
+
+        # first set general settings
+        CensoPart.set_general_settings(settings_dict["general"])
+
+        # set settings for each part
         for section, settings in settings_dict.items():
-            try:
-                assert section in parts
-                # TODO - this is a bit wacky
-                parts[section].set_settings({section: settings})
-            except AssertionError:
-                pass
+            if section in parts.keys():
+                parts[section].set_settings(settings)
+            # NOTE: if section is not in the parts names, it will be ignored
 
     # Update the paths for the processors
     paths = read_rcfile(censorc_path)["paths"]
@@ -83,6 +84,7 @@ def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
 def write_rcfile(path: str) -> None:
     """
     write new configuration file with default settings into file at 'path'
+    also reads program paths from preexisting configuration file or tries to determine the paths automatically
     """
     # what to do if there is an existing configuration file
     external_paths = None
@@ -198,7 +200,7 @@ def find_rcfile() -> Union[str, None]:
     return rcpath
 
 
-__settings_options = {
+# __settings_options = {
     # "refinement": {
     #     "threshold": {
     #         "default": 90.0,
@@ -381,4 +383,4 @@ __settings_options = {
     #         "default": False
     #     }
     # },
-}
+# }

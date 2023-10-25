@@ -32,60 +32,56 @@ class Screening(Prescreening):
     __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
-        "screening": {
-            "threshold": {
-                "default": 3.5,
-                "range": [
-                    0.75,
-                    7.5
-                ]
-            },
-            "func": {
-                "default": "r2scan-3c",
-                "options": DfaHelper.find_func("screening")
-            },
-            "basis": {
-                "default": "def2-TZVP",
-                "options": BASIS_SETS
-            },
-            "prog": {
-                "default": "orca",
-                "options": PROGS
-            },
-            "sm": {
-                "default": "smd",
-                "options": __solv_mods
-            },
-            "smgsolv": {
-                "default": "smd",
-                "options": __gsolv_mods
-            },
-            "gfnv": {
-                "default": "gfn2",
-                "options": GFNOPTIONS
-            },
-            "grid": {
-                "default": "low+",
-                "options": GRIDOPTIONS
-            },
-            "run": {
-                "default": True
-            },
-            "gcp": {
-                "default": True
-            },
-            "implicit": {
-                "default": True
-            }
+        "threshold": {
+            "default": 3.5,
+            "range": [
+                0.75,
+                7.5
+            ]
         },
+        "func": {
+            "default": "r2scan-3c",
+            "options": DfaHelper.find_func("screening")
+        },
+        "basis": {
+            "default": "def2-TZVP",
+            "options": BASIS_SETS
+        },
+        "prog": {
+            "default": "orca",
+            "options": PROGS
+        },
+        "sm": {
+            "default": "smd",
+            "options": __solv_mods
+        },
+        "smgsolv": {
+            "default": "smd",
+            "options": __gsolv_mods
+        },
+        "gfnv": {
+            "default": "gfn2",
+            "options": GFNOPTIONS
+        },
+        "grid": {
+            "default": "low+",
+            "options": GRIDOPTIONS
+        },
+        "run": {
+            "default": True
+        },
+        "gcp": {
+            "default": True
+        },
+        "implicit": {
+            "default": True
+        }
     }
+
     _settings = {}
 
-    def __init__(self, core: CensoCore, name: str = "screening"):
-        CensoPart.__init__(self, core, name=name)
-
     @timeit
-    @CensoPart._create_dir
+    # @CensoPart._create_dir - not required here because super().run() already does this
     def run(self) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
@@ -101,7 +97,6 @@ class Screening(Prescreening):
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
         if self._instructions["evaluate_rrho"]:
             # PART (2)
-            # TODO - overwrite 'gtot'?
             threshold = self._instructions["threshold"] / AU2KCAL
 
             # initialize process handler for current program with conformer geometries

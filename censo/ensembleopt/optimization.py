@@ -34,123 +34,121 @@ class Optimization(CensoPart):
     __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
-        "optimization": {
-            "optcycles": {
-                "default": 8,
-                "range": [
-                    1,
-                    10
-                ]
-            },
-            # "radsize": { # ???
-            #     "default": 10,
-            #     "range": [
-            #         1,
-            #         100
-            #     ]
-            # },
-            "maxcyc": {
-                "default": 200,
-                "range": [
-                    10,
-                    1000
-                ]
-            },
-            "threshold": {
-                "default": 1.5,
-                "range": [
-                    0.5,
-                    5
-                ]
-            },
-            "hlow": {
-                "default": 0.01,
-                "range": [
-                    0.001,
-                    0.1
-                ]
-            },
-            "gradthr": {
-                "default": 0.01,
-                "range": [
-                    0.01,
-                    1.0
-                ]
-            },
-            "boltzmannthr": {  # boltzmann sum threshold
-                "default": 85.0,
-                "range": [
-                    1.0,
-                    99.9
-                ]
-            },
-            # "spearmanthr": {
-            #     "default": 0.0,
-            #     "range": [
-            #         -1.0,
-            #         1.0
-            #     ]
-            # },
-            "func": {
-                "default": "r2scan-3c",
-                "options": DfaHelper.find_func("optimization")
-            },
-            "basis": {
-                "default": "def2-TZVP",
-                "options": BASIS_SETS
-            },
-            "prog": {
-                "default": "orca",
-                "options": PROGS
-            },
-            "sm": {
-                "default": "smd",
-                "options": __solv_mods
-            },
-            "smgsolv": {
-                "default": "smd",
-                "options": __gsolv_mods
-            },
-            "gfnv": {
-                "default": "gfn2",
-                "options": GFNOPTIONS
-            },
-            "optlevel": {
-                "default": "normal",
-                "options": [
-                    "crude",
-                    "sloppy",
-                    "loose",
-                    "lax",
-                    "normal",
-                    "tight",
-                    "vtight",
-                    "extreme",
-                ]
-            },
-            "grid": {
-                "default": "high",
-                "options": GRIDOPTIONS
-            },
-            "run": {
-                "default": True
-            },
-            "gcp": {
-                "default": True
-            },
-            "opt_spearman": {
-                "default": True
-            },
-            "crestcheck": {
-                "default": False
-            }
+        "optcycles": {
+            "default": 8,
+            "range": [
+                1,
+                10
+            ]
         },
+        # "radsize": { # ???
+        #     "default": 10,
+        #     "range": [
+        #         1,
+        #         100
+        #     ]
+        # },
+        "maxcyc": {
+            "default": 200,
+            "range": [
+                10,
+                1000
+            ]
+        },
+        "threshold": {
+            "default": 1.5,
+            "range": [
+                0.5,
+                5
+            ]
+        },
+        "hlow": {
+            "default": 0.01,
+            "range": [
+                0.001,
+                0.1
+            ]
+        },
+        "gradthr": {
+            "default": 0.01,
+            "range": [
+                0.01,
+                1.0
+            ]
+        },
+        "boltzmannthr": {  # boltzmann sum threshold
+            "default": 85.0,
+            "range": [
+                1.0,
+                99.9
+            ]
+        },
+        # "spearmanthr": {
+        #     "default": 0.0,
+        #     "range": [
+        #         -1.0,
+        #         1.0
+        #     ]
+        # },
+        "func": {
+            "default": "r2scan-3c",
+            "options": DfaHelper.find_func("optimization")
+        },
+        "basis": {
+            "default": "def2-TZVP",
+            "options": BASIS_SETS
+        },
+        "prog": {
+            "default": "orca",
+            "options": PROGS
+        },
+        "sm": {
+            "default": "smd",
+            "options": __solv_mods
+        },
+        "smgsolv": {
+            "default": "smd",
+            "options": __gsolv_mods
+        },
+        "gfnv": {
+            "default": "gfn2",
+            "options": GFNOPTIONS
+        },
+        "optlevel": {
+            "default": "normal",
+            "options": [
+                "crude",
+                "sloppy",
+                "loose",
+                "lax",
+                "normal",
+                "tight",
+                "vtight",
+                "extreme",
+            ]
+        },
+        "grid": {
+            "default": "high",
+            "options": GRIDOPTIONS
+        },
+        "run": {
+            "default": True
+        },
+        "gcp": {
+            "default": True
+        },
+        "opt_spearman": {
+            "default": True
+        },
+        "crestcheck": {
+            "default": False
+        }
     }
 
     _settings = {}
 
-    def __init__(self, core: CensoCore, name: str = "optimization"):
-        super().__init__(core, name=name)
+    def __init__(self, core: CensoCore):
+        super().__init__(core)
         self.confs_nc: List[GeometryData]
 
     @timeit
