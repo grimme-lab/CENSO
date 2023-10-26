@@ -176,7 +176,7 @@ class OrcaParser:
         """
         end = None
         for index, line in enumerate(lines):
-            if endchar in line:
+            if endchar in line or ("%" in line and index > 0):
                 end = index
                 break
 
@@ -215,12 +215,17 @@ class OrcaParser:
 
         # next, write all keywords and options that come between the main input line and the geom input
         allkeys = list(indict.keys())
+        
         # skip first key ('main')
         for key in allkeys[1:allkeys.index("geom")]:
             lines.append(f"%{key}\n")
-            for option in indict[key].keys():
-                lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
-            lines.append("end\n")
+            # FIXME - temporary workaround for definition blocks that have no 'end', this code smells immensely
+            try:
+                for option in indict[key].keys():
+                    lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
+                lines.append("end\n")
+            except TypeError:
+                lines[-1] = f"%{key} {list(indict[key].keys()[0])}\n"
 
         # next, write the geometry input lines
         # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0 1")
@@ -707,7 +712,7 @@ class OrcaProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.instructions["xtbpath"],
+            self._paths["xtbpath"],
             f"{filename}.coord",  # name of the coord file generated above
             "--opt",
             self.instructions["optlevel"],

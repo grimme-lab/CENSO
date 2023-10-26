@@ -31,7 +31,7 @@ class Optimization(CensoPart):
     alt_name = "part2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
-    __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
+    # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "optcycles": {
@@ -105,10 +105,6 @@ class Optimization(CensoPart):
         "sm": {
             "default": "smd",
             "options": __solv_mods
-        },
-        "smgsolv": {
-            "default": "smd",
-            "options": __gsolv_mods
         },
         "gfnv": {
             "default": "gfn2",

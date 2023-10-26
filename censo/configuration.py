@@ -82,8 +82,8 @@ def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
     with open(path, "r") as file:
         parser.read_file(file)
 
-    # FIXME - something goes wrong here (works fine if you print the output dict first (?!?))
-    return {section: dict(parser[section]) for section in parser.sections()}
+    returndict = {section: dict(parser[section]) for section in parser.sections()}
+    return returndict
 
 
 def write_rcfile(path: str) -> None:

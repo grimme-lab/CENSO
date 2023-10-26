@@ -31,9 +31,6 @@ from censo.params import (
 class Prescreening(CensoPart):
     alt_name = "part0"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
-    __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
-
     _options = {
         "threshold": {
             "default": 4.0,
