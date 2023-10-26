@@ -215,7 +215,7 @@ class OrcaParser:
 
         # next, write all keywords and options that come between the main input line and the geom input
         allkeys = list(indict.keys())
-        
+
         # skip first key ('main')
         for key in allkeys[1:allkeys.index("geom")]:
             lines.append(f"%{key}\n")
@@ -225,7 +225,7 @@ class OrcaParser:
                     lines.append(f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n")
                 lines.append("end\n")
             except TypeError:
-                lines[-1] = f"%{key} {list(indict[key].keys()[0])}\n"
+                lines[-1] = f"%{key} {list(indict[key].keys())[0]}\n"
 
         # next, write the geometry input lines
         # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0 1")
@@ -254,7 +254,7 @@ class OrcaProc(QmProc):
     - create orca.inp input
     - single-point calculation
     - smd_gsolv calculation
-    - ensembleopt with xTB as driver
+    - geometry optimization with xTB as driver
     - shielding constant calculations
     - coupling constant calculations
     - writing of generic output for shielding and coupling constants
@@ -424,7 +424,7 @@ class OrcaProc(QmProc):
         # with ANCOPT
         if jobtype == "xtb_opt":
             indict["main"].append("ENGRAD")
-        # for standard ensembleopt
+        # for standard geometry optimization
         elif jobtype == "opt":
             indict["main"].append("OPT")
 
@@ -610,7 +610,7 @@ class OrcaProc(QmProc):
     @QmProc._create_jobdir
     def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt"):
         """
-        ORCA geometry ensembleopt using ANCOPT
+        ORCA geometry optimization using ANCOPT
 
         result = {
             "success": None,
@@ -629,7 +629,7 @@ class OrcaProc(QmProc):
 
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
-        # 'energy' contains the final energy of the ensembleopt (converged or unconverged)
+        # 'energy' contains the final energy of the optimization (converged or unconverged)
         # 'success' should only be False if the external program encounters an error
         # 'geom' stores the optimized geometry in GeometryData.xyz format
         result = {
@@ -724,16 +724,16 @@ class OrcaProc(QmProc):
         # set path to the ancopt output file
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
-        print(f"Running ensembleopt in {last_folders(jobdir, 2):18}")
+        print(f"Running optimization in {last_folders(jobdir, 2):18}")
 
         # call xtb
         returncode = self._make_call(call, outputpath, jobdir)
 
-        # check if ensembleopt finished without errors
+        # check if optimization finished without errors
         if returncode != 0:
             result["success"] = False
             print(
-                f"{'ERROR:':{WARNLEN}}ensembleopt "
+                f"{'ERROR:':{WARNLEN}}optimization "
                 f"in {last_folders(self.workdir, 2):18} failed!"
             )
             return result
@@ -753,7 +753,7 @@ class OrcaProc(QmProc):
                         or "abnormal termination of xtb" in line
                 ):
                     print(
-                        f"{'WARNING:':{WARNLEN}}ensembleopt in "
+                        f"{'WARNING:':{WARNLEN}}optimization in "
                         f"{last_folders(jobdir, 3):18} failed!"
                     )
                     result["success"] = False
@@ -764,7 +764,7 @@ class OrcaProc(QmProc):
                 if "failed to converge geometry" in line.lower():
                     result["cycles"] += int(line.split()[7])
                     result["converged"] = False
-                elif "geometry ensembleopt converged" in line.lower():
+                elif "geometry optimization converged" in line.lower():
                     result["cycles"] += int(line.split()[5])
                     result["converged"] = True
                 elif "av. E: " in line and "->" in line:
@@ -772,7 +772,7 @@ class OrcaProc(QmProc):
                 elif " :: gradient norm      " in line:
                     result["grad_norm"] = float(line.split()[3])
 
-        # store the final energy of the ensembleopt in 'energy'
+        # store the final energy of the optimization in 'energy'
         result["energy"] = result["ecyc"][-1]
         result["success"] = True
 

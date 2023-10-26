@@ -177,6 +177,9 @@ class ProcessHandler:
             # If the number of conformers is equal to the maximum number of processes
             elif nconf == maxprocs:
                 p = nconf
+            # If the number of conformers is less than the minimum number of processes
+            elif nconf < minprocs:
+                p = minprocs
             else:
                 # Find the largest number of processes that is less than or equal to the number of conformers
                 # and is a divisor of the total number of cores (you basically never want to waste capacity)
