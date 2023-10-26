@@ -75,7 +75,10 @@ class Screening(Prescreening):
         },
         "implicit": {
             "default": True
-        }
+        },
+        "template": {
+            "default": False
+        },
     }
 
     _settings = {}

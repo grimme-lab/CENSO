@@ -142,7 +142,10 @@ class Optimization(CensoPart):
         },
         "crestcheck": {
             "default": False
-        }
+        },
+        "template": {
+            "default": False
+        },
     }
 
     _settings = {}

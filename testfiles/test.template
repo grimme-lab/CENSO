@@ -1,0 +1,7 @@
+{main}
+! OPT
+
+{postgeom}
+%mp2
+  bla bla
+end

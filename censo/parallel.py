@@ -13,6 +13,7 @@ from censo.datastructure import GeometryData
 from censo.params import OMPMIN, OMPMAX
 
 
+# TODO - handle failed jobs
 class ProcessHandler:
     # there might be a good argument for making this a mostly static class
     # how to handle jobs that take too long?

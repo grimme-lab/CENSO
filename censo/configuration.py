@@ -5,7 +5,7 @@ from typing import Any, Dict, Union
 
 from censo.params import (
     CENSORCNAME,
-    load_dbs, ASSETS_PATH
+    load_dbs, ASSETS_PATH, USER_ASSETS_PATH
 )
 from censo.qm_processor import QmProc
 from censo.utilities import DfaHelper
@@ -68,6 +68,10 @@ def configure(rcpath: str = None):
     paths = read_rcfile(censorc_path)["paths"]
     QmProc._paths.update(paths)
 
+    # create user assets folder if it does not exist
+    if not os.path.isdir(USER_ASSETS_PATH):
+        os.mkdir(USER_ASSETS_PATH)
+
 
 def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
     """
@@ -78,6 +82,7 @@ def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
     with open(path, "r") as file:
         parser.read_file(file)
 
+    # FIXME - something goes wrong here (works fine if you print the output dict first (?!?))
     return {section: dict(parser[section]) for section in parser.sections()}
 
 
@@ -105,9 +110,11 @@ def write_rcfile(path: str) -> None:
 
         # collect all default settings from parts and feed them into the parser
         global parts
+        from censo.part import CensoPart
+        parts["general"] = CensoPart
         parser.read_dict({
             partname: {
-                settingname: setting["default"] for settingname, setting in part.get_part_options()[partname].items()
+                settingname: setting["default"] for settingname, setting in part.get_options().items()
             } for partname, part in parts.items()
         })
 

@@ -10,8 +10,9 @@ import shutil
 from censo.params import (
     CODING,
     WARNLEN,
+    USER_ASSETS_PATH,
 )
-from censo.utilities import last_folders, print
+from censo.utilities import last_folders, print, od_insert
 from censo.qm_processor import QmProc
 from censo.datastructure import GeometryData
 
@@ -33,6 +34,7 @@ class OrcaParser:
         with open(path, "r") as infile:
             lines = infile.readlines()
 
+        lines = self.__remove_comments(lines)
         converted = self.__todict(lines)
 
         return converted
@@ -47,6 +49,10 @@ class OrcaParser:
     def __todict(self, lines: List[str]) -> OrderedDict:
         """
         convert lines from orca input into ordered dict
+
+        can also be used with an orca input template, the {main} and {postgeom} strings indicate the ordering
+        of the settigs read from the template ({main} should come first, {postgeom} should come last)
+        all settings below {postgeom} are put after the geometry definition block
 
         format of the result:
         "main": [...], (contains all main input line options)
@@ -66,9 +72,6 @@ class OrcaParser:
         """
 
         converted = OrderedDict()
-
-        # remove all comments from read lines
-        self.__remove_comments(lines)
 
         for i, line in enumerate(lines):
             # strip leading whitespace
@@ -116,7 +119,11 @@ class OrcaParser:
                         converted[setting][option] = split[1:]
             # geometry input line found
             elif line.startswith("*") and "geom" not in converted.keys():
+                if "geom" in converted.keys():
+                    raise RuntimeError("Error parsing ORCA input file (double geom definition).")
+
                 converted["geom"] = {}
+
                 if "xyzfile" in line:
                     converted["geom"]["def"] = ["xyzfile"]
                 # the 'xyz' keyword should be one of the first two substrings
@@ -139,10 +146,31 @@ class OrcaParser:
 
                     for line2 in lines[i + 1:end]:
                         converted["geom"]["coord"].append(line2.split())
+            # check for template lines
+            # NOTE: only these two need to be checked since they're the only ones that are sensitive to ordering
+            elif "{main}" in line:
+                # create the main key for ordering if it does not already exist
+                if "main" not in converted.keys():
+                    converted["main"] = []
+
+                # main needs to be defined before everything
+                if "main" != list(converted.keys())[0]:
+                    raise RuntimeError("Error parsing ORCA input file (main not defined first).")
+            elif "{postgeom}" in line:
+                # there should be no geometry definition block in a template file
+                if "geom" in converted.keys():
+                    raise RuntimeError("Error parsing ORCA input file (double geom definition).")
+                # also main needs to be defined before geom
+                elif "main" not in converted.keys():
+                    raise RuntimeError("Error parsing ORCA input file (missing main definition).")
+
+                # if we reach this point, the geom key should be created
+                converted["geom"] = {}
 
         return converted
 
-    def __eob(self, lines: List[str], endchar: str = "end") -> int:
+    @staticmethod
+    def __eob(lines: List[str], endchar: str = "end") -> int:
         """
         find end of definition block
         """
@@ -157,7 +185,8 @@ class OrcaParser:
         else:
             return end
 
-    def __remove_comments(self, inlist: List) -> None:
+    @staticmethod
+    def __remove_comments(inlist: List[str]) -> List[str]:
         """
         remove all comments from an orca input
         """
@@ -166,7 +195,10 @@ class OrcaParser:
                 index = inlist[i].index("#")
                 inlist[i] = inlist[i][:index]
 
-    def __tolines(self, indict: OrderedDict) -> List[str]:
+        return inlist
+
+    @staticmethod
+    def __tolines(indict: OrderedDict) -> List[str]:
         """
         convert ordered dict to lines for orca input
         """
@@ -211,7 +243,6 @@ class OrcaParser:
         return lines
 
 
-# TODO - keep output if any job fails
 class OrcaProc(QmProc):
     """
     Perform calculations with ORCA
@@ -253,15 +284,16 @@ class OrcaProc(QmProc):
             },
         }
 
-    # TODO - make this better
     def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
 
+        can load up a template file from user assets folder
+
         xyzfile: name of the xyz-file to be used for the calculation
 
-        NOTE: the xyzfile has to already exist, this function just bluntly writes the name into the input!
+        NOTE: the xyzfile has to already exist, this function just bluntly writes the name into the input
 
         TODO - NMR/OR/UVVis etc preparation steps
         """
@@ -270,17 +302,41 @@ class OrcaProc(QmProc):
         orca5 = True if self._paths["orcaversion"].startswith("5") else False
 
         indict = OrderedDict()
-        indict["main"] = []
+
+        if self.instructions["template"]:
+            # NOTE: when using templates we're not going to check for double definitions!
+            # if the template is messed up, orca will fail and the user should deal with that
+            # load template file
+            try:
+                indict = OrcaParser().read_input(os.path.join(USER_ASSETS_PATH, f"{self.instructions['part_name']}.orca.template"))
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Could not find template file {self.instructions['part_name']}.orca.template.")
+
+        # prepare the main line of the orca input
+        indict = self.__prep_main(indict, jobtype, orca5)
+
+        # prepare all options that are supposed to be placed before the geometry definition
+        indict = self.__prep_pregeom(indict, orca5, no_solv)
+
+        # prepare the geometry
+        indict = self.__prep_geom(indict, conf, xyzfile)
+
+        # indict = self.__prep_postgeom(indict, jobtype, orca5)
+
+        return indict
+
+    def __prep_main(self, indict: OrderedDict, jobtype: str, orca5: bool) -> OrderedDict:
+
+        if "main" not in indict:
+            indict["main"] = []
 
         # grab func, basis
         func = self.instructions["func_name"]
         basis = self.instructions["basis"]
         indict["main"].append(func)
 
-        # TODO - b3lyp-3c removed
         if "composite" not in self.instructions["func_type"]:
             indict["main"].append(basis)
-            ####################### SET RI ###########################
             # set  RI def2/J,   RIJCOSX def2/J
             # this is only set if no composite DFA is used
             # settings for double hybrids
@@ -289,15 +345,20 @@ class OrcaProc(QmProc):
 
                 if "nmr" in jobtype:
                     indict["main"].append("NOFROZENCORE")
-                    indict["mp2"] = {
-                        "RI": ["true"],
-                        "density": ["relaxed"],
-                    }
+                    indict = od_insert(
+                        indict,
+                        "mp2",
+                        {"RI": ["true"], "density": ["relaxed"]},
+                        list(indict.keys()).index("main") + 1
+                    )
                 else:
                     indict["main"].append("frozencore")
-                    indict["mp2"] = {
-                        "RI": ["true"],
-                    }
+                    indict = od_insert(
+                        indict,
+                        "mp2",
+                        {"RI": ["true"]},
+                        list(indict.keys()).index("main") + 1
+                    )
 
                 def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
                 if self.instructions["basis"].lower() in def2cbasis:
@@ -319,21 +380,12 @@ class OrcaProc(QmProc):
             elif "gga" in self.instructions["func_type"]:
                 indict["main"].append("RI")
 
-                ########################## SET GRID ############################
-
-        """
-        used in nmr calculation
-        if self.job["moread"] is not None:
-            #! MORead
-            #%moinp "jobname2.gbw"
-            orcainput["moread"] = self.job["moread"]"""
-
-        # use 'grid' setting from instructions to quickly choose the grid settings 
+        # use 'grid' setting from instructions to quickly choose the grid settings
         indict["main"].extend(self.__gridsettings[orca5][self.instructions["grid"]])
 
-        ########################## DISPERSION ####################### TODO TODO TODO TODO TODO
         # add dispersion
         # dispersion correction information
+        # FIXME - temporary solution (not very nice)
         mapping = {
             "d3bj": "d3bj",
             "d3(0)": "D3ZERO",
@@ -347,41 +399,6 @@ class OrcaProc(QmProc):
 
         if disp == "nl" and not orca5:
             indict["main"].append("vdwgrid3")
-
-        """
-        else:
-            print(
-                f" {self.dfa_settings.functionals.get(self.instructions['func']).get('disp')} unknown dispersion option!"
-            )
-        """
-
-        ###################### PARALLEL ############################
-        if orca5 and self.instructions["omp"] > 1:
-            indict["pal"] = {"nprocs": [self.instructions["omp"]]}
-
-        ###################### SOLVENT/GEOM ########################
-
-        # set keywords for the selected solvent model
-        if not self.instructions["gas-phase"] and not no_solv and "sm" in self.instructions.keys():
-            if self.instructions["sm"] == "smd":
-                indict["cpcm"] = {
-                    "smd": ["true"],
-                    "smdsolvent": [f"\"{self.instructions['solvent_key_prog']}\""],
-                }
-            elif self.instructions["sm"] == "cpcm":
-                indict["main"].append(f"CPCM({self.instructions['solvent_key_prog']})")
-
-        # unpaired, charge, and coordinates
-        # by default coordinates are written directly into input file
-        if xyzfile is None:
-            indict["geom"] = {
-                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"] + 1],
-                "coord": conf.toorca(),
-            }
-        else:
-            indict["geom"] = {
-                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"] + 1, xyzfile],
-            }
 
         # try to apply gcp if basis set available
         gcp_keywords = {
@@ -407,6 +424,54 @@ class OrcaProc(QmProc):
             indict["main"].append("OPT")
 
         return indict
+
+    def __prep_pregeom(self, indict: OrderedDict, orca5: bool, no_solv: bool) -> OrderedDict:
+
+        """used in nmr calculation
+        if self.job["moread"] is not None:
+            #! MORead
+            #%moinp "jobname2.gbw"
+            orcainput["moread"] = self.job["moread"]"""
+
+        if orca5 and self.instructions["omp"] > 1:
+            indict = od_insert(
+                indict,
+                "pal",
+                {"nprocs": [self.instructions["omp"]]},
+                list(indict.keys()).index("main") + 1
+            )
+
+        # set keywords for the selected solvent model
+        if not self.instructions["gas-phase"] and not no_solv and "sm" in self.instructions.keys():
+            if self.instructions["sm"] == "smd":
+                indict = od_insert(
+                    indict,
+                    "cpcm",
+                    {"smd": ["true"], "smdsolvent": [f"\"{self.instructions['solvent_key_prog']}\""]},
+                    list(indict.keys()).index("main") + 1
+                )
+            elif self.instructions["sm"] == "cpcm":
+                indict["main"].append(f"CPCM({self.instructions['solvent_key_prog']})")
+
+        return indict
+
+    def __prep_geom(self, indict: OrderedDict, conf: GeometryData, xyzfile: str) -> OrderedDict:
+        # unpaired, charge, and coordinates
+        # by default coordinates are written directly into input file
+        if xyzfile is None:
+            indict["geom"] = {
+                "def": ["xyz", self.instructions["charge"], self.instructions["unpaired"] + 1],
+                "coord": conf.toorca(),
+            }
+        else:
+            indict["geom"] = {
+                "def": ["xyzfile", self.instructions["charge"], self.instructions["unpaired"] + 1, xyzfile],
+            }
+
+        return indict
+
+    def __prep_postgeom(self, indict: OrderedDict, jobtype: str, orca5: bool) -> OrderedDict:
+        pass
 
     @QmProc._create_jobdir
     def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:

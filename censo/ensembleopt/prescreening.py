@@ -67,7 +67,10 @@ class Prescreening(CensoPart):
         },
         "gcp": {
             "default": True
-        }
+        },
+        "template": {
+            "default": False
+        },
     }
 
     _settings = {}

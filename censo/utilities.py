@@ -14,6 +14,7 @@ from copy import deepcopy
 from builtins import print as print_orig
 from typing import Any, Callable, Tuple, Union, List, Dict
 import functools
+from collections import OrderedDict
 
 from censo.params import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
 
@@ -1005,3 +1006,21 @@ def timeit(f) -> Callable:
         return end - start
 
     return wrapper
+
+
+def od_insert(od: OrderedDict[str, Any], key: str, value: Any, index: int) -> OrderedDict[str, Any]:
+    """
+    Insert a new key/value pair into an OrderedDict at a specific position.
+
+    Args:
+        od: The OrderedDict to insert into.
+        key: The key to insert.
+        value: The value associated with the key.
+        index: The index before which to insert the key/value pair.
+
+    Returns:
+        The updated OrderedDict.
+    """
+    items: List[Tuple[str, Any]] = list(od.items())
+    items.insert(index, (key, value))
+    return OrderedDict(items)

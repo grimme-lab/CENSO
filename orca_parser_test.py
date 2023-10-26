@@ -1,17 +1,16 @@
 import unittest
 import os
-from functools import reduce
 from collections import OrderedDict
 
 from censo.orca_processor import OrcaParser
 
 test_dir = os.getcwd()
 
+
 class OParserTest(unittest.TestCase):
     def setUp(self):
         self.test = OrcaParser()
 
-    
     def test_read(self):
         inp = self.test.read_input(os.path.join(test_dir, "testfiles", "inp"))
 
@@ -26,7 +25,6 @@ class OParserTest(unittest.TestCase):
         ]
 
         self.assertDictEqual(inp, should)
-
 
     def test_write(self):
         towrite = OrderedDict()
@@ -47,3 +45,13 @@ class OParserTest(unittest.TestCase):
             should = file.readlines()
 
         self.assertListEqual(written, should)
+
+    def test_read_template(self):
+        inp = self.test.read_input(os.path.join(test_dir, "testfiles", "test.template"))
+
+        should = OrderedDict()
+        should["main"] = ["OPT"]
+        should["geom"] = {}
+        should["mp2"] = {"bla": ["bla"]}
+
+        self.assertDictEqual(inp, should)

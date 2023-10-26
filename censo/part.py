@@ -270,6 +270,9 @@ class CensoPart:
         self._instructions["func_name"] = DfaHelper.get_name(self._instructions["func"], self._instructions["prog"])
         self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
 
+        # also pass the name of the part to the processors
+        self._instructions["part_name"] = self._name
+
         self.dir: str = None
 
     def run(self) -> None:

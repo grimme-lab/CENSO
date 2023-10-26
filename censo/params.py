@@ -49,8 +49,9 @@ if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
     # end workaround
 
 CODING = "ISO-8859-1"
+
 DIGILEN = 60
-# print lines with width PLENGTH
+
 PLENGTH = 100
 
 AU2J = 4.3597482e-18  # a.u.(hartree/mol) to J
@@ -63,6 +64,8 @@ C = 2.998e8
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
 ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+
+USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
 
 PROGS = ("orca", "tm")
 
@@ -89,7 +92,7 @@ GFNOPTIONS = (
     "gfn2",
 )
 
-CENSORCNAME = ".censorc2"
+CENSORCNAME = ".censo2rc"
 
 OMPMIN = 4
 
