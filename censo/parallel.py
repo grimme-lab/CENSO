@@ -3,7 +3,7 @@ Performs the parallel execution of the QM calls.
 """
 from functools import reduce
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from concurrent.futures import ProcessPoolExecutor
 import atexit
 
@@ -13,6 +13,10 @@ from censo.datastructure import GeometryData
 from censo.params import OMPMIN, OMPMAX
 
 
+# extend ProcessPoolExecutor?
+# fixed number of workers
+# keep track of resources
+# dynamic load balancing
 # TODO - handle failed jobs
 class ProcessHandler:
     # there might be a good argument for making this a mostly static class
@@ -79,6 +83,7 @@ class ProcessHandler:
             workdir
         )
 
+        # TODO - add capability to rerun failed jobs
         if self.__instructions["balance"]:
             # execute processes for conformers with load balancing enabled
             # divide the conformers into chunks, work through them one after the other
@@ -88,6 +93,7 @@ class ProcessHandler:
             # TODO - add capability to use free workers after some time has elapsed (average time for each conformers per number of cores)
             # to avoid single conformers to clog up the queue for a chunk (basically move conformers between chunks?)
             results = {}
+            metadata = {}
             for i, chunk in enumerate(chunks):
                 # TODO - this is not very nice
                 self.__processor.instructions["omp"] = self.__ncores // procs[i]
@@ -95,10 +101,12 @@ class ProcessHandler:
                 self.__nprocs = procs[i]
 
                 # collect results by iterative merging
-                results = {**results, **self.__dqp(chunk)}
+                tmpres, tmpmeta = self.__dqp(chunk)
+                results = {**results, **tmpres}
+                metadata = {**metadata, **tmpmeta}
         else:
             # execute processes without automatic load balancing, taking the user-provided settings
-            results = self.__dqp(self.__conformers)
+            results, metadata = self.__dqp(self.__conformers)
 
         # assert that there is a result for every conformer
         try:
@@ -106,6 +114,12 @@ class ProcessHandler:
         except AssertionError:
             raise RuntimeError(
                 "There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
+
+        # TODO - do something with the metadata
+        for conf in self.__conformers:
+            # if 'copy_mo' is enabled, get the mo_path from the results and store it in the respective GeometryData object
+            if self.__instructions["copy_mo"]:
+                conf.mo_path = metadata[id(conf)]["sp"]["mo_path"]
 
         return results
 
@@ -118,7 +132,7 @@ class ProcessHandler:
         # TODO - include check?
         self.__conformers = conformers
 
-    def __dqp(self, confs: List[GeometryData]) -> Dict[str, Any]:
+    def __dqp(self, confs: List[GeometryData]) -> Tuple[Dict[int, Any], Dict[int, Any]]:
         """
         D ynamic Q ueue P rocessing
         parallel execution of processes with settings defined in self.__processor.instructions
@@ -132,13 +146,15 @@ class ProcessHandler:
             # wait=True leads to the workers waiting for their current task to be finished before terminating
             atexit.register(executor.shutdown, wait=False)
 
-            # execute processes
+            # execute tasks
             resiter = executor.map(self.__processor.run, confs)
+
+            results, metadata = zip(*[res for res in resiter])
 
             # returns merged result dicts
         # structure of results: 
         #   e.g. {id(conf): {"xtb_sp": {"success": ..., "energy": ...}, ...}, ...}
-        return reduce(lambda x, y: {**x, **y}, resiter)
+        return reduce(lambda x, y: {**x, **y}, results), reduce(lambda x, y: {**x, **y}, metadata)
 
     def __chunkate(self) -> tuple[list[list[GeometryData]], list[int | Any]]:
         """

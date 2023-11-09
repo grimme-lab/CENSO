@@ -4,7 +4,8 @@ Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
 import os
-from typing import Any, Callable, Dict, List
+from time import perf_counter
+from typing import Any, Callable, Dict, List, Tuple
 import subprocess
 import json
 import functools
@@ -131,19 +132,32 @@ class QmProc:
                 f"At least one jobtype of {self._jobtypes} is not available for {self.__class__.__name__}.\nAvailable "
                 + f"jobtypes are: {self._jobtypes.keys()}")
 
-    def run(self, conf: GeometryData) -> Dict[int, Dict[str, Any]]:
+    def run(self, conf: GeometryData) -> tuple[dict[int, dict[Any, Any]], dict[int, dict[Any, Any]]]:
         """
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. ProcessHandler.execute
         """
         res = {conf.id: {}}
+        meta = {conf.id: {}}
 
         # run all the jobs
         for job in self._jobtype:
-            res[conf.id][job] = self._jobtypes[job](conf)
+            # Time execution
+            start = perf_counter()
 
-        # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
-        return res
+            res[conf.id][job], meta[conf.id][job] = self._jobtypes[job](conf)
+
+            end = perf_counter()
+
+            meta[conf.id][job]["time"] = end - start
+
+            if not meta[conf.id][job]["success"]:
+                break
+
+        meta[conf.id]["total_time"] = sum(meta[conf.id][job]["time"] for job in meta[conf.id].keys())
+
+        # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}} and dict of the same format for metadata
+        return res, meta
 
     @staticmethod
     def _make_call(call: List, outputpath: str, jobdir: str) -> int:
@@ -225,7 +239,7 @@ class QmProc:
 
     @_create_jobdir
     def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False) -> \
-            Dict[str, Any]:
+            Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Get single-point energy from xtb
         result = {
@@ -236,7 +250,12 @@ class QmProc:
         # set results
         result = {
             "energy": None,
+        }
+
+        # set metadata
+        meta = {
             "success": None,
+            "error": None,
         }
 
         # set in/out path
@@ -311,19 +330,16 @@ class QmProc:
 
         # if returncode != 0 then some error happened in xtb
         if returncode != 0:
-            result["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} error in "
-                f"{last_folders(self.workdir, 2)}"
-            )
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_sp"
+            return result, meta
 
         # read energy from outputfile
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
             for line in outputfile.readlines():
                 if "| TOTAL ENERGY" in line:
                     result["energy"] = float(line.split()[3])
-                    result["success"] = True
+                    meta["success"] = True
                 # TODO - what to do if calculation not converged?
 
         # everything went fine, return result
@@ -333,9 +349,10 @@ class QmProc:
                 f" = {result['energy']:>.7f}"
             )
 
-        return result
+        # FIXME - right now the case meta["success"] = None might appear if "TOTAL ENERGY" is not found in outputfile
+        return result, meta
 
-    def _xtb_gsolv(self, conf: GeometryData) -> Dict[str, Any]:
+    def _xtb_gsolv(self, conf: GeometryData) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Calculate additive GBSA or ALPB solvation contribution by
         Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
@@ -352,46 +369,44 @@ class QmProc:
 
         # what is returned in the end
         result = {
-            "success": None,
             "gsolv": None,
             "energy_xtb_gas": None,
             "energy_xtb_solv": None,
         }
 
+        meta = {
+            "success": None,
+            "error": None,
+        }
+
         # run gas-phase GFN single-point
         # TODO - does this need it's own folder?
-        res = self._xtb_sp(conf, filename="gas", silent=True, no_solv=True)
-        if res["success"]:
-            result["energy_xtb_gas"] = res["energy"]
+        spres, spmeta = self._xtb_sp(conf, filename="gas", silent=True, no_solv=True)
+        if spmeta["success"]:
+            result["energy_xtb_gas"] = spres["energy"]
             print(f"xtb gas-phase single-point successfull for {conf.name}.")
         else:
-            print(
-                f"{'ERROR:':{WARNLEN}}Gas phase {self.instructions['gfnv'].upper()} error in "
-                f"{last_folders(self.workdir, 3)}"
-            )
-            result["success"] = False
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_gsolv"
+            return result, meta
 
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        res = self._xtb_sp(conf, filename="solv", silent=True)
-        if res["success"]:
-            result["energy_xtb_solv"] = res["energy"]
+        spres, spmeta = self._xtb_sp(conf, filename="solv", silent=True)
+        if spmeta["success"]:
+            result["energy_xtb_solv"] = spres["energy"]
             print(f"xtb solution-phase single-point successfull for {conf.name}.")
         else:
-            print(
-                f"{'ERROR:':{WARNLEN}}Solution phase {self.instructions['gfnv'].upper()} error in "
-                f"{last_folders(self.workdir, 3)}"
-            )
-            result["success"] = False
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_gsolv"
+            return result, meta
 
         # only reached if both gas-phase and solvated sp succeeded   
         result["gsolv"] = result["energy_xtb_solv"] - result["energy_xtb_gas"]
-        result["success"] = True
+        meta["success"] = True
 
-        return result
+        return result, meta
 
     def _xtb_opt(self):
         """
@@ -401,7 +416,7 @@ class QmProc:
 
     # TODO - break this down
     @_create_jobdir
-    def _xtb_rrho(self, conf: GeometryData, filename: str = "xtb_rrho"):
+    def _xtb_rrho(self, conf: GeometryData, filename: str = "xtb_rrho") -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
         
@@ -419,13 +434,17 @@ class QmProc:
         # what is returned in the end
         result = {
             "energy": None,
-            "success": None,
             "rmsd": None,
             "gibbs": None,
             "enthalpy": None,
             "entropy": None,
             "symmetry": None,
             "symnum": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
         }
 
         # if not self.job["onlyread"]: # TODO ???
@@ -551,12 +570,9 @@ class QmProc:
 
         # check if converged:
         if returncode != 0:
-            result["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}{self.instructions['gfnv'].upper()} ohess/bhess error in "
-                f"{last_folders(jobdir, 4):18}"
-            )
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_rrho"
+            return result, meta
 
         # read output and store lines
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
@@ -608,8 +624,9 @@ class QmProc:
             result["enthalpy"] = ht
             result["entropy"] = rotS
         else:
-            result["success"] = False
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_rrho"
+            return result, meta
 
         # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess (when a hessian is calculated)
         # contains output from xtb in json format to be more easily digestible by CENSO
@@ -633,13 +650,13 @@ class QmProc:
         # get gibbs energy
         if "G(T)" in data:
             if self.instructions["temperature"] == 0:
-                result["success"] = True
+                meta["success"] = True
                 result["energy"] = data.get("ZPVE", 0.0)
                 result["gibbs"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
                 result["enthalpy"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
                 result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
             else:
-                result["success"] = True
+                meta["success"] = True
                 result["energy"] = data.get("G(T)", 0.0)
                 result["gibbs"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
                 result["enthalpy"][self.instructions["temperature"]] = None  # set this to None for predictability
@@ -659,8 +676,7 @@ class QmProc:
                 sym=result["symmetry"], linear=result["linear"]
             )
         else:
-            raise RuntimeError(
-                f"{'ERROR:':{WARNLEN}}while reading xtb_enso.json in: {last_folders(jobdir, 3)}"
-            )
+            meta["success"] = False
+            meta["error"] = f"{'ERROR:':{WARNLEN}}while reading xtb_enso.json in: {last_folders(jobdir, 3)}"
 
-        return result
+        return result, meta

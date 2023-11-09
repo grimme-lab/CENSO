@@ -3,7 +3,7 @@ Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
 from collections import OrderedDict
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from functools import reduce
 import shutil
 
@@ -479,7 +479,7 @@ class OrcaProc(QmProc):
         pass
 
     @QmProc._create_jobdir
-    def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Dict[str, Any]:
+    def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         ORCA single-point calculation
 
@@ -492,8 +492,12 @@ class OrcaProc(QmProc):
         # set results
         result = {
             "energy": None,
+        }
+
+        meta = {
             "success": None,
             "mo_path": None,
+            "error": None,
         }
 
         # set in/out path
@@ -537,19 +541,19 @@ class OrcaProc(QmProc):
 
                 # check if scf is converged:
                 if "ORCA TERMINATED NORMALLY" in line:
-                    result["success"] = True
+                    meta["success"] = True
 
-        if not result["success"]:
+        if not meta["success"]:
             print(f"{'WARNING:':{WARNLEN}}ORCA single-point not converged for {conf.name}.")
 
         # store the path to the current .gbw file for this conformer
-        result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+        meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
-        # TODO - clean up
+        # TODO - clean up?
 
-        return result
+        return result, meta
 
-    def _gsolv(self, conf: GeometryData):
+    def _gsolv(self, conf: GeometryData) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         result = {
             "success": None,
@@ -560,13 +564,15 @@ class OrcaProc(QmProc):
         """
         # what is returned in the end
         result = {
-            "success": None,
             "gsolv": None,
             "energy_gas": None,
             "energy_solv": None,
         }
 
-        # set in/out path
+        meta = {
+            "success": None,
+            "error": None,
+        }
 
         print(
             f"Running SMD_gsolv calculation in "
@@ -576,39 +582,34 @@ class OrcaProc(QmProc):
         # calculate gas phase
         # TODO - this is redundant since a single point was probably already calculated before
         # TODO - does this need it's own folder?
-        res = self._sp(conf, silent=True, filename="sp_gas", no_solv=True)
+        spres, spmeta = self._sp(conf, silent=True, filename="sp_gas", no_solv=True)
 
-        if res["success"]:
-            result["energy_gas"] = res["energy"]
+        if spmeta["success"]:
+            result["energy_gas"] = spres["energy"]
         else:
-            result["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}in gas phase single-point "
-                f"of {last_folders(self.workdir, 2):18}"
-            )
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in gsolv"
+            return result, meta
 
         # calculate in solution
-        res = self._sp(conf, silent=True, filename="sp_solv")
+        spres, spmeta = self._sp(conf, silent=True, filename="sp_solv")
 
-        if res["success"]:
-            result["energy_solv"] = res["energy"]
+        if spmeta["success"]:
+            result["energy_solv"] = spres["energy"]
         else:
-            result["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}in gsolv single-point "
-                f"of {last_folders(self.workdir, 2):18}"
-            )
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in gsolv"
+            return result, meta
 
         # calculate solvation free enthalpy
         result["gsolv"] = result["energy_solv"] - result["energy_gas"]
-        result["success"] = True
+        meta["success"] = True
 
-        return result
+        return result, meta
 
+    # TODO - split this up
     @QmProc._create_jobdir
-    def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt"):
+    def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt") -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         ORCA geometry optimization using ANCOPT
 
@@ -633,14 +634,18 @@ class OrcaProc(QmProc):
         # 'success' should only be False if the external program encounters an error
         # 'geom' stores the optimized geometry in GeometryData.xyz format
         result = {
-            "success": None,
             "energy": None,
             "cycles": None,
             "converged": None,
             "ecyc": None,
             "grad_norm": None,
-            "mo_path": None,
             "geom": None,
+        }
+
+        meta = {
+            "success": None,
+            "mo_path": None,
+            "error": None,
         }
 
         jobdir = os.path.join(self.workdir, conf.name, "xtb_opt")
@@ -731,12 +736,9 @@ class OrcaProc(QmProc):
 
         # check if optimization finished without errors
         if returncode != 0:
-            result["success"] = False
-            print(
-                f"{'ERROR:':{WARNLEN}}optimization "
-                f"in {last_folders(self.workdir, 2):18} failed!"
-            )
-            return result
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_opt"
+            return result, meta
 
         # read output
         with open(outputpath, "r", encoding=CODING, newline=None) as file:
@@ -752,14 +754,11 @@ class OrcaProc(QmProc):
                         or "|grad| > 500, something is totally wrong!" in line
                         or "abnormal termination of xtb" in line
                 ):
-                    print(
-                        f"{'WARNING:':{WARNLEN}}optimization in "
-                        f"{last_folders(jobdir, 3):18} failed!"
-                    )
-                    result["success"] = False
-                    return result
+                    meta["success"] = False
+                    meta["error"] = "what went wrong in xtb_opt"
+                    return result, meta
 
-                result["success"] = True
+                meta["success"] = True
 
                 if "failed to converge geometry" in line.lower():
                     result["cycles"] += int(line.split()[7])
@@ -774,10 +773,10 @@ class OrcaProc(QmProc):
 
         # store the final energy of the optimization in 'energy'
         result["energy"] = result["ecyc"][-1]
-        result["success"] = True
+        meta["success"] = True
 
         # store the path to the current .gbw file for this conformer
-        result["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+        meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # read out optimized geometry und update conformer geometry with this
         conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
@@ -785,7 +784,7 @@ class OrcaProc(QmProc):
 
         try:
             assert result["converged"] is not None
-        except AssertionError as e:
+        except AssertionError:
             raise RuntimeError("No information about convergence found! Something must've went wrong.")
 
-        return result
+        return result, meta
