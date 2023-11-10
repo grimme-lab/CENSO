@@ -289,7 +289,7 @@ class OrcaProc(QmProc):
             },
         }
 
-    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
+    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None, retry: bool = False) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
@@ -313,12 +313,15 @@ class OrcaProc(QmProc):
             # if the template is messed up, orca will fail and the user should deal with that
             # load template file
             try:
-                indict = OrcaParser().read_input(os.path.join(USER_ASSETS_PATH, f"{self.instructions['part_name']}.orca.template"))
+                indict = OrcaParser().read_input(
+                    os.path.join(USER_ASSETS_PATH, f"{self.instructions['part_name']}.orca.template"))
             except FileNotFoundError:
                 raise FileNotFoundError(f"Could not find template file {self.instructions['part_name']}.orca.template.")
 
         # prepare the main line of the orca input
         indict = self.__prep_main(indict, jobtype, orca5)
+
+        # TODO - add special lines if this is a retry
 
         # prepare all options that are supposed to be placed before the geometry definition
         indict = self.__prep_pregeom(indict, orca5, no_solv)
@@ -535,19 +538,20 @@ class OrcaProc(QmProc):
         # read output
         with open(outputpath, "r", encoding=CODING, newline=None) as out:
             lines = out.readlines()
-            for i, line in enumerate(lines):
-                if "FINAL SINGLE POINT ENERGY" in line:
-                    result["energy"] = float(line.split()[4])
 
-                # check if scf is converged:
-                if "ORCA TERMINATED NORMALLY" in line:
-                    meta["success"] = True
+            # Get final energy
+            result["energy"] = next((float(line.split()[4]) for line in lines if "FINAL SINGLE POINT ENERGY" in line), None)
 
-        if not meta["success"]:
-            print(f"{'WARNING:':{WARNLEN}}ORCA single-point not converged for {conf.name}.")
+            # Check if scf is converged
+            result["success"] = next((True for line in lines if "SCF CONVERGED" in line), False)
 
-        # store the path to the current .gbw file for this conformer
-        meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+        if not meta["success"] is True:
+            meta["success"] = False
+            meta["error"] = "SCF not converged"
+
+        # store the path to the current .gbw file for this conformer if possible
+        if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
+            meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # TODO - clean up?
 
@@ -588,7 +592,7 @@ class OrcaProc(QmProc):
             result["energy_gas"] = spres["energy"]
         else:
             meta["success"] = False
-            meta["error"] = "what went wrong in gsolv"
+            meta["error"] = "SCF not converged"
             return result, meta
 
         # calculate in solution
@@ -598,7 +602,7 @@ class OrcaProc(QmProc):
             result["energy_solv"] = spres["energy"]
         else:
             meta["success"] = False
-            meta["error"] = "what went wrong in gsolv"
+            meta["error"] = "SCF not converged"
             return result, meta
 
         # calculate solvation free enthalpy
@@ -741,35 +745,35 @@ class OrcaProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath, "r", encoding=CODING, newline=None) as file:
+        with (open(outputpath, "r", encoding=CODING, newline=None) as file):
             lines = file.readlines()
 
             result["ecyc"] = []
             result["cycles"] = 0
 
-            for line in lines:
-                # the following is probably self explanatory
-                if (
-                        "external code error" in line
-                        or "|grad| > 500, something is totally wrong!" in line
-                        or "abnormal termination of xtb" in line
-                ):
-                    meta["success"] = False
-                    meta["error"] = "what went wrong in xtb_opt"
-                    return result, meta
+            # Substrings indicating error in xtb
+            error_ind = [
+                "external code error",
+                "|grad| > 500, something is totally wrong!",
+                "abnormal termination of xtb"
+            ]
 
-                meta["success"] = True
+            # Check if xtb terminated normally (if there are any error indicators in the output)
+            meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind))) is not None else True
+            if not meta["success"]:
+                meta["error"] = "what went wrong in xtb_opt"
+                return result, meta
 
-                if "failed to converge geometry" in line.lower():
-                    result["cycles"] += int(line.split()[7])
-                    result["converged"] = False
-                elif "geometry optimization converged" in line.lower():
-                    result["cycles"] += int(line.split()[5])
-                    result["converged"] = True
-                elif "av. E: " in line and "->" in line:
-                    result["ecyc"].append(float(line.split("->")[-1]))
-                elif " :: gradient norm      " in line:
-                    result["grad_norm"] = float(line.split()[3])
+            # Get the number of cycles
+            # NOTE: defaults to None if neither substring is found
+            result["cycles"] = int(next((x for x in lines if "geometry optimization converged" in x), None).split()[7])\
+                               or int(next((x for x in lines if "failed to converge geometry" in x), None).split()[5])
+
+            # Get energies for each cycle
+            result["ecyc"].extend(float(line.split("->")[-1]) for line in filter(lambda x: "av. E: " in x, lines))
+
+            # Get the gradient norm
+            result["grad_norm"] = float(next((x for x in lines if " :: gradient norm      " in x), None).split()[3])
 
         # store the final energy of the optimization in 'energy'
         result["energy"] = result["ecyc"][-1]

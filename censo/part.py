@@ -118,6 +118,9 @@ class CensoPart:
         "copy_mo": {
             "default": True
         },
+        "retry_failed": {
+            "default": True
+        },
         "trange": {
             "default": [
                 273.15,
@@ -287,11 +290,12 @@ class CensoPart:
         formatted print for part instructions
         """
 
-        # header
+        # Print header with part name
         lines = ["\n" + "".ljust(PLENGTH, "-") + "\n",
                  f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(PLENGTH, " ") + "\n",
                  "".ljust(PLENGTH, "-") + "\n", "\n"]
 
+        # Print all settings with name and value
         for setting, val in self._settings.items():
             lines.append(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}\n")
 

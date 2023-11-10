@@ -580,6 +580,7 @@ class QmProc:
 
         # get gibbs energy, enthalpy and entropy for given temperature range
         trange = frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
+
         # gibbs energy
         gt = {}
 
@@ -589,14 +590,20 @@ class QmProc:
         # rotational entropy
         rotS = {}
 
-        for line in lines:
-            # get rotational entropy
-            if "VIB" in line:
-                index = lines.index(line) + 1
-                T = float(line.split()[0])
-                rotS[T] = float(lines[index].split()[4])
+        # Extract symmetry
+        result["linear"] = next(({"true": True, "false": False}[line.split()[2]] for line in lines if ":  linear? " in line), None)
 
-            # get gibbs energy and enthalpy
+        # Extract rmsd
+        result["rmsd"] = next((float(line.split()[3]) for line in lines if "final rmsd / " in line and self.instructions["bhess"]), None)
+
+        # Get rotational entropy
+        entropy_lines = ((line, lines[i+1]) for i, line in enumerate(lines) if "VIB" in line)
+        for line in entropy_lines:
+            T = float(line[0].split()[0])
+            rotS[T] = float(line[1].split()[4])
+
+        # Get Gibbs energy and enthalpy
+        for line in lines:
             if "T/K" in line:
                 for line2 in lines[lines.index(line) + 2:]:
                     if "----------------------------------" in line2:
@@ -605,18 +612,6 @@ class QmProc:
                     T = float(line2.split()[0])
                     gt[T] = float(line2.split()[4])
                     ht[T] = float(line2.split()[2])
-
-            # extract rmsd
-            if "final rmsd / " in line and self.instructions["bhess"]:
-                result["rmsd"] = float(line.split()[3])
-
-            # extract symmetry
-            if ":  linear? " in line:
-                # linear needed for symmetry and S_rot (only if considersym is turned off)
-                if line.split()[2] == "false":
-                    result["linear"] = False
-                elif line.split()[2] == "true":
-                    result["linear"] = True
 
         # check if xtb calculated the temperature range correctly
         if len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS):
@@ -649,14 +644,14 @@ class QmProc:
 
         # get gibbs energy
         if "G(T)" in data:
+            meta["success"] = True
+
             if self.instructions["temperature"] == 0:
-                meta["success"] = True
                 result["energy"] = data.get("ZPVE", 0.0)
                 result["gibbs"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
                 result["enthalpy"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
                 result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
             else:
-                meta["success"] = True
                 result["energy"] = data.get("G(T)", 0.0)
                 result["gibbs"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
                 result["enthalpy"][self.instructions["temperature"]] = None  # set this to None for predictability
@@ -677,6 +672,6 @@ class QmProc:
             )
         else:
             meta["success"] = False
-            meta["error"] = f"{'ERROR:':{WARNLEN}}while reading xtb_enso.json in: {last_folders(jobdir, 3)}"
+            meta["error"] = "Could not read xtb_enso.json"
 
         return result, meta
