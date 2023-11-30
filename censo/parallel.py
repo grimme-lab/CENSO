@@ -63,7 +63,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
         mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
         for conf in conformers:
             if mo_paths[conf.geom.id] is not None:
-                conf.mo_paths.append(mo_paths[conf.geom.id]["mo_path"])
+                conf.mo_paths.append(mo_paths[conf.geom.id])
 
     # create a new list of failed jobs that should be restarted with special flags
     if instructions["retry_failed"]:
@@ -98,7 +98,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                 mo_paths = {job.conf.id: job.meta["mo_path"] for job in [jobs[i] for i in retry]}
                 for conf in conformers:
                     if mo_paths[conf.geom.id] is not None:
-                        conf.mo_paths.append(mo_paths[conf.geom.id]["mo_path"])
+                        conf.mo_paths.append(mo_paths[conf.geom.id])
         else:
             print("All jobs executed successfully.")
 

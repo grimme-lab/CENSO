@@ -288,7 +288,7 @@ class OrcaProc(QmProc):
             },
         }
 
-    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
+    def __prep(self, job: ParallelJob, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
@@ -323,10 +323,10 @@ class OrcaProc(QmProc):
         # TODO - add special lines if this is a retry
 
         # prepare all options that are supposed to be placed before the geometry definition
-        indict = self.__prep_pregeom(indict, orca5, no_solv)
+        indict = self.__prep_pregeom(indict, orca5, no_solv, job.omp)
 
         # prepare the geometry
-        indict = self.__prep_geom(indict, conf, xyzfile)
+        indict = self.__prep_geom(indict, job.conf, xyzfile)
 
         # indict = self.__prep_postgeom(indict, jobtype, orca5)
 
@@ -432,7 +432,7 @@ class OrcaProc(QmProc):
 
         return indict
 
-    def __prep_pregeom(self, indict: OrderedDict, orca5: bool, no_solv: bool) -> OrderedDict:
+    def __prep_pregeom(self, indict: OrderedDict, orca5: bool, no_solv: bool, nprocs: int) -> OrderedDict:
 
         """used in nmr calculation
         if self.job["moread"] is not None:
@@ -440,11 +440,11 @@ class OrcaProc(QmProc):
             #%moinp "jobname2.gbw"
             orcainput["moread"] = self.job["moread"]"""
 
-        if orca5 and self.instructions["omp"] > 1:
+        if orca5 and nprocs > 1:
             indict = od_insert(
                 indict,
                 "pal",
-                {"nprocs": [self.instructions["omp"]]},
+                {"nprocs": [nprocs]},
                 list(indict.keys()).index("main") + 1
             )
 
@@ -506,7 +506,7 @@ class OrcaProc(QmProc):
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # prepare input dict
-        indict = self.__prep(job.conf, "sp", no_solv=no_solv)
+        indict = self.__prep(job, "sp", no_solv=no_solv)
 
         # check for flags raised for this jobtype
         if jobtype in job.flags:
@@ -771,7 +771,7 @@ class OrcaProc(QmProc):
             ]
 
             # Check if xtb terminated normally (if there are any error indicators in the output)
-            meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind))) is not None else True
+            meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind)), None) is not None else True
             if not meta["success"]:
                 meta["error"] = "what went wrong in xtb_opt"
                 job.meta["xtb_opt"].update(meta)
@@ -828,4 +828,4 @@ class OrcaProc(QmProc):
                     if key == "main":
                         indict[key].extend(value)
                     else:
-                        od_insert(indict, key, value, list(indict.keys()).index("main") + 1)
+                        indict = od_insert(indict, key, value, 1)
