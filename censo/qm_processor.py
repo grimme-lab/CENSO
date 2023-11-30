@@ -153,7 +153,7 @@ class QmProc:
                     job.meta[j2]["error"] = "Previous calculation failed"
                 break
 
-        job.meta["total_time"] = sum(job.meta[j]["time"] for j in job.jobtype)
+        job.meta["total_time"] = sum(job.meta[j]["time"] for j in job.jobtype if job.meta[j]["success"])
 
         # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
         return res
