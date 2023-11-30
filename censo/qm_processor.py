@@ -121,7 +121,7 @@ class QmProc:
 
         self.workdir = workdir
 
-    def run(self, job: ParallelJob) -> dict[int, dict[Any, Any]]:
+    def run(self, job: ParallelJob) -> ParallelJob:
         """
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. ProcessHandler.execute
@@ -133,14 +133,12 @@ class QmProc:
                 f"At least one jobtype of {self._jobtypes} is not available for {self.__class__.__name__}.\nAvailable "
                 + f"jobtypes are: {self._jobtypes.keys()}")
 
-        res = {job.conf.id: {}}
-
         # run all the computations
         for j in job.jobtype:
             # Time execution
             start = perf_counter()
 
-            res[job.conf.id][j] = self._jobtypes[j](job)
+            job.results[j] = self._jobtypes[j](job)
 
             end = perf_counter()
 
@@ -148,15 +146,18 @@ class QmProc:
 
             # if a calculation failed all following calculations will not be executed
             if not job.meta[j]["success"]:
-                for j2 in job.jobtype[job.jobtype.index(j)+1:]:
+                for j2 in job.jobtype[job.jobtype.index(j) + 1:]:
                     job.meta[j2]["success"] = False
                     job.meta[j2]["error"] = "Previous calculation failed"
                 break
 
-        job.meta["total_time"] = sum(job.meta[j]["time"] for j in job.jobtype if job.meta[j]["success"])
+        job.meta["total_time"] = sum(
+            job.meta[j]["time"] for j in job.jobtype
+            if job.meta[j]["error"] != "Previous calculation failed"
+        )
 
-        # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
-        return res
+        # returns modified job object with result dict e.g.: {"sp": ..., "gsolv": ..., etc.}
+        return job
 
     @staticmethod
     def _make_call(call: List, outputpath: str, jobdir: str) -> int:

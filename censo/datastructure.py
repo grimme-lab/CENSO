@@ -158,5 +158,8 @@ class ParallelJob:
         self.meta: Dict[str, Any] = {j: {} for j in jobtype}
         self.meta["mo_path"] = None
 
+        # store the results of the job
+        self.results: Dict[str, Any] = {}
+
         # stores all flags for the jobtypes
         self.flags: Dict[str, Any] = {}

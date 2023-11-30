@@ -56,14 +56,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
         set_omp_constant(jobs, instructions["omp"])
 
     # execute the jobs
-    results = dqp(jobs, processor)
-
-    # assert that there is a result for every conformer
-    try:
-        assert all(job.conf.id in results.keys() for job in jobs)
-    except AssertionError:
-        raise RuntimeError(
-            "There is a mismatch between conformer ids and returned results. Cannot find at least one conformer id in results.")
+    jobs = dqp(jobs, processor)
 
     # if 'copy_mo' is enabled, try to get the mo_path from metadata and store it in the respective conformer object
     if instructions["copy_mo"]:
@@ -97,7 +90,8 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
             # execute jobs that should be retried
             print(f"Restarting {len(retry)} jobs.")
             set_omp_chunking([jobs[i] for i in retry])
-            results.update(dqp([jobs[i] for i in retry], processor))
+            for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
+                jobs[i] = job
 
             # again, try to get the mo_path from metadata and store it in the respective conformer object
             if instructions["copy_mo"]:
@@ -108,10 +102,11 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
         else:
             print("All jobs executed successfully.")
 
-    return results
+    # collect all results from the job objects
+    return {job.conf.id: job.results for job in jobs}
 
 
-def dqp(jobs: List[ParallelJob], processor: QmProc) -> dict[int, Any]:
+def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
     """
     D ynamic Q ueue P rocessing
     """
@@ -134,7 +129,8 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> dict[int, Any]:
     # it's purpose is to release the resources from the semaphore
     def callback(f, omp):
         nonlocal free_cores
-        free_cores.release(omp)
+        for i in range(omp):
+            free_cores.release()
 
     # sort the jobs by the number of cores used
     # (the first item will be the one with the lowest number of cores)
@@ -143,19 +139,15 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> dict[int, Any]:
     tasks = []
     for job in jobs:
         # wait until enough cores are free
-        free_cores.acquire(job.omp)
+        for i in range(job.omp):
+            free_cores.acquire()
 
         # submit the job
         tasks.append(executor.submit(processor.run, job))
         tasks[-1].add_done_callback(lambda future: callback(future, job.omp))
 
     # wait for all jobs to finish and collect results
-    results = [task.result() for task in as_completed(tasks)]
-
-    # merge the results
-    # structure of results
-    #   e.g. {id(conf): {"xtb_gsolv": {"gsolv": ..., "energy_xtb_gas": ...}, ...}, ...}
-    return reduce(lambda x, y: {**x, **y}, results)
+    return [task.result() for task in as_completed(tasks)]
 
 
 def set_omp_constant(jobs: List[ParallelJob], omp: int) -> None:
