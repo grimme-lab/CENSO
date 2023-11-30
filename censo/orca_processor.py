@@ -511,7 +511,7 @@ class OrcaProc(QmProc):
         # check for flags raised for this jobtype
         if jobtype in job.flags:
             if job.flags[jobtype] == "scf_not_converged":
-                self.__apply_flags(indict, "scf_not_converged")
+                indict = self.__apply_flags(indict, "scf_not_converged")
 
         # write input into file "{filename}.inp" in a subdir created for the conformer
         parser = OrcaParser()
@@ -771,7 +771,8 @@ class OrcaProc(QmProc):
             ]
 
             # Check if xtb terminated normally (if there are any error indicators in the output)
-            meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind)), None) is not None else True
+            meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind)),
+                                            None) is not None else True
             if not meta["success"]:
                 meta["error"] = "what went wrong in xtb_opt"
                 job.meta["xtb_opt"].update(meta)
@@ -808,7 +809,7 @@ class OrcaProc(QmProc):
         return result
 
     @staticmethod
-    def __apply_flags(indict: OrderedDict[str, Any], *args) -> None:
+    def __apply_flags(indict: OrderedDict[str, Any], *args) -> OrderedDict[str, Any]:
         """
         apply flags to an orca input
 
@@ -829,3 +830,5 @@ class OrcaProc(QmProc):
                         indict[key].extend(value)
                     else:
                         indict = od_insert(indict, key, value, 1)
+
+        return indict
