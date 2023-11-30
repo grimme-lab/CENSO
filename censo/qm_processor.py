@@ -381,8 +381,8 @@ class QmProc:
 
         # run gas-phase GFN single-point
         # TODO - does this need it's own folder?
-        spres, spmeta = self._xtb_sp(job, filename="gas", silent=True, no_solv=True, jobtype="xtb_gsolv")
-        if spmeta["success"]:
+        spres = self._xtb_sp(job, filename="gas", silent=True, no_solv=True, jobtype="xtb_gsolv")
+        if job.meta["xtb_gsolv"]["success"]:
             result["energy_xtb_gas"] = spres["energy"]
             print(f"xtb gas-phase single-point successfull for {job.conf.name}.")
         else:
@@ -394,8 +394,8 @@ class QmProc:
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        spres, spmeta = self._xtb_sp(job, filename="solv", silent=True, jobtype="xtb_gsolv")
-        if spmeta["success"]:
+        spres = self._xtb_sp(job, filename="solv", silent=True, jobtype="xtb_gsolv")
+        if job.meta["xtb_gsolv"]["success"]:
             result["energy_xtb_solv"] = spres["energy"]
             print(f"xtb solution-phase single-point successfull for {job.conf.name}.")
         else:

@@ -497,7 +497,6 @@ class OrcaProc(QmProc):
 
         meta = {
             "success": None,
-            "mo_path": None,
             "error": None,
         }
 
@@ -558,7 +557,7 @@ class OrcaProc(QmProc):
                 job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # TODO - clean up?
-        job.meta.update(meta)
+        job.meta[jobtype].update(meta)
 
         return result
 
@@ -655,7 +654,6 @@ class OrcaProc(QmProc):
 
         meta = {
             "success": None,
-            "mo_path": None,
             "error": None,
         }
 

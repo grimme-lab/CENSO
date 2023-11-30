@@ -3,26 +3,23 @@ Screening is basically just an extension of part0 (Prescreening).
 Additionally to part0 it is also possible to calculate gsolv implicitly and include the RRHO contribution.
 """
 import os
+from functools import reduce
 from math import isclose, exp
 from statistics import stdev
-from functools import reduce
 
-from censo.ensembleopt.prescreening import Prescreening
-from censo.part import CensoPart
-from censo.utilities import print, timeit, format_data
-from censo.parallel import ProcessHandler, execute
-from censo.core import CensoCore
 from censo.datastructure import MoleculeData
+from censo.ensembleopt.prescreening import Prescreening
+from censo.parallel import execute
 from censo.params import (
     AU2KCAL,
     SOLV_MODS,
-    GSOLV_MODS,
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
 )
 from censo.utilities import DfaHelper
+from censo.utilities import print, timeit, format_data
 
 
 class Screening(Prescreening):
