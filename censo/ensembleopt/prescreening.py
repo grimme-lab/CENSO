@@ -1,26 +1,22 @@
-import os
-from typing import List
 import csv
-from functools import reduce
+import os
 
+from censo.core import CensoCore
+from censo.datastructure import MoleculeData
+from censo.parallel import execute
 from censo.params import PLENGTH, AU2KCAL
+from censo.params import (
+    PROGS,
+    BASIS_SETS,
+    GRIDOPTIONS,
+    GFNOPTIONS,
+)
+from censo.part import CensoPart
 from censo.utilities import (
     print,
     timeit,
     format_data,
     DfaHelper,
-)
-from censo.part import CensoPart
-from censo.core import CensoCore
-from censo.parallel import ProcessHandler
-from censo.datastructure import MoleculeData
-from censo.params import (
-    SOLV_MODS,
-    GSOLV_MODS,
-    PROGS,
-    BASIS_SETS,
-    GRIDOPTIONS,
-    GFNOPTIONS,
 )
 
 """
@@ -88,21 +84,18 @@ class Prescreening(CensoPart):
         # print instructions
         self.print_info()
 
-        # initialize process handler with conformer geometries
-        handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
-
         # set jobtype to pass to handler
         if not self._instructions["gas-phase"]:
             if self._instructions.get("implicit", False):
-                jobtype = ["sp", "gsolv"]
+                self._instructions["jobtype"] = ["sp", "gsolv"]
             else:
-                jobtype = ["sp", "xtb_gsolv"]
+                self._instructions["jobtype"] = ["sp", "xtb_gsolv"]
         else:
-            jobtype = ["sp"]
+            self._instructions["jobtype"] = ["sp"]
 
         # compute results
         # for structure of results from handler.execute look there
-        results = handler.execute(jobtype, self.dir)
+        results = execute(self.core.conformers, self._instructions, self.dir)
 
         # update results for each conformer
         for conf in self.core.conformers:

@@ -1,20 +1,20 @@
 """
 Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
-from collections import OrderedDict
 import os
-from typing import Any, Dict, List, Tuple
-from functools import reduce
 import shutil
+from collections import OrderedDict
+from functools import reduce
+from typing import Any, List
 
+from censo.datastructure import GeometryData
+from censo.parallel import ParallelJob
 from censo.params import (
     CODING,
-    WARNLEN,
     USER_ASSETS_PATH,
 )
-from censo.utilities import last_folders, print, od_insert
 from censo.qm_processor import QmProc
-from censo.datastructure import GeometryData
+from censo.utilities import last_folders, print, od_insert
 
 
 class OrcaParser:
@@ -289,7 +289,7 @@ class OrcaProc(QmProc):
             },
         }
 
-    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None, retry: bool = False) -> OrderedDict:
+    def __prep(self, conf: GeometryData, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
         """
         prepare an OrderedDict to be fed into the parser in order to write an input file
         for jobtype 'jobtype' (e.g. sp)
@@ -482,14 +482,13 @@ class OrcaProc(QmProc):
         pass
 
     @QmProc._create_jobdir
-    def _sp(self, conf: GeometryData, silent=False, filename="sp", no_solv: bool = False) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _sp(self, job: ParallelJob, silent=False, filename="sp", no_solv: bool = False, jobtype: str = "sp") -> dict[
+        str, float | None]:
         """
         ORCA single-point calculation
 
         result = {
             "energy": None,
-            "success": None,
-            "mo_path": None,
         }
         """
         # set results
@@ -504,12 +503,17 @@ class OrcaProc(QmProc):
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, conf.name, self._sp.__name__[1:])
+        jobdir = os.path.join(self.workdir, job.conf.name, "sp")
         inputpath = os.path.join(jobdir, f"{filename}.inp")
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # prepare input dict
-        indict = self.__prep(conf, "sp", no_solv=no_solv)
+        indict = self.__prep(job.conf, "sp", no_solv=no_solv)
+
+        # check for flags raised for this jobtype
+        if jobtype in job.flags:
+            if job.flags[jobtype] == "scf_not_converged":
+                self.__apply_flags(indict, "scf_not_converged")
 
         # write input into file "{filename}.inp" in a subdir created for the conformer
         parser = OrcaParser()
@@ -517,9 +521,9 @@ class OrcaProc(QmProc):
 
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
         if self.instructions["copy_mo"]:
-            if getattr(conf, "mo_path") is not None and os.path.isfile(conf.mo_path):
-                print(f"Copying .gbw file from {conf.mo_path}.")
-                shutil.copy(conf.mo_path, os.path.join(jobdir, f"{filename}.gbw"))
+            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
+                print(f"Copying .gbw file from {job.mo_guess}.")
+                shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
         if not silent:
             print(f"Running ORCA single-point in {inputpath}")
@@ -532,7 +536,6 @@ class OrcaProc(QmProc):
         # check the outputfile instead, basically if the file doesn't say "SCF CONVERGED" or "SCF NOT CONVERGED" somewhere, something went wrong
         # easily remedied:
         # "SCF NOT CONVERGED"
-        # "SCF CONVERGED"
         # "Error encountered when trying to calculate the atomic fitting density!"
 
         # read output
@@ -540,27 +543,29 @@ class OrcaProc(QmProc):
             lines = out.readlines()
 
             # Get final energy
-            result["energy"] = next((float(line.split()[4]) for line in lines if "FINAL SINGLE POINT ENERGY" in line), None)
+            result["energy"] = next((float(line.split()[4]) for line in lines if "FINAL SINGLE POINT ENERGY" in line),
+                                    None)
 
             # Check if scf is converged
-            result["success"] = next((True for line in lines if "SCF CONVERGED" in line), False)
+            meta["success"] = next((True for line in lines if "SCF CONVERGED" in line), False)
 
+        # TODO - this is not really correct, might not mean that the scf didn't converge
         if not meta["success"] is True:
-            meta["success"] = False
             meta["error"] = "SCF not converged"
 
-        # store the path to the current .gbw file for this conformer if possible
-        if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
-            meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+        if self.instructions["copy_mo"]:
+            # store the path to the current .gbw file for this conformer if possible
+            if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
+                job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # TODO - clean up?
+        job.meta.update(meta)
 
-        return result, meta
+        return result
 
-    def _gsolv(self, conf: GeometryData) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _gsolv(self, job: ParallelJob) -> dict[str, Any | None]:
         """
         result = {
-            "success": None,
             "gsolv": None,
             "energy_gas": None,
             "energy_solv": None,
@@ -585,52 +590,55 @@ class OrcaProc(QmProc):
 
         # calculate gas phase
         # TODO - this is redundant since a single point was probably already calculated before
-        # TODO - does this need it's own folder?
-        spres, spmeta = self._sp(conf, silent=True, filename="sp_gas", no_solv=True)
+        # TODO - does this need it's own folder? this is a bit messy
+        spres = self._sp(job, silent=True, filename="sp_gas", no_solv=True, jobtype="gsolv")
 
-        if spmeta["success"]:
+        if job.meta["gsolv"]["success"]:
             result["energy_gas"] = spres["energy"]
         else:
             meta["success"] = False
             meta["error"] = "SCF not converged"
-            return result, meta
+            job.meta["gsolv"].update(meta)
+            return result
 
         # calculate in solution
-        spres, spmeta = self._sp(conf, silent=True, filename="sp_solv")
+        spres = self._sp(job, silent=True, filename="sp_solv", jobtype="gsolv")
 
-        if spmeta["success"]:
+        if job.meta["gsolv"]["success"]:
             result["energy_solv"] = spres["energy"]
         else:
             meta["success"] = False
             meta["error"] = "SCF not converged"
-            return result, meta
+            job.meta["gsolv"].update(meta)
+            return result
 
         # calculate solvation free enthalpy
         result["gsolv"] = result["energy_solv"] - result["energy_gas"]
         meta["success"] = True
+        job.meta["gsolv"].update(meta)
 
-        return result, meta
+        return result
 
     # TODO - split this up
     @QmProc._create_jobdir
-    def _xtb_opt(self, conf: GeometryData, filename: str = "xtb_opt") -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _xtb_opt(self, job: ParallelJob, filename: str = "xtb_opt") -> dict[str, Any]:
         """
         ORCA geometry optimization using ANCOPT
 
         result = {
-            "success": None,
             "energy": None,
             "cycles": None,
             "converged": None,
             "ecyc": None,
             "grad_norm": None,
-            "mo_path": None,
             "geom": None,
         }
         """
+        # TODO - check if orca scf converges
         # NOTE: some "intuitivity problems":
-        # the first call of _xtb_opt (probably in spearman opt) generates a coord file, which is then updated externally by xtb
-        # the content of this coord file is converted into conf.xyz to be used by orca
+        # the geometry of the conformer is written into a coord file and also into a xyz-file to be used by orca
+        # xtb then outputs a file with the optimized geometry as 'xtbopt.coord', which is then read into the conformer
+        # to update it's geometry
 
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
@@ -652,7 +660,7 @@ class OrcaProc(QmProc):
             "error": None,
         }
 
-        jobdir = os.path.join(self.workdir, conf.name, "xtb_opt")
+        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_opt")
         xcontrolname = "xtb_opt-xcontrol-inp"
 
         files = [
@@ -671,18 +679,18 @@ class OrcaProc(QmProc):
 
         # write conformer geometry to coord file
         with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(conf.tocoord())
+            file.writelines(job.conf.tocoord())
 
         # write xyz-file for orca
         with open(os.path.join(jobdir, f"{filename}.xyz"), "w", newline=None) as file:
-            file.writelines(conf.toxyz())
+            file.writelines(job.conf.toxyz())
 
         # set orca input path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(conf, filename, xyzfile=f"{filename}.xyz")
+        indict = self.__prep(job.conf, filename, xyzfile=f"{filename}.xyz")
 
         # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)
@@ -719,6 +727,12 @@ class OrcaProc(QmProc):
                 "$end \n",
             ])
 
+        # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
+        if self.instructions["copy_mo"]:
+            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
+                print(f"Copying .gbw file from {job.mo_guess}.")
+                shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
+
         # prepare xtb call
         call = [
             self._paths["xtbpath"],
@@ -742,7 +756,8 @@ class OrcaProc(QmProc):
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_opt"
-            return result, meta
+            job.meta["xtb_opt"].update(meta)
+            return result
 
         # read output
         with (open(outputpath, "r", encoding=CODING, newline=None) as file):
@@ -762,11 +777,12 @@ class OrcaProc(QmProc):
             meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind))) is not None else True
             if not meta["success"]:
                 meta["error"] = "what went wrong in xtb_opt"
-                return result, meta
+                job.meta["xtb_opt"].update(meta)
+                return result
 
             # Get the number of cycles
             # NOTE: defaults to None if neither substring is found
-            result["cycles"] = int(next((x for x in lines if "geometry optimization converged" in x), None).split()[7])\
+            result["cycles"] = int(next((x for x in lines if "geometry optimization converged" in x), None).split()[7]) \
                                or int(next((x for x in lines if "failed to converge geometry" in x), None).split()[5])
 
             # Get energies for each cycle
@@ -779,16 +795,40 @@ class OrcaProc(QmProc):
         result["energy"] = result["ecyc"][-1]
         meta["success"] = True
 
-        # store the path to the current .gbw file for this conformer
-        meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+        if self.instructions["copy_mo"]:
+            # store the path to the current .gbw file for this conformer
+            job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # read out optimized geometry und update conformer geometry with this
-        conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
-        result["geom"] = conf.xyz
+        job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
+        result["geom"] = job.conf.xyz
 
         try:
             assert result["converged"] is not None
         except AssertionError:
             raise RuntimeError("No information about convergence found! Something must've went wrong.")
 
-        return result, meta
+        return result
+
+    @staticmethod
+    def __apply_flags(indict: OrderedDict[str, Any], *args) -> None:
+        """
+        apply flags to an orca input
+
+        this is very much work in progress
+        """
+        flag_to_setting = {
+            "scf_not_converged": {
+                "scf": {"maxiter": ["300"]},
+                "main": ["slowconv"],
+            },
+        }
+
+        for flag in args:
+            if flag in flag_to_setting:
+                # insert all settings dictated by the flags after the main input line (TODO)
+                for key, value in flag_to_setting[flag].items():
+                    if key == "main":
+                        indict[key].extend(value)
+                    else:
+                        od_insert(indict, key, value, list(indict.keys()).index("main") + 1)

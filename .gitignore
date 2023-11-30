@@ -17,3 +17,7 @@ __pycache__/
 
 # packaging
 *.egg-info/
+
+
+# pycharm
+.idea/*

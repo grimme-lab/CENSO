@@ -3,15 +3,16 @@ Contains QmProc base class,
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
-import os
-from time import perf_counter
-from typing import Any, Callable, Dict, List, Tuple
-import subprocess
-import json
-import functools
 import atexit
+import functools
+import json
+import os
 import signal
+import subprocess
+from time import perf_counter
+from typing import Any, Callable, Dict, List
 
+from censo.parallel import ParallelJob
 from censo.params import (
     ENVIRON,
     CODING,
@@ -20,7 +21,6 @@ from censo.params import (
     PLENGTH, DIGILEN,
 )
 from censo.utilities import last_folders, print, frange
-from censo.datastructure import GeometryData
 
 
 class QmProc:
@@ -67,7 +67,7 @@ class QmProc:
             print(line)
 
     @staticmethod
-    def _create_jobdir(job: Callable) -> Callable:
+    def _create_jobdir(f: Callable) -> Callable:
         """
         Creates a subdir in confdir for the job.
         
@@ -76,39 +76,36 @@ class QmProc:
         To access this method from child classes, the decorator must be called like: @QmProc._create_jobdir.
         """
 
-        @functools.wraps(job)
-        def wrapper(self, conf, *args, **kwargs):
+        @functools.wraps(f)
+        def wrapper(self, job, *args, **kwargs):
             """
-            A function that wraps the given `job` function and performs some operations before and after calling it.
+            A function that wraps the given `f` function and performs some operations before and after calling it.
 
             Parameters:
                 self (object): The instance of the class that the function is a method of.
-                conf (object): The conformer object that contains the necessary information for the job.
-                *args (tuple): The positional arguments passed to the `job` function.
-                **kwargs (dict): The keyword arguments passed to the `job` function.
+                job (object): The job object that contains the necessary information.
+                *args (tuple): The positional arguments passed to the `f` function.
+                **kwargs (dict): The keyword arguments passed to the `f` function.
 
             Returns:
-                The return value of the `job` function.
+                The return value of the `f` function.
             """
-            jobdir = os.path.join(self.workdir, conf.name,
-                                  job.__name__[1:])  # getting the name starting from 1: to strip the _
+            # getting the name starting from 1: to strip the _
+            jobdir = os.path.join(self.workdir, job.conf.name, f.__name__[1:])
             try:
                 # Create the directory
                 os.makedirs(jobdir)
             except FileExistsError:
                 print(f"WARNING: Jobdir {jobdir} already exists! Files will be overwritten.")
 
-            return job(self, conf, *args, **kwargs)
+            return f(self, job, *args, **kwargs)
 
         return wrapper
 
-    def __init__(self, instructions: Dict[str, Any], jobtype: List[str], workdir: str):
+    def __init__(self, instructions: Dict[str, Any], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
         self.instructions: Dict[str, Any] = instructions
-
-        # absolute path to the folder where jobs should be executed in
-        self.workdir: str = workdir
 
         # dict to map the jobtypes to their respective methods
         self._jobtypes: Dict[str, Callable] = {
@@ -122,42 +119,44 @@ class QmProc:
             "xtb_rrho": self._xtb_rrho,
         }
 
-        # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next job)
-        # list containing the instructions of which computations to do
-        self._jobtype: List[str]
-        if all(t in self._jobtypes.keys() for t in jobtype):
-            self._jobtype = jobtype
-        else:
-            raise RuntimeError(
-                f"At least one jobtype of {self._jobtypes} is not available for {self.__class__.__name__}.\nAvailable "
-                + f"jobtypes are: {self._jobtypes.keys()}")
+        self.workdir = workdir
 
-    def run(self, conf: GeometryData) -> tuple[dict[int, dict[Any, Any]], dict[int, dict[Any, Any]]]:
+    def run(self, job: ParallelJob) -> dict[int, dict[Any, Any]]:
         """
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. ProcessHandler.execute
         """
-        res = {conf.id: {}}
-        meta = {conf.id: {}}
+        # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
+        # list containing the types of computations to do
+        if not all(t in self._jobtypes.keys() for t in job.jobtype):
+            raise RuntimeError(
+                f"At least one jobtype of {self._jobtypes} is not available for {self.__class__.__name__}.\nAvailable "
+                + f"jobtypes are: {self._jobtypes.keys()}")
 
-        # run all the jobs
-        for job in self._jobtype:
+        res = {job.conf.id: {}}
+
+        # run all the computations
+        for j in job.jobtype:
             # Time execution
             start = perf_counter()
 
-            res[conf.id][job], meta[conf.id][job] = self._jobtypes[job](conf)
+            res[job.conf.id][j] = self._jobtypes[j](job)
 
             end = perf_counter()
 
-            meta[conf.id][job]["time"] = end - start
+            job.meta[j]["time"] = end - start
 
-            if not meta[conf.id][job]["success"]:
+            # if a calculation failed all following calculations will not be executed
+            if not job.meta[j]["success"]:
+                for j2 in job.jobtype[job.jobtype.index(j)+1:]:
+                    job.meta[j2]["success"] = False
+                    job.meta[j2]["error"] = "Previous calculation failed"
                 break
 
-        meta[conf.id]["total_time"] = sum(meta[conf.id][job]["time"] for job in meta[conf.id].keys())
+        job.meta["total_time"] = sum(job.meta[j]["time"] for j in job.jobtype)
 
-        # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}} and dict of the same format for metadata
-        return res, meta
+        # returns dict e.g.: {140465474831616: {"sp": ..., "gsolv": ..., etc.}}
+        return res
 
     @staticmethod
     def _make_call(call: List, outputpath: str, jobdir: str) -> int:
@@ -238,13 +237,12 @@ class QmProc:
         return symnum
 
     @_create_jobdir
-    def _xtb_sp(self, conf: GeometryData, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False) -> \
-            Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _xtb_sp(self, job: ParallelJob, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False,
+                jobtype: str = "xtb_sp") -> dict[str, float | None]:
         """
         Get single-point energy from xtb
         result = {
             "energy": None,
-            "success": None,
         }
         """
         # set results
@@ -259,14 +257,14 @@ class QmProc:
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, conf.name, "xtb_sp")
+        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_sp")
         inputpath = os.path.join(jobdir, f"{filename}.coord")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "xtb_sp-xcontrol-inp"
 
         if not silent:
             print(
-                f"Running xtb_sp calculation for {conf.name}"
+                f"Running xtb_sp calculation for {job.conf.name}"
             )
 
         # cleanup
@@ -287,7 +285,7 @@ class QmProc:
 
         # generate coord file for xtb
         with open(inputpath, "w", newline=None) as file:
-            file.writelines(conf.tocoord())
+            file.writelines(job.conf.tocoord())
 
         # setup call for xtb single-point
         call = [
@@ -332,7 +330,8 @@ class QmProc:
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_sp"
-            return result, meta
+            job.meta[jobtype].update(meta)
+            return result
 
         # read energy from outputfile
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
@@ -350,9 +349,10 @@ class QmProc:
             )
 
         # FIXME - right now the case meta["success"] = None might appear if "TOTAL ENERGY" is not found in outputfile
-        return result, meta
+        job.meta[jobtype].update(meta)
+        return result
 
-    def _xtb_gsolv(self, conf: GeometryData) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _xtb_gsolv(self, job: ParallelJob) -> dict[str, Any | None]:
         """
         Calculate additive GBSA or ALPB solvation contribution by
         Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
@@ -364,7 +364,7 @@ class QmProc:
         }
         """
         print(
-            f"Running xtb_gsolv calculation for {conf.name}."
+            f"Running xtb_gsolv calculation for {job.conf.name}."
         )
 
         # what is returned in the end
@@ -381,32 +381,35 @@ class QmProc:
 
         # run gas-phase GFN single-point
         # TODO - does this need it's own folder?
-        spres, spmeta = self._xtb_sp(conf, filename="gas", silent=True, no_solv=True)
+        spres, spmeta = self._xtb_sp(job, filename="gas", silent=True, no_solv=True, jobtype="xtb_gsolv")
         if spmeta["success"]:
             result["energy_xtb_gas"] = spres["energy"]
-            print(f"xtb gas-phase single-point successfull for {conf.name}.")
+            print(f"xtb gas-phase single-point successfull for {job.conf.name}.")
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_gsolv"
-            return result, meta
+            job.meta["xtb_gsolv"].update(meta)
+            return result
 
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        spres, spmeta = self._xtb_sp(conf, filename="solv", silent=True)
+        spres, spmeta = self._xtb_sp(job, filename="solv", silent=True, jobtype="xtb_gsolv")
         if spmeta["success"]:
             result["energy_xtb_solv"] = spres["energy"]
-            print(f"xtb solution-phase single-point successfull for {conf.name}.")
+            print(f"xtb solution-phase single-point successfull for {job.conf.name}.")
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_gsolv"
-            return result, meta
+            job.meta["xtb_gsolv"].update(meta)
+            return result
 
         # only reached if both gas-phase and solvated sp succeeded   
         result["gsolv"] = result["energy_xtb_solv"] - result["energy_xtb_gas"]
         meta["success"] = True
 
-        return result, meta
+        job.meta["xtb_gsolv"].update(meta)
+        return result
 
     def _xtb_opt(self):
         """
@@ -416,13 +419,12 @@ class QmProc:
 
     # TODO - break this down
     @_create_jobdir
-    def _xtb_rrho(self, conf: GeometryData, filename: str = "xtb_rrho") -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _xtb_rrho(self, job: ParallelJob, filename: str = "xtb_rrho") -> dict[str, Any]:
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
         
         result = {
             "energy": None, # contains the gibbs energy at given temperature (might be ZPVE if T = 0K)
-            "success": None,
             "rmsd": None,
             "gibbs": None,
             "enthalpy": None,
@@ -449,11 +451,11 @@ class QmProc:
 
         # if not self.job["onlyread"]: # TODO ???
         print(
-            f"Running {str(self.instructions['gfnv']).upper()} mRRHO for {conf.name}."
+            f"Running {str(self.instructions['gfnv']).upper()} mRRHO for {job.conf.name}."
         )
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, conf.name, "xtb_rrho")
+        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_rrho")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "rrho-xcontrol-inp"
         xcontrolpath = os.path.join(jobdir, xcontrolname)
@@ -526,7 +528,7 @@ class QmProc:
 
         # generate coord file for xtb
         with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(conf.tocoord())
+            file.writelines(job.conf.tocoord())
 
         call = [
             self._paths["xtbpath"],
@@ -572,7 +574,8 @@ class QmProc:
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_rrho"
-            return result, meta
+            job.meta["xtb_rrho"].update(meta)
+            return result
 
         # read output and store lines
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
@@ -591,13 +594,15 @@ class QmProc:
         rotS = {}
 
         # Extract symmetry
-        result["linear"] = next(({"true": True, "false": False}[line.split()[2]] for line in lines if ":  linear? " in line), None)
+        result["linear"] = next(
+            ({"true": True, "false": False}[line.split()[2]] for line in lines if ":  linear? " in line), None)
 
         # Extract rmsd
-        result["rmsd"] = next((float(line.split()[3]) for line in lines if "final rmsd / " in line and self.instructions["bhess"]), None)
+        result["rmsd"] = next(
+            (float(line.split()[3]) for line in lines if "final rmsd / " in line and self.instructions["bhess"]), None)
 
         # Get rotational entropy
-        entropy_lines = ((line, lines[i+1]) for i, line in enumerate(lines) if "VIB" in line)
+        entropy_lines = ((line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line)
         for line in entropy_lines:
             T = float(line[0].split()[0])
             rotS[T] = float(line[1].split()[4])
@@ -621,7 +626,8 @@ class QmProc:
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_rrho"
-            return result, meta
+            job.meta["xtb_rrho"].update(meta)
+            return result
 
         # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess (when a hessian is calculated)
         # contains output from xtb in json format to be more easily digestible by CENSO
@@ -674,4 +680,5 @@ class QmProc:
             meta["success"] = False
             meta["error"] = "Could not read xtb_enso.json"
 
-        return result, meta
+        job.meta["xtb_rrho"].update(meta)
+        return result

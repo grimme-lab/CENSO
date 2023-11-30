@@ -10,7 +10,7 @@ from functools import reduce
 from censo.ensembleopt.prescreening import Prescreening
 from censo.part import CensoPart
 from censo.utilities import print, timeit, format_data
-from censo.parallel import ProcessHandler
+from censo.parallel import ProcessHandler, execute
 from censo.core import CensoCore
 from censo.datastructure import MoleculeData
 from censo.params import (
@@ -98,13 +98,10 @@ class Screening(Prescreening):
             # PART (2)
             threshold = self._instructions["threshold"] / AU2KCAL
 
-            # initialize process handler for current program with conformer geometries
-            handler = ProcessHandler(self._instructions, [conf.geom for conf in self.core.conformers])
-
-            jobtype = ["xtb_rrho"]
+            self._instructions["jobtype"] = ["xtb_rrho"]
 
             # append results to previous results
-            results = handler.execute(jobtype, self.dir)
+            results = execute(self.core.conformers, self._instructions, self.dir)
             for conf in self.core.conformers:
                 # update results for each conformer
                 conf.results[self._name].update(results[id(conf)])

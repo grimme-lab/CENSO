@@ -25,7 +25,7 @@ class ProcessorFactory:
         """
         type_t: type = cls.__proctypes.get(prog, None)
 
-        if not type_t is None:
+        if type_t is not None:
             return type_t(*args, **kwargs)
         else:
             raise TypeError(f"No processor type was found for {prog} in {cls.__proctypes}.")

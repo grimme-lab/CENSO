@@ -3,27 +3,26 @@ Optimization == part2
 performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
-from typing import List
 from functools import reduce
+from typing import List
 
 from censo.core import CensoCore
-from censo.parallel import ProcessHandler
-from censo.part import CensoPart
-from censo.datastructure import GeometryData, MoleculeData
-from censo.utilities import (
-    print,
-    timeit,
-    DfaHelper,
-    format_data,
-)
+from censo.datastructure import MoleculeData
+from censo.parallel import execute
 from censo.params import (
     SOLV_MODS,
-    GSOLV_MODS,
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
+)
+from censo.part import CensoPart
+from censo.utilities import (
+    print,
+    timeit,
+    DfaHelper,
+    format_data,
 )
 
 
@@ -148,7 +147,7 @@ class Optimization(CensoPart):
 
     def __init__(self, core: CensoCore):
         super().__init__(core)
-        self.confs_nc: List[GeometryData]
+        self.confs_nc: List[MoleculeData]
 
     @timeit
     @CensoPart._create_dir
@@ -178,8 +177,7 @@ class Optimization(CensoPart):
         # print instructions
         self.print_info()
 
-        # setup process handler
-        handler = ProcessHandler(self._instructions)
+        self._instructions["jobtype"] = ["xtb_opt"]
 
         # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
         if self._instructions["opt_spearman"] and len(self.core.conformers) > 1:
@@ -190,7 +188,7 @@ class Optimization(CensoPart):
             #     # set spearmanthr by number of atoms:
             #     self.spearmanthr = 1 / (exp(0.03 * (self.runinfo["nat"] ** (1 / 4))))
 
-            self.__spearman_opt(handler)
+            self.__spearman_opt()
         else:
             """
             do normal geometry optimization
@@ -203,15 +201,10 @@ class Optimization(CensoPart):
             self._instructions["opt_spearman"] = False
 
             # run optimizations using xtb as driver
-            handler.conformers = [conf.geom for conf in self.core.conformers]
-            results_opt = handler.execute(["xtb_opt"], self.dir)
+            results_opt = execute(self.core.conformers, self._instructions, self.dir)
 
             # update results for each conformer
             for conf in self.core.conformers:
-                # store mo_path if 'copy_mo' is enabled
-                if self._instructions.get("copy_mo", None):
-                    conf.geom.mo_path = results_opt[id(conf)]["xtb_opt"]["mo_path"]
-
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[id(conf)]["xtb_opt"]["geom"]
 
@@ -222,8 +215,7 @@ class Optimization(CensoPart):
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a solvent model,
         # since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
-        handler.conformers = [conf.geom for conf in self.core.conformers]
-        results_rrho = handler.execute(["xtb_rrho"], self.dir)
+        results_rrho = execute(self.core.conformers, self._instructions, self.dir)
 
         for conf in self.core.conformers:
             conf.results[self._name.lower()].update(results_rrho[id(conf)])
@@ -252,46 +244,34 @@ class Optimization(CensoPart):
         except KeyError:
             return conf.results[self._name.lower()]["xtb_opt"]["energy"]
 
-    def __spearman_opt(self, handler: ProcessHandler):
+    def __spearman_opt(self):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
         # NOTE: this is a special step only necessary for spearman ensembleopt
         # at this point it's just self.core.conformers
-        self.confs_nc = [conf.geom for conf in self.core.conformers]
+        self.confs_nc = self.core.conformers
 
-        stopcond_converged = False
         ncyc = 0
         rrho_done = False
         print(f"Optimization using Spearman threshold, {self._instructions['optcycles']} cycles per step.")
         print(f"NCYC: {ncyc}")
         while (
-                not stopcond_converged
+                not len(self.confs_nc) == 0
                 and ncyc < self._instructions["maxcyc"]
                 # TODO - maybe make this more intelligent:
                 # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk,
                 # move it to a new chunk and calculate later
         ):
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged, all the following steps will not consider it anymore
-            # update conformers for ProcessHandler
-            handler.conformers = self.confs_nc
-
             # run optimizations for 'optcycles' steps
-            results_opt = handler.execute(["xtb_opt"], self.dir)
+            results_opt = execute(self.confs_nc, self._instructions, self.dir)
 
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
-                for coreconf in self.core.conformers:
-                    if id(coreconf) == conf.id:
-                        # store mo_path if 'copy_mo' is enabled
-                        if self._instructions.get("copy_mo", None):
-                            coreconf.geom.mo_path = results_opt[conf.id]["xtb_opt"]["mo_path"]
+                # update geometry of the conformer
+                conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
-                        # update geometry of the conformer
-                        coreconf.geom.xyz = results_opt[conf.id]["xtb_opt"]["geom"]
-                        conf.xyz = results_opt[conf.id]["xtb_opt"]["geom"]
-
-                        # store results
-                        coreconf.results.setdefault(self._name.lower(), {}).update(results_opt[conf.id])
-                        break
+                # store results
+                conf.results.setdefault(self._name.lower(), {}).update(results_opt[conf.geom.id])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
@@ -301,16 +281,14 @@ class Optimization(CensoPart):
                 # evaluate rrho using bhess flag (reset after this)
                 tmp = self._instructions["bhess"]
                 self._instructions["bhess"] = True
-                results_rrho = handler.execute(["xtb_rrho"], self.dir)
+                self._instructions["jobtype"] = ["xtb_rrho"]
+                results_rrho = execute(self.confs_nc, self._instructions, self.dir)
                 self._instructions["bhess"] = tmp
 
                 # put results into conformer objects
                 for conf in self.confs_nc:
-                    for coreconf in self.core.conformers:
-                        if id(coreconf) == conf.id:
-                            coreconf.results[self._name.lower()].update(results_rrho[conf.id])
-                            coreconf.results[self._name.lower()]["gtot"] = self.grrho(coreconf)
-                            break
+                    conf.results[self._name.lower()].update(results_rrho[conf.geom.id])
+                    conf.results[self._name.lower()]["gtot"] = self.grrho(conf)
 
                 # flag to make sure that rrho is only calculated once
                 rrho_done = True
@@ -402,16 +380,13 @@ class Optimization(CensoPart):
             # also remove conformers from confs_nc
             for conf in filtered:
                 print(f"{conf.name} is no longer considered (δG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
-                self.confs_nc.remove(conf.geom)
+                self.confs_nc.remove(conf)
 
             # update list of converged conformers
             for conf in self.confs_nc:
-                if results_opt[conf.id]["xtb_opt"]["converged"]:
-                    print(f"{conf.name} converged after {ncyc + results_opt[conf.id]['xtb_opt']['cycles']} steps.")
+                if results_opt[conf.geom.id]["xtb_opt"]["converged"]:
+                    print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
                     self.confs_nc.remove(conf)
-
-            # check if all (considered) conformers converged - End of While-loop
-            stopcond_converged = len(self.confs_nc) == 0
 
             # TODO - print out information about current state of the ensemble
             self.print_update()
@@ -487,6 +462,4 @@ class Optimization(CensoPart):
         """
         # TODO
         for conf in self.confs_nc:
-            for coreconf in self.core.conformers:
-                if id(coreconf) == conf.id:
-                    print(f"{coreconf.name}: {self.grrho(coreconf)}")
+            print(f"{conf.name}: {self.grrho(conf)}")

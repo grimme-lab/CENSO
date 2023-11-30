@@ -41,10 +41,6 @@ class GeometryData:
         # compute number of atoms
         self.nat: int = sum(len(i) for i in self.xyz.values())
 
-        # stores path to the most recent DFT MO-file (.gbw file in orca) 
-        # (FIXME - quick and dirty solution, it would seem to make more sense to put this into a MoleculeData object)
-        self.mo_path: str = None
-
     def toorca(self) -> List:
         """
         method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
@@ -123,6 +119,9 @@ class MoleculeData:
 
         # stores the initial xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float = None
+
+        # list to store the paths to all MO-files from the jobs run for this conformer
+        self.mo_paths: List[str] = []
 
         # stores the results of the calculations
         self.results = {}
