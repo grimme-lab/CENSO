@@ -132,12 +132,9 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> dict[int, Any]:
 
     # define a callback function that is called everytime a job is finished
     # it's purpose is to release the resources from the semaphore
-    def callback(f):
+    def callback(f, omp):
         nonlocal free_cores
-        args = f.args
-
-        # args[0] is the job
-        free_cores.release(args[0].omp)
+        free_cores.release(omp)
 
     # sort the jobs by the number of cores used
     # (the first item will be the one with the lowest number of cores)
@@ -150,7 +147,7 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> dict[int, Any]:
 
         # submit the job
         tasks.append(executor.submit(processor.run, job))
-        tasks[-1].add_done_callback(callback)
+        tasks[-1].add_done_callback(lambda future: callback(future, job.omp))
 
     # wait for all jobs to finish and collect results
     results = [task.result() for task in as_completed(tasks)]
