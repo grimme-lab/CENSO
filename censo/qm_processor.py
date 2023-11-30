@@ -12,7 +12,7 @@ import subprocess
 from time import perf_counter
 from typing import Any, Callable, Dict, List
 
-from censo.parallel import ParallelJob
+from censo.datastructure import ParallelJob
 from censo.params import (
     ENVIRON,
     CODING,

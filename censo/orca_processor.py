@@ -7,8 +7,7 @@ from collections import OrderedDict
 from functools import reduce
 from typing import Any, List
 
-from censo.datastructure import GeometryData
-from censo.parallel import ParallelJob
+from censo.datastructure import GeometryData, ParallelJob
 from censo.params import (
     CODING,
     USER_ASSETS_PATH,

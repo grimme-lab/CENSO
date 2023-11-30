@@ -1,46 +1,22 @@
 """
 Performs the parallel execution of the QM calls.
 """
-from functools import reduce
-import os
-from multiprocessing import Semaphore
-from typing import Any, Dict, List, Tuple
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import atexit
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import reduce
+from multiprocessing import Semaphore
+from typing import Any, Dict, List
 
+from censo.datastructure import MoleculeData, ParallelJob
+from censo.params import OMPMIN, OMPMAX
 from censo.procfact import ProcessorFactory
 from censo.qm_processor import QmProc
 from censo.utilities import print
-from censo.datastructure import GeometryData, MoleculeData
-from censo.params import OMPMIN, OMPMAX
 
 # get number of cores
 global ncores
 ncores = os.cpu_count()
-
-
-class ParallelJob:
-    def __init__(self, conf: GeometryData, jobtype: List[str], omp: int):
-        # conformer for the job
-        self.conf = conf
-
-        # list of jobtypes to execute for the processor
-        self.jobtype = jobtype
-
-        # number of cores to use
-        self.omp = omp
-
-        # stores path to an mo file which is supposed to be used as a guess
-        self.mo_guess = None
-
-        # store metadata, is updated by the processor
-        # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
-        # always contains the "mo_path" key
-        self.meta: Dict[str, Any] = {j: {} for j in jobtype}
-        self.meta["mo_path"] = None
-
-        # stores all flags for the jobtypes
-        self.flags: Dict[str, Any] = {}
 
 
 def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdir: str) -> Dict[int, Any]:

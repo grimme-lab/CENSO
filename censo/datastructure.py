@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Any
 from functools import reduce
 from collections import defaultdict
 
@@ -136,3 +136,27 @@ class MoleculeData:
         #    (calculated by external program)
         #    to get the single-point energy: self.results["prescreening"]["sp"]["energy"] 
         #    (confer to the results for each jobtype)
+
+
+class ParallelJob:
+    def __init__(self, conf: GeometryData, jobtype: List[str], omp: int):
+        # conformer for the job
+        self.conf = conf
+
+        # list of jobtypes to execute for the processor
+        self.jobtype = jobtype
+
+        # number of cores to use
+        self.omp = omp
+
+        # stores path to an mo file which is supposed to be used as a guess
+        self.mo_guess = None
+
+        # store metadata, is updated by the processor
+        # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
+        # always contains the "mo_path" key
+        self.meta: Dict[str, Any] = {j: {} for j in jobtype}
+        self.meta["mo_path"] = None
+
+        # stores all flags for the jobtypes
+        self.flags: Dict[str, Any] = {}
