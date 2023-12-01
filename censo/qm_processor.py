@@ -16,11 +16,10 @@ from censo.datastructure import ParallelJob
 from censo.params import (
     ENVIRON,
     CODING,
-    WARNLEN,
     rot_sym_num,
-    PLENGTH, DIGILEN,
+    PLENGTH, DIGILEN, WARNLEN,
 )
-from censo.utilities import last_folders, print, frange, setup_logger
+from censo.utilities import print, frange, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -98,7 +97,9 @@ class QmProc:
                 # Create the directory
                 os.makedirs(jobdir)
             except FileExistsError:
-                print(f"WARNING: Jobdir {jobdir} already exists! Files will be overwritten.")
+                global logger
+                logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
+                               " Files will be overwritten.")
 
             return f(self, job, *args, **kwargs)
 
@@ -254,15 +255,16 @@ class QmProc:
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_sp")
+        jobdir = os.path.join(self.workdir, job.conf.name, jobtype)
         inputpath = os.path.join(jobdir, f"{filename}.coord")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "xtb_sp-xcontrol-inp"
 
+        global logger
         if not silent:
-            print(
-                f"Running xtb_sp calculation for {job.conf.name}"
-            )
+            logger.info(f"Running xtb_sp calculation in {jobdir}.")
+        else:
+            logger.debug(f"Running xtb_sp calculation in {jobdir}.")
 
         # cleanup
         files = [
@@ -338,17 +340,11 @@ class QmProc:
                     meta["success"] = True
                 # TODO - what to do if calculation not converged?
 
-        # everything went fine, return result
-        if not silent:
-            print(
-                f"{self.instructions['gfnv'].upper()} energy for {last_folders(self.workdir, 2)}"
-                f" = {result['energy']:>.7f}"
-            )
-
         # FIXME - right now the case meta["success"] = None might appear if "TOTAL ENERGY" is not found in outputfile
         job.meta[jobtype].update(meta)
         return result
 
+    @_create_jobdir
     def _xtb_gsolv(self, job: ParallelJob) -> dict[str, Any | None]:
         """
         Calculate additive GBSA or ALPB solvation contribution by
@@ -360,8 +356,11 @@ class QmProc:
             "energy_xtb_solv": None,
         }
         """
-        print(
-            f"Running xtb_gsolv calculation for {job.conf.name}."
+        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_gsolv")
+
+        global logger
+        logger.info(
+            f"Running xtb_gsolv calculation in {jobdir}."
         )
 
         # what is returned in the end
@@ -381,7 +380,6 @@ class QmProc:
         spres = self._xtb_sp(job, filename="gas", silent=True, no_solv=True, jobtype="xtb_gsolv")
         if job.meta["xtb_gsolv"]["success"]:
             result["energy_xtb_gas"] = spres["energy"]
-            print(f"xtb gas-phase single-point successfull for {job.conf.name}.")
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_gsolv"
@@ -394,7 +392,6 @@ class QmProc:
         spres = self._xtb_sp(job, filename="solv", silent=True, jobtype="xtb_gsolv")
         if job.meta["xtb_gsolv"]["success"]:
             result["energy_xtb_solv"] = spres["energy"]
-            print(f"xtb solution-phase single-point successfull for {job.conf.name}.")
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_gsolv"
@@ -447,15 +444,17 @@ class QmProc:
         }
 
         # if not self.job["onlyread"]: # TODO ???
-        print(
-            f"Running {str(self.instructions['gfnv']).upper()} mRRHO for {job.conf.name}."
-        )
 
         # set in/out path
         jobdir = os.path.join(self.workdir, job.conf.name, "xtb_rrho")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "rrho-xcontrol-inp"
         xcontrolpath = os.path.join(jobdir, xcontrolname)
+
+        global logger
+        logger.info(
+            f"Running {str(self.instructions['gfnv']).upper()} mRRHO in {jobdir}."
+        )
 
         # TODO - is this list complete?
         files = [
@@ -639,10 +638,10 @@ class QmProc:
         # read number of imaginary frequencies and print warning
         if "number of imags" in data:
             if data["number of imags"] > 0:
-                print(
-                    f"{'WARNING:':{WARNLEN}}found {data['number of imags']} significant"
-                    f" imaginary frequencies in "
-                    f"{last_folders(self.workdir, 2)}"
+                logger.warning(
+                    f"Found {data['number of imags']} significant"
+                    f" imaginary frequencies for "
+                    f"{job.conf.name}."
                 )
 
         # get gibbs energy

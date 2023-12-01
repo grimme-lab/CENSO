@@ -10,7 +10,7 @@ from typing import Any, List
 from censo.datastructure import GeometryData, ParallelJob
 from censo.params import (
     CODING,
-    USER_ASSETS_PATH,
+    USER_ASSETS_PATH, WARNLEN,
 )
 from censo.qm_processor import QmProc
 from censo.utilities import last_folders, print, od_insert, setup_logger
@@ -423,7 +423,7 @@ class OrcaProc(QmProc):
         elif self.instructions["gcp"]:
             # TODO - error handling
             global logger
-            logger.warning(f"{f'worker{os.getpid()}:':WARNLEN}Selected basis not available for GCP.")
+            logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP.")
 
         # add job keyword for geometry optimizations
         # with ANCOPT
@@ -528,9 +528,9 @@ class OrcaProc(QmProc):
 
         global logger
         if not silent:
-            logger.info(f"{f'worker{os.getpid()}:':WARNLEN}Running ORCA single-point in {inputpath}")
+            logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA single-point in {inputpath}")
         else:
-            logger.debug(f"{f'worker{os.getpid()}:':WARNLEN}Running ORCA single-point in {inputpath}")
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA single-point in {inputpath}")
 
         # call orca
         call = [self._paths["orcapath"], f"{filename}.inp"]
@@ -591,7 +591,7 @@ class OrcaProc(QmProc):
         jobdir = os.path.join(self.workdir, job.conf.name, "gsolv")
 
         global logger
-        logger.info(f"{f'worker{os.getpid()}:':WARNLEN}Running ORCA Gsolv calculation in {jobdir}.")
+        logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA Gsolv calculation in {jobdir}.")
 
         # calculate gas phase
         # TODO - this is redundant since a single point was probably already calculated before
@@ -735,7 +735,7 @@ class OrcaProc(QmProc):
         global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                logger.debug(f"{f'worker{os.getpid()}:':WARNLEN}Copying .gbw file from {job.mo_guess}.")
+                logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
                 shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
         # prepare xtb call
@@ -752,7 +752,7 @@ class OrcaProc(QmProc):
         # set path to the ancopt output file
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
-        logger.info(f"{f'worker{os.getpid()}:':WARNLEN}Running optimization in {jobdir}.")
+        logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running optimization in {jobdir}.")
 
         # call xtb
         returncode = self._make_call(call, outputpath, jobdir)

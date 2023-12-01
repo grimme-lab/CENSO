@@ -13,13 +13,15 @@ from censo.params import (
     COSMORS_PARAM,
 )
 from censo.utilities import (
-    DfaHelper
+    DfaHelper, setup_logger
 )
 
 """
 Part class as parent class for all parts of the calculation to
 implement complete OOP approach.
 """
+
+logger = setup_logger(__name__)
 
 
 class CensoPart:
@@ -237,7 +239,8 @@ class CensoPart:
             # create/set folder to do the calculations in
             self.dir = os.path.join(self.core.workdir, self._name)
             if os.path.isdir(self.dir):
-                print(f"Folder {self.dir} already exists. Potentially overwriting files.")
+                global logger
+                logger.warning(f"Folder {self.dir} already exists. Potentially overwriting files.")
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
                 raise RuntimeError(f"Could not create directory for {self._name}.")
 
