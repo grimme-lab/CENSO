@@ -19,9 +19,6 @@ from censo.ensembleopt import *
 # TODO - MAJOR - introduce option to return all user customizable dbs to default
 # TODO - give meaningful help messages e.g. to avoid pitfalls for repeated calculations (too high threshold etc.)
 # TODO - MAJOR - make censo available as package to be easily installed via pip?
-# TODO - restore coverage of cml args and settings_options
-# TODO - function for user input?
-# TODO - add option to read out only specific conformers from input (e.g. 1, 3, 4)
 def main(argv=None):
     """
     Execute the CENSO code.

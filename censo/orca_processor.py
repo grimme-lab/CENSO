@@ -13,7 +13,9 @@ from censo.params import (
     USER_ASSETS_PATH,
 )
 from censo.qm_processor import QmProc
-from censo.utilities import last_folders, print, od_insert
+from censo.utilities import last_folders, print, od_insert, setup_logger
+
+logger = setup_logger(__name__)
 
 
 class OrcaParser:
@@ -420,7 +422,8 @@ class OrcaProc(QmProc):
             indict["main"].append(f"GCP(DFT/{gcp_keywords[self.instructions['basis'].lower()]})")
         elif self.instructions["gcp"]:
             # TODO - error handling
-            print("Selected basis not available for GCP.")
+            global logger
+            logger.warning(f"{f'worker{os.getpid()}:':WARNLEN}Selected basis not available for GCP.")
 
         # add job keyword for geometry optimizations
         # with ANCOPT
@@ -501,7 +504,7 @@ class OrcaProc(QmProc):
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, job.conf.name, "sp")
+        jobdir = os.path.join(self.workdir, job.conf.name, jobtype)
         inputpath = os.path.join(jobdir, f"{filename}.inp")
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
@@ -523,8 +526,11 @@ class OrcaProc(QmProc):
                 print(f"Copying .gbw file from {job.mo_guess}.")
                 shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
+        global logger
         if not silent:
-            print(f"Running ORCA single-point in {inputpath}")
+            logger.info(f"{f'worker{os.getpid()}:':WARNLEN}Running ORCA single-point in {inputpath}")
+        else:
+            logger.debug(f"{f'worker{os.getpid()}:':WARNLEN}Running ORCA single-point in {inputpath}")
 
         # call orca
         call = [self._paths["orcapath"], f"{filename}.inp"]
@@ -561,6 +567,7 @@ class OrcaProc(QmProc):
 
         return result
 
+    @QmProc._create_jobdir
     def _gsolv(self, job: ParallelJob) -> dict[str, Any | None]:
         """
         result = {
@@ -581,10 +588,10 @@ class OrcaProc(QmProc):
             "error": None,
         }
 
-        print(
-            f"Running SMD_gsolv calculation in "
-            f"{last_folders(self.workdir, 2)}."
-        )
+        jobdir = os.path.join(self.workdir, job.conf.name, "gsolv")
+
+        global logger
+        logger.info(f"{f'worker{os.getpid()}:':WARNLEN}Running ORCA Gsolv calculation in {jobdir}.")
 
         # calculate gas phase
         # TODO - this is redundant since a single point was probably already calculated before
@@ -687,7 +694,7 @@ class OrcaProc(QmProc):
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(job.conf, filename, xyzfile=f"{filename}.xyz")
+        indict = self.__prep(job, filename, xyzfile=f"{filename}.xyz")
 
         # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
         parser.write_input(inputpath, indict)
@@ -725,9 +732,10 @@ class OrcaProc(QmProc):
             ])
 
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
+        global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                print(f"Copying .gbw file from {job.mo_guess}.")
+                logger.debug(f"{f'worker{os.getpid()}:':WARNLEN}Copying .gbw file from {job.mo_guess}.")
                 shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
         # prepare xtb call
@@ -744,7 +752,7 @@ class OrcaProc(QmProc):
         # set path to the ancopt output file
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
-        print(f"Running optimization in {last_folders(jobdir, 2):18}")
+        logger.info(f"{f'worker{os.getpid()}:':WARNLEN}Running optimization in {jobdir}.")
 
         # call xtb
         returncode = self._make_call(call, outputpath, jobdir)
@@ -760,28 +768,43 @@ class OrcaProc(QmProc):
         with (open(outputpath, "r", encoding=CODING, newline=None) as file):
             lines = file.readlines()
 
-            result["ecyc"] = []
-            result["cycles"] = 0
+        result["ecyc"] = []
+        result["cycles"] = 0
 
-            # Substrings indicating error in xtb
-            error_ind = [
-                "external code error",
-                "|grad| > 500, something is totally wrong!",
-                "abnormal termination of xtb"
-            ]
+        # Substrings indicating error in xtb
+        error_ind = [
+            "external code error",
+            "|grad| > 500, something is totally wrong!",
+            "abnormal termination of xtb"
+        ]
 
-            # Check if xtb terminated normally (if there are any error indicators in the output)
-            meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind)),
-                                            None) is not None else True
-            if not meta["success"]:
-                meta["error"] = "what went wrong in xtb_opt"
-                job.meta["xtb_opt"].update(meta)
-                return result
+        # Check if xtb terminated normally (if there are any error indicators in the output)
+        meta["success"] = False if next((x for x in lines if any(y in x for y in error_ind)),
+                                        None) is not None else True
+        if not meta["success"]:
+            meta["error"] = "what went wrong in xtb_opt"
+            job.meta["xtb_opt"].update(meta)
+            return result
 
-            # Get the number of cycles
-            # NOTE: defaults to None if neither substring is found
-            result["cycles"] = int(next((x for x in lines if "geometry optimization converged" in x), None).split()[7]) \
-                               or int(next((x for x in lines if "failed to converge geometry" in x), None).split()[5])
+        # check convergence
+        try:
+            result["converged"] = bool(next((x for x in lines if "geometry optimization converged" in x), None)
+                                       or next((x for x in lines if "failed to converge geometry" in x)))
+        except StopIteration:
+            # in the case that next(...) for "converged" yields None the expression above will try to get a line for "failed to converge"
+            # in the case that no line is found for that a StopIteration is raised
+            result["converged"] = None
+
+        # Get the number of cycles
+        if result["converged"] is not None:
+            # tmp is one of the values from the dict defined below
+            tmp: tuple[str, int] = {
+                True: ("geometry optimization converged", 7),
+                False: ("failed to converge geometry", 5),
+            }[result["converged"]]
+
+            result["cycles"] = next(x for x in lines if tmp[0] in x) \
+                .split()[tmp[1]]
 
             # Get energies for each cycle
             result["ecyc"].extend(float(line.split("->")[-1]) for line in filter(lambda x: "av. E: " in x, lines))
@@ -789,9 +812,9 @@ class OrcaProc(QmProc):
             # Get the gradient norm
             result["grad_norm"] = float(next((x for x in lines if " :: gradient norm      " in x), None).split()[3])
 
-        # store the final energy of the optimization in 'energy'
-        result["energy"] = result["ecyc"][-1]
-        meta["success"] = True
+            # store the final energy of the optimization in 'energy'
+            result["energy"] = result["ecyc"][-1]
+            meta["success"] = True
 
         if self.instructions["copy_mo"]:
             # store the path to the current .gbw file for this conformer
@@ -801,10 +824,14 @@ class OrcaProc(QmProc):
         job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = job.conf.xyz
 
+        # TODO - this might be a case where it would be reasonable to raise an exception
         try:
             assert result["converged"] is not None
         except AssertionError:
-            raise RuntimeError("No information about convergence found! Something must've went wrong.")
+            meta["success"] = False
+            meta["error"] = "what went wrong in xtb_opt"
+
+        job.meta["xtb_opt"].update(meta)
 
         return result
 

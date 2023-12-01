@@ -22,8 +22,10 @@ from censo.utilities import (
     print,
     timeit,
     DfaHelper,
-    format_data,
+    format_data, setup_logger,
 )
+
+logger = setup_logger(__name__)
 
 
 class Optimization(CensoPart):
@@ -196,8 +198,8 @@ class Optimization(CensoPart):
             if not len(self.core.conformers) > 1:
                 print(f"Only one conformer ({self.core.conformers[0].name}) is available for optimization.")
 
-            # disable spearman ensembleopt
-            print("Spearman ensembleopt turned off.")
+            # disable spearman optimization
+            print("Spearman optimization turned off.")
             self._instructions["opt_spearman"] = False
 
             # run optimizations using xtb as driver
@@ -246,7 +248,7 @@ class Optimization(CensoPart):
 
     def __spearman_opt(self):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
-        # NOTE: this is a special step only necessary for spearman ensembleopt
+        # NOTE: this is a special step only necessary for spearman optimization
         # at this point it's just self.core.conformers
         self.confs_nc = self.core.conformers
 
@@ -452,6 +454,8 @@ class Optimization(CensoPart):
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
+        global logger
+        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name.lower()}.out"), "w",
                   newline=None) as outfile:
             outfile.writelines(lines)

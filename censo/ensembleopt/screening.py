@@ -18,8 +18,10 @@ from censo.params import (
     GRIDOPTIONS,
     GFNOPTIONS,
 )
-from censo.utilities import DfaHelper
+from censo.utilities import DfaHelper, setup_logger
 from censo.utilities import print, timeit, format_data
+
+logger = setup_logger(__name__)
 
 
 class Screening(Prescreening):
@@ -313,6 +315,8 @@ class Screening(Prescreening):
         lines = format_data(headers, rows, units=units)
 
         # append lines to already existing file
+        global logger
+        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "a",
                   newline=None) as outfile:
             outfile.writelines(lines)

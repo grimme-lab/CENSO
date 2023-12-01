@@ -2,21 +2,24 @@
 Utility functions which are used in the CENSO modules. From creating folders to
 printout routines.
 """
-import json
-import os
-import sys
-import shutil
-import math
-import hashlib
-import time
-import subprocess
-from copy import deepcopy
-from builtins import print as print_orig
-from typing import Any, Callable, Tuple, Union, List, Dict
 import functools
+import hashlib
+import logging
+import json
+import math
+import os
+import shutil
+import subprocess
+import sys
+import time
+from builtins import print as print_orig
 from collections import OrderedDict
+from copy import deepcopy
+from typing import Any, Callable, Tuple, Union, List, Dict
 
-from censo.params import ENVIRON, CODING, AU2J, AU2KCAL, BOHR2ANG, KB, WARNLEN
+from censo.params import ENVIRON, CODING, AU2KCAL, BOHR2ANG, WARNLEN
+
+__logpath: str = os.path.join(os.getcwd(), "censo.log")
 
 
 class DfaHelper:
@@ -1024,3 +1027,36 @@ def od_insert(od: OrderedDict[str, Any], key: str, value: Any, index: int) -> Or
     items: List[Tuple[str, Any]] = list(od.items())
     items.insert(index, (key, value))
     return OrderedDict(items)
+
+
+def setup_logger(name: str, silent: bool = True) -> logging.Logger:
+    """
+    Initializes and configures a logger with the specified name.
+
+    Args:
+        name (str): The name of the logger.
+        silent (bool, optional): Whether to print logpath or not. Defaults to True.
+
+    Returns:
+        logging.Logger: The configured logger instance.
+    """
+    global __logpath
+
+    if not silent:
+        print(f"LOGFILE CAN BE FOUND AT: {__logpath}")
+
+    # Create a logger instance with the specified name
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    # Create a FileHandler to log messages to the logpath file
+    handler = logging.FileHandler(__logpath)
+
+    # Define the log message format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    # Add the FileHandler to the logger
+    logger.addHandler(handler)
+
+    return logger

@@ -9,7 +9,6 @@ from typing import List
 from math import exp
 
 from censo.params import (
-    WARNLEN,
     AU2J,
     KB
 )
@@ -19,7 +18,9 @@ from censo.utilities import (
     do_md5,
     t2x,
     print,
+    setup_logger,
 )
+logger = setup_logger(__name__)
 
 
 # TODO - how do the assets files get into ~/.censo_assets?
@@ -42,13 +43,13 @@ class CensoCore:
         # contains run-specific info that may change during runtime
         # initialized in CensoCore.read_input
         self.runinfo = {
-            "nconf": int,
-            "nat": int,
-            "maxconf": int,
-            "md5": str,
-            "consider_unconverged": bool,
-            "charge": int,
-            "unpaired": int,
+            "nconf": None,
+            "nat": None, # TODO - maybe remove?
+            "maxconf": None, # TODO - probably remove
+            "md5": None,
+            "consider_unconverged": None, # TODO - probably remove
+            "charge": None,
+            "unpaired": None,
         }
 
         # stores the conformers with all info
@@ -117,10 +118,9 @@ class CensoCore:
             if self.args.nconf:
                 nconf = int(min(self.args.nconf, len(lines) / (nat + 2)))
                 if self.args.nconf > nconf:
-                    print(
-                        f"{'WARNING:':{WARNLEN}}Given nconf is larger than max. number"
-                        "of conformers in input file. Setting to the max. amount automatically."
-                    )
+                    global logger
+                    logger.warning(f"Given nconf is larger than max. number of conformers in input file. Setting to "
+                                   f"the max. amount automatically.")
             else:
                 nconf = int(len(lines) / (nat + 2))
 
@@ -172,7 +172,8 @@ class CensoCore:
                 for conf in self.conformers
             }
         except AssertionError:
-            # NOTE: if anything went wrong in the single-point calculation (success: False), this should be handled before coming to this step
+            # NOTE: if anything went wrong in the single-point calculation ("success": False),
+            # this should be handled before coming to this step
             # since then the energy might be 'None'
             if all("xtb_opt" in conf.results[part].keys() for conf in self.conformers):
                 minfree: float = min([conf.results[part]["xtb_opt"]["energy"] for conf in self.conformers])

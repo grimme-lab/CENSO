@@ -16,12 +16,10 @@ from censo.utilities import (
     print,
     timeit,
     format_data,
-    DfaHelper,
+    DfaHelper, setup_logger,
 )
 
-"""
-
-"""
+logger = setup_logger(__name__)
 
 
 class Prescreening(CensoPart):
@@ -302,11 +300,14 @@ class Prescreening(CensoPart):
         # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
 
         # write everything to a file
+        global logger
+        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w",
                   newline=None) as outfile:
             outfile.writelines(lines)
 
         # additionally, write data in csv format
+        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.csv')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.csv"), "w",
                   newline=None) as outfile:
             writer = csv.DictWriter(outfile, headers, delimiter=" ")

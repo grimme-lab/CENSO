@@ -20,7 +20,9 @@ from censo.params import (
     rot_sym_num,
     PLENGTH, DIGILEN,
 )
-from censo.utilities import last_folders, print, frange
+from censo.utilities import last_folders, print, frange, setup_logger
+
+logger = setup_logger(__name__)
 
 
 class QmProc:
@@ -184,12 +186,6 @@ class QmProc:
             atexit.unregister(sub.send_signal)
 
         return returncode
-
-    def print(self):
-        """
-        print method for each part, should be implemented if needed
-        """
-        pass
 
     def _sp(self):
         """

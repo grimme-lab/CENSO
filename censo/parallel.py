@@ -4,7 +4,6 @@ Performs the parallel execution of the QM calls.
 import atexit
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from functools import reduce
 from multiprocessing import Semaphore
 from typing import Any, Dict, List
 
@@ -12,16 +11,15 @@ from censo.datastructure import MoleculeData, ParallelJob
 from censo.params import OMPMIN, OMPMAX
 from censo.procfact import ProcessorFactory
 from censo.qm_processor import QmProc
-from censo.utilities import print
+from censo.utilities import print, setup_logger
+
+logger = setup_logger(__name__)
 
 # get number of cores
-global ncores
 ncores = os.cpu_count()
 
 
 def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdir: str) -> Dict[int, Any]:
-    global ncores
-
     # try to get program from instructions
     prog = instructions.get("prog", None)
 
@@ -66,6 +64,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                 conf.mo_paths.append(mo_paths[conf.geom.id])
 
     # create a new list of failed jobs that should be restarted with special flags
+    global logger
     if instructions["retry_failed"]:
         # determine failed jobs
         failed_jobs = [i for i, job in enumerate(jobs) if any(not job.meta[jt]["success"] for jt in job.jobtype)]
@@ -88,7 +87,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                         jobs[failed_job].jobtype.remove(jt)
 
             # execute jobs that should be retried
-            print(f"Restarting {len(retry)} jobs.")
+            logger.info(f"Failed jobs: {len(failed_jobs)}\nRestarting {len(retry)} jobs.")
             set_omp_chunking([jobs[i] for i in retry])
             for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
                 jobs[i] = job
@@ -100,7 +99,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                     if mo_paths[conf.geom.id] is not None:
                         conf.mo_paths.append(mo_paths[conf.geom.id])
         else:
-            print("All jobs executed successfully.")
+            logger.info("All jobs executed successfully.")
 
     # collect all results from the job objects
     return {job.conf.id: job.results for job in jobs}
@@ -157,7 +156,8 @@ def set_omp_constant(jobs: List[ParallelJob], omp: int) -> None:
     """
     # print a warning if omp is less than OMPMIN
     if omp < OMPMIN:
-        print(f"WARNING: omp ({omp}) is less than {OMPMIN}, the recommended value for efficient parallelization.")
+        global logger
+        logger.warning(f"omp ({omp}) is less than {OMPMIN}, the recommended value for efficient parallelization.")
 
     for job in jobs:
         job.omp = omp
