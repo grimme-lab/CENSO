@@ -1051,12 +1051,16 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
 
     # Create a FileHandler to log messages to the logpath file
     handler = logging.FileHandler(__logpath)
+    stream_handler = logging.StreamHandler()
 
     # Define the log message format
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    stream_formatter = logging.Formatter('%(levelname)s - %(message)s')
     handler.setFormatter(formatter)
+    stream_handler.setFormatter(stream_formatter)
 
-    # Add the FileHandler to the logger
+    # Add the FileHandler and StreamHandler to the logger
     logger.addHandler(handler)
+    logger.addHandler(stream_handler)
 
     return logger

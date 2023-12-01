@@ -13,7 +13,7 @@ from censo.params import (
     USER_ASSETS_PATH, WARNLEN,
 )
 from censo.qm_processor import QmProc
-from censo.utilities import last_folders, print, od_insert, setup_logger
+from censo.utilities import od_insert, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -521,9 +521,10 @@ class OrcaProc(QmProc):
         parser.write_input(inputpath, indict)
 
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
+        global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                print(f"Copying .gbw file from {job.mo_guess}.")
+                logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
                 shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
         global logger
