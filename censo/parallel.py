@@ -2,10 +2,10 @@
 Performs the parallel execution of the QM calls.
 """
 import atexit
+import multiprocessing
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from multiprocessing import Semaphore
-from typing import Any, Dict, List
+from concurrent.futures import ProcessPoolExecutor, as_completed, Future
+from typing import Any, Dict, List, Callable
 
 from censo.datastructure import MoleculeData, ParallelJob
 from censo.params import OMPMIN, OMPMAX
@@ -35,7 +35,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
 
     balance = instructions["balance"]
 
-    # create jobs
+    # create jobs, by default with the omp setting from instructions
     jobs = [ParallelJob(conf.geom, instructions["jobtype"], instructions["omp"]) for conf in conformers]
 
     if instructions["copy_mo"]:
@@ -50,8 +50,6 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
     # set cores per process for each job 
     if balance:
         set_omp_chunking(jobs)
-    else:
-        set_omp_constant(jobs, instructions["omp"])
 
     # execute the jobs
     jobs = dqp(jobs, processor)
@@ -105,62 +103,59 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
     return {job.conf.id: job.results for job in jobs}
 
 
+def reduce_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: multiprocessing.Condition):
+    # acquire lock on the condition and wait until enough cores are available
+    with enough_cores:
+        enough_cores.wait_for(lambda: free_cores.value >= omp)
+        free_cores.value -= omp
+
+
+def increase_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: multiprocessing.Condition):
+    # acquire lock on the condition and increase the number of cores, notifying all waiting processes
+    with enough_cores:
+        free_cores.value += omp
+        free_cores.notify_all()
+
+
 def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
     """
     D ynamic Q ueue P rocessing
     """
 
-    global ncores
+    global ncores, logger
 
-    # execute calculations for given list of conformers
-    executor = ProcessPoolExecutor(max_workers=ncores // min(job.omp for job in jobs))
+    with multiprocessing.Manager() as manager:
+        # execute calculations for given list of conformers
+        executor = ProcessPoolExecutor(max_workers=ncores // min(job.omp for job in jobs))
 
-    # make sure that the executor exits gracefully on termination
-    # TODO - is using wait=False a good option here?
-    # should be fine since workers will kill programs with SIGTERM
-    # wait=True leads to the workers waiting for their current task to be finished before terminating
-    atexit.register(executor.shutdown, wait=False)
+        # make sure that the executor exits gracefully on termination
+        # TODO - is using wait=False a good option here?
+        # should be fine since workers will kill programs with SIGTERM
+        # wait=True leads to the workers waiting for their current task to be finished before terminating
+        # FIXME - this still doesn't work! orca processes are not terminated even though the main thread is gone
+        atexit.register(executor.shutdown, wait=False)
 
-    # semaphore to keep track of the number of free cores
-    free_cores: Semaphore = Semaphore(ncores)
+        # define shared variables that can be safely asynchronously accessed
+        free_cores = manager.Value(int, ncores)
+        enough_cores = manager.Condition()
 
-    # define a callback function that is called everytime a job is finished
-    # it's purpose is to release the resources from the semaphore
-    def callback(f, omp):
-        nonlocal free_cores
-        for i in range(omp):
-            free_cores.release()
+        # sort the jobs by the number of cores used
+        # (the first item will be the one with the lowest number of cores)
+        jobs.sort(key=lambda x: x.omp)
 
-    # sort the jobs by the number of cores used
-    # (the first item will be the one with the lowest number of cores)
-    jobs.sort(key=lambda x: x.omp)
+        tasks = []
+        for job in jobs:
+            # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
+            reduce_cores(free_cores, job.omp, enough_cores)
 
-    tasks = []
-    for job in jobs:
-        # wait until enough cores are free
-        for i in range(job.omp):
-            free_cores.acquire()
+            # submit the job
+            tasks.append(executor.submit(processor.run, job))
+            tasks[-1].add_done_callback(lambda future: increase_cores(free_cores, job.omp, enough_cores))
 
-        # submit the job
-        tasks.append(executor.submit(processor.run, job))
-        tasks[-1].add_done_callback(lambda future: callback(future, job.omp))
+        # wait for all jobs to finish and collect results
+        results = [task.result() for task in as_completed(tasks)]
 
-    # wait for all jobs to finish and collect results
-    return [task.result() for task in as_completed(tasks)]
-
-
-def set_omp_constant(jobs: List[ParallelJob], omp: int) -> None:
-    """
-    Sets the number of cores that are supposed to be used for every job.
-    This just takes the user defined settings (or default settings) and applies them for every job.
-    """
-    # print a warning if omp is less than OMPMIN
-    if omp < OMPMIN:
-        global logger
-        logger.warning(f"omp ({omp}) is less than {OMPMIN}, the recommended value for efficient parallelization.")
-
-    for job in jobs:
-        job.omp = omp
+    return results
 
 
 def set_omp_chunking(jobs: list[ParallelJob]) -> None:

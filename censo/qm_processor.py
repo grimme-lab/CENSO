@@ -67,6 +67,7 @@ class QmProc:
         for line in lines:
             print(line)
 
+    # FIXME - for gsolv (calls the sp methods) this still tries to create a sp subdir, even though this is not correct
     @staticmethod
     def _create_jobdir(f: Callable) -> Callable:
         """
@@ -296,7 +297,7 @@ class QmProc:
             f"{self.instructions['charge']}",
             "--norestart",
             "--parallel",
-            f"{self.instructions['omp']}",
+            f"{job.omp}",
         ]
 
         # add solvent to xtb call if not a gas-phase sp 
@@ -350,7 +351,6 @@ class QmProc:
         Calculate additive GBSA or ALPB solvation contribution by
         Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
         result = {
-            "success": None,
             "gsolv": None,
             "energy_xtb_gas": None,
             "energy_xtb_solv": None,
@@ -539,7 +539,7 @@ class QmProc:
             "-I",
             xcontrolname,
             "--parallel",
-            f"{self.instructions['omp']}",
+            f"{job.omp}",
         ]
 
         # add solvent to xtb call if necessary

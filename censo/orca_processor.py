@@ -527,7 +527,6 @@ class OrcaProc(QmProc):
                 logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
                 shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
-        global logger
         if not silent:
             logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA single-point in {inputpath}")
         else:
