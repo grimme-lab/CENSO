@@ -1,19 +1,17 @@
 """
 Performs the parallel execution of the QM calls.
 """
-import atexit
 import multiprocessing
 import os
 import signal
-from concurrent.futures import ProcessPoolExecutor, as_completed, Future
-from functools import partial
-from typing import Any, Dict, List, Callable
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Any, Dict, List
 
 from censo.datastructure import MoleculeData, ParallelJob
 from censo.params import OMPMIN, OMPMAX
 from censo.procfact import ProcessorFactory
 from censo.qm_processor import QmProc
-from censo.utilities import print, setup_logger
+from censo.utilities import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -115,12 +113,12 @@ def reduce_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: mult
 
 
 def increase_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: multiprocessing.Condition):
-    # acquire lock on the condition and increase the number of cores, notifying all waiting processes
+    # acquire lock on the condition and increase the number of cores, notifying one waiting process
     with enough_cores:
         free_cores.value += omp
         global logger
         logger.debug(f"Free cores increased {free_cores.value - omp} -> {free_cores.value}.")
-        enough_cores.notify_all()
+        enough_cores.notify()
 
 
 def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
@@ -138,6 +136,7 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
         # TODO - is using wait=False a good option here?
         # should be fine since workers will kill programs with SIGTERM
         # wait=True leads to the workers waiting for their current task to be finished before terminating
+        # FIXME - this doesn't work apparently, handle_sigterm is never called
         def handle_sigterm():
             global logger
             nonlocal executor
@@ -156,13 +155,13 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
         jobs.sort(key=lambda x: x.omp)
 
         tasks = []
-        for job in jobs:
+        for i in range(len(jobs)):
             # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
-            reduce_cores(free_cores, job.omp, enough_cores)
+            reduce_cores(free_cores, jobs[i].omp, enough_cores)
 
             # submit the job
-            tasks.append(executor.submit(processor.run, job))
-            tasks[-1].add_done_callback(lambda _: increase_cores(free_cores, job.omp, enough_cores))
+            tasks.append(executor.submit(processor.run, jobs[i]))
+            tasks[-1].add_done_callback(lambda _: increase_cores(free_cores, jobs[i].omp, enough_cores))
 
         # wait for all jobs to finish and collect results
         results = [task.result() for task in as_completed(tasks)]

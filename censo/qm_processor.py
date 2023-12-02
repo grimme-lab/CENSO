@@ -272,9 +272,9 @@ class QmProc:
 
         global logger
         if not silent:
-            logger.info(f"Running xtb_sp calculation in {jobdir}.")
+            logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_sp calculation in {jobdir}.")
         else:
-            logger.debug(f"Running xtb_sp calculation in {jobdir}.")
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_sp calculation in {jobdir}.")
 
         # cleanup
         files = [
@@ -369,7 +369,7 @@ class QmProc:
 
         global logger
         logger.info(
-            f"Running xtb_gsolv calculation in {jobdir}."
+            f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_gsolv calculation in {jobdir}."
         )
 
         # what is returned in the end
@@ -462,7 +462,7 @@ class QmProc:
 
         global logger
         logger.info(
-            f"Running {str(self.instructions['gfnv']).upper()} mRRHO in {jobdir}."
+            f"{f'worker{os.getpid()}:':{WARNLEN}}Running {str(self.instructions['gfnv']).upper()} mRRHO in {jobdir}."
         )
 
         # TODO - is this list complete?
