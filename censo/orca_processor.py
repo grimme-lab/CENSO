@@ -788,9 +788,9 @@ class OrcaProc(QmProc):
             return result
 
         # check convergence
-        if next((x for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x), None) is True:
+        if next((True for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x), None) is True:
             result["converged"] = True
-        elif next((x for x in lines if "FAILED TO CONVERGE GEOMETRY" in x), None) is True:
+        elif next((True for x in lines if "FAILED TO CONVERGE GEOMETRY" in x), None) is True:
             result["converged"] = False
 
         # Get the number of cycles
