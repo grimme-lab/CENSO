@@ -121,6 +121,12 @@ def increase_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: mu
         enough_cores.notify()
 
 
+def handle_sigterm(signum, frame, executor):
+    global logger
+    logger.critical("Received SIGTERM. Terminating.")
+    executor.shutdown(wait=False)
+
+
 def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
     """
     D ynamic Q ueue P rocessing
@@ -130,46 +136,39 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
 
     with multiprocessing.Manager() as manager:
         # execute calculations for given list of conformers
-        executor = ProcessPoolExecutor(max_workers=ncores // min(job.omp for job in jobs))
+        with ProcessPoolExecutor(max_workers=ncores // min(job.omp for job in jobs)) as executor:
+            # make sure that the executor exits gracefully on termination
+            # TODO - is using wait=False a good option here?
+            # should be fine since workers will kill programs with SIGTERM
+            # wait=True leads to the workers waiting for their current task to be finished before terminating
+            # FIXME - this doesn't work apparently, handle_sigterm is never called
+            # Register the signal handler
+            signal.signal(signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, executor))
 
-        # make sure that the executor exits gracefully on termination
-        # TODO - is using wait=False a good option here?
-        # should be fine since workers will kill programs with SIGTERM
-        # wait=True leads to the workers waiting for their current task to be finished before terminating
-        # FIXME - this doesn't work apparently, handle_sigterm is never called
-        def handle_sigterm():
-            global logger
-            nonlocal executor
-            logger.critical("Received SIGTERM. Terminating.")
-            executor.shutdown(wait=True)
+            # define shared variables that can be safely asynchronously accessed
+            free_cores = manager.Value(int, ncores)
+            enough_cores = manager.Condition()
 
-        # Register the signal handler
-        signal.signal(signal.SIGTERM, handle_sigterm)
+            # sort the jobs by the number of cores used
+            # (the first item will be the one with the lowest number of cores)
+            jobs.sort(key=lambda x: x.omp)
 
-        # define shared variables that can be safely asynchronously accessed
-        free_cores = manager.Value(int, ncores)
-        enough_cores = manager.Condition()
+            tasks = []
+            for i in range(len(jobs)):
+                # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
+                reduce_cores(free_cores, jobs[i].omp, enough_cores)
 
-        # sort the jobs by the number of cores used
-        # (the first item will be the one with the lowest number of cores)
-        jobs.sort(key=lambda x: x.omp)
+                # submit the job
+                tasks.append(executor.submit(processor.run, jobs[i]))
+                # NOTE: explanation of the lambda: the first argument passed to the done_callback is always the future
+                # itself, it is not assigned (_), the second parameter is the number of openmp threads of the job (i.e.
+                # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
+                # omp of the current item in the for-iterator (e.g. the submitted job has omp=4, but the current jobs[i]
+                # has omp=7, so the callback would use 7 instead of 4)
+                tasks[-1].add_done_callback(lambda _, omp=jobs[i].omp: increase_cores(free_cores, omp, enough_cores))
 
-        tasks = []
-        for i in range(len(jobs)):
-            # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
-            reduce_cores(free_cores, jobs[i].omp, enough_cores)
-
-            # submit the job
-            tasks.append(executor.submit(processor.run, jobs[i]))
-            # NOTE: explanation of the lambda: the first argument passed to the done_callback is always the future
-            # itself, it is not assigned (_), the second parameter is the number of openmp threads of the job (i.e.
-            # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
-            # omp of the current item in the for-iterator (e.g. the submitted job has omp=4, but the current jobs[i]
-            # has omp=7, so the callback would use 7 instead of 4)
-            tasks[-1].add_done_callback(lambda _, omp=jobs[i].omp: increase_cores(free_cores, omp, enough_cores))
-
-        # wait for all jobs to finish and collect results
-        results = [task.result() for task in as_completed(tasks)]
+            # wait for all jobs to finish and collect results
+            results = [task.result() for task in as_completed(tasks)]
 
     return results
 
@@ -193,8 +192,6 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
     while jobs_left > 0:
         if jobs_left >= maxprocs:
             p = maxprocs  # Set the number of processes to the maximum if there are enough jobs left
-        elif jobs_left == maxprocs:
-            p = jobs_left  # Set the number of processes to the remaining jobs if there are exactly maxprocs jobs left
         elif jobs_left < minprocs:
             p = minprocs  # Set the number of processes to the minimum if there are less jobs left than minprocs
         else:

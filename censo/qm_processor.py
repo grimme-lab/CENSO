@@ -24,6 +24,12 @@ from censo.utilities import print, frange, setup_logger
 logger = setup_logger(__name__)
 
 
+def handle_sigterm(signum, frame, sub):
+    global logger
+    logger.critical(f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating.")
+    sub.send_signal(signal.SIGTERM)
+
+
 class QmProc:
     """
     QmProc base class
@@ -186,14 +192,8 @@ class QmProc:
 
             logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid}).")
 
-            def handle_sigterm():
-                global logger
-                nonlocal sub
-                logger.critical(f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating.")
-                sub.send_signal(signal.SIGTERM)
-
             # make sure to send SIGTERM to subprocess if program is quit
-            signal.signal(signal.SIGTERM, handle_sigterm)
+            signal.signal(signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub))
 
             # wait for process to finish
             returncode = sub.wait()

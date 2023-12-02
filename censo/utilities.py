@@ -1052,7 +1052,7 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
 
     # Create a FileHandler to log messages to the logpath file
     handler = logging.FileHandler(__logpath)
-    stream_handler = logging.StreamHandler()
+    stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(logging.INFO)
 
     # Define the log message format
