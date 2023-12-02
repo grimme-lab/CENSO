@@ -20,6 +20,7 @@ from typing import Any, Callable, Tuple, Union, List, Dict
 from censo.params import ENVIRON, CODING, AU2KCAL, BOHR2ANG, WARNLEN
 
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
+__loglevel = logging.INFO
 
 
 class DfaHelper:
@@ -1040,14 +1041,14 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     Returns:
         logging.Logger: The configured logger instance.
     """
-    global __logpath
+    global __logpath, __loglevel
 
     if not silent:
         print(f"LOGFILE CAN BE FOUND AT: {__logpath}")
 
     # Create a logger instance with the specified name
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(__loglevel)
 
     # Create a FileHandler to log messages to the logpath file
     handler = logging.FileHandler(__logpath)

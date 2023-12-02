@@ -111,9 +111,6 @@ class Screening(Prescreening):
             # sort conformers list
             self.core.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
 
-            # pick the free enthalpy of the lowest conformer
-            limit = min([conf.results[self._name]["gtot"] for conf in self.core.conformers])
-
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
             fuzzy = (1 / AU2KCAL) * (1 - exp(-5 * stdev(
                 [conf.results[self._name]["xtb_rrho"]["energy"] for conf in
@@ -121,17 +118,9 @@ class Screening(Prescreening):
             threshold += fuzzy
             print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
-            # filter out all conformers above threshold
-            # so that 'filtered' contains all conformers that should not be considered any further
-            filtered = [
-                conf for conf in filter(
-                    lambda x: self.grrho(x) - limit > threshold,
-                    self.core.conformers
-                )
-            ]
-
             # update the conformer list in core (remove conf if below threshold)
-            self.core.update_conformers(filtered)
+            for confname in self.core.update_conformers(self.grrho, threshold):
+                print(f"No longer considering {confname}.")
 
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason

@@ -5,7 +5,7 @@ functionality for program setup
 
 from argparse import Namespace
 import os
-from typing import List
+from typing import List, Callable
 from math import exp
 
 from censo.params import (
@@ -136,15 +136,39 @@ class CensoCore:
             # also works if xtb_energy is None for some reason (None is put first)    
             self.conformers.sort(key=lambda x: x.xtb_energy)
 
-    def update_conformers(self, filtered: List[MoleculeData]):
+    def update_conformers(self, target: Callable[[MoleculeData], float], threshold: float,
+                          additional_filter: Callable[[MoleculeData], bool] = None) -> List[str]:
         """
-        removing conformers from further consideration
+        Update the conformers based on a target function, a threshold, and an additional filter.
+        Logic for the additional filter is "and".
+        Returns a list of the names of the removed conformers.
+
+        Parameters:
+            target (Callable[[MoleculeData], float]): A function that takes a MoleculeData object as input and returns a float.
+            threshold (float): The threshold value.
+            additional_filter (Callable[[MoleculeData], bool], optional): An optional function that takes a MoleculeData object as input and returns a boolean. Defaults to None.
+
+        Returns:
+            None
         """
+        # pick the free enthalpy of the lowest conformer
+        limit = min([target(conf) for conf in self.conformers])
+
+        # filter out all conformers above threshold
+        # so that 'filtered' contains all conformers that should not be considered any further
+        filtered = [
+            conf for conf in filter(
+                additional_filter and (lambda x: target(x) - limit > threshold),
+                self.conformers
+            )
+        ]
 
         # move the sorted out conformers to rem list
         for conf in filtered:
             # pop item from conformers and insert this item at index 0 in rem
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
+
+        return [conf.name for conf in filtered]
 
     def dump_ensemble(self, part: str) -> None:
         """

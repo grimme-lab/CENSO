@@ -130,6 +130,8 @@ class QmProc:
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. ProcessHandler.execute
         """
+        global logger
+        logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
         # list containing the types of computations to do
         if not all(t in self._jobtypes.keys() for t in job.jobtype):

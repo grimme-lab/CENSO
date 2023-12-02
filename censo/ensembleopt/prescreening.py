@@ -122,22 +122,9 @@ class Prescreening(CensoPart):
         # update conformers with threshold
         threshold = self._instructions["threshold"] / AU2KCAL
 
-        # pick the free enthalpy of the lowest conformer
-        limit = min([conf.results[self._name]["gtot"] for conf in self.core.conformers])
-
-        # filter out all conformers above threshold
-        # so that 'filtered' contains all conformers that should not be considered any further
-        filtered = [
-            conf for conf in filter(
-                lambda x: self.gtot(x) - limit > threshold,
-                self.core.conformers
-            )
-        ]
-
-        # update the conformer list in core (remove conf if below threshold)
-        self.core.update_conformers(filtered)
-
-        # TODO - print out which conformers are no longer considered
+        # update the conformer list in core (remove confs if below threshold)
+        for confname in self.core.update_conformers(self.gtot, threshold):
+            print(f"No longer considering {confname}.")
 
         # dump ensemble
         self.core.dump_ensemble(self._name)

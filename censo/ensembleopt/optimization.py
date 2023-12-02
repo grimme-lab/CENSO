@@ -361,28 +361,22 @@ class Optimization(CensoPart):
                     )
             """
 
-            # sort conformers and pick the free enthalpy of the lowest conformer as limit
+            # sort conformers
             self.core.conformers.sort(key=lambda conf: self.grrho(conf))
-            limit = min([self.grrho(conf) for conf in self.core.conformers])
-
-            # filter out all conformers above threshold and with a gradient norm smaller than 'gradthr'
-            # so that 'filtered' contains all conformers that should not be considered any further
-            f = lambda x: self.grrho(x) - limit > threshold and x.results[self._name.lower()]["xtb_opt"][
-                "grad_norm"] < self._instructions["gradthr"]
-            filtered: List[MoleculeData] = [
-                conf for conf in filter(
-                    f,
-                    self.core.conformers
-                )
-            ]
 
             # update the conformer list in core (remove conf if below threshold)
-            self.core.update_conformers(filtered)
+            self.core.update_conformers(
+                self.grrho, threshold,
+                additional_filter=lambda x:
+                x.results[self._name.lower()]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
+            )
 
             # also remove conformers from confs_nc
-            for conf in filtered:
-                print(f"{conf.name} is no longer considered (δG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
-                self.confs_nc.remove(conf)
+            limit = min(self.grrho(conf) for conf in self.core.conformers)
+            for conf in self.core.rem:
+                if conf in self.confs_nc:
+                    print(f"{conf.name} is no longer considered (δG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
+                    self.confs_nc.remove(conf)
 
             # update list of converged conformers
             for conf in self.confs_nc:
