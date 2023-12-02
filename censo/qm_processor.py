@@ -184,6 +184,8 @@ class QmProc:
                 env=ENVIRON,
             )
 
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid}).")
+
             def handle_sigterm():
                 global logger
                 nonlocal sub

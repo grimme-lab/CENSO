@@ -648,7 +648,6 @@ class OrcaProc(QmProc):
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
         # 'energy' contains the final energy of the optimization (converged or unconverged)
-        # 'success' should only be False if the external program encounters an error
         # 'geom' stores the optimized geometry in GeometryData.xyz format
         result = {
             "energy": None,
@@ -787,21 +786,19 @@ class OrcaProc(QmProc):
             return result
 
         # check convergence
-        try:
-            result["converged"] = bool(next((x for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x), None)
-                                       or next((x for x in lines if "FAILED TO CONVERGE GEOMETRY" in x)))
-        except StopIteration:
-            # in the case that next(...) for "converged" yields None the expression above will try to get a line for "failed to converge"
-            # in the case that no line is found for that a StopIteration is raised
-            result["converged"] = None
+        if next((x for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x), None) is True:
+            result["converged"] = True
+        elif next((x for x in lines if "FAILED TO CONVERGE GEOMETRY" in x), None) is True:
+            result["converged"] = False
 
         # Get the number of cycles
         if result["converged"] is not None:
             # tmp is one of the values from the dict defined below
-            tmp: tuple[str, int] = {
+            tmp = {
                 True: ("GEOMETRY OPTIMIZATION CONVERGED", 7),
                 False: ("FAILED TO CONVERGE GEOMETRY", 5),
-            }[result["converged"]]
+            }
+            tmp = tmp[result["converged"]]
 
             result["cycles"] = next(x for x in lines if tmp[0] in x) \
                 .split()[tmp[1]]
