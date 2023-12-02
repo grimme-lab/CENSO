@@ -1047,11 +1047,12 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
 
     # Create a logger instance with the specified name
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     # Create a FileHandler to log messages to the logpath file
     handler = logging.FileHandler(__logpath)
     stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
 
     # Define the log message format
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
