@@ -90,11 +90,17 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
             for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
                 jobs[i] = job
 
+            # any jobs that still failed will lead to the conformer to be removed from the list (TODO)
+            for job in jobs:
+                if not all(job.meta[jt]["success"] for jt in job.jobtype):
+                    logger.warning(f"Removed {job.conf.name} from conformer list due to failed jobs.")
+                    conformers.remove(next(c for c in conformers if c.geom.id == job.conf.id))
+
             # again, try to get the mo_path from metadata and store it in the respective conformer object
             if instructions["copy_mo"]:
                 mo_paths = {job.conf.id: job.meta["mo_path"] for job in [jobs[i] for i in retry]}
                 for conf in conformers:
-                    if mo_paths[conf.geom.id] is not None:
+                    if mo_paths.get(conf.geom.id, None) is not None:
                         conf.mo_paths.append(mo_paths[conf.geom.id])
         else:
             logger.info("All jobs executed successfully.")
@@ -155,6 +161,7 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
 
             tasks = []
             for i in range(len(jobs)):
+                # TODO - something to readjust omp based on expected time to finish and the timings of other jobs
                 # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
                 reduce_cores(free_cores, jobs[i].omp, enough_cores)
 

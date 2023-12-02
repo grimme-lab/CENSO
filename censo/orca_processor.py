@@ -451,6 +451,8 @@ class OrcaProc(QmProc):
                 list(indict.keys()).index("main") + 1
             )
 
+        # TODO - maybe limit TRAH macro steps (or when TRAH activates) to avoid single jobs clogging everything up
+
         # set keywords for the selected solvent model
         if not self.instructions["gas-phase"] and not no_solv and "sm" in self.instructions.keys():
             if self.instructions["sm"] == "smd":
