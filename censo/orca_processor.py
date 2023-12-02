@@ -788,8 +788,8 @@ class OrcaProc(QmProc):
 
         # check convergence
         try:
-            result["converged"] = bool(next((x for x in lines if "geometry optimization converged" in x), None)
-                                       or next((x for x in lines if "failed to converge geometry" in x)))
+            result["converged"] = bool(next((x for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x), None)
+                                       or next((x for x in lines if "FAILED TO CONVERGE GEOMETRY" in x)))
         except StopIteration:
             # in the case that next(...) for "converged" yields None the expression above will try to get a line for "failed to converge"
             # in the case that no line is found for that a StopIteration is raised
@@ -799,8 +799,8 @@ class OrcaProc(QmProc):
         if result["converged"] is not None:
             # tmp is one of the values from the dict defined below
             tmp: tuple[str, int] = {
-                True: ("geometry optimization converged", 7),
-                False: ("failed to converge geometry", 5),
+                True: ("GEOMETRY OPTIMIZATION CONVERGED", 7),
+                False: ("FAILED TO CONVERGE GEOMETRY", 5),
             }[result["converged"]]
 
             result["cycles"] = next(x for x in lines if tmp[0] in x) \
@@ -824,7 +824,7 @@ class OrcaProc(QmProc):
         job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = job.conf.xyz
 
-        # TODO - this might be a case where it would be reasonable to raise an exception
+        # TODO - this might be a case where it would be reasonable to raise an exception
         try:
             assert result["converged"] is not None
         except AssertionError:

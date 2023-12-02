@@ -158,7 +158,7 @@ class CensoCore:
         # so that 'filtered' contains all conformers that should not be considered any further
         filtered = [
             conf for conf in filter(
-                additional_filter and (lambda x: target(x) - limit > threshold),
+                (additional_filter or True) and (lambda x: target(x) - limit > threshold),
                 self.conformers
             )
         ]
