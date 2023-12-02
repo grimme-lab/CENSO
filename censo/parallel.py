@@ -4,7 +4,9 @@ Performs the parallel execution of the QM calls.
 import atexit
 import multiprocessing
 import os
+import signal
 from concurrent.futures import ProcessPoolExecutor, as_completed, Future
+from functools import partial
 from typing import Any, Dict, List, Callable
 
 from censo.datastructure import MoleculeData, ParallelJob
@@ -108,13 +110,17 @@ def reduce_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: mult
     with enough_cores:
         enough_cores.wait_for(lambda: free_cores.value >= omp)
         free_cores.value -= omp
+        global logger
+        logger.debug(f"Free cores decreased {free_cores.value + omp} -> {free_cores.value}.")
 
 
 def increase_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: multiprocessing.Condition):
     # acquire lock on the condition and increase the number of cores, notifying all waiting processes
     with enough_cores:
         free_cores.value += omp
-        free_cores.notify_all()
+        global logger
+        logger.debug(f"Free cores increased {free_cores.value - omp} -> {free_cores.value}.")
+        enough_cores.notify_all()
 
 
 def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
@@ -132,8 +138,14 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
         # TODO - is using wait=False a good option here?
         # should be fine since workers will kill programs with SIGTERM
         # wait=True leads to the workers waiting for their current task to be finished before terminating
-        # FIXME - this still doesn't work! orca processes are not terminated even though the main thread is gone
-        atexit.register(executor.shutdown, wait=False)
+        def handle_sigterm():
+            global logger
+            nonlocal executor
+            logger.critical("Received SIGTERM. Terminating.")
+            executor.shutdown(wait=True)
+
+        # Register the signal handler
+        signal.signal(signal.SIGTERM, handle_sigterm)
 
         # define shared variables that can be safely asynchronously accessed
         free_cores = manager.Value(int, ncores)
@@ -150,7 +162,7 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
 
             # submit the job
             tasks.append(executor.submit(processor.run, job))
-            tasks[-1].add_done_callback(lambda future: increase_cores(free_cores, job.omp, enough_cores))
+            tasks[-1].add_done_callback(lambda _: increase_cores(free_cores, job.omp, enough_cores))
 
         # wait for all jobs to finish and collect results
         results = [task.result() for task in as_completed(tasks)]

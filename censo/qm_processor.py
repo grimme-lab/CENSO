@@ -167,6 +167,10 @@ class QmProc:
     def _make_call(call: List, outputpath: str, jobdir: str) -> int:
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
+            global logger
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
+
+            # create subprocess for external program
             sub = subprocess.Popen(
                 call,
                 shell=False,
@@ -178,14 +182,19 @@ class QmProc:
                 env=ENVIRON,
             )
 
+            def handle_sigterm():
+                global logger
+                nonlocal sub
+                logger.critical(f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating.")
+                sub.send_signal(signal.SIGTERM)
+
             # make sure to send SIGTERM to subprocess if program is quit
-            atexit.register(lambda x: x.send_signal(signal.SIGTERM), sub)
+            signal.signal(signal.SIGTERM, handle_sigterm)
 
             # wait for process to finish
             returncode = sub.wait()
 
-            # unregister termination
-            atexit.unregister(sub.send_signal)
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
         return returncode
 
