@@ -804,8 +804,8 @@ class OrcaProc(QmProc):
         if result["converged"] is not None:
             # tmp is one of the values from the dict defined below
             tmp = {
-                True: ("GEOMETRY OPTIMIZATION CONVERGED", 7),
-                False: ("FAILED TO CONVERGE GEOMETRY", 5),
+                True: ("GEOMETRY OPTIMIZATION CONVERGED", 5),
+                False: ("FAILED TO CONVERGE GEOMETRY", 7),
             }
             tmp = tmp[result["converged"]]
 
