@@ -526,8 +526,9 @@ class OrcaProc(QmProc):
         global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
-                shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
+                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
+                    logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
+                    shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
         if not silent:
             logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA single-point in {inputpath}")
@@ -741,8 +742,9 @@ class OrcaProc(QmProc):
         global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
-                shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
+                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
+                    logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
+                    shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
         # prepare xtb call
         call = [
