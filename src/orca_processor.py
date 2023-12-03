@@ -809,7 +809,7 @@ class OrcaProc(QmProc):
             }
             tmp = tmp[result["converged"]]
 
-            result["cycles"] = next(x for x in lines if tmp[0] in x).split()[tmp[1]]
+            result["cycles"] = int(next(x for x in lines if tmp[0] in x).split()[tmp[1]])
 
             # Get energies for each cycle
             result["ecyc"].extend(float(line.split("->")[-1]) for line in filter(lambda x: "av. E: " in x, lines))
