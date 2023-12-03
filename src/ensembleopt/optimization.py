@@ -6,10 +6,10 @@ import os
 from functools import reduce
 from typing import List
 
-from censo.core import CensoCore
-from censo.datastructure import MoleculeData
-from censo.parallel import execute
-from censo.params import (
+from src.core import CensoCore
+from src.datastructure import MoleculeData
+from src.parallel import execute
+from src.params import (
     SOLV_MODS,
     PROGS,
     BASIS_SETS,
@@ -17,8 +17,8 @@ from censo.params import (
     GFNOPTIONS,
     AU2KCAL,
 )
-from censo.part import CensoPart
-from censo.utilities import (
+from src.part import CensoPart
+from src.utilities import (
     print,
     timeit,
     DfaHelper,

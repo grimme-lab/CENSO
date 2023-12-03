@@ -8,16 +8,15 @@ import os
 from typing import List, Callable
 from math import exp
 
-from censo.params import (
+from src.params import (
     AU2J,
     KB
 )
-from censo.datastructure import MoleculeData
-from censo.utilities import (
+from src.datastructure import MoleculeData
+from src.utilities import (
     check_for_float,
     do_md5,
     t2x,
-    print,
     setup_logger,
 )
 logger = setup_logger(__name__)

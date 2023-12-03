@@ -17,7 +17,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from typing import Any, Callable, Tuple, Union, List, Dict
 
-from censo.params import ENVIRON, CODING, AU2KCAL, BOHR2ANG, WARNLEN
+from src.params import ENVIRON, CODING, AU2KCAL, BOHR2ANG, WARNLEN
 
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO

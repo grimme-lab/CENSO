@@ -7,12 +7,12 @@ import os
 import shutil
 import sys
 
-from censo import configure
-from censo.params import DESCR, ASSETS_PATH, __version__
-from censo.inputhandling import cml
-from censo.utilities import print
-from censo.core import CensoCore
-from censo.ensembleopt import *
+from src import configure
+from src.params import DESCR, ASSETS_PATH, __version__
+from src.inputhandling import cml
+from src.utilities import print
+from src.core import CensoCore
+from src.ensembleopt import Prescreening, Screening, Optimization
 
 
 # TODO - MAJOR - fix compatibility with old json and censorc files
@@ -31,7 +31,7 @@ def main(argv=None):
 
     run = filter(
         lambda x: x.get_settings()["run"],
-        [prescreening.Prescreening, screening.Screening, optimization.Optimization]
+        [Prescreening, Screening, Optimization]
     )
 
     for part in run:

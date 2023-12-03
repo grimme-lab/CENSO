@@ -3,7 +3,6 @@ Contains QmProc base class,
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
-import atexit
 import functools
 import json
 import os
@@ -12,14 +11,14 @@ import subprocess
 from time import perf_counter
 from typing import Any, Callable, Dict, List
 
-from censo.datastructure import ParallelJob
-from censo.params import (
+from src.datastructure import ParallelJob
+from src.params import (
     ENVIRON,
     CODING,
     rot_sym_num,
     PLENGTH, DIGILEN, WARNLEN,
 )
-from censo.utilities import print, frange, setup_logger
+from src.utilities import print, frange, setup_logger
 
 logger = setup_logger(__name__)
 

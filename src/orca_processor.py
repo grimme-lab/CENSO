@@ -7,13 +7,13 @@ from collections import OrderedDict
 from functools import reduce
 from typing import Any, List
 
-from censo.datastructure import GeometryData, ParallelJob
-from censo.params import (
+from src.datastructure import GeometryData, ParallelJob
+from src.params import (
     CODING,
     USER_ASSETS_PATH, WARNLEN,
 )
-from censo.qm_processor import QmProc
-from censo.utilities import od_insert, setup_logger
+from src.qm_processor import QmProc
+from src.utilities import od_insert, setup_logger
 
 logger = setup_logger(__name__)
 

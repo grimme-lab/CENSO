@@ -6,9 +6,7 @@ cml parsing
 import argparse
 import os
 from typing import List
-from censo.params import (
-    __version__,
-)
+
 
 # TODO - lineup args with settings_options
 # TODO - arg for assets_path?

@@ -1,18 +1,18 @@
 import csv
 import os
 
-from censo.core import CensoCore
-from censo.datastructure import MoleculeData
-from censo.parallel import execute
-from censo.params import PLENGTH, AU2KCAL
-from censo.params import (
+from src.core import CensoCore
+from src.datastructure import MoleculeData
+from src.parallel import execute
+from src.params import PLENGTH, AU2KCAL
+from src.params import (
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
 )
-from censo.part import CensoPart
-from censo.utilities import (
+from src.part import CensoPart
+from src.utilities import (
     print,
     timeit,
     format_data,

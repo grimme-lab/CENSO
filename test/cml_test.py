@@ -1,7 +1,7 @@
 import unittest
 
-from censo.params import DESCR
-from censo.inputhandling import cml
+from src.params import DESCR
+from src.inputhandling import cml
 
 class CmlTest(unittest.TestCase):
     def setUp(self):

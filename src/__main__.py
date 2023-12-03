@@ -1,4 +1,4 @@
-from censo.censo import main
+from src.censo import main
 
 if __name__ == "__main__":
     main()

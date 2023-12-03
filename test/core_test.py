@@ -1,9 +1,9 @@
 import unittest
 import os
 
-from censo.inputhandling import cml
-from censo.params import DESCR
-from censo.core import CensoCore
+from src.inputhandling import cml
+from src.params import DESCR
+from src.core import CensoCore
 
 test_args = cml(DESCR, "-inp testfiles/crest_conformers.xyz".split())
 test_dir = os.getcwd()

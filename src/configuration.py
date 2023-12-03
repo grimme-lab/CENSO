@@ -3,12 +3,12 @@ import shutil
 import configparser
 from typing import Any, Dict, Union
 
-from censo.params import (
+from src.params import (
     CENSORCNAME,
     load_dbs, ASSETS_PATH, USER_ASSETS_PATH
 )
-from censo.qm_processor import QmProc
-from censo.utilities import DfaHelper
+from src.qm_processor import QmProc
+from src.utilities import DfaHelper
 
 parts = {}
 
@@ -38,13 +38,13 @@ def configure(rcpath: str = None):
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
     # otherwise there will be errors in the CensoPart._options
-    from censo.part import CensoPart
-    from censo.ensembleopt import prescreening, screening, optimization
+    from src.part import CensoPart
+    from src.ensembleopt import Prescreening, Screening, Optimization
     global parts
     parts = {
-        "prescreening": prescreening.Prescreening,
-        "screening": screening.Screening,
-        "optimization": optimization.Optimization,
+        "prescreening": Prescreening,
+        "screening": Screening,
+        "optimization": Optimization,
     }
 
     # If no configuration file is found, create a new one and configure parts with default settings
@@ -110,7 +110,7 @@ def write_rcfile(path: str) -> None:
 
         # collect all default settings from parts and feed them into the parser
         global parts
-        from censo.part import CensoPart
+        from src.part import CensoPart
         parts["general"] = CensoPart
         parser.read_dict({
             partname: {

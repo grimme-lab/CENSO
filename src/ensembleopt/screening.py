@@ -7,10 +7,10 @@ from functools import reduce
 from math import isclose, exp
 from statistics import stdev
 
-from censo.datastructure import MoleculeData
-from censo.ensembleopt.prescreening import Prescreening
-from censo.parallel import execute
-from censo.params import (
+from src.datastructure import MoleculeData
+from src.ensembleopt import Prescreening
+from src.parallel import execute
+from src.params import (
     AU2KCAL,
     SOLV_MODS,
     PROGS,
@@ -18,8 +18,8 @@ from censo.params import (
     GRIDOPTIONS,
     GFNOPTIONS,
 )
-from censo.utilities import DfaHelper, setup_logger
-from censo.utilities import print, timeit, format_data
+from src.utilities import DfaHelper, setup_logger
+from src.utilities import print, timeit, format_data
 
 logger = setup_logger(__name__)
 

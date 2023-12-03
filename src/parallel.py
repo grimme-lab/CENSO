@@ -7,11 +7,11 @@ import signal
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any, Dict, List
 
-from censo.datastructure import MoleculeData, ParallelJob
-from censo.params import OMPMIN, OMPMAX
-from censo.procfact import ProcessorFactory
-from censo.qm_processor import QmProc
-from censo.utilities import setup_logger
+from src.datastructure import MoleculeData, ParallelJob
+from src.params import OMPMIN, OMPMAX
+from src.procfact import ProcessorFactory
+from src.qm_processor import QmProc
+from src.utilities import setup_logger
 
 logger = setup_logger(__name__)
 

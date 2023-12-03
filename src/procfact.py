@@ -1,7 +1,7 @@
 from typing import Dict
 
-from censo.qm_processor import QmProc
-from censo.orca_processor import OrcaProc
+from src.qm_processor import QmProc
+from src.orca_processor import OrcaProc
 
 
 # from censo.tm_processor import TmProc

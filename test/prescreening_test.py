@@ -1,7 +1,7 @@
 import unittest
 
-from censo.prescreening import Prescreening
-from censo.censo import startup
+from src import Prescreening
+from src.censo import startup
 
 core, settings = startup("-inp testfiles/crest_conformers.xyz -solvent water".split())
 
