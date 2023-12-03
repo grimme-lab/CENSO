@@ -285,6 +285,7 @@ class Optimization(CensoPart):
                 self._instructions["bhess"] = True
                 self._instructions["jobtype"] = ["xtb_rrho"]
                 results_rrho = execute(self.confs_nc, self._instructions, self.dir)
+                self._instructions["jobtype"] = ["xtb_opt"]
                 self._instructions["bhess"] = tmp
 
                 # put results into conformer objects

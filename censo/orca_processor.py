@@ -632,6 +632,11 @@ class OrcaProc(QmProc):
         """
         ORCA geometry optimization using ANCOPT
 
+        Keywords required in instructions:
+        - optcycles
+        - hlow
+        - optlevel
+
         result = {
             "energy": None,
             "cycles": None,
