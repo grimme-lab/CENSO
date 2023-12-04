@@ -32,7 +32,6 @@ class Optimization(CensoPart):
     alt_name = "part2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
-    # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "optcycles": {
@@ -214,8 +213,8 @@ class Optimization(CensoPart):
                 conf.results.setdefault(self._name.lower(), {}).update(results_opt[id(conf)])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
-        # we don't do that anymore and just use the final energies from the optimizations, which are done using a solvent model,
-        # since this basically makes no difference in comp time
+        # we don't do that anymore and just use the final energies from the optimizations, which are done using a
+        # solvent model, since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
         results_rrho = execute(self.core.conformers, self._instructions, self.dir)
 
@@ -250,20 +249,21 @@ class Optimization(CensoPart):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
         # NOTE: this is a special step only necessary for spearman optimization
         # at this point it's just self.core.conformers
-        self.confs_nc = self.core.conformers
+        self.confs_nc = self.core.conformers.copy()
 
         ncyc = 0
         rrho_done = False
         print(f"Optimization using Spearman threshold, {self._instructions['optcycles']} cycles per step.")
         print(f"NCYC: {ncyc}")
         while (
-                not len(self.confs_nc) == 0
+                len(self.confs_nc) > 0
                 and ncyc < self._instructions["maxcyc"]
                 # TODO - maybe make this more intelligent:
                 # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk,
                 # move it to a new chunk and calculate later
         ):
-            # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged, all the following steps will not consider it anymore
+            # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
+            # all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
             results_opt = execute(self.confs_nc, self._instructions, self.dir)
 
@@ -392,6 +392,23 @@ class Optimization(CensoPart):
             ncyc += self._instructions["optcycles"]
             print(f"NCYC: {ncyc}")
 
+        # do mrrho on optimized geometries
+        results_rrho = execute(self.core.conformers, self._instructions, self.dir)
+
+        # update gtot values
+        for conf in self.core.conformers:
+            conf.results[self._name.lower()].update(results_rrho[conf.geom.id])
+            conf.results[self._name.lower()]["gtot"] = self.grrho(conf)
+
+        threshold = self._instructions["threshold"] / AU2KCAL
+
+        # update conformer list one more time
+        self.core.update_conformers(
+            self.grrho, threshold
+        )
+
+        self.write_results()
+
     def write_results(self) -> None:
         """
         formatted write of part results (optional)
@@ -451,8 +468,7 @@ class Optimization(CensoPart):
         # write lines to file
         global logger
         logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
-        with open(os.path.join(self.core.workdir, f"{self._name.lower()}.out"), "w",
-                  newline=None) as outfile:
+        with open(os.path.join(self.core.workdir, f"{self._name.lower()}.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
     def print_update(self) -> None:

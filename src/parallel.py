@@ -147,7 +147,6 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
             # TODO - is using wait=False a good option here?
             # should be fine since workers will kill programs with SIGTERM
             # wait=True leads to the workers waiting for their current task to be finished before terminating
-            # FIXME - this doesn't work apparently, handle_sigterm is never called
             # Register the signal handler
             signal.signal(signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, executor))
 
