@@ -392,23 +392,6 @@ class Optimization(CensoPart):
             ncyc += self._instructions["optcycles"]
             print(f"NCYC: {ncyc}")
 
-        # do mrrho on optimized geometries
-        results_rrho = execute(self.core.conformers, self._instructions, self.dir)
-
-        # update gtot values
-        for conf in self.core.conformers:
-            conf.results[self._name.lower()].update(results_rrho[conf.geom.id])
-            conf.results[self._name.lower()]["gtot"] = self.grrho(conf)
-
-        threshold = self._instructions["threshold"] / AU2KCAL
-
-        # update conformer list one more time
-        self.core.update_conformers(
-            self.grrho, threshold
-        )
-
-        self.write_results()
-
     def write_results(self) -> None:
         """
         formatted write of part results (optional)

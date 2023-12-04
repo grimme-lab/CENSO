@@ -1,3 +1,4 @@
+import shutil
 import unittest
 import os
 from collections import OrderedDict
@@ -55,3 +56,16 @@ class OParserTest(unittest.TestCase):
         should["mp2"] = {"bla": ["bla"]}
 
         self.assertDictEqual(inp, should)
+
+    def doCleanups(self):
+        # perform cleanup
+        delete = [
+            "censo.log",
+        ]
+        for f in delete:
+            f = os.path.join(os.getcwd(), f)
+            if os.path.exists(f):
+                if os.path.isdir(f):
+                    shutil.rmtree(f)
+                else:
+                    os.remove(f)

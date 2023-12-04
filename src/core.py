@@ -85,6 +85,9 @@ class CensoCore:
         if self.args is not None:
             self.runinfo["charge"] = charge or self.args.charge
             self.runinfo["unpaired"] = unpaired or self.args.unpaired
+        else:
+            self.runinfo["charge"] = charge
+            self.runinfo["unpaired"] = unpaired
 
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError("Charge or number of unpaired electrons not defined.")
@@ -114,7 +117,7 @@ class CensoCore:
                     # if not you can trim the last lines
                     lines = lines[divisor:]
 
-            if self.args.nconf:
+            if self.args is not None and self.args.nconf is not None:
                 nconf = int(min(self.args.nconf, len(lines) / (nat + 2)))
                 if self.args.nconf > nconf:
                     global logger
