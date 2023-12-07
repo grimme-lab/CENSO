@@ -376,7 +376,8 @@ class Optimization(CensoPart):
             limit = min(self.grrho(conf) for conf in self.core.conformers)
             for conf in self.core.rem:
                 if conf in self.confs_nc:
-                    print(f"{conf.name} is no longer considered (δG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
+                    print(f"{conf.name} is no longer considered (small gradient and"
+                          f" δG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
                     self.confs_nc.remove(conf)
 
             # update list of converged conformers
@@ -431,10 +432,8 @@ class Optimization(CensoPart):
 
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (DFT) (+ ΔGsolv)": lambda
-                conf: f"{conf.results[self._name.lower()]['xtb_opt']['energy']:.6f}",
-            "ΔE (DFT) (+ δΔGsolv)": lambda
-                conf: f"{(conf.results[self._name.lower()]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
+            "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name.lower()]['xtb_opt']['energy']:.6f}",
+            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name.lower()]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf:
             f"{conf.results[self._name.lower()]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
             if self._instructions["evaluate_rrho"]

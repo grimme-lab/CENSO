@@ -85,9 +85,9 @@ class Prescreening(CensoPart):
         # set jobtype to pass to handler
         if not self._instructions["gas-phase"]:
             if self._instructions.get("implicit", False):
-                self._instructions["jobtype"] = ["sp", "gsolv"]
+                self._instructions["jobtype"] = ["gsolv"]
             else:
-                self._instructions["jobtype"] = ["sp", "xtb_gsolv"]
+                self._instructions["jobtype"] = ["xtb_gsolv", "sp"]
         else:
             self._instructions["jobtype"] = ["sp"]
 
@@ -97,7 +97,6 @@ class Prescreening(CensoPart):
 
         # update results for each conformer
         for conf in self.core.conformers:
-
             # store results of single jobs for each conformer
             conf.results.setdefault(self._name, {}).update(results[id(conf)])
 
@@ -138,13 +137,12 @@ class Prescreening(CensoPart):
         """
 
         # Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT)
-        gtot: float = conf.results[self._name]["sp"]["energy"]
-
-        # Gsolv is only calculated if prescreening is not in the gas-phase
-        if "xtb_gsolv" in conf.results[self._name].keys():
-            gtot += conf.results[self._name]["xtb_gsolv"]["gsolv"]
-        elif "gsolv" in conf.results[self._name].keys():
-            gtot += conf.results[self._name]["gsolv"]["gsolv"]
+        if "gsolv" not in conf.results[self._name].keys():
+            gtot: float = conf.results[self._name]["sp"]["energy"]
+            if "xtb_gsolv" in conf.results[self._name].keys():
+                gtot += conf.results[self._name]["xtb_gsolv"]["gsolv"]
+        else:
+            gtot: float = conf.results[self._name]["gsolv"]["energy_gas"] + conf.results[self._name]["gsolv"]["gsolv"]
 
         return gtot
 
@@ -195,18 +193,18 @@ class Prescreening(CensoPart):
 
         # variables for printmap
         # minimal xtb single-point energy
-        # TODO - where do prescreening and screening get xtb single-point from?
-        # FIXME FIXME FIXME
-        xtbmin = min(
-            conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']
-            for conf in self.core.conformers
-        )
+        if all("xtb_gsolv" in conf.results[self._name].keys() for conf in self.core.conformers):
+            xtbmin = min(
+                conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']
+                for conf in self.core.conformers
+            )
 
         # minimal dft single-point energy
-        dftmin = min(
-            conf.results[self._name]['sp']['energy']
-            for conf in self.core.conformers
-        )
+        dft_energies = {id(conf): conf.results[self._name]['sp']['energy'] for conf in self.core.conformers} \
+            if not all("gsolv" in conf.results[self._name].keys() for conf in self.core.conformers) \
+            else {id(conf): conf.results[self._name]['gsolv']['energy_gas'] for conf in self.core.conformers}
+
+        dftmin = min(dft_energies.values())
 
         # minimal solvation free enthalpy
         if self._instructions["gas-phase"]:
@@ -226,7 +224,9 @@ class Prescreening(CensoPart):
                 )
             else:
                 raise RuntimeError(
-                    "The calculations should have used implicit or additive solvation for all conformers, but it is missing for at least some conformers.")
+                    "The calculations should have used implicit or additive solvation for all conformers, "
+                    "but it is missing for at least some conformers."
+                )
 
         # minimal total free enthalpy
         gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
@@ -234,18 +234,16 @@ class Prescreening(CensoPart):
         # determines what to print for each conformer in each column
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda
-                conf: f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}",
-            "ΔE (xTB)": lambda
-                conf: f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",
-            "E (DFT)": lambda conf: f"{conf.results[self._name]['sp']['energy']:.6f}",
-            "ΔGsolv (xTB)": lambda conf:
-            f"{conf.results[self._name]['xtb_gsolv']['gsolv']:.6f}"
+            "E (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
+            if "xtb_gsolv" in conf.results[self._name].keys() else "---",
+            "ΔE (xTB)": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+            if "xtb_gsolv" in conf.results[self._name].keys() else "---",
+            "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
+            "ΔGsolv (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['gsolv']:.6f}"
             if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
             "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
-            "ΔE (DFT)": lambda
-                conf: f"{(conf.results[self._name]['sp']['energy'] - dftmin) * AU2KCAL:.2f}",
+            "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
             "δΔGsolv": lambda conf:
             f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
             if "xtb_gsolv" in conf.results[self._name].keys()

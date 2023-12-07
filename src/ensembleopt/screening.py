@@ -192,23 +192,32 @@ class Screening(Prescreening):
 
         # variables for printmap
         # minimal xtb single-point energy (taken from prescreening)
-        # TODO - where do prescreening and screening get xtb single-point from? - if prescreening is done grab from there, otherwise xtb_sp should be run
-        xtbmin = min(
-            conf.results["prescreening"]['xtb_gsolv']['energy_xtb_gas']
-            for conf in self.core.conformers
-        )
+        if all("prescreening" in conf.results.keys() for conf in self.core.conformers):
+            xtb_energies = {
+                id(conf): conf.results["prescreening"]['xtb_gsolv']['energy_xtb_gas']
+                for conf in self.core.conformers
+            }
+            xtbmin = min(xtb_energies)
+        else:
+            xtb_energies = None
 
         # minimal total free enthalpy (single-point and potentially gsolv)
         gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
 
+        # collect all dft single point energies
+        dft_energies = {id(conf): conf.results[self._name]["sp"]["energy"] for conf in self.core.conformers} \
+            if not all("gsolv" in conf.results[self._name].keys() for conf in self.core.conformers) \
+            else {id(conf): conf.results[self._name]["gsolv"]["energy_gas"] for conf in self.core.conformers}
+
         # determines what to print for each conformer in each column
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']:.6f}",  # TODO
-            "ΔE (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}",  # TODO
-            "E (DFT)": lambda conf: f"{conf.results[self._name]['sp']['energy']:.6f}",
-            "ΔGsolv": lambda conf:
-            f"{self.gtot(conf) - conf.results[self._name]['sp']['energy']:.6f}"
+            "E (xTB)": lambda conf: f"{xtb_energies[id(conf)]:.6f}"
+            if xtb_energies is not None else "---",
+            "ΔE (xTB)": lambda conf: f"{(xtb_energies[id(conf)] - xtbmin) * AU2KCAL:.2f}"
+            if xtb_energies is not None else "---",
+            "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
+            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
             if "xtb_gsolv" in conf.results[self._name].keys() or "gsolv" in conf.results[
                 self._name].keys()
             else "---",
@@ -265,14 +274,21 @@ class Screening(Prescreening):
         ]
 
         # minimal xtb energy from single-point (and mRRHO)
-        # TODO - what if there was no prescreening?
-        gxtbmin = min(
-            conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] +
-            conf.results[self._name]['xtb_rrho']['gibbs'][
-                self._instructions["temperature"]]  # TODO?
-            if self._instructions["evaluate_rrho"] else conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
-            for conf in self.core.conformers
-        )
+        if all("prescreening" in conf.results.keys() for conf in self.core.conformers):
+            if self._instructions["evaluate_rrho"]:
+                gxtb = {
+                    id(conf): conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
+                              + conf.results['prescreening']['xtb_mrrho']['gibbs'][self._instructions["temperature"]]
+                    for conf in self.core.conformers
+                }
+            else:
+                gxtb = {
+                    id(conf): conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
+                    for conf in self.core.conformers
+                }
+            gxtbmin = min(gxtb)
+        else:
+            gxtb = None
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
         gtotmin = min(
@@ -280,16 +296,20 @@ class Screening(Prescreening):
             for conf in self.core.conformers
         )
 
+        # collect all dft single point energies
+        dft_energies = {id(conf): conf.results[self._name]["sp"]["energy"] for conf in self.core.conformers} \
+            if not all("gsolv" in conf.results[self._name].keys() for conf in self.core.conformers) \
+            else {id(conf): conf.results[self._name]["gsolv"]["energy_gas"] for conf in self.core.conformers}
+
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "G (xTB)": lambda conf: f"{conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}",
-            # TODO
-            "ΔG (xTB)": lambda conf: f"{(conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas'] + conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']] - gxtbmin) * AU2KCAL:.2f}",
-            # TODO
-            "E (DFT)": lambda conf: f"{conf.results[self._name]['sp']['energy']:.6f}",
-            "ΔGsolv": lambda conf:
-            f"{self.gtot(conf) - conf.results[self._name]['sp']['energy']:.6f}"
-            if not isclose(self.gtot(conf), conf.results[self._name]['sp']['energy'])
+            "G (xTB)": lambda conf: f"{gxtb[id(conf)]:.6f}"
+            if gxtb is not None else "---",
+            "ΔG (xTB)": lambda conf: f"{(gxtb[id(conf)] - gxtbmin) * AU2KCAL:.2f}"
+            if gxtb is not None else "---",
+            "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
+            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
+            if not isclose(self.gtot(conf), dft_energies[id(conf)])
             else "---",
             "GmRRHO": lambda conf:
             f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
