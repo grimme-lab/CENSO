@@ -293,8 +293,8 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     stream_handler.setLevel(logging.INFO)
 
     # Define the log message format
-    formatter = logging.Formatter(f'{"%(asctime)s - %(name)s - %(levelname)s":{70}} - %(message)s')
-    stream_formatter = logging.Formatter(f'{"%(levelname)s":{25}} - %(message)s')
+    formatter = logging.Formatter('{asctime:24s}-{name:^20s}-{levelname:^10s}- {message}', style="{")
+    stream_formatter = logging.Formatter('{levelname:^10s}- {message}', style="{")
     handler.setFormatter(formatter)
     stream_handler.setFormatter(stream_formatter)
 
