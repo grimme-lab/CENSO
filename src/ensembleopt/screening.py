@@ -278,7 +278,7 @@ class Screening(Prescreening):
             if self._instructions["evaluate_rrho"]:
                 gxtb = {
                     id(conf): conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
-                              + conf.results['prescreening']['xtb_rrho']['gibbs'][self._instructions["temperature"]]
+                              + conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions["temperature"]]
                     for conf in self.core.conformers
                 }
             else:
