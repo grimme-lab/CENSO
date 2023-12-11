@@ -5,7 +5,7 @@ Additionally to part0 it is also possible to calculate gsolv implicitly and incl
 import os
 from functools import reduce
 from math import isclose, exp
-from statistics import stdev
+from statistics import stdev, mean
 
 from src.datastructure import MoleculeData
 from src.ensembleopt import Prescreening
@@ -112,9 +112,9 @@ class Screening(Prescreening):
             self.core.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
 
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (1 - exp(-5 * stdev(
-                [conf.results[self._name]["xtb_rrho"]["energy"] for conf in
-                 self.core.conformers]) * AU2KCAL))
+            fuzzy = (1 / AU2KCAL) * (1 - exp(
+                - AU2KCAL * stdev([conf.results[self._name]["xtb_rrho"]["energy"] for conf in self.core.conformers])
+            ))
             threshold += fuzzy
             print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 

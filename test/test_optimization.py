@@ -25,7 +25,7 @@ class TestOptimization(unittest.TestCase):
             mock_results[id(conf)]["xtb_opt"]["converged"] = True
             mock_results[id(conf)]["xtb_opt"]["cycles"] = 8
             mock_results[id(conf)]["xtb_opt"]["geom"] = conf.geom.xyz
-            mock_results[id(conf)]["xtb_opt"]["grad_norm"] = 0.0001
+            mock_results[id(conf)]["xtb_opt"]["grad_norm"] = 0.0001 + random.normalvariate(0, 0.001)
             mock_results[id(conf)]["xtb_rrho"]["energy"] = 0.001
             mock_results[id(conf)]["xtb_rrho"].setdefault("gibbs", {}).setdefault(optimization._instructions["temperature"], 0.001)
 

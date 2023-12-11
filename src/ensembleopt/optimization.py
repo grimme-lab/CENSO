@@ -4,6 +4,8 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
 from functools import reduce
+from math import exp
+from statistics import stdev, mean
 from typing import List
 
 from src.core import CensoCore
@@ -41,13 +43,6 @@ class Optimization(CensoPart):
                 10
             ]
         },
-        # "radsize": { # ???
-        #     "default": 10,
-        #     "range": [
-        #         1,
-        #         100
-        #     ]
-        # },
         "maxcyc": {
             "default": 200,
             "range": [
@@ -83,13 +78,6 @@ class Optimization(CensoPart):
                 99.9
             ]
         },
-        # "spearmanthr": {
-        #     "default": 0.0,
-        #     "range": [
-        #         -1.0,
-        #         1.0
-        #     ]
-        # },
         "func": {
             "default": "r2scan-3c",
             "options": DfaHelper.find_func("optimization")
@@ -133,7 +121,7 @@ class Optimization(CensoPart):
         "gcp": {
             "default": True
         },
-        "opt_spearman": {
+        "macrocycles": {
             "default": True
         },
         "crestcheck": {
@@ -181,7 +169,7 @@ class Optimization(CensoPart):
         self._instructions["jobtype"] = ["xtb_opt"]
 
         # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
-        if self._instructions["opt_spearman"] and len(self.core.conformers) > 1:
+        if self._instructions["macrocycles"] and len(self.core.conformers) > 1:
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
@@ -189,7 +177,7 @@ class Optimization(CensoPart):
             #     # set spearmanthr by number of atoms:
             #     self.spearmanthr = 1 / (exp(0.03 * (self.runinfo["nat"] ** (1 / 4))))
 
-            self.__spearman_opt()
+            self.__macrocycle_opt()
         else:
             """
             do normal geometry optimization
@@ -245,22 +233,19 @@ class Optimization(CensoPart):
         except KeyError:
             return conf.results[self._name]["xtb_opt"]["energy"]
 
-    def __spearman_opt(self):
+    def __macrocycle_opt(self):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
-        # NOTE: this is a special step only necessary for spearman optimization
+        # NOTE: this is a special step only necessary for macrocycle optimization
         # at this point it's just self.core.conformers
         self.confs_nc = self.core.conformers.copy()
 
         ncyc = 0
         rrho_done = False
-        print(f"Optimization using Spearman threshold, {self._instructions['optcycles']} cycles per step.")
+        print(f"Optimization using macrocycles, {self._instructions['optcycles']} microcycles per step.")
         print(f"NCYC: {ncyc}")
         while (
                 len(self.confs_nc) > 0
                 and ncyc < self._instructions["maxcyc"]
-                # TODO - maybe make this more intelligent:
-                # make maxcyc lower and if some apparently relevant conformer doesn't converge within it's chunk,
-                # move it to a new chunk and calculate later
         ):
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # all the following steps will not consider it anymore
@@ -300,6 +285,19 @@ class Optimization(CensoPart):
 
             # kick out conformers above threshold
             threshold = self._instructions["threshold"] / AU2KCAL
+
+            # make threshold fuzzy based on stdev of the gradient norms (adds at most 2 kcal/mol to the threshold)
+            if len(self.confs_nc) > 1:
+                threshold = threshold + (2 / AU2KCAL) * (1 - exp(
+                                 - AU2KCAL * stdev(
+                                     [conf.results[self._name]["xtb_opt"]["grad_norm"] for conf in self.confs_nc]
+                                 )
+                            ))
+
+                print(f"Current fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol "
+                      f"(min: {self._instructions['threshold']:.2f} kcal/mol).")
+            else:
+                print(f"Using minimal threshold ({self._instructions['threshold']:.2f} kcal/mol).")
 
             """
             # TODO TODO TODO TODO - update threshold based on spearman coefficients (???) - leave this out for now
