@@ -722,7 +722,7 @@ class OrcaProc(QmProc):
                 os.path.join(jobdir, xcontrolname), "w", newline=None
         ) as out:
             out.write("$opt \n")
-            if self.instructions["opt_spearman"]:
+            if self.instructions["macrocycles"]:
                 out.write(f"maxcycle={self.instructions['optcycles']} \n")
                 out.write(f"microcycle={self.instructions['optcycles']} \n")
 

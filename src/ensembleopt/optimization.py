@@ -147,7 +147,7 @@ class Optimization(CensoPart):
         Uses xtb as driver for orca/tm, calculates hessians from orca/tm single-points and reevaluates ensemble every 'optcycles' steps
         by calculating the thermodynamics of the optimized geometries
 
-        Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'opt_spearman')
+        Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'macrocycles')
 
         TODO - implement regular geometry optimization (no xtb driver)
         TODO - what happens if not a single conformer converges?
@@ -186,8 +186,8 @@ class Optimization(CensoPart):
                 print(f"Only one conformer ({self.core.conformers[0].name}) is available for optimization.")
 
             # disable spearman optimization
-            print("Spearman optimization turned off.")
-            self._instructions["opt_spearman"] = False
+            print("Macrocycle optimization turned off.")
+            self._instructions["macrocycles"] = False
 
             # run optimizations using xtb as driver
             results_opt = execute(self.core.conformers, self._instructions, self.dir)
