@@ -2,7 +2,7 @@ from typing import Dict, List, Any
 from functools import reduce
 from collections import defaultdict
 
-from src.params import BOHR2ANG
+from .params import BOHR2ANG
 
 
 class GeometryData:

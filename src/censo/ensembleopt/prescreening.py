@@ -1,18 +1,18 @@
 import csv
 import os
 
-from src.core import CensoCore
-from src.datastructure import MoleculeData
-from src.parallel import execute
-from src.params import PLENGTH, AU2KCAL
-from src.params import (
+from ..core import CensoCore
+from ..datastructure import MoleculeData
+from ..parallel import execute
+from ..params import PLENGTH, AU2KCAL
+from ..params import (
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
 )
-from src.part import CensoPart
-from src.utilities import (
+from ..part import CensoPart
+from ..utilities import (
     print,
     timeit,
     format_data,
@@ -285,7 +285,6 @@ class Prescreening(CensoPart):
         # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
 
         # write everything to a file
-        global logger
         logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w",
                   newline=None) as outfile:

@@ -8,6 +8,8 @@ import sys
 from typing import Dict, Tuple
 import json
 
+from .assets import __file__ as assets_path
+
 # FIXME - not good practice?
 __version__ = "2.0.0"
 
@@ -63,7 +65,7 @@ PLANCK = 6.62607015e-34
 C = 2.998e8
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
-ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+ASSETS_PATH = os.path.split(assets_path)[0]
 
 USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
 

@@ -5,12 +5,12 @@ Additionally to part0 it is also possible to calculate gsolv implicitly and incl
 import os
 from functools import reduce
 from math import isclose, exp
-from statistics import stdev, mean
+from statistics import stdev
 
-from src.datastructure import MoleculeData
-from src.ensembleopt import Prescreening
-from src.parallel import execute
-from src.params import (
+from ..datastructure import MoleculeData
+from .prescreening import Prescreening
+from ..parallel import execute
+from ..params import (
     AU2KCAL,
     SOLV_MODS,
     PROGS,
@@ -18,8 +18,8 @@ from src.params import (
     GRIDOPTIONS,
     GFNOPTIONS,
 )
-from src.utilities import DfaHelper, setup_logger
-from src.utilities import print, timeit, format_data
+from ..utilities import DfaHelper, setup_logger
+from ..utilities import print, timeit, format_data
 
 logger = setup_logger(__name__)
 
@@ -324,7 +324,6 @@ class Screening(Prescreening):
         lines = format_data(headers, rows, units=units)
 
         # append lines to already existing file
-        global logger
         logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "a",
                   newline=None) as outfile:

@@ -7,12 +7,12 @@ import os
 import shutil
 import sys
 
-from src import configure
-from src.params import DESCR, ASSETS_PATH, __version__
-from src.inputhandling import cml
-from src.utilities import print
-from src.core import CensoCore
-from src.ensembleopt import Prescreening, Screening, Optimization
+from .configuration import configure
+from .params import DESCR, ASSETS_PATH, __version__
+from .inputhandling import cml
+from .utilities import print
+from .core import CensoCore
+from .ensembleopt import Prescreening, Screening, Optimization
 
 
 # TODO - MAJOR - fix compatibility with old json and censorc files

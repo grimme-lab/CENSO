@@ -11,20 +11,19 @@ import subprocess
 from time import perf_counter
 from typing import Any, Callable, Dict, List
 
-from src.datastructure import ParallelJob
-from src.params import (
+from .datastructure import ParallelJob
+from .params import (
     ENVIRON,
     CODING,
     rot_sym_num,
     PLENGTH, DIGILEN, WARNLEN,
 )
-from src.utilities import print, frange, setup_logger
+from .utilities import print, frange, setup_logger
 
 logger = setup_logger(__name__)
 
 
 def handle_sigterm(signum, frame, sub):
-    global logger
     logger.critical(f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating.")
     sub.send_signal(signal.SIGTERM)
 
@@ -103,7 +102,6 @@ class QmProc:
                 # Create the directory
                 os.makedirs(jobdir)
             except FileExistsError:
-                global logger
                 logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
                                " Files will be overwritten.")
 
@@ -135,7 +133,6 @@ class QmProc:
         run methods depending on jobtype
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. ProcessHandler.execute
         """
-        global logger
         logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
         # list containing the types of computations to do
@@ -174,7 +171,6 @@ class QmProc:
     def _make_call(call: List, outputpath: str, jobdir: str) -> int:
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
-            global logger
             logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
 
             # create subprocess for external program
@@ -273,7 +269,6 @@ class QmProc:
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "xtb_sp-xcontrol-inp"
 
-        global logger
         if not silent:
             logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_sp calculation in {jobdir}.")
         else:
@@ -370,7 +365,6 @@ class QmProc:
         """
         jobdir = os.path.join(self.workdir, job.conf.name, "xtb_gsolv")
 
-        global logger
         logger.info(
             f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_gsolv calculation in {jobdir}."
         )
@@ -463,7 +457,6 @@ class QmProc:
         xcontrolname = "rrho-xcontrol-inp"
         xcontrolpath = os.path.join(jobdir, xcontrolname)
 
-        global logger
         logger.info(
             f"{f'worker{os.getpid()}:':{WARNLEN}}Running {str(self.instructions['gfnv']).upper()} mRRHO in {jobdir}."
         )

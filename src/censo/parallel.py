@@ -7,11 +7,11 @@ import signal
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any, Dict, List
 
-from src.datastructure import MoleculeData, ParallelJob
-from src.params import OMPMIN, OMPMAX
-from src.procfact import ProcessorFactory
-from src.qm_processor import QmProc
-from src.utilities import setup_logger
+from .datastructure import MoleculeData, ParallelJob
+from .params import OMPMIN, OMPMAX
+from .procfact import ProcessorFactory
+from .qm_processor import QmProc
+from .utilities import setup_logger
 
 logger = setup_logger(__name__)
 

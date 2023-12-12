@@ -1,7 +1,7 @@
 import unittest
 from os import getcwd
 
-from src.censo import startup
+from src import startup
 
 argv = "-inp testfiles/crest_conformers.xyz -solvent water"
 

@@ -1,9 +1,9 @@
 import unittest
 import json
 
-from src.configuration import DfaHelper
+from src import DfaHelper
 
-dfas = json.load(open("../src/assets/censo_dfa_settings.json", "r"))
+dfas = json.load(open("censo/assets/censo_dfa_settings.json", "r"))
 
 
 class DfaSettingsTest(unittest.TestCase):

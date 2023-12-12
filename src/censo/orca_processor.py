@@ -1,21 +1,22 @@
 """
 Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
+import logging
 import os
 import shutil
 from collections import OrderedDict
 from functools import reduce
 from typing import Any, List
 
-from src.datastructure import GeometryData, ParallelJob
-from src.params import (
+from .datastructure import GeometryData, ParallelJob
+from .params import (
     CODING,
     USER_ASSETS_PATH, WARNLEN,
 )
-from src.qm_processor import QmProc
-from src.utilities import od_insert, setup_logger
+from .qm_processor import QmProc
+from .utilities import od_insert, setup_logger
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class OrcaParser:
@@ -422,7 +423,6 @@ class OrcaProc(QmProc):
             indict["main"].append(f"GCP(DFT/{gcp_keywords[self.instructions['basis'].lower()]})")
         elif self.instructions["gcp"]:
             # TODO - error handling
-            global logger
             logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP.")
 
         # add job keyword for geometry optimizations
@@ -523,7 +523,6 @@ class OrcaProc(QmProc):
         parser.write_input(inputpath, indict)
 
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
-        global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
@@ -593,7 +592,6 @@ class OrcaProc(QmProc):
 
         jobdir = os.path.join(self.workdir, job.conf.name, "gsolv")
 
-        global logger
         logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA Gsolv calculation in {jobdir}.")
 
         # calculate gas phase
@@ -741,7 +739,6 @@ class OrcaProc(QmProc):
             ])
 
         # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
-        global logger
         if self.instructions["copy_mo"]:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:

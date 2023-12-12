@@ -1,7 +1,7 @@
 import unittest
 
-from src.params import DESCR
-from src.inputhandling import cml
+from src import DESCR
+from src import cml
 
 
 class CmlTest(unittest.TestCase):

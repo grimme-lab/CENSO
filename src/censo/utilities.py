@@ -13,7 +13,7 @@ from builtins import print as print_orig
 from collections import OrderedDict
 from typing import Any, Callable, Tuple, Union, List, Dict
 
-from src.params import CODING, BOHR2ANG
+from .params import CODING, BOHR2ANG
 
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO

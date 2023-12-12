@@ -3,12 +3,12 @@ import shutil
 import configparser
 from typing import Any, Dict, Union
 
-from src.params import (
+from .params import (
     CENSORCNAME,
     load_dbs, ASSETS_PATH, USER_ASSETS_PATH
 )
-from src.qm_processor import QmProc
-from src.utilities import DfaHelper
+from .qm_processor import QmProc
+from .utilities import DfaHelper, setup_logger
 
 parts = {}
 
@@ -29,6 +29,8 @@ def configure(rcpath: str = None):
         else:
             censorc_path = rcpath
 
+    # TODO - Set up the logger
+
     # Set up the DFAHelper
     DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
 
@@ -38,8 +40,8 @@ def configure(rcpath: str = None):
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
     # otherwise there will be errors in the CensoPart._options
-    from src.part import CensoPart
-    from src.ensembleopt import Prescreening, Screening, Optimization
+    from .part import CensoPart
+    from .ensembleopt import Prescreening, Screening, Optimization
     global parts
     parts = {
         "prescreening": Prescreening,
@@ -110,7 +112,7 @@ def write_rcfile(path: str) -> None:
 
         # collect all default settings from parts and feed them into the parser
         global parts
-        from src.part import CensoPart
+        from src.censo.part import CensoPart
         parts["general"] = CensoPart
         parser.read_dict({
             partname: {

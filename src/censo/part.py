@@ -3,8 +3,8 @@ from typing import Dict, Any, Callable
 import os
 import ast
 
-from src.core import CensoCore
-from src.params import (
+from .core import CensoCore
+from .params import (
     PLENGTH,
     DIGILEN,
     OMPMIN,
@@ -12,7 +12,7 @@ from src.params import (
     SOLVENTS_DB,
     COSMORS_PARAM,
 )
-from src.utilities import (
+from .utilities import (
     DfaHelper, setup_logger
 )
 

@@ -2,9 +2,9 @@ import unittest
 import os
 from functools import reduce
 
-from src.inputhandling import cml
-from src.params import DESCR
-from src.configuration import CensoRCParser
+from src import cml
+from src import DESCR
+from src import CensoRCParser
 
 
 def parentdir(path):

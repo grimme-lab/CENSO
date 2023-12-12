@@ -4,23 +4,22 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
 from functools import reduce
-from math import exp
-from statistics import stdev, mean
 from typing import List
 
-from src.core import CensoCore
-from src.datastructure import MoleculeData
-from src.parallel import execute
-from src.params import (
+from ..core import CensoCore
+from ..datastructure import MoleculeData
+from ..parallel import execute
+from ..params import (
     SOLV_MODS,
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
+    ASSETS_PATH,
 )
-from src.part import CensoPart
-from src.utilities import (
+from ..part import CensoPart
+from ..utilities import (
     print,
     timeit,
     DfaHelper,
@@ -236,7 +235,7 @@ class Optimization(CensoPart):
     def __macrocycle_opt(self):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
         # NOTE: this is a special step only necessary for macrocycle optimization
-        # at this point it's just self.core.conformers
+        # at this point it's just self.core.conformers, it is basically a todo-list
         self.confs_nc = self.core.conformers.copy()
 
         ncyc = 0
@@ -248,7 +247,7 @@ class Optimization(CensoPart):
                 and ncyc < self._instructions["maxcyc"]
         ):
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
-            # all the following steps will not consider it anymore
+            # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
             results_opt = execute(self.confs_nc, self._instructions, self.dir)
 
@@ -266,6 +265,7 @@ class Optimization(CensoPart):
             if ncyc + self._instructions["optcycles"] >= 6 and not rrho_done:
 
                 # evaluate rrho using bhess flag (reset after this)
+                # TODO - this smells a bit
                 tmp = self._instructions["bhess"]
                 self._instructions["bhess"] = True
                 self._instructions["jobtype"] = ["xtb_rrho"]
@@ -282,6 +282,11 @@ class Optimization(CensoPart):
                 rrho_done = True
 
             # TODO - crestcheck each iteration if ncyc >= 6
+
+            # remove converged conformers from 'todo-list'
+            for conf in list(filter(lambda x: x.results[self._name]["xtb_opt"]["converged"], self.confs_nc)):
+                print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
+                self.confs_nc.remove(conf)
 
             # kick out conformers above threshold
             threshold = self._instructions["threshold"] / AU2KCAL
@@ -373,18 +378,13 @@ class Optimization(CensoPart):
                 # x.results[self._name]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
             )
 
-            # also remove conformers from confs_nc
+            # make sure that all the conformers, that are not converged but filtered out, are also removed
+            # from self.confs_nc
             limit = min(self.grrho(conf) for conf in self.core.conformers)
             for conf in self.core.rem:
                 if conf in self.confs_nc:
-                    print(f"{conf.name} is no longer considered (small gradient and"
-                          f" δG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
-                    self.confs_nc.remove(conf)
-
-            # update list of converged conformers
-            for conf in self.confs_nc:
-                if results_opt[conf.geom.id]["xtb_opt"]["converged"]:
-                    print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
+                    print(f"{conf.name} is no longer considered (gradient too small and"
+                          f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
                     self.confs_nc.remove(conf)
 
             # TODO - print out information about current state of the ensemble
@@ -449,7 +449,6 @@ class Optimization(CensoPart):
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
-        global logger
         logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
@@ -459,5 +458,7 @@ class Optimization(CensoPart):
         writes information about the current state of the ensemble
         """
         # TODO
+        limit = min(self.grrho(conf) for conf in self.core.conformers)
         for conf in self.confs_nc:
-            print(f"{conf.name}: {self.grrho(conf)}")
+            print(f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm =%"
+                  f" {conf.results[self._name]['xtb_opt']['grad_norm']})")

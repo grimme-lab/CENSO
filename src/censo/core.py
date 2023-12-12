@@ -8,12 +8,12 @@ import os
 from typing import List, Callable
 from math import exp
 
-from src.params import (
+from .params import (
     AU2J,
     KB
 )
-from src.datastructure import MoleculeData
-from src.utilities import (
+from .datastructure import MoleculeData
+from .utilities import (
     check_for_float,
     do_md5,
     t2x,
