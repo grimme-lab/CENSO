@@ -1,0 +1,5 @@
+name: censo
+channels:
+  - defaults
+  - conde-forge
+dependencies:

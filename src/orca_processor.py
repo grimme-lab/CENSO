@@ -655,6 +655,7 @@ class OrcaProc(QmProc):
 
         # prepare result
         # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
+        # 'gncyc' contains the gradient norms for all cycles
         # 'energy' contains the final energy of the optimization (converged or unconverged)
         # 'geom' stores the optimized geometry in GeometryData.xyz format
         result = {
@@ -663,6 +664,7 @@ class OrcaProc(QmProc):
             "converged": None,
             "ecyc": None,
             "grad_norm": None,
+            "gncyc": None,
             "geom": None,
         }
 
@@ -814,8 +816,13 @@ class OrcaProc(QmProc):
             # Get energies for each cycle
             result["ecyc"].extend(float(line.split("->")[-1]) for line in filter(lambda x: "av. E: " in x, lines))
 
-            # Get the gradient norm
-            result["grad_norm"] = float(next((x for x in lines if " :: gradient norm      " in x), None).split()[3])
+            # Get the gradient norm (lines reversed so it takes the last gradient norm value)
+            result["grad_norm"] = float(next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
+
+            # Get all other gradient norms for evaluation
+            result["gncyc"] = [
+                float(line.split("->")[-1]) for line in filter(lambda x: " :: gradient norm      " in x, lines)
+            ]
 
             # store the final energy of the optimization in 'energy'
             result["energy"] = result["ecyc"][-1]
@@ -825,7 +832,7 @@ class OrcaProc(QmProc):
             # store the path to the current .gbw file for this conformer
             job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
-        # read out optimized geometry und update conformer geometry with this
+        # read out optimized geometry and update conformer geometry with this
         job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = job.conf.xyz
 

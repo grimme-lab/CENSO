@@ -286,6 +286,7 @@ class Optimization(CensoPart):
             # kick out conformers above threshold
             threshold = self._instructions["threshold"] / AU2KCAL
 
+            """
             # make threshold fuzzy based on stdev of the gradient norms (adds at most 2 kcal/mol to the threshold)
             if len(self.confs_nc) > 1:
                 threshold = threshold + (2 / AU2KCAL) * (1 - exp(
@@ -298,6 +299,7 @@ class Optimization(CensoPart):
                       f"(min: {self._instructions['threshold']:.2f} kcal/mol).")
             else:
                 print(f"Using minimal threshold ({self._instructions['threshold']:.2f} kcal/mol).")
+            """
 
             """
             # TODO TODO TODO TODO - update threshold based on spearman coefficients (???) - leave this out for now
@@ -363,11 +365,12 @@ class Optimization(CensoPart):
             # sort conformers
             self.core.conformers.sort(key=lambda conf: self.grrho(conf))
 
-            # update the conformer list in core (remove conf if below threshold)
+            # update the conformer list (remove conf if below threshold and gradient too small for all microcycles)
             self.core.update_conformers(
                 self.grrho, threshold,
                 additional_filter=lambda x:
-                x.results[self._name]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
+                all(gn < self._instructions["gradthr"] for gn in x.results[self._name]["xtb_opt"]["gncyc"])
+                # x.results[self._name]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
             )
 
             # also remove conformers from confs_nc
