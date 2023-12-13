@@ -62,7 +62,7 @@ class CensoCore:
         # absolute path to ensemble input file
         self.ensemble_path: str
 
-    def read_input(self, ensemble_path: str, charge: int = None, unpaired: int = None) -> None:
+    def read_input(self, ensemble_path: str, charge: int = None, unpaired: int = None, nconf: int = None) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
         """
@@ -93,9 +93,9 @@ class CensoCore:
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError("Charge or number of unpaired electrons not defined.")
 
-        self.setup_conformers()
+        self.setup_conformers(nconf)
 
-    def setup_conformers(self) -> None:
+    def setup_conformers(self, maxconf: int) -> None:
         """
         open ensemble input
         split into conformers
@@ -127,7 +127,7 @@ class CensoCore:
                 else:
                     nconf = self.args.nconf
             else:
-                nconf = int(len(lines) / (nat + 2))
+                nconf = maxconf or int(len(lines) / (nat + 2))
 
             self.runinfo["nconf"] = nconf
 
