@@ -92,9 +92,11 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
 
             # execute jobs that should be retried
             logger.info(f"Failed jobs: {len(failed_jobs)}\nRestarting {len(retry)} jobs.")
-            set_omp_chunking([jobs[i] for i in retry])
-            for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
-                jobs[i] = job
+
+            if len(retry) > 0:
+                set_omp_chunking([jobs[i] for i in retry])
+                for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
+                    jobs[i] = job
 
             # any jobs that still failed will lead to the conformer to be removed from the list (TODO)
             for job in jobs:
