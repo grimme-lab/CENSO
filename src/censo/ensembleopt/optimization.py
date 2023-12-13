@@ -16,7 +16,6 @@ from ..params import (
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
-    ASSETS_PATH,
 )
 from ..part import CensoPart
 from ..utilities import (
@@ -370,7 +369,8 @@ class Optimization(CensoPart):
             # sort conformers
             self.core.conformers.sort(key=lambda conf: self.grrho(conf))
 
-            # update the conformer list (remove conf if below threshold and gradient too small for all microcycles)
+            # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
+            # this macrocycle)
             self.core.update_conformers(
                 self.grrho, threshold,
                 additional_filter=lambda x:
@@ -417,7 +417,7 @@ class Optimization(CensoPart):
             "[Eh]",
             "[Eh]",
             "[kcal/mol]",
-            f"\% at {self._instructions.get('temperature', 298.15)} K",
+            f"% at {self._instructions.get('temperature', 298.15)} K",
         ]
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO

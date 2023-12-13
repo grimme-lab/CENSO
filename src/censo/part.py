@@ -27,11 +27,11 @@ logger = setup_logger(__name__)
 class CensoPart:
 
     _options = {
-        "procs": {
-            "default": 1,
+        "maxcores": {
+            "default": 4,
             "range": [
-                1,
-                128
+                OMPMIN,
+                256
             ]
         },
         "omp": {

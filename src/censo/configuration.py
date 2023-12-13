@@ -13,18 +13,18 @@ from .utilities import DfaHelper, setup_logger
 parts = {}
 
 
-def configure(rcpath: str = None):
+def configure(rcpath: str = None, create_new: bool = False):
     """
     Configures the application based on the provided configuration file path.
     If no configuration file path is provided, it searches for the default configuration file.
     If no configuration file is found, it creates a new one with default settings.
     """
 
-    # Try to find the .censorc2 in the user's home directory if no configuration file path is provided
+    # Try to find the .censo2rc in the user's home directory if no configuration file path is provided
     if rcpath is None:
         censorc_path = find_rcfile()
     else:
-        if not os.path.isfile(rcpath):
+        if not os.path.isfile(rcpath) and not create_new:
             raise FileNotFoundError(f"No configuration file found at {rcpath}.")
         else:
             censorc_path = rcpath
@@ -52,6 +52,10 @@ def configure(rcpath: str = None):
     # If no configuration file is found, create a new one and configure parts with default settings
     if censorc_path is None:
         censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
+        write_rcfile(censorc_path)
+    # if explicitely set to create a new configuration file, do so
+    elif create_new:
+        censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
@@ -133,7 +137,7 @@ def write_rcfile(path: str) -> None:
     print(
         f"\nA new configuration file was written into {path}.\n"
         "You should adjust the settings to your needs and set the program paths.\n"
-        "Right now only the default settings are used.\n"
+        "Right now the settings are at their default values.\n"
     )
 
     if CENSORCNAME not in path:

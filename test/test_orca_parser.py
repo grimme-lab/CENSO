@@ -3,7 +3,7 @@ import unittest
 import os
 from collections import OrderedDict
 
-from src import OrcaParser
+from censo.orca_processor import OrcaParser
 
 test_dir = os.getcwd()
 

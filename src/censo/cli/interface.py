@@ -1,33 +1,37 @@
-"""
-CENSO run code:
-
-"""
-from os import getcwd
 import os
 import shutil
 import sys
+from os import getcwd
 
-from .configuration import configure
-from .params import DESCR, ASSETS_PATH, __version__
-from .inputhandling import cml
-from .utilities import print
-from .core import CensoCore
-from .ensembleopt import Prescreening, Screening, Optimization
+from .cml_parser import parse
+from ..configuration import configure
+from ..core import CensoCore
+from ..ensembleopt import Prescreening, Screening, Optimization
+from ..params import DESCR, __version__
+from ..utilities import print, setup_logger
+
+logger = setup_logger(__name__)
 
 
-# TODO - MAJOR - fix compatibility with old json and censorc files
-# TODO - MAJOR - introduce option to return all user customizable dbs to default
-# TODO - give meaningful help messages e.g. to avoid pitfalls for repeated calculations (too high threshold etc.)
-# TODO - MAJOR - make censo available as package to be easily installed via pip?
-def main(argv=None):
+def entry_point(argv: list[str] | None = None) -> int:
     """
-    Execute the CENSO code.
+    Console entry point to execute CENSO from the command line.
     """
-
     # put every step for startup into a method for convenience
     # makes testing easier and may also be called for customized workflows
     # standard censo setup
-    core = startup(argv)
+    try:
+        args = parse(DESCR, argv)
+    except SystemExit:
+        return 0
+
+    if not any(vars(args).values()):
+        print("CENSO needs at least one argument!")
+        return 1
+
+    core = startup(args)
+    if core is None:
+        return 0
 
     run = filter(
         lambda x: x.get_settings()["run"],
@@ -43,45 +47,36 @@ def main(argv=None):
 
 
 # sets up a core object for you using the given cml arguments and censorc
-def startup(argv):
-    # first, check program integrity
-    # TODO - proper implementation?
-    if not os.path.isdir(ASSETS_PATH):
-        raise FileNotFoundError(ASSETS_PATH)
-
+def startup(args) -> CensoCore | None:
     # get most important infos for current run
-    args = cml(DESCR, argv)
     cwd = getcwd()
 
     # run actions for which no complete setup is needed
     if args.version:
         print(__version__)
-        sys.exit(0)
-    # elif args.tutorial:
-    #     interactiv_doc()
-    #     sys.exit(0)
+        return None
     elif args.cleanup:
         cleanup_run(cwd)
         print("Removed files and going to exit!")
-        sys.exit(0)
+        return None
     elif args.cleanup_all:
         cleanup_run(cwd, complete=True)
         print("Removed files and going to exit!")
-        sys.exit(0)
-    # TODO - insert option to just create a new censorc
-
-    if args.inprcpath is not None:
+        return None
+    elif args.writeconfig:
+        configure(rcpath=cwd, create_new=True)
+        return None
+    elif args.inprcpath is not None:
         configure(args.inprcpath)
 
     # initialize core, constructor get runinfo from args
     core = CensoCore(cwd, args=args)
 
     # read input and setup conformers
-    # NOTE: read_input used without keyword arguments because usage of this function implies cml usage of CENSO
     core.read_input(args.inp)
 
     ### END of setup
-    # -> core.conformers contains all conformers with their info from input (sorted by preliminary xtb energy if possible)
+    # -> core.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
 
     return core
 
@@ -100,6 +95,7 @@ def cleanup_run(cwd, complete=False):
         "a3mat.tmp",
         "a2mat.tmp",
         "amat.tmp",
+        "censo.log",
     ]
 
     # remove conformer_rotamer_check folder if complete cleanup
@@ -112,8 +108,8 @@ def cleanup_run(cwd, complete=False):
     else:
         print("Cleaning up the directory from unneeded files!")
 
-    print(
-        f"Be aware that files in {cwd} and subdirectories with names containing the following substrings will be deleted:")
+    print(f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
+          f"will be deleted:")
     for sub in to_delete:
         print(sub)
 
@@ -129,7 +125,7 @@ def cleanup_run(cwd, complete=False):
     deleted = 0
     for subdir, dirs, files in os.walk(cwd):
         for file in files:
-            if any([str in file for str in to_delete]) and int(file.split(".")[2]) > 1:
+            if any([s in file for s in to_delete]) and int(file.split(".")[2]) > 1:
                 print(f"Removing: {file}")
                 os.remove(os.path.join(subdir, file))
                 deleted += os.path.getsize(os.path.join(subdir, file))

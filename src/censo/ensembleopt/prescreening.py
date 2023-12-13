@@ -188,7 +188,7 @@ class Prescreening(CensoPart):
             "[kcal/mol]",
             "[kcal/mol]",
             "[kcal/mol]",
-            f"\% at {self._instructions.get('temperature', 298.15)} K",
+            f"% at {self._instructions.get('temperature', 298.15)} K",
         ]
 
         # variables for printmap

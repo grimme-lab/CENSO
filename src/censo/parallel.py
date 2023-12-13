@@ -35,6 +35,10 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
 
     balance = instructions["balance"]
 
+    # adjust value for the number of available cores
+    global ncores
+    ncores = min(ncores, instructions["maxcores"])
+
     # create jobs, by default with the omp setting from instructions
     jobs = [ParallelJob(conf.geom, instructions["jobtype"], instructions["omp"]) for conf in conformers]
 

@@ -8,33 +8,12 @@ import sys
 from typing import Dict, Tuple
 import json
 
+from .__version__ import __version__
 from .assets import __file__ as assets_path
 
-# FIXME - not good practice?
-__version__ = "2.0.0"
-
 DESCR = f"""
-         ______________________________________________________________
-        |                                                              |
-        |                                                              |
         |                   CENSO - Commandline ENSO                   |
         |                           v {__version__:<{19}}              |
-        |    energetic sorting of CREST Conformer Rotamer Ensembles    |
-        |                    University of Bonn, MCTC                  |
-        |                           Feb 2021                           |
-        |                 based on ENSO version 2.0.1                  |
-        |                     F. Bohle and S. Grimme                   |
-        |                                                              |
-        |______________________________________________________________|
-
-        Please cite: 
-        S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn 
-        J. Phys. Chem. A 2021, 125, 19, 4039-4054.
-        DOI: https://doi.org/10.1021/acs.jpca.1c00971
-        
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 """
 
 ENVIRON = os.environ.copy()

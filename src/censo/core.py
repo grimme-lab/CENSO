@@ -19,6 +19,7 @@ from .utilities import (
     t2x,
     setup_logger,
 )
+
 logger = setup_logger(__name__)
 
 
@@ -43,10 +44,10 @@ class CensoCore:
         # initialized in CensoCore.read_input
         self.runinfo = {
             "nconf": None,
-            "nat": None, # TODO - maybe remove?
-            "maxconf": None, # TODO - probably remove
+            "nat": None,  # TODO - maybe remove?
+            "maxconf": None,  # TODO - probably remove
             "md5": None,
-            "consider_unconverged": None, # TODO - probably remove
+            "consider_unconverged": None,  # TODO - probably remove
             "charge": None,
             "unpaired": None,
         }
@@ -102,7 +103,7 @@ class CensoCore:
         read out energy from xyz file if possible
         """
         # open ensemble input
-        with open(self.ensemble_path, "r") as file:
+        with (open(self.ensemble_path, "r") as file):
             lines = file.readlines()
             nat = self.runinfo["nat"]
 
@@ -118,11 +119,13 @@ class CensoCore:
                     lines = lines[divisor:]
 
             if self.args is not None and self.args.nconf is not None:
-                nconf = int(min(self.args.nconf, len(lines) / (nat + 2)))
+                nconf = int(len(lines) / (nat + 2))
                 if self.args.nconf > nconf:
                     global logger
-                    logger.warning(f"Given nconf is larger than max. number of conformers in input file. Setting to "
+                    logger.warning(f"Provided nconf is larger than number of conformers in input file. Setting to "
                                    f"the max. amount automatically.")
+                else:
+                    nconf = self.args.nconf
             else:
                 nconf = int(len(lines) / (nat + 2))
 
@@ -182,45 +185,37 @@ class CensoCore:
 
     def calc_boltzmannweights(self, temp: float, part: str) -> None:
         """
-        Calculate weights for boltzmann distribution of ensemble at given temperature
-        and given values for free enthalpy
+        Calculate weights for boltzmann distribution of ensemble at given temperature and part name to search results,
+        given values for free enthalpy
         """
-        # TODO - make this nicer
         # find lowest gtot value
-        try:
-            assert not any(["gtot" not in conf.results[part].keys() for conf in self.conformers])
+        if all(["gtot" in conf.results[part].keys() for conf in self.conformers]):
             minfree: float = min([conf.results[part]["gtot"] for conf in self.conformers])
 
             # calculate boltzmann factors
             bmfactors = {
-                id(conf): conf.results[part]["gtot"]
-                          * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp))
+                id(conf): conf.degen * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp))
                 for conf in self.conformers
             }
-        except AssertionError:
+        else:
             # NOTE: if anything went wrong in the single-point calculation ("success": False),
             # this should be handled before coming to this step
             # since then the energy might be 'None'
-            if all("xtb_opt" in conf.results[part].keys() for conf in self.conformers):
-                minfree: float = min([conf.results[part]["xtb_opt"]["energy"] for conf in self.conformers])
+            gtot_replacement = False
+            for jt in ["xtb_opt", "sp"]:
+                if all(jt in conf.results[part].keys() for conf in self.conformers):
+                    minfree: float = min([conf.results[part][jt]["energy"] for conf in self.conformers])
 
-                # calculate boltzmann factors
-                bmfactors = {
-                    id(conf): conf.results[part]["xtb_opt"]["energy"]
-                              * exp(-(conf.results[part]["xtb_opt"]["energy"] - minfree) * AU2J / (KB * temp))
-                    for conf in self.conformers
-                }
-            elif all("sp" in conf.results[part].keys() for conf in self.conformers):
-                minfree: float = min([conf.results[part]["sp"]["energy"] for conf in self.conformers])
+                    # calculate boltzmann factors
+                    bmfactors = {
+                        id(conf): conf.degen * exp(-(conf.results[part][jt]["energy"] - minfree) * AU2J / (KB * temp))
+                        for conf in self.conformers
+                    }
+                    gtot_replacement = True
+                    break
 
-                # calculate boltzmann factors
-                bmfactors = {
-                    id(conf): conf.results[part]["sp"]["energy"]
-                              * exp(-(conf.results[part]["sp"]["energy"] - minfree) * AU2J / (KB * temp))
-                    for conf in self.conformers
-                }
-            else:
-                raise RuntimeError("Could not find minimum free energy.")
+            if not gtot_replacement:
+                raise RuntimeError(f"Could not determine Boltzmann factors for {part}.")
 
         # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())

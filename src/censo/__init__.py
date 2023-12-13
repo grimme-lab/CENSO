@@ -3,11 +3,9 @@ from .__version__ import __version__
 
 configure()
 from . import (
-    censo,
     configuration,
     core,
     datastructure,
-    inputhandling,
     orca_processor,
     parallel,
     params,
@@ -18,3 +16,4 @@ from . import (
     ensembleopt,
     # properties
 )
+from .cli import interface, cml_parser

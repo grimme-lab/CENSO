@@ -18,6 +18,8 @@ __pycache__/
 # packaging
 *.egg-info/
 
+# venv
+venv/*
 
 # pycharm
 .idea/*

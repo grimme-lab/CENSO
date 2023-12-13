@@ -117,6 +117,9 @@ class MoleculeData:
         # stores the geometry info to have a small object to be used for multiprocessing
         self.geom: GeometryData = GeometryData(id(self), self.name, xyz)
 
+        # stores the degeneration factor of the conformer
+        self.degen: int = 1
+
         # stores the initial xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float = None
 
