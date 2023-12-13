@@ -3,7 +3,9 @@ Can be installed using `pip` by running
 
     pip install .
 
-If you want to run CENSO without calling Python directly you can add `CENSO` to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
+If you want to install and run `CENSO` without `pip` you can add the `CENSO` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
+> NOTE: you may want to change the `maxcores` setting in your `.censo2rc` to something more than 4.
+> It indicates the maximum number of cores `CENSO` is allowed to use.
 
 # Usage
 Basic usage: 

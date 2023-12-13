@@ -19,7 +19,6 @@ def configure(rcpath: str = None, create_new: bool = False):
     If no configuration file path is provided, it searches for the default configuration file.
     If no configuration file is found, it creates a new one with default settings.
     """
-
     # Try to find the .censo2rc in the user's home directory if no configuration file path is provided
     if rcpath is None:
         censorc_path = find_rcfile()

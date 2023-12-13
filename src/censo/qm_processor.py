@@ -77,7 +77,8 @@ class QmProc:
         """
         Creates a subdir in confdir for the job.
         
-        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_jobdir decorator.
+        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_jobdir
+        decorator.
         The wrapper function within will be able to access the instance variables of the class.
         To access this method from child classes, the decorator must be called like: @QmProc._create_jobdir.
         """

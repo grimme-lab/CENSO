@@ -56,6 +56,8 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
         set_omp_chunking(jobs)
 
     # execute the jobs
+    # TODO - let this exit gracefully when process is killed
+    # RuntimeError: cannot schedule new futures after shutdown
     jobs = dqp(jobs, processor)
 
     # if 'copy_mo' is enabled, try to get the mo_path from metadata and store it in the respective conformer object

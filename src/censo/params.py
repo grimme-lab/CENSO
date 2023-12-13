@@ -9,7 +9,6 @@ from typing import Dict, Tuple
 import json
 
 from .__version__ import __version__
-from .assets import __file__ as assets_path
 
 DESCR = f"""
         |                   CENSO - Commandline ENSO                   |
@@ -44,7 +43,7 @@ PLANCK = 6.62607015e-34
 C = 2.998e8
 WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
 
-ASSETS_PATH = os.path.split(assets_path)[0]
+ASSETS_PATH = __file__.replace("params.py", "assets")
 
 USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
 
