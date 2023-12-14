@@ -21,42 +21,59 @@ logger = logging.getLogger(__name__)
 
 class OrcaParser:
     """
-    Parser for orca input files
-    can read input files and transpile them to ordered dict
-    also capable of writing an input file from a properly ordered dict (see __todict for format)
+    Parser for orca input files. Can read input files and transpile them to ordered dict. Also capable of writing an
+    input file from a properly ordered dict (see __todict for format).
     """
-
-    def __init__(self):
-        pass
-
     def read_input(self, path: str) -> OrderedDict:
         """
-        read orca input file at 'path' and parse into ordered dict
+        Read orca input file at 'path' and parse into ordered dict.
+
+        Args:
+            path: path to the orca input file
+
+        Returns:
+            OrderedDict: OrderedDict containing the parsed input file
         """
         with open(path, "r") as infile:
             lines = infile.readlines()
 
+        # Remove comment lines from input
         lines = self.__remove_comments(lines)
+
+        # Convert lines to OrderedDict
         converted = self.__todict(lines)
 
         return converted
 
     def write_input(self, path: str, indict: OrderedDict) -> None:
         """
-        write an orca input file at 'path' from an ordered dict
+        Writes an orca input file at 'path' from an OrderedDict.
+
+        Args:
+            path: path to the output file
+            indict: OrderedDict containing the input file
+
+        Returns:
+            None
         """
         with open(path, "w") as outfile:
             outfile.writelines(self.__tolines(indict))
 
     def __todict(self, lines: List[str]) -> OrderedDict:
         """
-        convert lines from orca input into ordered dict
+        Converts lines from ORCA input into OrderedDict
 
-        can also be used with an orca input template, the {main} and {postgeom} strings indicate the ordering
-        of the settigs read from the template ({main} should come first, {postgeom} should come last)
-        all settings below {postgeom} are put after the geometry definition block
+        Can also be used with an ORCA input template, the {main} and {postgeom} strings indicate the ordering.
+        Of the settigs read from the template ({main} should come first, {postgeom} should come last) all settings
+        below {postgeom} are put after the geometry definition block.
 
-        format of the result:
+        Args:
+            lines: list of lines from an ORCA input file
+
+        Returns:
+            OrderedDict: OrderedDict containing the parsed input file
+
+        Format of the result:
         "main": [...], (contains all main input line options)
         
         "some setting": {"some option": [...], ...}, (contains a settings that is started with a % with the respective keywords and values) 
@@ -67,7 +84,7 @@ class OrcaParser:
 
         "some setting after geom": {"some option": [...], ...}
 
-        comments get removed from the lines and therefore lost
+        Comments get removed from the lines and therefore lost.
 
         TODO - cannot deal with %coord or internal cinpoordinates
         TODO - cannot deal with settings blocks with more 'end's than '%'s
@@ -252,55 +269,63 @@ class OrcaParser:
 
 class OrcaProc(QmProc):
     """
-    Perform calculations with ORCA
-    - create orca.inp input
-    - single-point calculation
-    - smd_gsolv calculation
-    - geometry optimization with xTB as driver
-    - shielding constant calculations
-    - coupling constant calculations
-    - writing of generic output for shielding and coupling constants
+    Performs calculations with ORCA.
     """
+    # contains grid settings for ORCA 5.0+ (True) and older versions (False)
+    # can be chosen by simple keyword (low/low+/high/high+)
+    __gridsettings = {
+        False: {
+            "low": ["grid4", "nofinalgrid", "loosescf"],
+            "low+": ["grid4", "nofinalgrid", "scfconv6"],
+            "high": ["grid4", "nofinalgrid", "scfconv7"],
+            "high+": ["grid5", "nofinalgrid", "scfconv7"],
+        },
+        True: {
+            "low": ["DEFGRID2", "loosescf"],
+            "low+": ["DEFGRID2", "scfconv6"],
+            "high": ["DEFGRID2", "scfconv7"],
+            "high+": ["DEFGRID2", "scfconv7"],
+        },
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # expand jobtypes with special orca jobtypes
+        self._jobtypes = {
+            **self._jobtypes, **{
+                "sp": self._sp,
+                "gsolv": self._gsolv,
+                "xtb_opt": self._xtb_opt,
+            }
+        }
         """self._jobtypes = {
             **self._jobtypes, **{
                 "nmrS": self._nmrS,
+                "opt": self._opt,
+                "genericoutput": self._genericoutput,
                 "nmrJ": self._nmrJ,
                 "uvvis": self._uvvis,
             }
         }"""
 
-        # contains grid settings for ORCA 5.0+ (True) and older versions (False)
-        # can be chosen by simple keyword (low/low+/high/high+) 
-        self.__gridsettings = {
-            False: {
-                "low": ["grid4", "nofinalgrid", "loosescf"],
-                "low+": ["grid4", "nofinalgrid", "scfconv6"],
-                "high": ["grid4", "nofinalgrid", "scfconv7"],
-                "high+": ["grid5", "nofinalgrid", "scfconv7"],
-            },
-            True: {
-                "low": ["DEFGRID2", "loosescf"],
-                "low+": ["DEFGRID2", "scfconv6"],
-                "high": ["DEFGRID2", "scfconv7"],
-                "high+": ["DEFGRID2", "scfconv7"],
-            },
-        }
-
     def __prep(self, job: ParallelJob, jobtype: str, no_solv: bool = False, xyzfile: str = None) -> OrderedDict:
         """
-        prepare an OrderedDict to be fed into the parser in order to write an input file
-        for jobtype 'jobtype' (e.g. sp)
+        Prepares an OrderedDict to be fed into the parser in order to write an input file for jobtype 'jobtype'
+        (e.g. sp).
 
-        can load up a template file from user assets folder
+        Can load up a template file from user assets folder.
 
-        xyzfile: name of the xyz-file to be used for the calculation
+        Args:
+            job: ParallelJob object containing the job information
+            jobtype: jobtype to prepare the input for
+            no_solv: if True, no solvent model is used
+            xyzfile: if not None, the geometry is read from this file instead of the job object
 
-        NOTE: the xyzfile has to already exist, this function just bluntly writes the name into the input
+        Returns:
+            OrderedDict: OrderedDict containing the input file
+
+        NOTE: the xyzfile has to already exist, this function just bluntly writes the name into the input.
 
         TODO - NMR/OR/UVVis etc preparation steps
         """
@@ -323,8 +348,6 @@ class OrcaProc(QmProc):
         # prepare the main line of the orca input
         indict = self.__prep_main(indict, jobtype, orca5)
 
-        # TODO - add special lines if this is a retry
-
         # prepare all options that are supposed to be placed before the geometry definition
         indict = self.__prep_pregeom(indict, orca5, no_solv, job.omp)
 
@@ -345,6 +368,7 @@ class OrcaProc(QmProc):
         basis = self.instructions["basis"]
         indict["main"].append(func)
 
+        # For non-composite methods, parameters for RI, RIJCOSX, and RIJK are set
         if "composite" not in self.instructions["func_type"]:
             indict["main"].append(basis)
             # set  RI def2/J,   RIJCOSX def2/J
@@ -390,7 +414,7 @@ class OrcaProc(QmProc):
             elif "gga" in self.instructions["func_type"]:
                 indict["main"].append("RI")
 
-        # use 'grid' setting from instructions to quickly choose the grid settings
+        # use 'grid' setting from instructions to quickly configure the grid
         indict["main"].extend(self.__gridsettings[orca5][self.instructions["grid"]])
 
         # add dispersion
@@ -487,7 +511,16 @@ class OrcaProc(QmProc):
 
     def _sp(self, job: ParallelJob, jobdir: str, filename="sp", no_solv: bool = False) -> dict[str, float | None]:
         """
-        ORCA single-point calculation
+        ORCA single-point calculation.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+            filename: name of the input file
+            no_solv: if True, no solvent model is used
+
+        Returns:
+            dict[str, float | None]: dictionary containing the results of the calculation
 
         result = {
             "energy": None,
@@ -569,6 +602,15 @@ class OrcaProc(QmProc):
 
     def _gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, Any | None]:
         """
+        Calculates the solvation free enthalpy of a conformer using ORCA.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+
+        Returns:
+            dict[str, Any | None]: dictionary containing the results of the calculation
+
         result = {
             "gsolv": None,
             "energy_gas": None,
@@ -621,7 +663,15 @@ class OrcaProc(QmProc):
     # TODO - split this up
     def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, Any]:
         """
-        ORCA geometry optimization using ANCOPT
+        ORCA geometry optimization using ANCOPT.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+            filename: name of the input file
+
+        Returns:
+            dict[str, Any]: dictionary containing the results of the calculation
 
         Keywords required in instructions:
         - optcycles

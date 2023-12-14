@@ -79,13 +79,8 @@ class QmProc:
 
         # dict to map the jobtypes to their respective methods
         self._jobtypes: Dict[str, Callable] = {
-            "sp": self._sp,
-            "gsolv": self._gsolv,
-            "opt": self._opt,
-            "genericoutput": self._genericoutput,
             "xtb_sp": self._xtb_sp,
             "xtb_gsolv": self._xtb_gsolv,
-            "xtb_opt": self._xtb_opt,
             "xtb_rrho": self._xtb_rrho,
         }
 
@@ -93,8 +88,14 @@ class QmProc:
 
     def run(self, job: ParallelJob) -> ParallelJob:
         """
-        run methods depending on jobtype
+        Run methods depending on jobtype.
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. censo.parallel.execute
+
+        Args:
+            job (ParallelJob): job to run
+
+        Returns:
+            job (ParallelJob): job with results
         """
         logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
@@ -136,6 +137,17 @@ class QmProc:
 
     @staticmethod
     def _make_call(call: List, outputpath: str, jobdir: str) -> int:
+        """
+        Make a call to an external program and write output into outputfile.
+
+        Args:
+            call (List): list containing the call to the external program
+            outputpath (str): path to the outputfile
+            jobdir (str): path to the jobdir
+
+        Returns:
+            returncode (int): returncode of the external program
+        """
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
             logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
@@ -179,32 +191,6 @@ class QmProc:
 
         return jobdir
 
-    def _sp(self):
-        """
-        single-point calculation
-        """
-        pass
-
-    def _opt(self):
-        """
-        geometry ensembleopt
-        """
-        pass
-
-    def _gsolv(self):
-        """
-        gsolv calculation using the respective solvent model
-        """
-        pass
-
-    def _genericoutput(self):
-        """
-        Read shielding and coupling constants and write them to plain output
-        The first natom lines contain the shielding constants, and from
-        line natom +1 the coupling constants are written.
-        """
-        pass
-
     @staticmethod
     def _get_sym_num(sym=None, linear=None):
         """Get rotational symmetry number from Schoenfließ symbol"""
@@ -228,7 +214,17 @@ class QmProc:
     def _xtb_sp(self, job: ParallelJob, jobdir: str, filename: str = "xtb_sp", no_solv: bool = False) -> \
             dict[str, float | None]:
         """
-        Get single-point energy from xtb
+        Calculates the single-point energy with GFNn-xTB or GFN-FF.
+
+        Args:
+            job (ParallelJob): job to run
+            jobdir (str): path to the jobdir
+            filename (str, optional): filename to use for the coord file. Defaults to "xtb_sp".
+            no_solv (bool, optional): whether to run the sp in gas-phase. Defaults to False.
+
+        Returns:
+            result (dict[str, float | None]): result of the sp calculation
+
         result = {
             "energy": None,
         }
@@ -330,8 +326,15 @@ class QmProc:
 
     def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, Any | None]:
         """
-        Calculate additive GBSA or ALPB solvation contribution by
-        Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
+        Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
+
+        Args:
+            job (ParallelJob): job to run
+            jobdir (str): path to the jobdir
+
+        Returns:
+            result (dict[str, Any | None]): result of the gsolv calculation
+
         result = {
             "gsolv": None,
             "energy_xtb_gas": None,
@@ -381,16 +384,18 @@ class QmProc:
         job.meta["xtb_gsolv"].update(meta)
         return result
 
-    def _xtb_opt(self):
-        """
-        geometry ensembleopt using xtb as driver, has to be implemented for each qm code
-        """
-        pass
-
     # TODO - break this down
     def _xtb_rrho(self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho") -> dict[str, Any]:
         """
-        mRRHO contribution with GFNn-xTB/GFN-FF
+        Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
+
+        Args:
+            job (ParallelJob): job to run
+            jobdir (str): path to the jobdir
+            filename (str, optional): filename to use for the coord file. Defaults to "xtb_rrho".
+
+        Returns:
+            result (dict[str, Any]): result of the rrho calculation
         
         result = {
             "energy": None, # contains the gibbs energy at given temperature (might be ZPVE if T = 0K)
