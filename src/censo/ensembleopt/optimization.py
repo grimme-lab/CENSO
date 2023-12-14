@@ -296,9 +296,9 @@ class Optimization(CensoPart):
 
             # threshold increase based on mean trajectory similarity
             if len(self.core.conformers) > 1:
-                threshold += (2 / AU2KCAL) * (1 - exp(
-                    - mean_similarity([results_opt[id(conf)]["xtb_opt"]["ecyc"] for conf in self.core.conformers])
-                ))
+                mu_sim = mean_similarity([results_opt[id(conf)]["xtb_opt"]["ecyc"] for conf in self.core.conformers])
+                threshold += (2 / AU2KCAL) * (1 - exp(- AU2KCAL * mu_sim))
+                logger.debug(f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol")
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 

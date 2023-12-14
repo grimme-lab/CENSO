@@ -852,7 +852,7 @@ class OrcaProc(QmProc):
                     "SOSCFStart": ["0.0002"],
                     "SOSCFMaxIt": ["200"],
                 },
-                "main": ["slowconv"],
+                "main": ["veryslowconv"],
             },
         }
 
