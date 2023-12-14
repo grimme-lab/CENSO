@@ -592,7 +592,7 @@ class OrcaProc(QmProc):
         # TODO - does this need it's own folder? this is a bit messy
         spres = self._sp(job, jobdir, filename="sp_gas", no_solv=True)
 
-        if job.meta["gsolv"]["success"]:
+        if job.meta["sp"]["success"]:
             result["energy_gas"] = spres["energy"]
         else:
             meta["success"] = False
@@ -603,7 +603,7 @@ class OrcaProc(QmProc):
         # calculate in solution
         spres = self._sp(job, jobdir, filename="sp_solv")
 
-        if job.meta["gsolv"]["success"]:
+        if job.meta["sp"]["success"]:
             result["energy_solv"] = spres["energy"]
         else:
             meta["success"] = False
@@ -844,7 +844,14 @@ class OrcaProc(QmProc):
         """
         flag_to_setting = {
             "scf_not_converged": {
-                "scf": {"maxiter": ["300"]},
+                "scf": {
+                    "maxiter": ["300"],
+                    "AutoTRAH": ["false"],
+                    "AutoTRAHIter": ["275"],
+                    "CNVSOSCF": ["true"],
+                    "SOSCFStart": ["0.0002"],
+                    "SOSCFMaxIt": ["200"],
+                },
                 "main": ["slowconv"],
             },
         }

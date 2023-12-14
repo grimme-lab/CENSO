@@ -17,6 +17,8 @@ from .params import CODING, BOHR2ANG
 
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO
+
+
 # __loglevel = logging.DEBUG
 
 
@@ -304,3 +306,41 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def similarity(trajectory1: list[float], trajectory2: list[float]) -> float:
+    """
+    Calculates the similarity of two trajectories by calculating the area between the curves. If the two trajectories
+    are of different lengths, only the first n points of the longer trajectory are used, where n is the length of the
+    shorter trajectory.
+
+    Args:
+        trajectory1 (list[float]): The first trajectory.
+        trajectory2 (list[float]): The second trajectory.
+
+    Returns:
+        float: The similarity.
+    """
+    n = min(len(trajectory1), len(trajectory2))
+    return sum(abs(x - y) for x, y in zip(trajectory1[:n], trajectory2[:n]))
+
+
+def mean_similarity(trajectories: list[list[float]]) -> float:
+    """
+    Calculates the mean similarity of a list of trajectories.
+
+    Args:
+        trajectories (list[list[float]]): The list of trajectories.
+
+    Returns:
+        float: The mean similarity.
+    """
+    # Calculate the similarity of each trajectory to every other trajectory
+    similarities = []
+    for i, trajectory1 in enumerate(trajectories):
+        for j, trajectory2 in enumerate(trajectories[i+1:]):
+            similarities.append(similarity(trajectory1, trajectory2))
+
+    # Return the mean similarity
+    # Unit: energy
+    return sum(similarities) / len(similarities)

@@ -32,7 +32,7 @@ class Screening(Prescreening):
 
     _options = {
         "threshold": {
-            "default": 3.5,
+            "default": 3.0,
             "range": [
                 0.75,
                 7.5
@@ -197,7 +197,7 @@ class Screening(Prescreening):
                 id(conf): conf.results["prescreening"]['xtb_gsolv']['energy_xtb_gas']
                 for conf in self.core.conformers
             }
-            xtbmin = min(xtb_energies)
+            xtbmin = min(xtb_energies.values())
         else:
             xtb_energies = None
 
@@ -218,8 +218,7 @@ class Screening(Prescreening):
             if xtb_energies is not None else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
-            if "xtb_gsolv" in conf.results[self._name].keys() or "gsolv" in conf.results[
-                self._name].keys()
+            if "xtb_gsolv" in conf.results[self._name].keys() or "gsolv" in conf.results[self._name].keys()
             else "---",
             "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.gtot(conf) - gtotmin) * AU2KCAL:.2f}",
@@ -286,7 +285,7 @@ class Screening(Prescreening):
                     id(conf): conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
                     for conf in self.core.conformers
                 }
-            gxtbmin = min(gxtb)
+            gxtbmin = min(gxtb.values())
         else:
             gxtb = None
 

@@ -4,6 +4,7 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
 from functools import reduce
+from math import exp
 from typing import List
 
 from ..core import CensoCore
@@ -22,7 +23,7 @@ from ..utilities import (
     print,
     timeit,
     DfaHelper,
-    format_data, setup_logger,
+    format_data, setup_logger, mean_similarity,
 )
 
 logger = setup_logger(__name__)
@@ -287,87 +288,19 @@ class Optimization(CensoPart):
                 print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
                 self.confs_nc.remove(conf)
 
+            # sort conformers
+            self.core.conformers.sort(key=lambda conf: self.grrho(conf))
+
             # kick out conformers above threshold
             threshold = self._instructions["threshold"] / AU2KCAL
 
-            """
-            # make threshold fuzzy based on stdev of the gradient norms (adds at most 2 kcal/mol to the threshold)
-            if len(self.confs_nc) > 1:
-                threshold = threshold + (2 / AU2KCAL) * (1 - exp(
-                                 - AU2KCAL * stdev(
-                                     [conf.results[self._name]["xtb_opt"]["grad_norm"] for conf in self.confs_nc]
-                                 )
-                            ))
+            # threshold increase based on mean trajectory similarity
+            if len(self.core.conformers) > 1:
+                threshold += (2 / AU2KCAL) * (1 - exp(
+                    - mean_similarity([results_opt[id(conf)]["xtb_opt"]["ecyc"] for conf in self.core.conformers])
+                ))
 
-                print(f"Current fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol "
-                      f"(min: {self._instructions['threshold']:.2f} kcal/mol).")
-            else:
-                print(f"Using minimal threshold ({self._instructions['threshold']:.2f} kcal/mol).")
-            """
-
-            """
-            # TODO TODO TODO TODO - update threshold based on spearman coefficients (???) - leave this out for now
-            minthreshold = self._instructions["threshold"] / AU2KCAL
-            # 'decyc' contains the difference between the minimal gtot and the gtot of the conformer for every optimization cycle
-            # pseudo: decyc[i] = gtot[i] - mingtot[i]
-            # 'toevaluate' contains the indices of the cycles to be evaluated for spearman correlation computation (always the most current cycles)
-            # this only goes unitl the third-last cycle evaluated (since deprevious and decurrent are three steps apart (why??)), can also be just one cycle
-            evalspearman = []
-            for i in toevaluate:
-                deprevious = [
-                    conf.job["decyc"][i - 1]
-                    for conf in sorted(
-                        calculate + prev_calculated, key=lambda x: int(x.id)
-                    )
-                ]
-                decurrent = [
-                    conf.job["decyc"][i - 1 + num_eval]
-                    for conf in sorted(
-                        calculate + prev_calculated, key=lambda x: int(x.id)
-                    )
-                ]
-
-                spearman_v = spearman(deprevious, decurrent)
-                if i in toevaluate[-2:]:
-                    print(
-                        f"Evaluating Spearman coeff. from {i:>{digits1}} --> "
-                        f"{i + num_eval:>{digits1}}"
-                        f" =  {spearman_v:>.4f}"
-                    )
-                    evalspearman.append(spearman_v)
-                else:
-                    print(
-                        f"{'':>10} Spearman coeff. from {i:>{digits1}} --> "
-                        f"{i + num_eval:>{digits1}}"
-                        f" =  {spearman_v:>.4f}"
-                    )
-            print(
-                f"Final averaged Spearman correlation coefficient: "
-                f"{(sum(evalspearman) / 2):>.4f}"
-            )
-            cycle_spearman.append(f"{sum(evalspearman) / 2:.3f}")
-            if (
-                    len(evalspearman) >= 2
-                    and sum(evalspearman) / 2 >= config.spearmanthr
-            ):
-                print("\nPES is assumed to be parallel")
-                # adjust threshold Ewin:
-                if ewin > lower_limit:
-                    if (ewin - (ewin_increase / 3)) < lower_limit:
-                        ewin = lower_limit
-                    else:
-                        ewin += -(ewin_increase / 3)
-                    print(
-                        f"Updated ensembleopt threshold to: {ewin:.2f} kcal/mol"
-                    )
-                else:
-                    print(
-                        f"Current ensembleopt threshold: {ewin:.2f} kcal/mol"
-                    )
-            """
-
-            # sort conformers
-            self.core.conformers.sort(key=lambda conf: self.grrho(conf))
+            logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
             # this macrocycle)
@@ -460,5 +393,5 @@ class Optimization(CensoPart):
         # TODO
         limit = min(self.grrho(conf) for conf in self.core.conformers)
         for conf in self.confs_nc:
-            print(f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm =%"
+            print(f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm:"
                   f" {conf.results[self._name]['xtb_opt']['grad_norm']})")
