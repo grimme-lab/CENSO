@@ -80,15 +80,21 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
 
             # determine flags for jobs based on error messages
             for failed_job in failed_jobs:
+                # list of jobtypes that should be removed from the jobtype list
+                jtremove = []
                 for jt in jobs[failed_job].jobtype:
                     # for now only sp and gsolv calculations are caught
                     if not jobs[failed_job].meta[jt]["success"] and jt in ["sp", "gsolv"]:
                         if jobs[failed_job].meta[jt]["error"] == "SCF not converged":
                             retry.append(failed_job)
                             jobs[failed_job].flags[jt] = "scf_not_converged"
-                    # remove all successful jobs from jobtype to avoid re-execution
+                    # store all successful jobtypes
                     elif jobs[failed_job].meta[jt]["success"]:
-                        jobs[failed_job].jobtype.remove(jt)
+                        jtremove.append(jt)
+
+                # remove all successful jobs from jobtype to avoid re-execution
+                for jt in jtremove:
+                    jobs[failed_job].jobtype.remove(jt)
 
             # execute jobs that should be retried
             logger.info(f"Failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs.")
