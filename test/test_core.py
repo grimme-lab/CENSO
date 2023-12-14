@@ -30,11 +30,11 @@ class CoreTest(unittest.TestCase):
 
     def test_read_input_script(self):
         core = CensoCore(test_dir)
-        core.read_input(test_args.inp, charge=0, unpaired=0)
+        core.read_input(test_args.inp, charge=2, unpaired=7)
         nconf = getconfcount("testfiles/crest_conformers.xyz")
         self.assertEqual(nconf, len(core.conformers))
-        self.assertEqual(0, core.runinfo["charge"])
-        self.assertEqual(0, core.runinfo["unpaired"])
+        self.assertEqual(2, core.runinfo["charge"])
+        self.assertEqual(7, core.runinfo["unpaired"])
 
     def doCleanups(self):
         # perform cleanup

@@ -132,7 +132,7 @@ class QmProc:
     def run(self, job: ParallelJob) -> ParallelJob:
         """
         run methods depending on jobtype
-        DO NOT OVERRIDE OR OVERLOAD! this will break e.g. ProcessHandler.execute
+        DO NOT OVERRIDE OR OVERLOAD! this will break e.g. censo.parallel.execute
         """
         logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)

@@ -17,6 +17,7 @@ from .params import CODING, BOHR2ANG
 
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO
+# __loglevel = logging.DEBUG
 
 
 class DfaHelper:

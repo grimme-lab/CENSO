@@ -486,8 +486,8 @@ class OrcaProc(QmProc):
         pass
 
     @QmProc._create_jobdir
-    def _sp(self, job: ParallelJob, silent=False, filename="sp", no_solv: bool = False, jobtype: str = "sp") -> dict[
-        str, float | None]:
+    def _sp(self, job: ParallelJob, silent: bool = False, filename="sp", no_solv: bool = False, jobtype: str = "sp") -> \
+            dict[str, float | None]:
         """
         ORCA single-point calculation
 
@@ -545,19 +545,23 @@ class OrcaProc(QmProc):
         # "Error encountered when trying to calculate the atomic fitting density!"
 
         # read output
-        with open(outputpath, "r", encoding=CODING, newline=None) as out:
+        with (open(outputpath, "r", encoding=CODING, newline=None) as out):
             lines = out.readlines()
 
             # Get final energy
             result["energy"] = next((float(line.split()[4]) for line in lines if "FINAL SINGLE POINT ENERGY" in line),
                                     None)
 
-            # Check if scf is converged
-            meta["success"] = next((True for line in lines if "SCF CONVERGED" in line), False)
+            # Check if scf is converged, this results to None if it cannot be determined if the SCF converged or not
+            meta["success"] = next((True for line in lines if "SCF CONVERGED" in line), None) \
+                              or next((False for line in lines if "SCF NOT CONVERGED" in line), None)
 
         # TODO - this is not really correct, might not mean that the scf didn't converge
-        if not meta["success"] is True:
+        if meta["success"] is not None and not meta["success"]:
             meta["error"] = "SCF not converged"
+        elif meta["success"] is None:
+            meta["success"] = False
+            meta["error"] = "Unknown error"
 
         if self.instructions["copy_mo"]:
             # store the path to the current .gbw file for this conformer if possible
@@ -814,11 +818,12 @@ class OrcaProc(QmProc):
             result["ecyc"].extend(float(line.split("->")[-1]) for line in filter(lambda x: "av. E: " in x, lines))
 
             # Get the gradient norm (lines reversed so it takes the last gradient norm value)
-            result["grad_norm"] = float(next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
+            result["grad_norm"] = float(
+                next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
 
             # Get all other gradient norms for evaluation
             result["gncyc"] = [
-                float(line.split("->")[-1]) for line in filter(lambda x: " :: gradient norm      " in x, lines)
+                float(line.split()[3]) for line in filter(lambda x: " :: gradient norm      " in x, lines)
             ]
 
             # store the final energy of the optimization in 'energy'

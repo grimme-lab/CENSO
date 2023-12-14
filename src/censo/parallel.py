@@ -68,9 +68,9 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                 conf.mo_paths.append(mo_paths[conf.geom.id])
 
     # create a new list of failed jobs that should be restarted with special flags
-    global logger
     if instructions["retry_failed"]:
         # determine failed jobs
+        logger.debug("Retrying failed jobs...")
         failed_jobs = [i for i, job in enumerate(jobs) if any(not job.meta[jt]["success"] for jt in job.jobtype)]
 
         if len(failed_jobs) != 0:
@@ -91,7 +91,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                         jobs[failed_job].jobtype.remove(jt)
 
             # execute jobs that should be retried
-            logger.info(f"Failed jobs: {len(failed_jobs)}\nRestarting {len(retry)} jobs.")
+            logger.info(f"Failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs.")
 
             if len(retry) > 0:
                 set_omp_chunking([jobs[i] for i in retry])
@@ -122,7 +122,6 @@ def reduce_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: mult
     with enough_cores:
         enough_cores.wait_for(lambda: free_cores.value >= omp)
         free_cores.value -= omp
-        global logger
         logger.debug(f"Free cores decreased {free_cores.value + omp} -> {free_cores.value}.")
 
 
@@ -130,13 +129,11 @@ def increase_cores(free_cores: multiprocessing.Value, omp: int, enough_cores: mu
     # acquire lock on the condition and increase the number of cores, notifying one waiting process
     with enough_cores:
         free_cores.value += omp
-        global logger
         logger.debug(f"Free cores increased {free_cores.value - omp} -> {free_cores.value}.")
         enough_cores.notify()
 
 
 def handle_sigterm(signum, frame, executor):
-    global logger
     logger.critical("Received SIGTERM. Terminating.")
     executor.shutdown(wait=False)
 
@@ -146,7 +143,7 @@ def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
     D ynamic Q ueue P rocessing
     """
 
-    global ncores, logger
+    global ncores
 
     with multiprocessing.Manager() as manager:
         # execute calculations for given list of conformers
