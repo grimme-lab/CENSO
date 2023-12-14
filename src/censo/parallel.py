@@ -106,6 +106,7 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
 
             # make sure there is at least one conformer left (TODO - is this reasonable?)
             if len(conformers) == 0:
+                logger.critical("No conformers left after retrying failed jobs.")
                 raise RuntimeError("No conformers left after retrying failed jobs.")
 
             # again, try to get the mo_path from metadata and store it in the respective conformer object

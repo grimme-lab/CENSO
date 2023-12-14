@@ -72,44 +72,6 @@ class QmProc:
             print(line)
 
     # FIXME - for gsolv (calls the sp methods) this still tries to create a sp subdir, even though this is not correct
-    @staticmethod
-    def _create_jobdir(f: Callable) -> Callable:
-        """
-        Creates a subdir in confdir for the job.
-        
-        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_jobdir
-        decorator.
-        The wrapper function within will be able to access the instance variables of the class.
-        To access this method from child classes, the decorator must be called like: @QmProc._create_jobdir.
-        """
-
-        @functools.wraps(f)
-        def wrapper(self, job, *args, **kwargs):
-            """
-            A function that wraps the given `f` function and performs some operations before and after calling it.
-
-            Parameters:
-                self (object): The instance of the class that the function is a method of.
-                job (object): The job object that contains the necessary information.
-                *args (tuple): The positional arguments passed to the `f` function.
-                **kwargs (dict): The keyword arguments passed to the `f` function.
-
-            Returns:
-                The return value of the `f` function.
-            """
-            # getting the name starting from 1: to strip the _
-            jobdir = os.path.join(self.workdir, job.conf.name, f.__name__[1:])
-            try:
-                # Create the directory
-                os.makedirs(jobdir)
-            except FileExistsError:
-                logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
-                               " Files will be overwritten.")
-
-            return f(self, job, *args, **kwargs)
-
-        return wrapper
-
     def __init__(self, instructions: Dict[str, Any], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
@@ -144,10 +106,14 @@ class QmProc:
 
         # run all the computations
         for j in job.jobtype:
+            # Create jobdir
+            jobdir = self._create_jobdir(job.conf.name, j)
+
             # Time execution
             start = perf_counter()
 
-            job.results[j] = self._jobtypes[j](job)
+            logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {j} calculation in {jobdir}.")
+            job.results[j] = self._jobtypes[j](job, jobdir)
 
             end = perf_counter()
 
@@ -198,6 +164,21 @@ class QmProc:
 
         return returncode
 
+    def _create_jobdir(self, confname: str, job: str) -> str:
+        """
+        Creates a subdir in confdir for the job.
+        """
+
+        jobdir = os.path.join(self.workdir, confname, job)
+        try:
+            # Create the directory
+            os.makedirs(jobdir)
+        except FileExistsError:
+            logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
+                           " Files will be overwritten.")
+
+        return jobdir
+
     def _sp(self):
         """
         single-point calculation
@@ -244,9 +225,8 @@ class QmProc:
                 break
         return symnum
 
-    @_create_jobdir
-    def _xtb_sp(self, job: ParallelJob, filename: str = "xtb_sp", no_solv: bool = False, silent: bool = False,
-                jobtype: str = "xtb_sp") -> dict[str, float | None]:
+    def _xtb_sp(self, job: ParallelJob, jobdir: str, filename: str = "xtb_sp", no_solv: bool = False) -> \
+            dict[str, float | None]:
         """
         Get single-point energy from xtb
         result = {
@@ -265,15 +245,9 @@ class QmProc:
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, job.conf.name, jobtype)
         inputpath = os.path.join(jobdir, f"{filename}.coord")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "xtb_sp-xcontrol-inp"
-
-        if not silent:
-            logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_sp calculation in {jobdir}.")
-        else:
-            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_sp calculation in {jobdir}.")
 
         # cleanup
         files = [
@@ -338,7 +312,7 @@ class QmProc:
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_sp"
-            job.meta[jobtype].update(meta)
+            job.meta["xtb_sp"].update(meta)
             return result
 
         # read energy from outputfile
@@ -350,11 +324,10 @@ class QmProc:
                 # TODO - what to do if calculation not converged?
 
         # FIXME - right now the case meta["success"] = None might appear if "TOTAL ENERGY" is not found in outputfile
-        job.meta[jobtype].update(meta)
+        job.meta["xtb_sp"].update(meta)
         return result
 
-    @_create_jobdir
-    def _xtb_gsolv(self, job: ParallelJob) -> dict[str, Any | None]:
+    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, Any | None]:
         """
         Calculate additive GBSA or ALPB solvation contribution by
         Gsolv = Esolv - Egas, using GFNn-xTB or GFN-FF
@@ -364,12 +337,6 @@ class QmProc:
             "energy_xtb_solv": None,
         }
         """
-        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_gsolv")
-
-        logger.info(
-            f"{f'worker{os.getpid()}:':{WARNLEN}}Running xtb_gsolv calculation in {jobdir}."
-        )
-
         # what is returned in the end
         result = {
             "gsolv": None,
@@ -384,8 +351,8 @@ class QmProc:
 
         # run gas-phase GFN single-point
         # TODO - does this need it's own folder?
-        spres = self._xtb_sp(job, filename="gas", silent=True, no_solv=True, jobtype="xtb_gsolv")
-        if job.meta["xtb_gsolv"]["success"]:
+        spres = self._xtb_sp(job, jobdir, filename="gas", no_solv=True)
+        if job.meta["xtb_sp"]["success"]:
             result["energy_xtb_gas"] = spres["energy"]
         else:
             meta["success"] = False
@@ -396,8 +363,8 @@ class QmProc:
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        spres = self._xtb_sp(job, filename="solv", silent=True, jobtype="xtb_gsolv")
-        if job.meta["xtb_gsolv"]["success"]:
+        spres = self._xtb_sp(job, jobdir, filename="solv")
+        if job.meta["xtb_sp"]["success"]:
             result["energy_xtb_solv"] = spres["energy"]
         else:
             meta["success"] = False
@@ -419,8 +386,7 @@ class QmProc:
         pass
 
     # TODO - break this down
-    @_create_jobdir
-    def _xtb_rrho(self, job: ParallelJob, filename: str = "xtb_rrho") -> dict[str, Any]:
+    def _xtb_rrho(self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho") -> dict[str, Any]:
         """
         mRRHO contribution with GFNn-xTB/GFN-FF
         
@@ -453,14 +419,9 @@ class QmProc:
         # if not self.job["onlyread"]: # TODO ???
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_rrho")
         outputpath = os.path.join(jobdir, f"{filename}.out")
         xcontrolname = "rrho-xcontrol-inp"
         xcontrolpath = os.path.join(jobdir, xcontrolname)
-
-        logger.info(
-            f"{f'worker{os.getpid()}:':{WARNLEN}}Running {str(self.instructions['gfnv']).upper()} mRRHO in {jobdir}."
-        )
 
         # TODO - is this list complete?
         files = [

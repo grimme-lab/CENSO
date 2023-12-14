@@ -485,9 +485,7 @@ class OrcaProc(QmProc):
     def __prep_postgeom(self, indict: OrderedDict, jobtype: str, orca5: bool) -> OrderedDict:
         pass
 
-    @QmProc._create_jobdir
-    def _sp(self, job: ParallelJob, silent: bool = False, filename="sp", no_solv: bool = False, jobtype: str = "sp") -> \
-            dict[str, float | None]:
+    def _sp(self, job: ParallelJob, jobdir: str, filename="sp", no_solv: bool = False) -> dict[str, float | None]:
         """
         ORCA single-point calculation
 
@@ -506,7 +504,6 @@ class OrcaProc(QmProc):
         }
 
         # set in/out path
-        jobdir = os.path.join(self.workdir, job.conf.name, jobtype)
         inputpath = os.path.join(jobdir, f"{filename}.inp")
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
@@ -514,8 +511,8 @@ class OrcaProc(QmProc):
         indict = self.__prep(job, "sp", no_solv=no_solv)
 
         # check for flags raised for this jobtype
-        if jobtype in job.flags:
-            if job.flags[jobtype] == "scf_not_converged":
+        if "sp" in job.flags or "gsolv" in job.flags:
+            if job.flags["sp"] == "scf_not_converged" or job.flags["gsolv"] == "scf_not_converged":
                 indict = self.__apply_flags(indict, "scf_not_converged")
 
         # write input into file "{filename}.inp" in a subdir created for the conformer
@@ -529,17 +526,13 @@ class OrcaProc(QmProc):
                     logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}.")
                     shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
 
-        if not silent:
-            logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA single-point in {inputpath}")
-        else:
-            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA single-point in {inputpath}")
-
         # call orca
         call = [self._paths["orcapath"], f"{filename}.inp"]
         self._make_call(call, outputpath, jobdir)
 
         # do not check returncode, since orca doesn't give meaningful returncodes
-        # check the outputfile instead, basically if the file doesn't say "SCF CONVERGED" or "SCF NOT CONVERGED" somewhere, something went wrong
+        # check the outputfile instead, basically if the file doesn't say "SCF CONVERGED" or "SCF NOT CONVERGED"
+        # somewhere, something went wrong
         # easily remedied:
         # "SCF NOT CONVERGED"
         # "Error encountered when trying to calculate the atomic fitting density!"
@@ -569,12 +562,11 @@ class OrcaProc(QmProc):
                 job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # TODO - clean up?
-        job.meta[jobtype].update(meta)
+        job.meta["sp"].update(meta)
 
         return result
 
-    @QmProc._create_jobdir
-    def _gsolv(self, job: ParallelJob) -> dict[str, Any | None]:
+    def _gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, Any | None]:
         """
         result = {
             "gsolv": None,
@@ -594,14 +586,9 @@ class OrcaProc(QmProc):
             "error": None,
         }
 
-        jobdir = os.path.join(self.workdir, job.conf.name, "gsolv")
-
-        logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running ORCA Gsolv calculation in {jobdir}.")
-
         # calculate gas phase
-        # TODO - this is redundant since a single point was probably already calculated before
         # TODO - does this need it's own folder? this is a bit messy
-        spres = self._sp(job, silent=True, filename="sp_gas", no_solv=True, jobtype="gsolv")
+        spres = self._sp(job, jobdir, filename="sp_gas", no_solv=True)
 
         if job.meta["gsolv"]["success"]:
             result["energy_gas"] = spres["energy"]
@@ -612,7 +599,7 @@ class OrcaProc(QmProc):
             return result
 
         # calculate in solution
-        spres = self._sp(job, silent=True, filename="sp_solv", jobtype="gsolv")
+        spres = self._sp(job, jobdir, filename="sp_solv")
 
         if job.meta["gsolv"]["success"]:
             result["energy_solv"] = spres["energy"]
@@ -630,8 +617,7 @@ class OrcaProc(QmProc):
         return result
 
     # TODO - split this up
-    @QmProc._create_jobdir
-    def _xtb_opt(self, job: ParallelJob, filename: str = "xtb_opt") -> dict[str, Any]:
+    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, Any]:
         """
         ORCA geometry optimization using ANCOPT
 
@@ -675,7 +661,6 @@ class OrcaProc(QmProc):
             "error": None,
         }
 
-        jobdir = os.path.join(self.workdir, job.conf.name, "xtb_opt")
         xcontrolname = "xtb_opt-xcontrol-inp"
 
         files = [
@@ -762,8 +747,6 @@ class OrcaProc(QmProc):
 
         # set path to the ancopt output file
         outputpath = os.path.join(jobdir, f"{filename}.out")
-
-        logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running optimization in {jobdir}.")
 
         # call xtb
         returncode = self._make_call(call, outputpath, jobdir)
