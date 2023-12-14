@@ -502,6 +502,7 @@ class OrcaProc(QmProc):
             "success": None,
             "error": None,
         }
+        job.meta.setdefault("sp", {})
 
         # set in/out path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -581,6 +582,7 @@ class OrcaProc(QmProc):
             "energy_solv": None,
         }
 
+        job.meta.setdefault("gsolv", {})
         meta = {
             "success": None,
             "error": None,
@@ -656,6 +658,7 @@ class OrcaProc(QmProc):
             "geom": None,
         }
 
+        job.meta.setdefault("xtb_opt", {})
         meta = {
             "success": None,
             "error": None,

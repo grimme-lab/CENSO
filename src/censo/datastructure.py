@@ -158,8 +158,7 @@ class ParallelJob:
         # store metadata, is updated by the processor
         # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
         # always contains the "mo_path" key
-        self.meta: Dict[str, Any] = {j: {} for j in jobtype}
-        self.meta["mo_path"] = None
+        self.meta: Dict[str, Any] = {"mo_path": None}
 
         # store the results of the job
         self.results: Dict[str, Any] = {}

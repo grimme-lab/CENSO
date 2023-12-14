@@ -239,6 +239,7 @@ class QmProc:
         }
 
         # set metadata
+        job.meta.setdefault("xtb_sp", {})
         meta = {
             "success": None,
             "error": None,
@@ -344,6 +345,7 @@ class QmProc:
             "energy_xtb_solv": None,
         }
 
+        job.meta.setdefault("xtb_gsolv", {})
         meta = {
             "success": None,
             "error": None,
@@ -411,6 +413,7 @@ class QmProc:
             "symnum": None,
         }
 
+        job.meta.setdefault("xtb_rrho", {})
         meta = {
             "success": None,
             "error": None,
