@@ -98,11 +98,15 @@ def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdi
                 for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
                     jobs[i] = job
 
-            # any jobs that still failed will lead to the conformer to be removed from the list (TODO)
+            # any jobs that still failed will lead to the conformer to be removed from the list
             for job in jobs:
                 if not all(job.meta[jt]["success"] for jt in job.jobtype):
                     logger.warning(f"Removed {job.conf.name} from conformer list due to failed jobs.")
                     conformers.remove(next(c for c in conformers if c.geom.id == job.conf.id))
+
+            # make sure there is at least one conformer left (TODO - is this reasonable?)
+            if len(conformers) == 0:
+                raise RuntimeError("No conformers left after retrying failed jobs.")
 
             # again, try to get the mo_path from metadata and store it in the respective conformer object
             if instructions["copy_mo"]:
