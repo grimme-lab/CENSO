@@ -283,11 +283,6 @@ class Optimization(CensoPart):
 
             # TODO - crestcheck each iteration if ncyc >= 6
 
-            # remove converged conformers from 'todo-list'
-            for conf in list(filter(lambda x: x.results[self._name]["xtb_opt"]["converged"], self.confs_nc)):
-                print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
-                self.confs_nc.remove(conf)
-
             # sort conformers
             self.core.conformers.sort(key=lambda conf: self.grrho(conf))
 
@@ -295,12 +290,18 @@ class Optimization(CensoPart):
             threshold = self._instructions["threshold"] / AU2KCAL
 
             # threshold increase based on mean trajectory similarity
-            if len(self.core.conformers) > 1:
-                mu_sim = mean_similarity([results_opt[id(conf)]["xtb_opt"]["ecyc"] for conf in self.core.conformers])
-                threshold += (2 / AU2KCAL) * (1 - exp(- AU2KCAL * mu_sim))
+            if len(self.confs_nc) > 1:
+                mu_sim = mean_similarity([results_opt[conf.geom.id]["xtb_opt"]["ecyc"] for conf in self.confs_nc])
+                threshold += (2 / AU2KCAL) * (1 - exp(- 0.5 * AU2KCAL * mu_sim))
                 logger.debug(f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol")
+                # NOTE: MTS usually in the range of 2 - 10 kcal/mol
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
+
+            # remove converged conformers from 'todo-list'
+            for conf in list(filter(lambda x: x.results[self._name]["xtb_opt"]["converged"], self.confs_nc)):
+                print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
+                self.confs_nc.remove(conf)
 
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
             # this macrocycle)
