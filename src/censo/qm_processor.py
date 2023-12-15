@@ -70,7 +70,6 @@ class QmProc:
         for line in lines:
             print(line)
 
-    # FIXME - for gsolv (calls the sp methods) this still tries to create a sp subdir, even though this is not correct
     def __init__(self, instructions: dict[str, any], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
@@ -323,7 +322,7 @@ class QmProc:
         job.meta["xtb_sp"].update(meta)
         return result
 
-    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, any | None]:
+    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, any]:
         """
         Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
 
@@ -332,7 +331,7 @@ class QmProc:
             jobdir (str): path to the jobdir
 
         Returns:
-            result (dict[str, any | None]): result of the gsolv calculation
+            result (dict[str, any]): result of the gsolv calculation
 
         result = {
             "gsolv": None,

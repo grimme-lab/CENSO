@@ -301,9 +301,10 @@ class Optimization(CensoPart):
             # threshold increase based on mean trajectory similarity
             if len(self.confs_nc) > 1:
                 mu_sim = mean_similarity([results_opt[conf.geom.id]["xtb_opt"]["ecyc"] for conf in self.confs_nc])
-                threshold += (1 / AU2KCAL) * (1 - max(exp(- 0.5 * AU2KCAL * mu_sim - 1.0), 0.0))
+                threshold += (1 / AU2KCAL) * max(1 - exp(- 0.5 * AU2KCAL * mu_sim - 1.0), 0.0)
                 logger.debug(f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol")
                 # NOTE: MTS usually in the range of 2 - 10 kcal/mol, reaching 1 kcal/mol is rare
+                # (in this case the threshold should be as tight as possible which is given by the threshold keyword)
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 

@@ -326,7 +326,7 @@ class CensoPart:
         Returns:
             None
         """
-        results = functools.reduce(lambda x, y: {**x, **y}, [conf.results[self._name] for conf in self.core.conformers])
+        results = {conf.name: conf.results[self._name] for conf in self.core.conformers}
         with open(os.path.join(self.core.workdir, f"{self._name}.json"), "w") as outfile:
             json.dump(results, outfile, indent=4)
 

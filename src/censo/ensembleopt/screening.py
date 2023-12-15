@@ -32,7 +32,7 @@ class Screening(Prescreening):
 
     _options = {
         "threshold": {
-            "default": 3.0,
+            "default": 3.5,
             "range": [
                 0.75,
                 7.5
