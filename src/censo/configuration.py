@@ -114,7 +114,7 @@ def write_rcfile(path: str) -> None:
 
         # collect all default settings from parts and feed them into the parser
         global parts
-        from src.censo.part import CensoPart
+        from .part import CensoPart
         parts["general"] = CensoPart
         parser.read_dict({
             partname: {
