@@ -315,6 +315,9 @@ class Optimization(CensoPart):
 
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
             # this macrocycle)
+            # TODO - this might be not ideal, since the adaptive threshold only depends on the unconverged conformers
+            # or the ones that converged in this macrocycle but here ALL the conformers (converged and unconverged) are
+            # considered (should be easy to change though, just change list comprehension for mean_similarity)
             self.core.update_conformers(
                 self.grrho, threshold,
                 additional_filter=lambda x:

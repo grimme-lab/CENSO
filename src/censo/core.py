@@ -176,6 +176,9 @@ class CensoCore:
             # pop item from conformers and insert this item at index 0 in rem
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
+            # Log removed conformers
+            logger.debug(f"Removed {conf.name} with ΔG = {target(conf) - limit} kcal/mol.")
+
         return [conf.name for conf in filtered]
 
     def dump_ensemble(self, part: str) -> None:
