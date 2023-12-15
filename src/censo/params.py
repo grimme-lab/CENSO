@@ -5,7 +5,6 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 import sys
-from typing import Dict, Tuple
 import json
 
 from .__version__ import __version__
@@ -49,7 +48,7 @@ USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
 
 PROGS = ("orca", "tm")
 
-SOLV_MODS: Dict[str, Tuple] = {
+SOLV_MODS: dict[str, tuple] = {
     "orca": ("cpcm", "smd"),
     "tm": ("cosmo", "dcosmors"),
 }

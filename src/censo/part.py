@@ -1,7 +1,8 @@
 import functools
-from typing import Dict, Any, Callable
+import json
 import os
 import ast
+from collections.abc import Callable
 
 from .core import CensoCore
 from .params import (
@@ -16,16 +17,13 @@ from .utilities import (
     DfaHelper, setup_logger
 )
 
-"""
-Part class as parent class for all parts of the calculation to
-implement complete OOP approach.
-"""
-
 logger = setup_logger(__name__)
 
 
 class CensoPart:
-
+    """
+    Part class as parent class for all parts of the calculation
+    """
     _options = {
         "maxcores": {
             "default": 4,
@@ -135,7 +133,7 @@ class CensoPart:
     _settings = {}
 
     @staticmethod
-    def set_general_settings(settings: Dict[str, Any]) -> None:
+    def set_general_settings(settings: dict[str, any]) -> None:
         CensoPart._validate(settings)
         settings = CensoPart._complete(settings)
         CensoPart._settings = settings
@@ -149,7 +147,7 @@ class CensoPart:
         return cls._settings
 
     @classmethod
-    def set_settings(cls, settings: Dict[str, Any]):
+    def set_settings(cls, settings: dict[str, any]):
         cls._validate(settings)
         settings = cls._complete(settings)
         cls._settings = settings
@@ -159,7 +157,7 @@ class CensoPart:
         return cls._options
 
     @classmethod
-    def _complete(cls, tocomplete: Dict[str, Any]) -> Dict[str, Any]:
+    def _complete(cls, tocomplete: dict[str, any]) -> dict[str, any]:
         """
         fill in missing settings with default values
         """
@@ -170,7 +168,7 @@ class CensoPart:
         return tocomplete
 
     @classmethod
-    def _validate(cls, tovalidate: Dict[str, Any]) -> None:
+    def _validate(cls, tovalidate: dict[str, any]) -> None:
         """
         validate the type of each setting in the given dict
         also potentially validate if the setting is allowed by checking with cls._options
@@ -230,9 +228,15 @@ class CensoPart:
     @staticmethod
     def _create_dir(runner: Callable) -> Callable:
         """
-        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_dir decorator.
-        The wrapper function within will be able to access the instance variables of the class.
+        This method needs to be defined as @staticmethod to be accessible from within the class via the @_create_dir
+        decorator. The wrapper function within will be able to access the instance variables of the class.
         To access this method from child classes, the decorator must be called like: @CensoPart._create_dir.
+
+        Args:
+            runner: The function to be decorated.
+
+        Returns:
+            Callable: The decorated function.
         """
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
@@ -249,6 +253,15 @@ class CensoPart:
         return wrapper
 
     def __init__(self, core: CensoCore):
+        """
+        Initializes a part instance.
+
+        Args:
+            core: The core instance that manages the conformers.
+
+        Returns:
+            None
+        """
         # sets the name of the part (used for printing and folder creation)
         self._name: str = self.__class__.__name__.lower()
 
@@ -257,7 +270,7 @@ class CensoPart:
 
         # dictionary with instructions that get passed to the processors
         # basically collapses the first level of nesting into a dict that is not divided into parts
-        self._instructions: Dict[str, Any] = {**self.get_settings(), **self.get_general_settings()}
+        self._instructions: dict[str, any] = {**self.get_settings(), **self.get_general_settings()}
 
         # add some additional settings to instructions so that the processors don't have to do any lookups
         # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
@@ -305,3 +318,15 @@ class CensoPart:
         # print everything to console
         for line in lines:
             print(line)
+
+    def write_json(self) -> None:
+        """
+        Writes the part's results to a json file.
+
+        Returns:
+            None
+        """
+        results = functools.reduce(lambda x, y: {**x, **y}, [conf.results[self._name] for conf in self.core.conformers])
+        with open(os.path.join(self.core.workdir, f"{self._name}.json"), "w") as outfile:
+            json.dump(results, outfile, indent=4)
+

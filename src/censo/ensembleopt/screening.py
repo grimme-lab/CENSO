@@ -327,3 +327,6 @@ class Screening(Prescreening):
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "a",
                   newline=None) as outfile:
             outfile.writelines(lines)
+
+        # Additionally, write the results to a json file
+        self.write_json()

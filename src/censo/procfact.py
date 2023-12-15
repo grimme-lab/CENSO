@@ -1,5 +1,3 @@
-from typing import Dict
-
 from .qm_processor import QmProc
 from .orca_processor import OrcaProc
 
@@ -8,7 +6,7 @@ from .orca_processor import OrcaProc
 
 class ProcessorFactory:
     # for now these are the only available processor types
-    __proctypes: Dict[str, type] = {
+    __proctypes: dict[str, type] = {
         "orca": OrcaProc,
         #    "tm": TmProc,
     }

@@ -6,7 +6,6 @@ import os
 import shutil
 from collections import OrderedDict
 from functools import reduce
-from typing import Any, List
 
 from .datastructure import GeometryData, ParallelJob
 from .params import (
@@ -59,7 +58,7 @@ class OrcaParser:
         with open(path, "w") as outfile:
             outfile.writelines(self.__tolines(indict))
 
-    def __todict(self, lines: List[str]) -> OrderedDict:
+    def __todict(self, lines: list[str]) -> OrderedDict:
         """
         Converts lines from ORCA input into OrderedDict
 
@@ -189,7 +188,7 @@ class OrcaParser:
         return converted
 
     @staticmethod
-    def __eob(lines: List[str], endchar: str = "end") -> int:
+    def __eob(lines: list[str], endchar: str = "end") -> int:
         """
         find end of definition block
         """
@@ -205,7 +204,7 @@ class OrcaParser:
             return end
 
     @staticmethod
-    def __remove_comments(inlist: List[str]) -> List[str]:
+    def __remove_comments(inlist: list[str]) -> list[str]:
         """
         remove all comments from an orca input
         """
@@ -217,7 +216,7 @@ class OrcaParser:
         return inlist
 
     @staticmethod
-    def __tolines(indict: OrderedDict) -> List[str]:
+    def __tolines(indict: OrderedDict) -> list[str]:
         """
         convert ordered dict to lines for orca input
         """
@@ -600,7 +599,7 @@ class OrcaProc(QmProc):
 
         return result
 
-    def _gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, Any | None]:
+    def _gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, any]:
         """
         Calculates the solvation free enthalpy of a conformer using ORCA.
 
@@ -609,7 +608,7 @@ class OrcaProc(QmProc):
             jobdir: path to the job directory
 
         Returns:
-            dict[str, Any | None]: dictionary containing the results of the calculation
+            dict[str, any | None]: dictionary containing the results of the calculation
 
         result = {
             "gsolv": None,
@@ -661,7 +660,7 @@ class OrcaProc(QmProc):
         return result
 
     # TODO - split this up
-    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, Any]:
+    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, any]:
         """
         ORCA geometry optimization using ANCOPT.
 
@@ -671,7 +670,7 @@ class OrcaProc(QmProc):
             filename: name of the input file
 
         Returns:
-            dict[str, Any]: dictionary containing the results of the calculation
+            dict[str, any]: dictionary containing the results of the calculation
 
         Keywords required in instructions:
         - optcycles
@@ -886,7 +885,7 @@ class OrcaProc(QmProc):
         return result
 
     @staticmethod
-    def __apply_flags(indict: OrderedDict[str, Any], *args) -> OrderedDict[str, Any]:
+    def __apply_flags(indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
         """
         apply flags to an orca input
 

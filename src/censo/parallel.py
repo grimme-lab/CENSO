@@ -5,7 +5,6 @@ import multiprocessing
 import os
 import signal
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import Any, Dict, List
 
 from .datastructure import MoleculeData, ParallelJob
 from .params import OMPMIN, OMPMAX
@@ -19,7 +18,7 @@ logger = setup_logger(__name__)
 ncores = os.cpu_count()
 
 
-def execute(conformers: List[MoleculeData], instructions: Dict[str, Any], workdir: str) -> Dict[int, Any]:
+def execute(conformers: list[MoleculeData], instructions: dict[str, any], workdir: str) -> dict[int, any]:
     # try to get program from instructions
     prog = instructions.get("prog", None)
 
@@ -149,7 +148,7 @@ def handle_sigterm(signum, frame, executor):
     executor.shutdown(wait=False)
 
 
-def dqp(jobs: List[ParallelJob], processor: QmProc) -> list[ParallelJob]:
+def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
     """
     D ynamic Q ueue P rocessing
     """

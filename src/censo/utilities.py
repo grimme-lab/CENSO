@@ -11,7 +11,7 @@ import sys
 import time
 from builtins import print as print_orig
 from collections import OrderedDict
-from typing import Any, Callable, Tuple, Union, List, Dict
+from collections.abc import Callable
 
 from .params import CODING, BOHR2ANG
 
@@ -23,7 +23,7 @@ __loglevel = logging.INFO
 
 
 class DfaHelper:
-    __dfa_dict: Dict
+    __dfa_dict: dict
 
     @classmethod
     def set_dfa_dict(cls, dfadict_path: str):
@@ -69,7 +69,7 @@ class DfaHelper:
         return cls.__dfa_dict["functionals"][func]["type"]
 
     @classmethod
-    def functionals(cls) -> Dict[str, Dict]:
+    def functionals(cls) -> dict[str, dict]:
         return cls.__dfa_dict["functionals"]
 
 
@@ -93,18 +93,18 @@ def print(*args, **kwargs):
     print_orig(*args, sep=sep, end=end, file=file, flush=flush)
 
 
-def format_data(headers: List[str], rows: List[List[Any]], units: List[str] = None, sortby: int = 0) -> List[str]:
+def format_data(headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
 
     Args:
-        headers (List[str]): The list of column headers.
-        rows (List[List[Any]]): The list of rows, where each row is a list of values.
-        units (List[str], optional): The list of units for each column. Defaults to None.
+        headers (list[str]): The list of column headers.
+        rows (list[list[any]]): The list of rows, where each row is a list of values.
+        units (list[str], optional): The list of units for each column. Defaults to None.
         sortby (int, optional): The index of the column to sort by. Defaults to 0.
 
     Returns:
-        List[str]: The list of formatted lines representing the table.
+        list[str]: The list of formatted lines representing the table.
 
     """
     lines = []
@@ -149,7 +149,7 @@ def frange(start, end, step=1):
     return result
 
 
-def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tuple[list, int, str]:
+def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> tuple[list, int, str]:
     """
     convert TURBOMOLE coord file to xyz data and/or write *.xyz output
 
@@ -201,7 +201,7 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> Tup
     return xyzatom, len(xyzatom), os.path.join(outpath, outfile)
 
 
-def check_for_float(line: str) -> Union[float, None]:
+def check_for_float(line: str) -> float | None:
     """ Go through line and check for float, return first float"""
     elements = line.strip().split()
     value = None
@@ -252,7 +252,7 @@ def timeit(f) -> Callable:
     return wrapper
 
 
-def od_insert(od: OrderedDict[str, Any], key: str, value: Any, index: int) -> OrderedDict[str, Any]:
+def od_insert(od: OrderedDict[str, any], key: str, value: any, index: int) -> OrderedDict[str, any]:
     """
     Insert a new key/value pair into an OrderedDict at a specific position.
 
@@ -265,7 +265,7 @@ def od_insert(od: OrderedDict[str, Any], key: str, value: Any, index: int) -> Or
     Returns:
         The updated OrderedDict.
     """
-    items: List[Tuple[str, Any]] = list(od.items())
+    items: list[tuple[str, any]] = list(od.items())
     items.insert(index, (key, value))
     return OrderedDict(items)
 

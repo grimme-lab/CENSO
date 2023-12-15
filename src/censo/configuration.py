@@ -1,14 +1,13 @@
 import os
 import shutil
 import configparser
-from typing import Any, Dict, Union
 
 from .params import (
     CENSORCNAME,
     load_dbs, ASSETS_PATH, USER_ASSETS_PATH
 )
 from .qm_processor import QmProc
-from .utilities import DfaHelper, setup_logger
+from .utilities import DfaHelper
 
 parts = {}
 
@@ -78,7 +77,7 @@ def configure(rcpath: str = None, create_new: bool = False):
         os.mkdir(USER_ASSETS_PATH)
 
 
-def read_rcfile(path: str) -> Dict[str, Dict[str, Any]]:
+def read_rcfile(path: str) -> dict[str, dict[str, any]]:
     """
     Read from config data from file located at 'path'
     """
@@ -146,7 +145,7 @@ def write_rcfile(path: str) -> None:
         )
 
 
-def read_program_paths(path: str) -> Union[Dict[str, str], None]:
+def read_program_paths(path: str) -> dict[str, str] | None:
     """
     Read program paths from the configuration file at 'path'
     """
@@ -161,7 +160,7 @@ def read_program_paths(path: str) -> Union[Dict[str, str], None]:
         return None
 
 
-def find_program_paths() -> Dict[str, str]:
+def find_program_paths() -> dict[str, str]:
     """
     Try to determine program paths automatically
     """
@@ -199,7 +198,7 @@ def find_program_paths() -> Dict[str, str]:
     return paths
 
 
-def find_rcfile() -> Union[str, None]:
+def find_rcfile() -> str | None:
     """
     check for existing .censorc2 in $home dir
     """

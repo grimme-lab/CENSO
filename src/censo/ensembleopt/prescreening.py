@@ -1,4 +1,3 @@
-import csv
 import os
 
 from ..core import CensoCore
@@ -290,11 +289,5 @@ class Prescreening(CensoPart):
                   newline=None) as outfile:
             outfile.writelines(lines)
 
-        # additionally, write data in csv format
-        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.csv')}.")
-        with open(os.path.join(self.core.workdir, f"{self._name}.csv"), "w",
-                  newline=None) as outfile:
-            writer = csv.DictWriter(outfile, headers, delimiter=" ")
-            writer.writeheader()
-            rows = [{header: printmap[header](conf) for header in headers} for conf in self.core.conformers]
-            writer.writerows(rows)
+        # Additionally, write results in json format
+        self.write_json()

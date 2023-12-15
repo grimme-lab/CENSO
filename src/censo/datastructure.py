@@ -1,4 +1,3 @@
-from typing import Dict, List, Any
 from functools import reduce
 from collections import defaultdict
 
@@ -26,7 +25,7 @@ class GeometryData:
         # dict with element symbols as keys and lists of three-item lists as values
         # the coordinates should be given in Angstrom
         # self.xyz = {"H": [[0.0, 0.0, 0.0], [...], ...], "C": [[0.0, 0.0, 0.0], ...], ...}
-        self.xyz: Dict[str, List[List[float]]] = {}
+        self.xyz: dict[str, list[list[float]]] = {}
 
         # set up xyz dict from the input lines
         for line in xyz:
@@ -41,7 +40,7 @@ class GeometryData:
         # compute number of atoms
         self.nat: int = sum(len(i) for i in self.xyz.values())
 
-    def toorca(self) -> List:
+    def toorca(self) -> list:
         """
         method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
         """
@@ -52,7 +51,7 @@ class GeometryData:
 
         return coord
 
-    def tocoord(self) -> List[str]:
+    def tocoord(self) -> list[str]:
         """
         method to convert the internal cartesian coordinates (self.xyz) to coord file format (for tm or xtb)
         """
@@ -83,7 +82,7 @@ class GeometryData:
             elif line.startswith("$end"):
                 break
 
-    def toxyz(self) -> List[str]:
+    def toxyz(self) -> list[str]:
         """
         method to convert self.xyz to xyz-file format
         """
@@ -124,7 +123,7 @@ class MoleculeData:
         self.xtb_energy: float = None
 
         # list to store the paths to all MO-files from the jobs run for this conformer
-        self.mo_paths: List[str] = []
+        self.mo_paths: list[str] = []
 
         # stores the results of the calculations
         self.results = {}
@@ -142,7 +141,7 @@ class MoleculeData:
 
 
 class ParallelJob:
-    def __init__(self, conf: GeometryData, jobtype: List[str], omp: int):
+    def __init__(self, conf: GeometryData, jobtype: list[str], omp: int):
         # conformer for the job
         self.conf = conf
 
@@ -158,10 +157,10 @@ class ParallelJob:
         # store metadata, is updated by the processor
         # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
         # always contains the "mo_path" key
-        self.meta: Dict[str, Any] = {"mo_path": None}
+        self.meta: dict[str, any] = {"mo_path": None}
 
         # store the results of the job
-        self.results: Dict[str, Any] = {}
+        self.results: dict[str, any] = {}
 
         # stores all flags for the jobtypes
-        self.flags: Dict[str, Any] = {}
+        self.flags: dict[str, any] = {}

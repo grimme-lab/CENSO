@@ -5,8 +5,8 @@ functionality for program setup
 
 from argparse import Namespace
 import os
-from typing import List, Callable
 from math import exp
+from collections.abc import Callable
 
 from .params import (
     AU2J,
@@ -54,10 +54,10 @@ class CensoCore:
 
         # stores the conformers with all info
         # NOTE: this is deliberately chosen to be a list since lists are ordered
-        self.conformers: List[MoleculeData] = []
+        self.conformers: list[MoleculeData] = []
 
         # stores the conformers which were sorted out
-        self.rem: List[MoleculeData] = []
+        self.rem: list[MoleculeData] = []
 
         # absolute path to ensemble input file
         self.ensemble_path: str
@@ -142,16 +142,19 @@ class CensoCore:
             self.conformers.sort(key=lambda x: x.xtb_energy)
 
     def update_conformers(self, target: Callable[[MoleculeData], float], threshold: float,
-                          additional_filter: Callable[[MoleculeData], bool] = None) -> List[str]:
+                          additional_filter: Callable[[MoleculeData], bool] = None) -> list[str]:
         """
         Update the conformers based on a target function, a threshold, and an additional filter.
         Logic for the additional filter is "and".
         Returns a list of the names of the removed conformers.
 
-        Parameters:
-            target (Callable[[MoleculeData], float]): A function that takes a MoleculeData object as input and returns a float.
+        Args:
+            target (Callable[[MoleculeData], float]): A function that takes a MoleculeData object as input and returns a
+                                                      float.
             threshold (float): The threshold value.
-            additional_filter (Callable[[MoleculeData], bool], optional): An optional function that takes a MoleculeData object as input and returns a boolean. Defaults to None.
+            additional_filter (Callable[[MoleculeData], bool], optional): An optional function that takes a MoleculeData
+                                                                          object as input and returns a boolean.
+                                                                          Defaults to None.
 
         Returns:
             None

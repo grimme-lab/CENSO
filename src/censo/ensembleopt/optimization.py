@@ -5,7 +5,6 @@ performing geometry optimization of the CRE and provide low level free energies.
 import os
 from functools import reduce
 from math import exp
-from typing import List
 
 from ..core import CensoCore
 from ..datastructure import MoleculeData
@@ -135,7 +134,7 @@ class Optimization(CensoPart):
 
     def __init__(self, core: CensoCore):
         super().__init__(core)
-        self.confs_nc: List[MoleculeData]
+        self.confs_nc: list[MoleculeData]
 
     @timeit
     @CensoPart._create_dir
@@ -224,6 +223,12 @@ class Optimization(CensoPart):
         """
         Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
         If no GmRRHO is calculated only the most recent DFT energy is returned
+
+        Args:
+            conf: conformer object
+
+        Returns:
+            float: Gtot (in the unit of the results)
         """
         # TODO - implement branch for standard geometry optimization (no ancopt)
         try:
@@ -233,6 +238,10 @@ class Optimization(CensoPart):
             return conf.results[self._name]["xtb_opt"]["energy"]
 
     def __macrocycle_opt(self):
+        """
+        Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
+        and uses adaptive threshold based on mean trajectory similarity.
+        """
         # make a separate list of conformers that only includes (considered) conformers that are not converged
         # NOTE: this is a special step only necessary for macrocycle optimization
         # at this point it's just self.core.conformers, it is basically a todo-list
@@ -292,9 +301,9 @@ class Optimization(CensoPart):
             # threshold increase based on mean trajectory similarity
             if len(self.confs_nc) > 1:
                 mu_sim = mean_similarity([results_opt[conf.geom.id]["xtb_opt"]["ecyc"] for conf in self.confs_nc])
-                threshold += (2 / AU2KCAL) * (1 - exp(- 0.5 * AU2KCAL * mu_sim))
+                threshold += (1 / AU2KCAL) * (1 - max(exp(- 0.5 * AU2KCAL * mu_sim - 1.0), 0.0))
                 logger.debug(f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol")
-                # NOTE: MTS usually in the range of 2 - 10 kcal/mol
+                # NOTE: MTS usually in the range of 2 - 10 kcal/mol, reaching 1 kcal/mol is rare
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
@@ -386,6 +395,9 @@ class Optimization(CensoPart):
         logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
         with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None) as outfile:
             outfile.writelines(lines)
+
+        # Additionally, write the results of this part to a json file
+        self.write_json()
 
     def print_update(self) -> None:
         """

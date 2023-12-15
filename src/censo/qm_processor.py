@@ -3,13 +3,12 @@ Contains QmProc base class,
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
-import functools
 import json
 import os
 import signal
 import subprocess
 from time import perf_counter
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
 
 from .datastructure import ParallelJob
 from .params import (
@@ -72,13 +71,13 @@ class QmProc:
             print(line)
 
     # FIXME - for gsolv (calls the sp methods) this still tries to create a sp subdir, even though this is not correct
-    def __init__(self, instructions: Dict[str, Any], workdir: str):
+    def __init__(self, instructions: dict[str, any], workdir: str):
         # stores instructions, meaning the settings that should be applied for all jobs
         # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
-        self.instructions: Dict[str, Any] = instructions
+        self.instructions: dict[str, any] = instructions
 
         # dict to map the jobtypes to their respective methods
-        self._jobtypes: Dict[str, Callable] = {
+        self._jobtypes: dict[str, Callable] = {
             "xtb_sp": self._xtb_sp,
             "xtb_gsolv": self._xtb_gsolv,
             "xtb_rrho": self._xtb_rrho,
@@ -136,12 +135,12 @@ class QmProc:
         return job
 
     @staticmethod
-    def _make_call(call: List, outputpath: str, jobdir: str) -> int:
+    def _make_call(call: list, outputpath: str, jobdir: str) -> int:
         """
         Make a call to an external program and write output into outputfile.
 
         Args:
-            call (List): list containing the call to the external program
+            call (list): list containing the call to the external program
             outputpath (str): path to the outputfile
             jobdir (str): path to the jobdir
 
@@ -324,7 +323,7 @@ class QmProc:
         job.meta["xtb_sp"].update(meta)
         return result
 
-    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, Any | None]:
+    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, any | None]:
         """
         Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
 
@@ -333,7 +332,7 @@ class QmProc:
             jobdir (str): path to the jobdir
 
         Returns:
-            result (dict[str, Any | None]): result of the gsolv calculation
+            result (dict[str, any | None]): result of the gsolv calculation
 
         result = {
             "gsolv": None,
@@ -385,7 +384,7 @@ class QmProc:
         return result
 
     # TODO - break this down
-    def _xtb_rrho(self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho") -> dict[str, Any]:
+    def _xtb_rrho(self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho") -> dict[str, any]:
         """
         Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
 
@@ -395,7 +394,7 @@ class QmProc:
             filename (str, optional): filename to use for the coord file. Defaults to "xtb_rrho".
 
         Returns:
-            result (dict[str, Any]): result of the rrho calculation
+            result (dict[str, any]): result of the rrho calculation
         
         result = {
             "energy": None, # contains the gibbs energy at given temperature (might be ZPVE if T = 0K)
