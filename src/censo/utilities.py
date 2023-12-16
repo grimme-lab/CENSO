@@ -137,13 +137,21 @@ def format_data(headers: list[str], rows: list[list[any]], units: list[str] = No
     return lines
 
 
-def frange(start, end, step=1):
+def frange(start: float, end: float, step: float = 1) -> list[float]:
     """
-    range with floats
+    Creates a range of floats, adding 'step' to 'start' while it's less or equal than 'end'.
+
+    Args:
+        start (float): The start of the range.
+        end (float): The end of the range.
+        step (float, optional): The step size. Defaults to 1.
+
+    Returns:
+        list[float]: The list of floats.
     """
     result = []
     current = start
-    while current < end:
+    while current <= end:
         result.append(current)
         current += step
     return result
