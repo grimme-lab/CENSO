@@ -394,7 +394,7 @@ class QmProc:
 
         Returns:
             result (dict[str, any]): result of the rrho calculation
-        
+
         result = {
             "energy": None, # contains the gibbs energy at given temperature (might be ZPVE if T = 0K)
             "rmsd": None,
@@ -444,19 +444,18 @@ class QmProc:
             if os.path.isfile(os.path.join(jobdir, file)):
                 os.remove(os.path.join(jobdir, file))
 
-        # if a temperature in the trange is close (+-0.6) to the fixed temperature then replace this value in trange
-        # don't do this for now, to make the program more predictable
-        """ for t in trange:
-            if isclose(self.instructions["temperature"], t, abs_tol=0.6):
-                trange[trange.index(t)] = self.instructions["temperature"]
-                break """
-
         # setup xcontrol
         with open(xcontrolpath, "w", newline=None) as xcout:
             xcout.write("$thermo\n")
-            if self.instructions.get("trange", False):
+            if self.instructions.get("multitemp", False):
                 trange = frange(self.instructions['trange'][0], self.instructions['trange'][1],
-                                self.instructions['trange'][2])
+                                step=self.instructions['trange'][2])
+
+                # Always append the fixed temperature to the trange so that it is the last value
+                # (important since --enso will make xtb give the G(T) value for this temperature)
+                trange.append(self.instructions["temperature"])
+
+                # Write trange to the xcontrol file
                 xcout.write(
                     f"    temp="
                     f"{','.join([str(i) for i in trange])}\n")
@@ -490,10 +489,8 @@ class QmProc:
         if self.instructions["bhess"]:
             # set ohess or bhess
             dohess = "--bhess"
-            olevel = "vtight"
         else:
             dohess = "--ohess"
-            olevel = "vtight"
 
         # generate coord file for xtb
         with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
@@ -504,7 +501,7 @@ class QmProc:
             f"{filename}.coord",
             "--" + self.instructions["gfnv"],
             dohess,
-            olevel,
+            "vtight",
             "--chrg",
             f"{self.instructions['charge']}",
             "--enso",
@@ -550,17 +547,36 @@ class QmProc:
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
             lines = outputfile.readlines()
 
-        # get gibbs energy, enthalpy and entropy for given temperature range
-        trange = frange(self.instructions["trange"][0], self.instructions["trange"][1], self.instructions["trange"][2])
+        if self.instructions["multitemp"]:
+            # get gibbs energy, enthalpy and entropy for given temperature range
+            trange = frange(self.instructions["trange"][0], self.instructions["trange"][1],
+                            step=self.instructions["trange"][2])
 
-        # gibbs energy
-        gt = {}
+            # gibbs energy
+            gt = {}
 
-        # enthalpy
-        ht = {}
+            # enthalpy
+            ht = {}
 
-        # rotational entropy
-        rotS = {}
+            # Get Gibbs energy and enthalpy
+            for line in lines:
+                if "T/K" in line:
+                    for line2 in lines[lines.index(line) + 2:]:
+                        if "----------------------------------" in line2:
+                            break
+
+                        T = float(line2.split()[0])
+                        gt[T] = float(line2.split()[4])
+                        ht[T] = float(line2.split()[2])
+
+            # rotational entropy
+            rotS = {}
+
+            # Get rotational entropy
+            entropy_lines = ((line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line)
+            for line in entropy_lines:
+                T = float(line[0].split()[0])
+                rotS[T] = float(line[1].split()[4])
 
         # Extract symmetry
         result["linear"] = next(
@@ -570,35 +586,21 @@ class QmProc:
         result["rmsd"] = next(
             (float(line.split()[3]) for line in lines if "final rmsd / " in line and self.instructions["bhess"]), None)
 
-        # Get rotational entropy
-        entropy_lines = ((line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line)
-        for line in entropy_lines:
-            T = float(line[0].split()[0])
-            rotS[T] = float(line[1].split()[4])
-
-        # Get Gibbs energy and enthalpy
-        for line in lines:
-            if "T/K" in line:
-                for line2 in lines[lines.index(line) + 2:]:
-                    if "----------------------------------" in line2:
-                        break
-
-                    T = float(line2.split()[0])
-                    gt[T] = float(line2.split()[4])
-                    ht[T] = float(line2.split()[2])
-
         # check if xtb calculated the temperature range correctly
-        if len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS):
-            result["gibbs"] = gt
-            result["enthalpy"] = ht
-            result["entropy"] = rotS
-        else:
+        if self.instructions["multitemp"] and not (
+            len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS)
+        ):
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_rrho"
             job.meta["xtb_rrho"].update(meta)
             return result
+        elif self.instructions["multitemp"]:
+            result["gibbs"] = gt
+            result["enthalpy"] = ht
+            result["entropy"] = rotS
 
-        # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess (when a hessian is calculated)
+        # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess
+        # (when a hessian is calculated)
         # contains output from xtb in json format to be more easily digestible by CENSO
         with open(
                 os.path.join(jobdir, "xtb_enso.json"),
@@ -621,16 +623,18 @@ class QmProc:
         if "G(T)" in data:
             meta["success"] = True
 
-            if self.instructions["temperature"] == 0:
+            if self.instructions["temperature"] == 0.0:
                 result["energy"] = data.get("ZPVE", 0.0)
-                result["gibbs"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
-                result["enthalpy"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
-                result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
+                if self.instructions["multitemp"]:
+                    result["gibbs"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
+                    result["enthalpy"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
+                    result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
             else:
                 result["energy"] = data.get("G(T)", 0.0)
-                result["gibbs"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
-                result["enthalpy"][self.instructions["temperature"]] = None  # set this to None for predictability
-                result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
+                if self.instructions["multitemp"]:
+                    result["gibbs"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
+                    result["enthalpy"][self.instructions["temperature"]] = None  # set this to None for predictability
+                    result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
 
             # only determine symmetry if all the needed information is there
             if "point group" and "linear" in data.keys():

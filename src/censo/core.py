@@ -10,7 +10,8 @@ from collections.abc import Callable
 
 from .params import (
     AU2J,
-    KB
+    KB,
+    AU2KCAL
 )
 from .datastructure import MoleculeData
 from .utilities import (
@@ -23,7 +24,6 @@ from .utilities import (
 logger = setup_logger(__name__)
 
 
-# TODO - how do the assets files get into ~/.censo_assets?
 class CensoCore:
     """
     """
@@ -177,7 +177,7 @@ class CensoCore:
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
             # Log removed conformers
-            logger.debug(f"Removed {conf.name} with ΔG = {target(conf) - limit} kcal/mol.")
+            logger.debug(f"Removed {conf.name} with ΔG = {(target(conf) - limit) * AU2KCAL:.2f} kcal/mol.")
 
         return [conf.name for conf in filtered]
 
