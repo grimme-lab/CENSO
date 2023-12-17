@@ -107,7 +107,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         metavar=("start", "end", "step"),
         type=float,
         help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
-             "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0].",
+             "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
     )
     groups[1].add_argument(
         "-bhess",

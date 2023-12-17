@@ -298,7 +298,7 @@ class Optimization(CensoPart):
             threshold = self._instructions["threshold"] / AU2KCAL
 
             # threshold increase based on mean trajectory similarity
-            if len(self.confs_nc) > 1:
+            if len(self.core.conformers) > 1:
                 trajectories = []
                 for conf in self.core.conformers:
                     # If conformers already converged before, use the constant final energy as trajectory
@@ -307,7 +307,7 @@ class Optimization(CensoPart):
                             conf.results[self._name]["xtb_opt"]["energy"]
                             for _ in range(self._instructions["optcycles"])
                         ])
-                    # If conformers converged in this macrocycle, use the trajectory fromr the results and pad it with
+                    # If conformers converged in this macrocycle, use the trajectory from the results and pad it with
                     # the final energy
                     elif results_opt[conf.geom.id]["xtb_opt"]["converged"]:
                         trajectories.append(results_opt[conf.geom.id]["xtb_opt"]["ecyc"] + [
@@ -318,10 +318,10 @@ class Optimization(CensoPart):
                         ])
                     # If conformers did not converge, use the trajectory from the results
                     else:
-                        trajectories.append([conf.results[self._name]["xtb_opt"]["ecyc"]])
+                        trajectories.append(conf.results[self._name]["xtb_opt"]["ecyc"])
 
                 mu_sim = mean_similarity(trajectories)
-                threshold += (1 / AU2KCAL) * max(1 - exp(- 0.5 * AU2KCAL * mu_sim - 1.0), 0.0)
+                threshold += (1.5 / AU2KCAL) * max(1 - exp(- AU2KCAL * mu_sim), 0.0)
                 logger.debug(f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol")
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")

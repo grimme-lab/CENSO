@@ -124,7 +124,7 @@ class CensoPart:
         "trange": {
             "default": [
                 273.15,
-                378.15,
+                373.15,
                 5
             ]
         }
