@@ -56,13 +56,12 @@ class Prescreening(CensoPart):
         self.print_info()
 
         # set jobtype to pass to handler
-        if not self._instructions["gas-phase"]:
-            if self._instructions.get("implicit", False):
-                self._instructions["jobtype"] = ["gsolv"]
-            else:
-                self._instructions["jobtype"] = ["xtb_gsolv", "sp"]
-        else:
+        if self._instructions["gas-phase"] or self._instructions.get("implicit", False):
+            # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
+            # Gsolv will still be included in the DFT energy though
             self._instructions["jobtype"] = ["sp"]
+        else:
+            self._instructions["jobtype"] = ["xtb_gsolv", "sp"]
 
         # compute results
         # for structure of results from handler.execute look there
@@ -104,8 +103,8 @@ class Prescreening(CensoPart):
 
     def gtot(self, conf: MoleculeData) -> float:
         """
-        prescreening key for conformer sorting
-        calculates Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT) for a given conformer
+        Prescreening key for conformer sorting
+        Calculates Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT) for a given conformer
         """
 
         # Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT)

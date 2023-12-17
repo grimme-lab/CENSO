@@ -53,12 +53,6 @@ SOLV_MODS: dict[str, tuple] = {
     "tm": ("cosmo", "dcosmors"),
 }
 
-# this is probably not needed anymore
-GSOLV_MODS = {
-    "orca": ("gbsa", "alpb", "smd"),
-    "tm": ("cosmors", "cosmors-fine"),
-}
-
 GRIDOPTIONS = (
     "low",
     "low+",
