@@ -31,8 +31,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -47,8 +47,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -63,8 +63,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -79,8 +79,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -95,8 +95,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -111,8 +111,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -127,8 +127,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -142,8 +142,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s", 
+                "nmr_j", 
+                "nmr_s", 
                 "func_or", 
                 "func_or_scf"
             ],
@@ -158,8 +158,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -174,8 +174,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -190,8 +190,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -206,8 +206,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -221,8 +221,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -237,8 +237,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s"
+                "nmr_j",
+                "nmr_s"
             ],
             "type": "mgga"
         },
@@ -251,8 +251,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -267,8 +267,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -278,14 +278,14 @@
             "tm": "kt1",
             "orca": "",
             "disp": "novdw",
-            "part": ["func_j", "func_s"],
+            "part": ["nmr_j", "nmr_s"],
             "type": "gga"
         },
         "kt2-novdw": {
             "tm": "kt2",
             "orca": "kt2",
             "disp": "novdw",
-            "part": ["func_j", "func_s"],
+            "part": ["nmr_j", "nmr_s"],
             "type": "gga"
         },
         "pbe0-novdw": {
@@ -297,8 +297,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -313,8 +313,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -329,8 +329,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -345,8 +345,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -360,8 +360,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s", 
+                "nmr_j", 
+                "nmr_s", 
                 "func_or", 
                 "func_or_scf"
             ],
@@ -376,8 +376,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -392,8 +392,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -408,8 +408,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -424,8 +424,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -440,8 +440,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -456,8 +456,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -472,8 +472,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -488,8 +488,8 @@
                 "screening",
                 "optimization",
                 "func3",
-                "func_j",
-                "func_s",
+                "nmr_j",
+                "nmr_s",
                 "func_or",
                 "func_or_scf"
             ],
@@ -503,8 +503,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s", 
+                "nmr_j", 
+                "nmr_s", 
                 "func_or", 
                 "func_or_scf"
             ],
@@ -519,8 +519,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s"
+                "nmr_j", 
+                "nmr_s"
             ],
             "type": "rs_hybrid"
         },
@@ -533,8 +533,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s"
+                "nmr_j", 
+                "nmr_s"
             ],
             "type": "rs_hybrid"
         },
@@ -547,8 +547,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s"
+                "nmr_j", 
+                "nmr_s"
             ],
             "type": "rs_hybrid"
         },
@@ -561,8 +561,8 @@
                 "screening",
                 "optimization",
                 "func3", 
-                "func_j", 
-                "func_s"
+                "nmr_j", 
+                "nmr_s"
             ],
             "type": "rs_hybrid"
         },
@@ -570,7 +570,7 @@
             "tm": "",
             "orca": "ri-dsd-blyp",
             "disp": "d3bj",
-            "part": ["func3", "func_s"],
+            "part": ["func3", "nmr_s"],
             "type": "double"
         }
     }

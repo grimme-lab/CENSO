@@ -31,49 +31,17 @@ class Screening(Prescreening):
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
-        "threshold": {
-            "default": 3.5,
-            "range": [
-                0.75,
-                7.5
-            ]
-        },
-        "func": {
-            "default": "r2scan-3c",
-            "options": DfaHelper.find_func("screening")
-        },
-        "basis": {
-            "default": "def2-TZVP",
-            "options": BASIS_SETS
-        },
-        "prog": {
-            "default": "orca",
-            "options": PROGS
-        },
-        "sm": {
-            "default": "smd",
-            "options": __solv_mods
-        },
-        "gfnv": {
-            "default": "gfn2",
-            "options": GFNOPTIONS
-        },
-        "grid": {
-            "default": "low+",
-            "options": GRIDOPTIONS
-        },
-        "run": {
-            "default": True
-        },
-        "gcp": {
-            "default": True
-        },
-        "implicit": {
-            "default": True
-        },
-        "template": {
-            "default": False
-        },
+        "threshold": {"default": 3.5, "range": [0.75, 7.5]},
+        "func": {"default": "r2scan-3c", "options": DfaHelper.find_func("screening")},
+        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "prog": {"default": "orca", "options": PROGS},
+        "sm": {"default": "smd", "options": __solv_mods},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "grid": {"default": "low+", "options": GRIDOPTIONS},
+        "run": {"default": True},
+        "gcp": {"default": True},
+        "implicit": {"default": True},
+        "template": {"default": False},
     }
 
     _settings = {}
@@ -112,9 +80,18 @@ class Screening(Prescreening):
             self.core.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
 
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (1 - exp(
-                - AU2KCAL * stdev([conf.results[self._name]["xtb_rrho"]["energy"] for conf in self.core.conformers])
-            ))
+            fuzzy = (1 / AU2KCAL) * (
+                1
+                - exp(
+                    -AU2KCAL
+                    * stdev(
+                        [
+                            conf.results[self._name]["xtb_rrho"]["energy"]
+                            for conf in self.core.conformers
+                        ]
+                    )
+                )
+            )
             threshold += fuzzy
             print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
@@ -125,8 +102,7 @@ class Screening(Prescreening):
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
             self.core.calc_boltzmannweights(
-                self._instructions.get("temperature", 298.15),
-                self._name
+                self._instructions.get("temperature", 298.15), self._name
             )
 
             # if no conformers are filtered basically nothing happens
@@ -142,10 +118,10 @@ class Screening(Prescreening):
     def grrho(self, conf: MoleculeData) -> float:
         """
         Calculate the total Gibbs free energy (Gtot) of a given molecule using DFT single-point and gsolv (if included) and RRHO contributions.
-        
+
         Parameters:
             conf (MoleculeData): The MoleculeData object containing the necessary information for the calculation.
-        
+
         Returns:
             float: The total Gibbs free energy (Gtot) of the molecule.
         """
@@ -164,7 +140,7 @@ class Screening(Prescreening):
             δGsolv (DFT),
             Gtot,
             δGtot
-            
+
         Generates NO csv file. All info is included in the file written in write_results2.
         """
         # PART (1) of writing
@@ -194,7 +170,7 @@ class Screening(Prescreening):
         # minimal xtb single-point energy (taken from prescreening)
         if all("prescreening" in conf.results.keys() for conf in self.core.conformers):
             xtb_energies = {
-                id(conf): conf.results["prescreening"]['xtb_gsolv']['energy_xtb_gas']
+                id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
                 for conf in self.core.conformers
             }
             xtbmin = min(xtb_energies.values())
@@ -205,32 +181,50 @@ class Screening(Prescreening):
         gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
 
         # collect all dft single point energies
-        dft_energies = {id(conf): conf.results[self._name]["sp"]["energy"] for conf in self.core.conformers} \
-            if not all("gsolv" in conf.results[self._name].keys() for conf in self.core.conformers) \
-            else {id(conf): conf.results[self._name]["gsolv"]["energy_gas"] for conf in self.core.conformers}
+        dft_energies = (
+            {
+                id(conf): conf.results[self._name]["sp"]["energy"]
+                for conf in self.core.conformers
+            }
+            if not all(
+                "gsolv" in conf.results[self._name].keys()
+                for conf in self.core.conformers
+            )
+            else {
+                id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
+                for conf in self.core.conformers
+            }
+        )
 
         # determines what to print for each conformer in each column
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (xTB)": lambda conf: f"{xtb_energies[id(conf)]:.6f}"
-            if xtb_energies is not None else "---",
+            if xtb_energies is not None
+            else "---",
             "ΔE (xTB)": lambda conf: f"{(xtb_energies[id(conf)] - xtbmin) * AU2KCAL:.2f}"
-            if xtb_energies is not None else "---",
+            if xtb_energies is not None
+            else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
-            if "xtb_gsolv" in conf.results[self._name].keys() or "gsolv" in conf.results[self._name].keys()
+            if "xtb_gsolv" in conf.results[self._name].keys()
+            or "gsolv" in conf.results[self._name].keys()
             else "---",
             "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.gtot(conf) - gtotmin) * AU2KCAL:.2f}",
         }
 
-        rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
+        rows = [
+            [printmap[header](conf) for header in headers]
+            for conf in self.core.conformers
+        ]
 
         lines = format_data(headers, rows, units=units)
 
         # write everything to a file
-        with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w",
-                  newline=None) as outfile:
+        with open(
+            os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None
+        ) as outfile:
             outfile.writelines(lines)
 
     def write_results2(self) -> None:
@@ -245,7 +239,7 @@ class Screening(Prescreening):
             Grrho,
             Gtot,
             δGtot
-        
+
         Also writes them into an easily digestible format.
         """
         # column headers
@@ -276,13 +270,19 @@ class Screening(Prescreening):
         if all("prescreening" in conf.results.keys() for conf in self.core.conformers):
             if self._instructions["evaluate_rrho"]:
                 gxtb = {
-                    id(conf): conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
-                              + conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions["temperature"]]
+                    id(conf): conf.results["prescreening"]["xtb_gsolv"][
+                        "energy_xtb_gas"
+                    ]
+                    + conf.results[self._name]["xtb_rrho"]["gibbs"][
+                        self._instructions["temperature"]
+                    ]
                     for conf in self.core.conformers
                 }
             else:
                 gxtb = {
-                    id(conf): conf.results['prescreening']['xtb_gsolv']['energy_xtb_gas']
+                    id(conf): conf.results["prescreening"]["xtb_gsolv"][
+                        "energy_xtb_gas"
+                    ]
                     for conf in self.core.conformers
                 }
             gxtbmin = min(gxtb.values())
@@ -290,42 +290,57 @@ class Screening(Prescreening):
             gxtb = None
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(
-            self.grrho(conf)
-            for conf in self.core.conformers
-        )
+        gtotmin = min(self.grrho(conf) for conf in self.core.conformers)
 
         # collect all dft single point energies
-        dft_energies = {id(conf): conf.results[self._name]["sp"]["energy"] for conf in self.core.conformers} \
-            if not all("gsolv" in conf.results[self._name].keys() for conf in self.core.conformers) \
-            else {id(conf): conf.results[self._name]["gsolv"]["energy_gas"] for conf in self.core.conformers}
+        dft_energies = (
+            {
+                id(conf): conf.results[self._name]["sp"]["energy"]
+                for conf in self.core.conformers
+            }
+            if not all(
+                "gsolv" in conf.results[self._name].keys()
+                for conf in self.core.conformers
+            )
+            else {
+                id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
+                for conf in self.core.conformers
+            }
+        )
 
         printmap = {
             "CONF#": lambda conf: conf.name,
             "G (xTB)": lambda conf: f"{gxtb[id(conf)]:.6f}"
-            if gxtb is not None else "---",
+            if gxtb is not None
+            else "---",
             "ΔG (xTB)": lambda conf: f"{(gxtb[id(conf)] - gxtbmin) * AU2KCAL:.2f}"
-            if gxtb is not None else "---",
+            if gxtb is not None
+            else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
             if not isclose(self.gtot(conf), dft_energies[id(conf)])
             else "---",
-            "GmRRHO": lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
             if self._instructions["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
         }
 
-        rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
+        rows = [
+            [printmap[header](conf) for header in headers]
+            for conf in self.core.conformers
+        ]
 
         lines = format_data(headers, rows, units=units)
 
         # append lines to already existing file
-        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
-        with open(os.path.join(self.core.workdir, f"{self._name}.out"), "a",
-                  newline=None) as outfile:
+        logger.debug(
+            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+        )
+        with open(
+            os.path.join(self.core.workdir, f"{self._name}.out"), "a", newline=None
+        ) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results to a json file

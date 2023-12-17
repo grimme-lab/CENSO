@@ -22,7 +22,9 @@ from ..utilities import (
     print,
     timeit,
     DfaHelper,
-    format_data, setup_logger, mean_similarity,
+    format_data,
+    setup_logger,
+    mean_similarity,
 )
 
 logger = setup_logger(__name__)
@@ -34,68 +36,23 @@ class Optimization(CensoPart):
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
     _options = {
-        "optcycles": {
-            "default": 8,
-            "range": [
-                1,
-                10
-            ]
-        },
-        "maxcyc": {
-            "default": 200,
-            "range": [
-                10,
-                1000
-            ]
-        },
-        "threshold": {
-            "default": 1.5,
-            "range": [
-                0.5,
-                5
-            ]
-        },
-        "hlow": {
-            "default": 0.01,
-            "range": [
-                0.001,
-                0.1
-            ]
-        },
-        "gradthr": {
-            "default": 0.01,
-            "range": [
-                0.01,
-                1.0
-            ]
-        },
+        "optcycles": {"default": 8, "range": [1, 10]},
+        "maxcyc": {"default": 200, "range": [10, 1000]},
+        "threshold": {"default": 1.5, "range": [0.5, 5]},
+        "hlow": {"default": 0.01, "range": [0.001, 0.1]},
+        "gradthr": {"default": 0.01, "range": [0.01, 1.0]},
         "boltzmannthr": {  # boltzmann sum threshold
             "default": 85.0,
-            "range": [
-                1.0,
-                99.9
-            ]
+            "range": [1.0, 99.9],
         },
         "func": {
             "default": "r2scan-3c",
-            "options": DfaHelper.find_func("optimization")
+            "options": DfaHelper.find_func("optimization"),
         },
-        "basis": {
-            "default": "def2-TZVP",
-            "options": BASIS_SETS
-        },
-        "prog": {
-            "default": "orca",
-            "options": PROGS
-        },
-        "sm": {
-            "default": "smd",
-            "options": __solv_mods
-        },
-        "gfnv": {
-            "default": "gfn2",
-            "options": GFNOPTIONS
-        },
+        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "prog": {"default": "orca", "options": PROGS},
+        "sm": {"default": "smd", "options": __solv_mods},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "optlevel": {
             "default": "normal",
             "options": [
@@ -107,27 +64,14 @@ class Optimization(CensoPart):
                 "tight",
                 "vtight",
                 "extreme",
-            ]
+            ],
         },
-        "grid": {
-            "default": "high",
-            "options": GRIDOPTIONS
-        },
-        "run": {
-            "default": True
-        },
-        "gcp": {
-            "default": True
-        },
-        "macrocycles": {
-            "default": True
-        },
-        "crestcheck": {
-            "default": False
-        },
-        "template": {
-            "default": False
-        },
+        "grid": {"default": "high", "options": GRIDOPTIONS},
+        "run": {"default": True},
+        "gcp": {"default": True},
+        "macrocycles": {"default": True},
+        "crestcheck": {"default": False},
+        "template": {"default": False},
     }
 
     _settings = {}
@@ -181,7 +125,9 @@ class Optimization(CensoPart):
             do normal geometry optimization
             """
             if not len(self.core.conformers) > 1:
-                print(f"Only one conformer ({self.core.conformers[0].name}) is available for optimization.")
+                print(
+                    f"Only one conformer ({self.core.conformers[0].name}) is available for optimization."
+                )
 
             # disable spearman optimization
             print("Macrocycle optimization turned off.")
@@ -209,8 +155,7 @@ class Optimization(CensoPart):
 
         # calculate boltzmann weights from gtot values calculated here
         self.core.calc_boltzmannweights(
-            self._instructions.get("temperature", 298.15),
-            self._name
+            self._instructions.get("temperature", 298.15), self._name
         )
 
         # write final results
@@ -232,8 +177,10 @@ class Optimization(CensoPart):
         """
         # TODO - implement branch for standard geometry optimization (no ancopt)
         try:
-            return conf.results[self._name]["xtb_opt"]["energy"] + \
-                conf.results[self._name]["xtb_rrho"]["energy"]
+            return (
+                conf.results[self._name]["xtb_opt"]["energy"]
+                + conf.results[self._name]["xtb_rrho"]["energy"]
+            )
         except KeyError:
             return conf.results[self._name]["xtb_opt"]["energy"]
 
@@ -249,12 +196,11 @@ class Optimization(CensoPart):
 
         ncyc = 0
         rrho_done = False
-        print(f"Optimization using macrocycles, {self._instructions['optcycles']} microcycles per step.")
+        print(
+            f"Optimization using macrocycles, {self._instructions['optcycles']} microcycles per step."
+        )
         print(f"NCYC: {ncyc}")
-        while (
-                len(self.confs_nc) > 0
-                and ncyc < self._instructions["maxcyc"]
-        ):
+        while len(self.confs_nc) > 0 and ncyc < self._instructions["maxcyc"]:
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
@@ -266,13 +212,14 @@ class Optimization(CensoPart):
                 conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
                 # store results
-                conf.results.setdefault(self._name, {}).update(results_opt[conf.geom.id])
+                conf.results.setdefault(self._name, {}).update(
+                    results_opt[conf.geom.id]
+                )
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
             # TODO - make this better
             if ncyc + self._instructions["optcycles"] >= 6 and not rrho_done:
-
                 # evaluate rrho using bhess flag (reset after this)
                 # TODO - this smells a bit
                 tmp = self._instructions["bhess"]
@@ -303,40 +250,58 @@ class Optimization(CensoPart):
                 for conf in self.core.conformers:
                     # If conformers already converged before, use the constant final energy as trajectory
                     if conf not in self.confs_nc:
-                        trajectories.append([
-                            conf.results[self._name]["xtb_opt"]["energy"]
-                            for _ in range(self._instructions["optcycles"])
-                        ])
+                        trajectories.append(
+                            [
+                                conf.results[self._name]["xtb_opt"]["energy"]
+                                for _ in range(self._instructions["optcycles"])
+                            ]
+                        )
                     # If conformers converged in this macrocycle, use the trajectory from the results and pad it with
                     # the final energy
                     elif results_opt[conf.geom.id]["xtb_opt"]["converged"]:
-                        trajectories.append(results_opt[conf.geom.id]["xtb_opt"]["ecyc"] + [
-                            conf.results[self._name]["xtb_opt"]["energy"]
-                            for _ in range(
-                                self._instructions["optcycles"] - len(results_opt[conf.geom.id]["xtb_opt"]["ecyc"])
-                            )
-                        ])
+                        trajectories.append(
+                            results_opt[conf.geom.id]["xtb_opt"]["ecyc"]
+                            + [
+                                conf.results[self._name]["xtb_opt"]["energy"]
+                                for _ in range(
+                                    self._instructions["optcycles"]
+                                    - len(results_opt[conf.geom.id]["xtb_opt"]["ecyc"])
+                                )
+                            ]
+                        )
                     # If conformers did not converge, use the trajectory from the results
                     else:
                         trajectories.append(conf.results[self._name]["xtb_opt"]["ecyc"])
 
                 mu_sim = mean_similarity(trajectories)
-                threshold += (1.5 / AU2KCAL) * max(1 - exp(- AU2KCAL * mu_sim), 0.0)
-                logger.debug(f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol")
+                threshold += (1.5 / AU2KCAL) * max(1 - exp(-AU2KCAL * mu_sim), 0.0)
+                logger.debug(
+                    f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol"
+                )
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
             # remove converged conformers from 'todo-list'
-            for conf in list(filter(lambda x: x.results[self._name]["xtb_opt"]["converged"], self.confs_nc)):
-                print(f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps.")
+            for conf in list(
+                filter(
+                    lambda x: x.results[self._name]["xtb_opt"]["converged"],
+                    self.confs_nc,
+                )
+            ):
+                print(
+                    f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
+                )
                 self.confs_nc.remove(conf)
 
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
             # this macrocycle)
             self.core.update_conformers(
-                self.grrho, threshold,
-                additional_filter=lambda x:
-                all(gn < self._instructions["gradthr"] for gn in x.results[self._name]["xtb_opt"]["gncyc"])
+                self.grrho,
+                threshold,
+                additional_filter=lambda x: all(
+                    gn < self._instructions["gradthr"]
+                    for gn in x.results[self._name]["xtb_opt"]["gncyc"]
+                )
                 # x.results[self._name]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
             )
 
@@ -345,8 +310,10 @@ class Optimization(CensoPart):
             limit = min(self.grrho(conf) for conf in self.core.conformers)
             for conf in self.core.rem:
                 if conf in self.confs_nc:
-                    print(f"{conf.name} is no longer considered (gradient too small and"
-                          f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}).")
+                    print(
+                        f"{conf.name} is no longer considered (gradient too small and"
+                        f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                    )
                     self.confs_nc.remove(conf)
 
             # TODO - print out information about current state of the ensemble
@@ -383,10 +350,7 @@ class Optimization(CensoPart):
         ]
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(
-            self.grrho(conf)
-            for conf in self.core.conformers
-        )
+        gtotmin = min(self.grrho(conf) for conf in self.core.conformers)
 
         dftmin = min(
             conf.results[self._name]["xtb_opt"]["energy"]
@@ -397,8 +361,7 @@ class Optimization(CensoPart):
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
-            "GmRRHO": lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
             if self._instructions["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
@@ -406,13 +369,20 @@ class Optimization(CensoPart):
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
-        rows = [[printmap[header](conf) for header in headers] for conf in self.core.conformers]
+        rows = [
+            [printmap[header](conf) for header in headers]
+            for conf in self.core.conformers
+        ]
 
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
-        logger.debug(f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}.")
-        with open(os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None) as outfile:
+        logger.debug(
+            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+        )
+        with open(
+            os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None
+        ) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results of this part to a json file
@@ -425,5 +395,7 @@ class Optimization(CensoPart):
         # TODO
         limit = min(self.grrho(conf) for conf in self.core.conformers)
         for conf in self.confs_nc:
-            print(f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm:"
-                  f" {conf.results[self._name]['xtb_opt']['grad_norm']})")
+            print(
+                f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm:"
+                f" {conf.results[self._name]['xtb_opt']['grad_norm']})"
+            )

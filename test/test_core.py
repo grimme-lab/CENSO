@@ -19,7 +19,6 @@ def getconfcount(path: str) -> int:
 
 
 class CoreTest(unittest.TestCase):
-
     def test_read_input_args(self):
         core = CensoCore(test_dir, args=test_args)
         core.read_input(test_args.inp)

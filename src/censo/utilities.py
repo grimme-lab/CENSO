@@ -59,7 +59,7 @@ class DfaHelper:
         """
         return the dispersion correction of a certain functional
         """
-        return cls.__dfa_dict["functionals"][func]['disp']
+        return cls.__dfa_dict["functionals"][func]["disp"]
 
     @classmethod
     def get_type(cls, func: str):
@@ -93,7 +93,9 @@ def print(*args, **kwargs):
     print_orig(*args, sep=sep, end=end, file=file, flush=flush)
 
 
-def format_data(headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0) -> list[str]:
+def format_data(
+    headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0
+) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
 
@@ -109,21 +111,28 @@ def format_data(headers: list[str], rows: list[list[any]], units: list[str] = No
     """
     lines = []
 
-    # determine column width 'collen' of column with header 'header' 
+    # determine column width 'collen' of column with header 'header'
     # by finding the length of the maximum width entry
     # for each column (header)
     collens = {
-        header: collen for header, collen in zip(
+        header: collen
+        for header, collen in zip(
             headers,
-            (max(len(header), max(len(row) for row in rows)) for header in headers)
+            (max(len(header), max(len(row) for row in rows)) for header in headers),
         )
     }
 
     # add table header
-    lines.append(" ".join(f"{header:^{collen + 6}}" for header, collen in collens.items()))
+    lines.append(
+        " ".join(f"{header:^{collen + 6}}" for header, collen in collens.items())
+    )
     lines[0] += "\n"
     if units is not None:
-        lines.append(" ".join(f"{unit:^{collen + 6}}" for unit, collen in zip(units, collens.values())))
+        lines.append(
+            " ".join(
+                f"{unit:^{collen + 6}}" for unit, collen in zip(units, collens.values())
+            )
+        )
         lines[1] += "\n"
 
     # TODO - draw an arrow if conformer is the best in current ranking
@@ -131,7 +140,11 @@ def format_data(headers: list[str], rows: list[list[any]], units: list[str] = No
 
     # add a line for every row, sorted by the 'sortby'th column
     for row in sorted(rows, key=lambda x: x[sortby]):
-        lines.append(" ".join(f"{row:^{collen + 6}}" for row, collen in zip(row, collens.values())))
+        lines.append(
+            " ".join(
+                f"{row:^{collen + 6}}" for row, collen in zip(row, collens.values())
+            )
+        )
         lines[-1] += "\n"
 
     return lines
@@ -157,7 +170,9 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
     return result
 
 
-def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> tuple[list, int, str]:
+def t2x(
+    path: str, writexyz: bool = False, outfile: str = "original.xyz"
+) -> tuple[list, int, str]:
     """
     convert TURBOMOLE coord file to xyz data and/or write *.xyz output
 
@@ -179,22 +194,22 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> tup
     for line in coord:
         if "$end" in line:  # stop at $end ...
             break
-        xyzatom.append(functools.reduce(
-            lambda x, y: x + " " + y,
-            [
-                f"{float(line.split()[0]) * BOHR2ANG:.10f}",
-                f"{float(line.split()[1]) * BOHR2ANG:.10f}",
-                f"{float(line.split()[2]) * BOHR2ANG:.10f}",
-                f"{str(line.split()[3].lower()).capitalize()}",
-            ]
-        )
+        xyzatom.append(
+            functools.reduce(
+                lambda x, y: x + " " + y,
+                [
+                    f"{float(line.split()[0]) * BOHR2ANG:.10f}",
+                    f"{float(line.split()[1]) * BOHR2ANG:.10f}",
+                    f"{float(line.split()[2]) * BOHR2ANG:.10f}",
+                    f"{str(line.split()[3].lower()).capitalize()}",
+                ],
+            )
         )
 
     # get path from args without the filename of the ensemble (last element of path)
     if os.path.isfile(path):
         outpath = functools.reduce(
-            lambda x, y: os.path.join(x, y),
-            list(os.path.split(path))[::-1][1:][::-1]
+            lambda x, y: os.path.join(x, y), list(os.path.split(path))[::-1][1:][::-1]
         )
     # or just use the given path if it is not a file path
     else:
@@ -210,7 +225,7 @@ def t2x(path: str, writexyz: bool = False, outfile: str = "original.xyz") -> tup
 
 
 def check_for_float(line: str) -> float | None:
-    """ Go through line and check for float, return first float"""
+    """Go through line and check for float, return first float"""
     elements = line.strip().split()
     value = None
     for element in elements:
@@ -260,7 +275,9 @@ def timeit(f) -> Callable:
     return wrapper
 
 
-def od_insert(od: OrderedDict[str, any], key: str, value: any, index: int) -> OrderedDict[str, any]:
+def od_insert(
+    od: OrderedDict[str, any], key: str, value: any, index: int
+) -> OrderedDict[str, any]:
     """
     Insert a new key/value pair into an OrderedDict at a specific position.
 
@@ -304,8 +321,10 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     stream_handler.setLevel(logging.INFO)
 
     # Define the log message format
-    formatter = logging.Formatter('{asctime:24s}-{name:^20s}-{levelname:^10s}- {message}', style="{")
-    stream_formatter = logging.Formatter('{levelname:^10s}- {message}', style="{")
+    formatter = logging.Formatter(
+        "{asctime:24s}-{name:^20s}-{levelname:^10s}- {message}", style="{"
+    )
+    stream_formatter = logging.Formatter("{levelname:^10s}- {message}", style="{")
     handler.setFormatter(formatter)
     stream_handler.setFormatter(stream_formatter)
 
@@ -348,7 +367,7 @@ def mean_similarity(trajectories: list[list[float]]) -> float:
     # Calculate the MAD of each trajectory to every other trajectory
     similarities = []
     for i, trajectory1 in enumerate(trajectories):
-        for _, trajectory2 in enumerate(trajectories[i+1:]):
+        for _, trajectory2 in enumerate(trajectories[i + 1 :]):
             similarities.append(mad(trajectory1, trajectory2))
 
     # Return the mean similarity

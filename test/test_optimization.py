@@ -10,7 +10,6 @@ from censo.ensembleopt.optimization import Optimization
 
 
 class TestOptimization(unittest.TestCase):
-
     @patch("censo.ensembleopt.optimization.execute")
     def test_run(self, mock_execute):
         core = CensoCore(os.getcwd())
@@ -20,16 +19,23 @@ class TestOptimization(unittest.TestCase):
         optimization = Optimization(core)
 
         # Mock execution
-        mock_results = {id(conf): {"xtb_opt": {}, "xtb_rrho": {}} for conf in core.conformers}
+        mock_results = {
+            id(conf): {"xtb_opt": {}, "xtb_rrho": {}} for conf in core.conformers
+        }
         for conf in core.conformers:
-            mock_results[id(conf)]["xtb_opt"]["energy"] = -1396.397775 + random.normalvariate(0, 0.001)
+            mock_results[id(conf)]["xtb_opt"][
+                "energy"
+            ] = -1396.397775 + random.normalvariate(0, 0.001)
             mock_results[id(conf)]["xtb_opt"]["converged"] = True
             mock_results[id(conf)]["xtb_opt"]["cycles"] = 7
             mock_results[id(conf)]["xtb_opt"]["geom"] = conf.geom.xyz
-            mock_results[id(conf)]["xtb_opt"]["grad_norm"] = 0.0001 + random.normalvariate(0, 0.0003)
+            mock_results[id(conf)]["xtb_opt"][
+                "grad_norm"
+            ] = 0.0001 + random.normalvariate(0, 0.0003)
             mock_results[id(conf)]["xtb_rrho"]["energy"] = 0.001
             mock_results[id(conf)]["xtb_rrho"].setdefault("gibbs", {}).setdefault(
-                optimization._instructions["temperature"], 0.001)
+                optimization._instructions["temperature"], 0.001
+            )
 
         mock_execute.return_value = mock_results
 
@@ -53,5 +59,5 @@ class TestOptimization(unittest.TestCase):
                     os.remove(f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -2,10 +2,7 @@ import os
 import shutil
 import configparser
 
-from .params import (
-    CENSORCNAME,
-    load_dbs, ASSETS_PATH, USER_ASSETS_PATH
-)
+from .params import CENSORCNAME, load_dbs, ASSETS_PATH, USER_ASSETS_PATH
 from .qm_processor import QmProc
 from .utilities import DfaHelper
 
@@ -40,6 +37,7 @@ def configure(rcpath: str = None, create_new: bool = False):
     # otherwise there will be errors in the CensoPart._options
     from .part import CensoPart
     from .ensembleopt import Prescreening, Screening, Optimization
+
     global parts
     parts = {
         "prescreening": Prescreening,
@@ -100,7 +98,7 @@ def write_rcfile(path: str) -> None:
     if os.path.isfile(path):
         print(
             f"An existing configuration file has been found at {path}.\n",
-            f"Renaming existing file to {CENSORCNAME}_OLD.\n"
+            f"Renaming existing file to {CENSORCNAME}_OLD.\n",
         )
         # Read program paths from the existing configuration file
         print("Reading program paths from existing configuration file ...")
@@ -115,12 +113,17 @@ def write_rcfile(path: str) -> None:
         # collect all default settings from parts and feed them into the parser
         global parts
         from .part import CensoPart
+
         parts["general"] = CensoPart
-        parser.read_dict({
-            partname: {
-                settingname: setting["default"] for settingname, setting in part.get_options().items()
-            } for partname, part in parts.items()
-        })
+        parser.read_dict(
+            {
+                partname: {
+                    settingname: setting["default"]
+                    for settingname, setting in part.get_options().items()
+                }
+                for partname, part in parts.items()
+            }
+        )
 
         # Try to get paths from 'which'
         if external_paths is None:
@@ -191,7 +194,9 @@ def find_program_paths() -> dict[str, str]:
     # if orca was found try to determine orca version from the path (kinda hacky)
     if paths["orcapath"] != "":
         try:
-            paths["orcaversion"] = paths["orcapath"].split(os.sep)[-2][5:10].replace("_", ".")
+            paths["orcaversion"] = (
+                paths["orcapath"].split(os.sep)[-2][5:10].replace("_", ".")
+            )
         except Exception:
             paths["orcaversion"] = ""
 
@@ -212,186 +217,186 @@ def find_rcfile() -> str | None:
 
 
 # __settings_options = {
-    # "refinement": {
-    #     "threshold": {
-    #         "default": 90.0,
-    #         "range": [
-    #             0.1,
-    #             99.9
-    #         ]
-    #     },
-    #     "prog": {
-    #         "default": "orca",
-    #         "options": PROGS
-    #     },
-    #     "func": {
-    #         "default": "wb97x-v",
-    #         "options": dfa_settings.find_func("refinement")
-    #     },
-    #     "basis": {
-    #         "default": "def2-TZVPP",
-    #         "options": basis_sets
-    #     },
-    #     "smgsolv": {
-    #         "default": "smd",
-    #         "options": gsolv_mods
-    #     },
-    #     "gfnv": {
-    #         "default": "gfn2",
-    #         "options": GFNOPTIONS
-    #     },
-    #     "grid": {
-    #         "default": "high+",
-    #         "options": GRIDOPTIONS
-    #     },
-    #     "run": {
-    #         "default": False
-    #     },
-    #     "gcp": {
-    #         "default": True
-    #     }
-    # },
-    # "nmr": {
-    #     "resonance_frequency": {
-    #         "default": 300.0,
-    #         "range": [
-    #             150.0,
-    #             1000.0
-    #         ]
-    #     },
-    #     "prog4_j": {
-    #         "default": "tm",
-    #         "options": PROGS
-    #     },
-    #     "func_j": {
-    #         "default": "pbe0-d4",
-    #         "options": []
-    #     },
-    #     "basis_j": {
-    #         "default": "def2-TZVP",
-    #         "options": basis_sets
-    #     },
-    #     "sm4_j": {
-    #         "default": "smd",
-    #         "options": solv_mods
-    #     },
-    #     "prog4_s": {
-    #         "default": "tm",
-    #         "options": PROGS
-    #     },
-    #     "func_s": {
-    #         "default": "pbe0-d4",
-    #         "options": []
-    #     },
-    #     "basis_s": {
-    #         "default": "def2-TZVP",
-    #         "options": basis_sets
-    #     },
-    #     "sm4_s": {
-    #         "default": "smd",
-    #         "options": solv_mods
-    #     },
-    #     "h_ref": {
-    #         "default": "TMS",
-    #         "options": [
-    #             "TMS"
-    #         ]
-    #     },
-    #     "c_ref": {
-    #         "default": "TMS",
-    #         "options": [
-    #             "TMS"
-    #         ]
-    #     },
-    #     "f_ref": {
-    #         "default": "CFCl3",
-    #         "options": [
-    #             "CFCl3"
-    #         ]
-    #     },
-    #     "si_ref": {
-    #         "default": "TMS",
-    #         "options": [
-    #             "TMS"
-    #         ]
-    #     },
-    #     "p_ref": {
-    #         "default": "TMP",
-    #         "options": [
-    #             "TMP",
-    #             "PH3"
-    #         ]
-    #     },
-    #     "run": {
-    #         "default": False
-    #     },
-    #     "couplings": {
-    #         "default": True
-    #     },
-    #     "shieldings": {
-    #         "default": True
-    #     },
-    #     "h_active": {
-    #         "default": True
-    #     },
-    #     "c_active": {
-    #         "default": True
-    #     },
-    #     "f_active": {
-    #         "default": False
-    #     },
-    #     "si_active": {
-    #         "default": False
-    #     },
-    #     "p_active": {
-    #         "default": False
-    #     }
-    # },
-    # "optrot": {
-    #     "func": {
-    #         "default": "pbe-d4",
-    #         "options": dfa_settings.find_func("optrot")
-    #     },
-    #     "func_or_scf": {
-    #         "default": "r2scan-3c",
-    #         "options": []
-    #     },
-    #     "basis": {
-    #         "default": "def2-SVPD",
-    #         "options": basis_sets
-    #     },
-    #     "prog": {
-    #         "default": "orca",
-    #         "options": [
-    #             "orca"
-    #         ]
-    #     },
-    #     "run": {
-    #         "default": False
-    #     },
-    #     "freq_or": {
-    #         "default": [
-    #             598.0
-    #         ]
-    #     }
-    # },
-    # "uvvis": {
-    #     "nroots": {
-    #         "default": 20,
-    #         "range": [
-    #             1,
-    #             100
-    #         ]
-    #     },
-    #     "sigma": {
-    #         "default": 0.1,
-    #         "range": [
-    #             0.1,
-    #             1.0
-    #         ]
-    #     },
-    #     "run": {
-    #         "default": False
-    #     }
-    # },
+# "refinement": {
+#     "threshold": {
+#         "default": 90.0,
+#         "range": [
+#             0.1,
+#             99.9
+#         ]
+#     },
+#     "prog": {
+#         "default": "orca",
+#         "options": PROGS
+#     },
+#     "func": {
+#         "default": "wb97x-v",
+#         "options": dfa_settings.find_func("refinement")
+#     },
+#     "basis": {
+#         "default": "def2-TZVPP",
+#         "options": basis_sets
+#     },
+#     "smgsolv": {
+#         "default": "smd",
+#         "options": gsolv_mods
+#     },
+#     "gfnv": {
+#         "default": "gfn2",
+#         "options": GFNOPTIONS
+#     },
+#     "grid": {
+#         "default": "high+",
+#         "options": GRIDOPTIONS
+#     },
+#     "run": {
+#         "default": False
+#     },
+#     "gcp": {
+#         "default": True
+#     }
+# },
+# "nmr": {
+#     "resonance_frequency": {
+#         "default": 300.0,
+#         "range": [
+#             150.0,
+#             1000.0
+#         ]
+#     },
+#     "prog4_j": {
+#         "default": "tm",
+#         "options": PROGS
+#     },
+#     "func_j": {
+#         "default": "pbe0-d4",
+#         "options": []
+#     },
+#     "basis_j": {
+#         "default": "def2-TZVP",
+#         "options": basis_sets
+#     },
+#     "sm4_j": {
+#         "default": "smd",
+#         "options": solv_mods
+#     },
+#     "prog4_s": {
+#         "default": "tm",
+#         "options": PROGS
+#     },
+#     "func_s": {
+#         "default": "pbe0-d4",
+#         "options": []
+#     },
+#     "basis_s": {
+#         "default": "def2-TZVP",
+#         "options": basis_sets
+#     },
+#     "sm4_s": {
+#         "default": "smd",
+#         "options": solv_mods
+#     },
+#     "h_ref": {
+#         "default": "TMS",
+#         "options": [
+#             "TMS"
+#         ]
+#     },
+#     "c_ref": {
+#         "default": "TMS",
+#         "options": [
+#             "TMS"
+#         ]
+#     },
+#     "f_ref": {
+#         "default": "CFCl3",
+#         "options": [
+#             "CFCl3"
+#         ]
+#     },
+#     "si_ref": {
+#         "default": "TMS",
+#         "options": [
+#             "TMS"
+#         ]
+#     },
+#     "p_ref": {
+#         "default": "TMP",
+#         "options": [
+#             "TMP",
+#             "PH3"
+#         ]
+#     },
+#     "run": {
+#         "default": False
+#     },
+#     "couplings": {
+#         "default": True
+#     },
+#     "shieldings": {
+#         "default": True
+#     },
+#     "h_active": {
+#         "default": True
+#     },
+#     "c_active": {
+#         "default": True
+#     },
+#     "f_active": {
+#         "default": False
+#     },
+#     "si_active": {
+#         "default": False
+#     },
+#     "p_active": {
+#         "default": False
+#     }
+# },
+# "optrot": {
+#     "func": {
+#         "default": "pbe-d4",
+#         "options": dfa_settings.find_func("optrot")
+#     },
+#     "func_or_scf": {
+#         "default": "r2scan-3c",
+#         "options": []
+#     },
+#     "basis": {
+#         "default": "def2-SVPD",
+#         "options": basis_sets
+#     },
+#     "prog": {
+#         "default": "orca",
+#         "options": [
+#             "orca"
+#         ]
+#     },
+#     "run": {
+#         "default": False
+#     },
+#     "freq_or": {
+#         "default": [
+#             598.0
+#         ]
+#     }
+# },
+# "uvvis": {
+#     "nroots": {
+#         "default": 20,
+#         "range": [
+#             1,
+#             100
+#         ]
+#     },
+#     "sigma": {
+#         "default": 0.1,
+#         "range": [
+#             0.1,
+#             1.0
+#         ]
+#     },
+#     "run": {
+#         "default": False
+#     }
+# },
 # }

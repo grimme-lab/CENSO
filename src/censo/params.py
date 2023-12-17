@@ -150,7 +150,7 @@ def NMRRef_to_dict(self):
 
 
 def dict_to_NMRRef(self, dictionary):
-    """Convert dict object to NMRRef data """
+    """Convert dict object to NMRRef data"""
     NmrRef_object = NmrRef()
     NmrRef_object.h_tm_shieldings = dictionary.get(
         "h_tm_shieldings", NmrRef_object.h_tm_shieldings

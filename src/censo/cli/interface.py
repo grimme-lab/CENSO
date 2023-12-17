@@ -34,8 +34,7 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     run = filter(
-        lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization]
+        lambda x: x.get_settings()["run"], [Prescreening, Screening, Optimization]
     )
 
     for part in run:
@@ -83,8 +82,8 @@ def startup(args) -> CensoCore | None:
 
 def cleanup_run(cwd, complete=False):
     """
-        Delete all unneeded files.
-        """
+    Delete all unneeded files.
+    """
 
     # files containing these patterns are deleted
     to_delete = [
@@ -108,8 +107,10 @@ def cleanup_run(cwd, complete=False):
     else:
         print("Cleaning up the directory from unneeded files!")
 
-    print(f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
-          f"will be deleted:")
+    print(
+        f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
+        f"will be deleted:"
+    )
     for sub in to_delete:
         print(sub)
 

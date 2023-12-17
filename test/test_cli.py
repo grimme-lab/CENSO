@@ -38,11 +38,7 @@ class CensoTest(unittest.TestCase):
 
     def doCleanups(self):
         # perform cleanup
-        delete = [
-            "censo.log",
-            "censo2rc_NEW_OLD",
-            "censo2rc_NEW"
-        ]
+        delete = ["censo.log", "censo2rc_NEW_OLD", "censo2rc_NEW"]
         for f in delete:
             f = os.path.join(os.getcwd(), f)
             if os.path.exists(f):
@@ -52,5 +48,5 @@ class CensoTest(unittest.TestCase):
                     os.remove(f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

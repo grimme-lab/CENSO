@@ -71,7 +71,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="cleanup_all",
         action="store_true",
         help="Delete all unneeded files from current working directory. "
-             "Stronger than -cleanup !",
+        "Stronger than -cleanup !",
     )
     groups[0].add_argument(
         "-newconfig",
@@ -80,14 +80,14 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="writeconfig",
         action="store_true",
         help="Write new configuration file, which is placed into the current "
-             "directory.",
+        "directory.",
     )
     groups[0].add_argument(
         "-inprc",
         "--inprc",
         dest="inprcpath",
         help="Use to provide a path to the CENSO configuration file if you want to use a different one"
-             " than the default (~/.censo2rc).",
+        " than the default (~/.censo2rc).",
     )
 
     ### GENERAL SETTINGS
@@ -107,7 +107,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         metavar=("start", "end", "step"),
         type=float,
         help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
-             "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
+        "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
     )
     groups[1].add_argument(
         "-bhess",
@@ -116,7 +116,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         action="store_const",
         const=True,
         help="Uses SPH and applies structure constraint to input/DFT geometry "
-             "for mRRHO calcuation. "
+        "for mRRHO calcuation. ",
     )
     groups[1].add_argument(
         "-consider_sym",
@@ -124,7 +124,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="consider_sym",
         action="store_const",
         const=True,
-        help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold). "
+        help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold). ",
     )
     groups[1].add_argument(
         "-rmsdbias",
@@ -132,7 +132,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="rmsdbias",
         action="store_const",
         const=True,
-        help="Applies constraint to rmsdpot.xyz to be consistent to CREST. "
+        help="Applies constraint to rmsdpot.xyz to be consistent to CREST. ",
     )
     groups[1].add_argument(
         "-sm_rrho",
@@ -140,7 +140,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="sm_rrho",
         type=str,
         help="Solvation model used in xTB GmRRHO calculation. Applied if not in "
-             "gas-phase. Options are 'gbsa' or 'alpb'.",
+        "gas-phase. Options are 'gbsa' or 'alpb'.",
     )
     groups[1].add_argument(
         "-evaluate_rrho",
@@ -155,7 +155,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--solvent",
         dest="solvent",
         type=str,
-        help="Solvent to be used for Gsolv calculation."
+        help="Solvent to be used for Gsolv calculation.",
     )
     groups[1].add_argument(
         "-cosmorsparam",
@@ -163,8 +163,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="cosmorsparam",
         type=str,
         help="Choose a COSMO-RS parametrization for possible COSMO-RS G_solv "
-             "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
-             " 'BP_TZVPD_FINE_C30_1601.ctd'.",
+        "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
+        " 'BP_TZVPD_FINE_C30_1601.ctd'.",
     )
     groups[1].add_argument(
         "-O",
@@ -172,7 +172,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="omp",
         type=int,
         help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
-             "if load balancing is disabled."
+        "if load balancing is disabled.",
     )
     groups[1].add_argument(
         "-cores",
@@ -180,7 +180,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="maxcores",
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
-             "the maximum number available."
+        "the maximum number available.",
     )
     groups[1].add_argument(
         "-imagthr",
@@ -188,7 +188,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="imagthr",
         type=float,
         help="threshold for inverting imaginary frequencies for thermo in cm-1,"
-             " e.g. -30.0.",
+        " e.g. -30.0.",
     )
     groups[1].add_argument(
         "-sthr",
