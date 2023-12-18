@@ -168,7 +168,10 @@ class Screening(Prescreening):
 
         # variables for printmap
         # minimal xtb single-point energy (taken from prescreening)
-        if all("prescreening" in conf.results.keys() for conf in self.core.conformers):
+        if (
+            all("prescreening" in conf.results.keys() for conf in self.core.conformers)
+            and not self._instructions["gas-phase"]
+        ):
             xtb_energies = {
                 id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
                 for conf in self.core.conformers

@@ -7,6 +7,7 @@ from .cml_parser import parse
 from ..configuration import configure
 from ..core import CensoCore
 from ..ensembleopt import Prescreening, Screening, Optimization
+from ..properties import EnsembleNMR
 from ..params import DESCR, __version__
 from ..utilities import print, setup_logger
 
@@ -17,9 +18,6 @@ def entry_point(argv: list[str] | None = None) -> int:
     """
     Console entry point to execute CENSO from the command line.
     """
-    # put every step for startup into a method for convenience
-    # makes testing easier and may also be called for customized workflows
-    # standard censo setup
     try:
         args = parse(DESCR, argv)
     except SystemExit:
@@ -34,7 +32,8 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     run = filter(
-        lambda x: x.get_settings()["run"], [Prescreening, Screening, Optimization]
+        lambda x: x.get_settings()["run"],
+        [Prescreening, Screening, Optimization, EnsembleNMR],
     )
 
     for part in run:
@@ -67,6 +66,8 @@ def startup(args) -> CensoCore | None:
         return None
     elif args.inprcpath is not None:
         configure(args.inprcpath)
+
+    # TODO - Parse cml arguments for settings
 
     # initialize core, constructor get runinfo from args
     core = CensoCore(cwd, args=args)

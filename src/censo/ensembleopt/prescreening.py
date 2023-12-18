@@ -108,15 +108,18 @@ class Prescreening(CensoPart):
         """
 
         # Gtot = E (DFT) + Gsolv (xtb) or Gsolv (DFT)
-        if "gsolv" not in conf.results[self._name].keys():
-            gtot: float = conf.results[self._name]["sp"]["energy"]
-            if "xtb_gsolv" in conf.results[self._name].keys():
-                gtot += conf.results[self._name]["xtb_gsolv"]["gsolv"]
-        else:
-            gtot: float = (
+        if "gsolv" in conf.results[self._name].keys():
+            gtot = (
                 conf.results[self._name]["gsolv"]["energy_gas"]
                 + conf.results[self._name]["gsolv"]["gsolv"]
             )
+        elif not self._instructions["gas-phase"]:
+            gtot = (
+                conf.results[self._name]["sp"]["energy"]
+                + conf.results[self._name]["xtb_gsolv"]["gsolv"]
+            )
+        else:
+            gtot = conf.results[self._name]["sp"]["energy"]
 
         return gtot
 

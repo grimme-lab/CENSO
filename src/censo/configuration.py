@@ -37,12 +37,14 @@ def configure(rcpath: str = None, create_new: bool = False):
     # otherwise there will be errors in the CensoPart._options
     from .part import CensoPart
     from .ensembleopt import Prescreening, Screening, Optimization
+    from .properties import EnsembleNMR
 
     global parts
     parts = {
         "prescreening": Prescreening,
         "screening": Screening,
         "optimization": Optimization,
+        "nmr": EnsembleNMR,
     }
 
     # If no configuration file is found, create a new one and configure parts with default settings

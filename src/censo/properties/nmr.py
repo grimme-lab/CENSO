@@ -4,18 +4,15 @@ Calculates the ensemble NMR spectrum for all active nuclei.
 from functools import reduce
 
 from ..core import CensoCore
-from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
-    GFNOPTIONS,
-    AU2KCAL,
 )
 from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, format_data, setup_logger
+from ..utilities import print, timeit, DfaHelper, setup_logger
 
 logger = setup_logger(__name__)
 

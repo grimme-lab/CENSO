@@ -158,6 +158,13 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         help="Solvent to be used for Gsolv calculation.",
     )
     groups[1].add_argument(
+        "-gp",
+        "--gas-phase",
+        dest="gas-phase",
+        action="store_true",
+        help="Run calculation in gas-phase, overriding all solvation settings.",
+    )
+    groups[1].add_argument(
         "-cosmorsparam",
         "--cosmorsparam",
         dest="cosmorsparam",
