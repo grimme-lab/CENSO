@@ -77,7 +77,17 @@ class EnsembleNMR(CensoPart):
                 )
             )
 
-        # TODO - Select conformers based on Boltzmann weight threshold
+        # Select conformers based on Boltzmann weight threshold, index -1 indicates to always use the most recently
+        # calculated Boltzmann weight
+        self.core.update_conformers(
+            lambda conf: conf.bmws[-1],
+            self._instructions["threshold_bmw"],
+            boltzmann=True,
+        )
+
+        # Store the utilized Boltzmann population in order to have it in the resulting json file
+        for conf in self.core.conformers:
+            conf.results[self._name]["bmw"] = conf.bmws[-1]
 
         # Execute jobs in parallel
         results = execute(self.core.conformers, self._instructions, self.dir)
@@ -85,9 +95,7 @@ class EnsembleNMR(CensoPart):
         # Put results into conformers
         for conf in self.core.conformers:
             # store results
-            conf.results.setdefault(self._name, {}).update(
-                results[conf.geom.id]
-            )
+            conf.results.setdefault(self._name, {}).update(results[conf.geom.id])
 
         # TODO - Calculate Boltzmann-weighted NMR parameters
 

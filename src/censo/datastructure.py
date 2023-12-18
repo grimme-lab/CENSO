@@ -127,6 +127,10 @@ class MoleculeData:
         # list to store the paths to all MO-files from the jobs run for this conformer
         self.mo_paths: list[str] = []
 
+        # store all Boltzmann weights in order of calculation
+        # TODO - this might not be the nicest way of doing this
+        self.bmws: list[float] = []
+
         # stores the results of the calculations
         self.results = {}
         # should be structured like the following:

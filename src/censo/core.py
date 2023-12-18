@@ -155,6 +155,7 @@ class CensoCore:
         target: Callable[[MoleculeData], float],
         threshold: float,
         additional_filter: Callable[[MoleculeData], bool] = None,
+        boltzmann: bool = False,
     ) -> list[str]:
         """
         Update the conformers based on a target function, a threshold, and an additional filter.
@@ -172,19 +173,34 @@ class CensoCore:
         Returns:
             None
         """
-        # pick the free enthalpy of the lowest conformer
-        limit = min([target(conf) for conf in self.conformers])
+        if not boltzmann:
+            # pick the free enthalpy of the lowest conformer
+            limit = min([target(conf) for conf in self.conformers])
 
-        # filter out all conformers above threshold
-        # so that 'filtered' contains all conformers that should not be considered any further
-        filtered = [
-            conf
-            for conf in filter(
-                (additional_filter or True)
-                and (lambda x: target(x) - limit > threshold),
-                self.conformers,
-            )
-        ]
+            # filter out all conformers above threshold
+            # so that 'filtered' contains all conformers that should not be considered any further
+            filtered = [
+                conf
+                for conf in filter(
+                    (additional_filter or True)
+                    and (lambda x: target(x) - limit > threshold),
+                    self.conformers,
+                )
+            ]
+        elif boltzmann and 0.0 <= threshold <= 1.0:
+            # Sort and iterate through the conformers by target (should be the Boltzmann population) in reverse order
+            # Therefore, the conformer with the highest population is first
+            s = 0.0
+            filtered = []
+            for conf in sorted(self.conformers, key=target, reverse=True):
+                if s > threshold:
+                    # The conformer is above the population threshold and should be removed
+                    filtered.append(conf)
+                else:
+                    # The population of the conformer is appended
+                    s += target(conf)
+        else:
+            raise RuntimeError("Invalid filter settings for updating conformer list.")
 
         # move the sorted out conformers to rem list
         for conf in filtered:
@@ -192,9 +208,7 @@ class CensoCore:
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
             # Log removed conformers
-            logger.debug(
-                f"Removed {conf.name} with ΔG = {(target(conf) - limit) * AU2KCAL:.2f} kcal/mol."
-            )
+            logger.debug(f"Removed {conf.name}.")
 
         return [conf.name for conf in filtered]
 
@@ -255,5 +269,7 @@ class CensoCore:
         # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())
 
+        # Store Boltzmann populations in results and also in a special list for convenience
         for conf in self.conformers:
             conf.results[part]["bmw"] = bmfactors[id(conf)] / bsum
+            conf.bmws.append(bmfactors[id(conf)] / bsum)

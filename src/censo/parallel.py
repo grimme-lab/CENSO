@@ -21,6 +21,12 @@ ncores = os.cpu_count()
 def execute(
     conformers: list[MoleculeData], instructions: dict[str, any], workdir: str
 ) -> dict[int, any]:
+    # Check first if there are any conformers at all
+    try:
+        assert len(conformers) > 0
+    except AssertionError as e:
+        raise e("No jobs to compute!")
+
     # try to get program from instructions
     prog = instructions.get("prog", None)
 
