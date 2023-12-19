@@ -40,6 +40,17 @@ class CensoTest(unittest.TestCase):
         argv = "-inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -inprc censo2rc_NEW"
         startup(parse(DESCR, argv.split()))
 
+    def test_rc_override(self):
+        argv = "-newconfig".split()
+        entry_point(argv)
+
+        argv = "-inprc censo2rc_NEW -inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -gp".split()
+        args = parse(DESCR, argv)
+        startup(args)
+        from censo.part import CensoPart
+        self.assertTrue(CensoPart.get_general_settings()["gas-phase"])
+
+
     def doCleanups(self):
         # perform cleanup
         delete = ["censo.log", "censo2rc_NEW_OLD", "censo2rc_NEW"]
