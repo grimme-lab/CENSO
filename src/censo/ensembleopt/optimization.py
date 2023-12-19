@@ -41,10 +41,6 @@ class Optimization(CensoPart):
         "threshold": {"default": 1.5, "range": [0.5, 5]},
         "hlow": {"default": 0.01, "range": [0.001, 0.1]},
         "gradthr": {"default": 0.01, "range": [0.01, 1.0]},
-        "boltzmannthr": {  # boltzmann sum threshold
-            "default": 85.0,
-            "range": [1.0, 99.9],
-        },
         "func": {
             "default": "r2scan-3c",
             "options": DfaHelper.find_func("optimization"),
@@ -78,6 +74,15 @@ class Optimization(CensoPart):
 
     def __init__(self, core: CensoCore):
         super().__init__(core)
+        # set the correct name for 'func'
+        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
+        self._instructions["func_name"] = DfaHelper.get_name(
+            self._instructions["func"], self._instructions["prog"]
+        )
+        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
+
+        # Special 'todo-list' for optimization part, contains all unconverged conformers, 
+        # used in macrocycle optimization
         self.confs_nc: list[MoleculeData]
 
     @timeit

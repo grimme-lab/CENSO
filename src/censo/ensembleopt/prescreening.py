@@ -42,6 +42,14 @@ class Prescreening(CensoPart):
     def __init__(self, core: CensoCore):
         super().__init__(core)
 
+        # set the correct name for 'func'
+        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
+        self._instructions["func_name"] = DfaHelper.get_name(
+            self._instructions["func"], self._instructions["prog"]
+        )
+        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
+
+
     @timeit
     @CensoPart._create_dir
     def run(self) -> None:

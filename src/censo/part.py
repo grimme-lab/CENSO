@@ -11,9 +11,8 @@ from .params import (
     OMPMIN,
     OMPMAX,
     SOLVENTS_DB,
-    COSMORS_PARAM,
 )
-from .utilities import DfaHelper, setup_logger
+from .utilities import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -32,20 +31,12 @@ class CensoPart:
         "temperature": {"default": 298.15, "range": [1e-05, 2000.0]},
         "solvent": {"default": "h2o", "options": [k for k in SOLVENTS_DB.keys()]},
         "sm_rrho": {"default": "alpb", "options": ["alpb", "gbsa"]},
-        "cosmorsparam": {
-            "default": "12-normal",
-            "options": [k for k in COSMORS_PARAM.keys()],
-        },
         "multitemp": {"default": True},
         "evaluate_rrho": {"default": True},
         "consider_sym": {"default": True},
         "bhess": {"default": True},
         "rmsdbias": {"default": False},
-        "progress": {"default": False},
-        "check": {"default": False},
         "balance": {"default": True},
-        "vapor_pressure": {"default": False},
-        "nmrmode": {"default": False},
         "gas-phase": {"default": False},
         "copy_mo": {"default": True},
         "retry_failed": {"default": True},
@@ -214,18 +205,10 @@ class CensoPart:
             self._instructions["solvent_key_prog"] = SOLVENTS_DB.get(
                 self._instructions["solvent"]
             )[self._instructions["sm"]][1]
-            # TODO - doesn't work yet for parts where 'func' keyword doesn't exist or there are multiple functionals
-        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
 
         # add 'charge' and 'unpaired' to instructions
         self._instructions["charge"] = core.runinfo.get("charge")
         self._instructions["unpaired"] = core.runinfo.get("unpaired")
-
-        # set the correct name for 'func'
-        self._instructions["func_name"] = DfaHelper.get_name(
-            self._instructions["func"], self._instructions["prog"]
-        )
-        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
 
         # also pass the name of the part to the processors
         self._instructions["part_name"] = self._name

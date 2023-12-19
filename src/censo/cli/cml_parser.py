@@ -28,6 +28,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--input",
         dest="inp",
         type=str,
+        required=True,
         help="Relative path to ensemble file, e.g. crest_conformers.xyz ",
     )
     groups[0].add_argument(
@@ -42,6 +43,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--charge",
         dest="charge",
         type=int,
+        required=True,
         help="Integer charge of the investigated molecule.",
     )
     groups[0].add_argument(
@@ -49,6 +51,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--unpaired",
         dest="unpaired",
         type=int,
+        required=True,
         help="Integer number of unpaired electrons of the investigated molecule.",
     )
     groups[0].add_argument(
