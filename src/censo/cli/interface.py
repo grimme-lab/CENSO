@@ -2,11 +2,13 @@ import os
 import shutil
 import sys
 from os import getcwd
+from argparse import ArgumentError
 
 from .cml_parser import parse
-from ..configuration import configure
+from ..configuration import configure, override_rc
 from ..core import CensoCore
 from ..ensembleopt import Prescreening, Screening, Optimization
+from ..properties import EnsembleNMR
 from ..params import DESCR, __version__
 from ..utilities import print, setup_logger
 
@@ -17,11 +19,11 @@ def entry_point(argv: list[str] | None = None) -> int:
     """
     Console entry point to execute CENSO from the command line.
     """
-    # put every step for startup into a method for convenience
-    # makes testing easier and may also be called for customized workflows
-    # standard censo setup
     try:
         args = parse(DESCR, argv)
+    except ArgumentError as e:
+        print(e.message)
+        return 1
     except SystemExit:
         return 0
 
@@ -35,7 +37,7 @@ def entry_point(argv: list[str] | None = None) -> int:
 
     run = filter(
         lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization]
+        [Prescreening, Screening, Optimization, EnsembleNMR],
     )
 
     for part in run:
@@ -69,6 +71,9 @@ def startup(args) -> CensoCore | None:
     elif args.inprcpath is not None:
         configure(args.inprcpath)
 
+    # Override settings with command line arguments
+    override_rc(args)
+
     # initialize core, constructor get runinfo from args
     core = CensoCore(cwd, args=args)
 
@@ -83,8 +88,8 @@ def startup(args) -> CensoCore | None:
 
 def cleanup_run(cwd, complete=False):
     """
-        Delete all unneeded files.
-        """
+    Delete all unneeded files.
+    """
 
     # files containing these patterns are deleted
     to_delete = [
@@ -108,8 +113,10 @@ def cleanup_run(cwd, complete=False):
     else:
         print("Cleaning up the directory from unneeded files!")
 
-    print(f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
-          f"will be deleted:")
+    print(
+        f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
+        f"will be deleted:"
+    )
     for sub in to_delete:
         print(sub)
 

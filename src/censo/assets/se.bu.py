@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+
 def main():
     # TODO - add default settings for uv/vis
     defaults_refine_ensemble_general = [
@@ -55,7 +56,9 @@ def main():
         "opt_spearman": ["on", "off"],
         "evaluate_rrho": ["on", "off"],
         "consider_sym": ["on", "off"],
-        "prog_rrho": ["xtb",],
+        "prog_rrho": [
+            "xtb",
+        ],
         "part0_gfnv": "kok",
         "part1_gfnv": "kok",
         "part2_gfnv": "kok",
@@ -121,9 +124,7 @@ def main():
         "f_active": ["on", "off"],
         "p_active": ["on", "off"],
         "si_active": ["on", "off"],
-        "resonance_frequency": [
-            "MHz number of your experimental spectrometer setup"
-        ],
+        "resonance_frequency": ["MHz number of your experimental spectrometer setup"],
         "shieldings": ["on", "off"],
         "radsize": ["number e.g. 8 or 10"],
         "func_or": ["functional for opt_rot e.g. pbe"],

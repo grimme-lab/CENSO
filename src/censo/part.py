@@ -11,11 +11,8 @@ from .params import (
     OMPMIN,
     OMPMAX,
     SOLVENTS_DB,
-    COSMORS_PARAM,
 )
-from .utilities import (
-    DfaHelper, setup_logger
-)
+from .utilities import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -24,110 +21,26 @@ class CensoPart:
     """
     Part class as parent class for all parts of the calculation
     """
+
     _options = {
-        "maxcores": {
-            "default": 4,
-            "range": [
-                OMPMIN,
-                256
-            ]
-        },
-        "omp": {
-            "default": 4,
-            "range": [
-                OMPMIN,
-                OMPMAX
-            ]
-        },
-        "imagthr": {
-            "default": -100.0,
-            "range": [
-                -300.0,
-                0.0
-            ]
-        },
-        "sthr": {
-            "default": 0.0,
-            "range": [
-                0.0,
-                100.0
-            ]
-        },
-        "scale": {
-            "default": 1.0,
-            "range": [
-                0.0,
-                1.0
-            ]
-        },
-        "temperature": {
-            "default": 298.15,
-            "range": [
-                1e-05,
-                2000.0
-            ]
-        },
-        "solvent": {
-            "default": "h2o",
-            "options": [k for k in SOLVENTS_DB.keys()]
-        },
-        "sm_rrho": {
-            "default": "alpb",
-            "options": [
-                "alpb",
-                "gbsa"
-            ]
-        },
-        "cosmorsparam": {
-            "default": "12-normal",
-            "options": [k for k in COSMORS_PARAM.keys()]
-        },
-        "multitemp": {
-            "default": True
-        },
-        "evaluate_rrho": {
-            "default": True
-        },
-        "consider_sym": {
-            "default": True
-        },
-        "bhess": {
-            "default": True
-        },
-        "rmsdbias": {
-            "default": False
-        },
-        "progress": {
-            "default": False
-        },
-        "check": {
-            "default": False
-        },
-        "balance": {
-            "default": True
-        },
-        "vapor_pressure": {
-            "default": False
-        },
-        "nmrmode": {
-            "default": False
-        },
-        "gas-phase": {
-            "default": False
-        },
-        "copy_mo": {
-            "default": True
-        },
-        "retry_failed": {
-            "default": True
-        },
-        "trange": {
-            "default": [
-                273.15,
-                373.15,
-                5
-            ]
-        }
+        "maxcores": {"default": 4, "range": [OMPMIN, 256]},
+        "omp": {"default": 4, "range": [OMPMIN, OMPMAX]},
+        "imagthr": {"default": -100.0, "range": [-300.0, 0.0]},
+        "sthr": {"default": 0.0, "range": [0.0, 100.0]},
+        "scale": {"default": 1.0, "range": [0.0, 1.0]},
+        "temperature": {"default": 298.15, "range": [1e-05, 2000.0]},
+        "solvent": {"default": "h2o", "options": [k for k in SOLVENTS_DB.keys()]},
+        "sm_rrho": {"default": "alpb", "options": ["alpb", "gbsa"]},
+        "multitemp": {"default": True},
+        "evaluate_rrho": {"default": True},
+        "consider_sym": {"default": True},
+        "bhess": {"default": True},
+        "rmsdbias": {"default": False},
+        "balance": {"default": True},
+        "gas-phase": {"default": False},
+        "copy_mo": {"default": True},
+        "retry_failed": {"default": True},
+        "trange": {"default": [273.15, 373.15, 5]},
     }
 
     _settings = {}
@@ -153,6 +66,11 @@ class CensoPart:
         cls._settings = settings
 
     @classmethod
+    def set_setting(cls, setting_name: str, setting_value: any):
+        assert type(setting_value) is type(cls._settings[setting_name])
+        cls._settings[setting_name] = setting_value
+
+    @classmethod
     def get_options(cls):
         return cls._options
 
@@ -163,7 +81,7 @@ class CensoPart:
         """
         for setting, definition in cls._options.items():
             if setting not in tocomplete:
-                tocomplete[setting] = definition['default']
+                tocomplete[setting] = definition["default"]
 
         return tocomplete
 
@@ -189,7 +107,9 @@ class CensoPart:
             # try to cast the setting-string into the correct type
             try:
                 if setting_type == bool:
-                    setting_value = {"True": True, "False": False}.get(tovalidate[setting_name])
+                    setting_value = {"True": True, "False": False}.get(
+                        tovalidate[setting_name]
+                    )
                 elif setting_type == list:
                     setting_value = ast.literal_eval(tovalidate[setting_name])
                 else:
@@ -198,24 +118,27 @@ class CensoPart:
             # NOTE: KeyError is raised when the conversion for bools fails
             except (ValueError, KeyError):
                 raise ValueError(
-                    f"Value '{tovalidate[setting_name]}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'")
+                    f"Value '{tovalidate[setting_name]}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'"
+                )
 
             # now check if the setting is allowed
             # for strings check if string is within a list of allowed values
             if setting_type == str:
-                options = cls._options[setting_name]['options']
+                options = cls._options[setting_name]["options"]
                 if setting_value not in options and len(options) > 0:
                     # Only check if there are options
                     # This is fatal so an exception is raised
                     raise ValueError(
-                        f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'.")
+                        f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'."
+                    )
             # for numeric values check if value is within a range
             elif setting_type in (int, float):
-                interval = cls._options[setting_name]['range']
+                interval = cls._options[setting_name]["range"]
                 if not interval[0] <= setting_value <= interval[1]:
                     # This is fatal so an exception is raised
                     raise ValueError(
-                        f"Value '{setting_value}' is out of range ({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'.")
+                        f"Value '{setting_value}' is out of range ({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'."
+                    )
             # NOTE: there is no check for complex types yet (i.e. lists)
 
             # set the value in the dict tovalidate to the casted value
@@ -238,13 +161,16 @@ class CensoPart:
         Returns:
             Callable: The decorated function.
         """
+
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
             self.dir = os.path.join(self.core.workdir, self._name)
             if os.path.isdir(self.dir):
                 global logger
-                logger.warning(f"Folder {self.dir} already exists. Potentially overwriting files.")
+                logger.warning(
+                    f"Folder {self.dir} already exists. Potentially overwriting files."
+                )
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
                 raise RuntimeError(f"Could not create directory for {self._name}.")
 
@@ -270,24 +196,24 @@ class CensoPart:
 
         # dictionary with instructions that get passed to the processors
         # basically collapses the first level of nesting into a dict that is not divided into parts
-        self._instructions: dict[str, any] = {**self.get_settings(), **self.get_general_settings()}
+        self._instructions: dict[str, any] = {
+            **self.get_settings(),
+            **self.get_general_settings(),
+        }
 
         # add some additional settings to instructions so that the processors don't have to do any lookups
         # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-        self._instructions["solvent_key_xtb"] = SOLVENTS_DB.get(self._instructions["solvent"])["xtb"][1]
-        if 'sm' in self._instructions.keys():
-            self._instructions["solvent_key_prog"] = \
-                SOLVENTS_DB.get(self._instructions["solvent"])[self._instructions["sm"]][1]
-            # TODO - doesn't work yet for parts where 'func' keyword doesn't exist or there are multiple functionals
-        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
+        self._instructions["solvent_key_xtb"] = SOLVENTS_DB.get(
+            self._instructions["solvent"]
+        )["xtb"][1]
+        if "sm" in self._instructions.keys():
+            self._instructions["solvent_key_prog"] = SOLVENTS_DB.get(
+                self._instructions["solvent"]
+            )[self._instructions["sm"]][1]
 
         # add 'charge' and 'unpaired' to instructions
         self._instructions["charge"] = core.runinfo.get("charge")
         self._instructions["unpaired"] = core.runinfo.get("unpaired")
-
-        # set the correct name for 'func'
-        self._instructions["func_name"] = DfaHelper.get_name(self._instructions["func"], self._instructions["prog"])
-        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
 
         # also pass the name of the part to the processors
         self._instructions["part_name"] = self._name
@@ -307,9 +233,15 @@ class CensoPart:
         """
 
         # Print header with part name
-        lines = ["\n" + "".ljust(PLENGTH, "-") + "\n",
-                 f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(PLENGTH, " ") + "\n",
-                 "".ljust(PLENGTH, "-") + "\n", "\n"]
+        lines = [
+            "\n" + "".ljust(PLENGTH, "-") + "\n",
+            f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(
+                PLENGTH, " "
+            )
+            + "\n",
+            "".ljust(PLENGTH, "-") + "\n",
+            "\n",
+        ]
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
@@ -327,6 +259,7 @@ class CensoPart:
             None
         """
         results = {conf.name: conf.results[self._name] for conf in self.core.conformers}
-        with open(os.path.join(self.core.workdir, f"{self._name}.json"), "w") as outfile:
+        with open(
+            os.path.join(self.core.workdir, f"{self._name}.json"), "w"
+        ) as outfile:
             json.dump(results, outfile, indent=4)
-

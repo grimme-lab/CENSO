@@ -15,7 +15,9 @@ from .params import (
     ENVIRON,
     CODING,
     rot_sym_num,
-    PLENGTH, DIGILEN, WARNLEN,
+    PLENGTH,
+    DIGILEN,
+    WARNLEN,
 )
 from .utilities import print, frange, setup_logger
 
@@ -23,7 +25,9 @@ logger = setup_logger(__name__)
 
 
 def handle_sigterm(signum, frame, sub):
-    logger.critical(f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating.")
+    logger.critical(
+        f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating."
+    )
     sub.send_signal(signal.SIGTERM)
 
 
@@ -101,7 +105,8 @@ class QmProc:
         if not all(t in self._jobtypes.keys() for t in job.jobtype):
             raise RuntimeError(
                 f"At least one jobtype of {self._jobtypes} is not available for {self.__class__.__name__}.\nAvailable "
-                + f"jobtypes are: {self._jobtypes.keys()}")
+                + f"jobtypes are: {self._jobtypes.keys()}"
+            )
 
         # run all the computations
         for j in job.jobtype:
@@ -111,7 +116,9 @@ class QmProc:
             # Time execution
             start = perf_counter()
 
-            logger.info(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {j} calculation in {jobdir}.")
+            logger.info(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Running {j} calculation in {jobdir}."
+            )
             job.results[j] = self._jobtypes[j](job, jobdir)
 
             end = perf_counter()
@@ -120,13 +127,14 @@ class QmProc:
 
             # if a calculation failed all following calculations will not be executed
             if not job.meta[j]["success"]:
-                for j2 in job.jobtype[job.jobtype.index(j) + 1:]:
+                for j2 in job.jobtype[job.jobtype.index(j) + 1 :]:
                     job.meta[j2]["success"] = False
                     job.meta[j2]["error"] = "Previous calculation failed"
                 break
 
         job.meta["total_time"] = sum(
-            job.meta[j]["time"] for j in job.jobtype
+            job.meta[j]["time"]
+            for j in job.jobtype
             if job.meta[j]["error"] != "Previous calculation failed"
         )
 
@@ -162,10 +170,14 @@ class QmProc:
                 env=ENVIRON,
             )
 
-            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid}).")
+            logger.debug(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid})."
+            )
 
             # make sure to send SIGTERM to subprocess if program is quit
-            signal.signal(signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub))
+            signal.signal(
+                signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
+            )
 
             # wait for process to finish
             returncode = sub.wait()
@@ -184,8 +196,10 @@ class QmProc:
             # Create the directory
             os.makedirs(jobdir)
         except FileExistsError:
-            logger.warning(f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
-                           " Files will be overwritten.")
+            logger.warning(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
+                " Files will be overwritten."
+            )
 
         return jobdir
 
@@ -209,8 +223,13 @@ class QmProc:
                 break
         return symnum
 
-    def _xtb_sp(self, job: ParallelJob, jobdir: str, filename: str = "xtb_sp", no_solv: bool = False) -> \
-            dict[str, float | None]:
+    def _xtb_sp(
+        self,
+        job: ParallelJob,
+        jobdir: str,
+        filename: str = "xtb_sp",
+        no_solv: bool = False,
+    ) -> dict[str, float | None]:
         """
         Calculates the single-point energy with GFNn-xTB or GFN-FF.
 
@@ -277,9 +296,9 @@ class QmProc:
             f"{job.omp}",
         ]
 
-        # add solvent to xtb call if not a gas-phase sp 
+        # add solvent to xtb call if not a gas-phase sp
         # (set either through run settings or by call kwarg e.g. for _xtb_gsolv)
-        # NOTE on solvents_dict (or rather censo_solvents.json): 
+        # NOTE on solvents_dict (or rather censo_solvents.json):
         # [0] is the normal name of the solvent, if it is available, [1] is the replacement
         if not (self.instructions.get("gas-phase", False) or no_solv):
             call.extend(
@@ -288,14 +307,12 @@ class QmProc:
                     self.instructions["solvent_key_xtb"],
                     "reference",
                     "-I",
-                    xcontrolname
+                    xcontrolname,
                 ]
             )
 
             # set gbsa grid
-            with open(
-                    os.path.join(jobdir, xcontrolname), "w", newline=None
-            ) as xcout:
+            with open(os.path.join(jobdir, xcontrolname), "w", newline=None) as xcout:
                 xcout.write("$gbsa\n")
                 xcout.write("  gbsagrid=tight\n")
                 xcout.write("$end\n")
@@ -375,7 +392,7 @@ class QmProc:
             job.meta["xtb_gsolv"].update(meta)
             return result
 
-        # only reached if both gas-phase and solvated sp succeeded   
+        # only reached if both gas-phase and solvated sp succeeded
         result["gsolv"] = result["energy_xtb_solv"] - result["energy_xtb_gas"]
         meta["success"] = True
 
@@ -383,7 +400,9 @@ class QmProc:
         return result
 
     # TODO - break this down
-    def _xtb_rrho(self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho") -> dict[str, any]:
+    def _xtb_rrho(
+        self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho"
+    ) -> dict[str, any]:
         """
         Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
 
@@ -448,17 +467,18 @@ class QmProc:
         with open(xcontrolpath, "w", newline=None) as xcout:
             xcout.write("$thermo\n")
             if self.instructions.get("multitemp", False):
-                trange = frange(self.instructions['trange'][0], self.instructions['trange'][1],
-                                step=self.instructions['trange'][2])
+                trange = frange(
+                    self.instructions["trange"][0],
+                    self.instructions["trange"][1],
+                    step=self.instructions["trange"][2],
+                )
 
                 # Always append the fixed temperature to the trange so that it is the last value
                 # (important since --enso will make xtb give the G(T) value for this temperature)
                 trange.append(self.instructions["temperature"])
 
                 # Write trange to the xcontrol file
-                xcout.write(
-                    f"    temp="
-                    f"{','.join([str(i) for i in trange])}\n")
+                xcout.write(f"    temp=" f"{','.join([str(i) for i in trange])}\n")
             else:
                 xcout.write(f"    temp={self.instructions['temperature']}\n")
 
@@ -549,8 +569,11 @@ class QmProc:
 
         if self.instructions["multitemp"]:
             # get gibbs energy, enthalpy and entropy for given temperature range
-            trange = frange(self.instructions["trange"][0], self.instructions["trange"][1],
-                            step=self.instructions["trange"][2])
+            trange = frange(
+                self.instructions["trange"][0],
+                self.instructions["trange"][1],
+                step=self.instructions["trange"][2],
+            )
 
             # gibbs energy
             gt = {}
@@ -561,7 +584,7 @@ class QmProc:
             # Get Gibbs energy and enthalpy
             for line in lines:
                 if "T/K" in line:
-                    for line2 in lines[lines.index(line) + 2:]:
+                    for line2 in lines[lines.index(line) + 2 :]:
                         if "----------------------------------" in line2:
                             break
 
@@ -573,22 +596,38 @@ class QmProc:
             rotS = {}
 
             # Get rotational entropy
-            entropy_lines = ((line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line)
+            entropy_lines = (
+                (line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line
+            )
             for line in entropy_lines:
                 T = float(line[0].split()[0])
                 rotS[T] = float(line[1].split()[4])
 
         # Extract symmetry
         result["linear"] = next(
-            ({"true": True, "false": False}[line.split()[2]] for line in lines if ":  linear? " in line), None)
+            (
+                {"true": True, "false": False}[line.split()[2]]
+                for line in lines
+                if ":  linear? " in line
+            ),
+            None,
+        )
 
         # Extract rmsd
         result["rmsd"] = next(
-            (float(line.split()[3]) for line in lines if "final rmsd / " in line and self.instructions["bhess"]), None)
+            (
+                float(line.split()[3])
+                for line in lines
+                if "final rmsd / " in line and self.instructions["bhess"]
+            ),
+            None,
+        )
 
         # check if xtb calculated the temperature range correctly
         if self.instructions["multitemp"] and not (
-            len(trange) == len(gt) and len(trange) == len(ht) and len(trange) == len(rotS)
+            len(trange) == len(gt)
+            and len(trange) == len(ht)
+            and len(trange) == len(rotS)
         ):
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_rrho"
@@ -603,10 +642,10 @@ class QmProc:
         # (when a hessian is calculated)
         # contains output from xtb in json format to be more easily digestible by CENSO
         with open(
-                os.path.join(jobdir, "xtb_enso.json"),
-                "r",
-                encoding=CODING,
-                newline=None,
+            os.path.join(jobdir, "xtb_enso.json"),
+            "r",
+            encoding=CODING,
+            newline=None,
         ) as f:
             data = json.load(f)
 
@@ -626,15 +665,27 @@ class QmProc:
             if self.instructions["temperature"] == 0.0:
                 result["energy"] = data.get("ZPVE", 0.0)
                 if self.instructions["multitemp"]:
-                    result["gibbs"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
-                    result["enthalpy"][self.instructions["temperature"]] = data.get("ZPVE", 0.0)
-                    result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
+                    result["gibbs"][self.instructions["temperature"]] = data.get(
+                        "ZPVE", 0.0
+                    )
+                    result["enthalpy"][self.instructions["temperature"]] = data.get(
+                        "ZPVE", 0.0
+                    )
+                    result["entropy"][
+                        self.instructions["temperature"]
+                    ] = None  # set this to None for predictability
             else:
                 result["energy"] = data.get("G(T)", 0.0)
                 if self.instructions["multitemp"]:
-                    result["gibbs"][self.instructions["temperature"]] = data.get("G(T)", 0.0)
-                    result["enthalpy"][self.instructions["temperature"]] = None  # set this to None for predictability
-                    result["entropy"][self.instructions["temperature"]] = None  # set this to None for predictability
+                    result["gibbs"][self.instructions["temperature"]] = data.get(
+                        "G(T)", 0.0
+                    )
+                    result["enthalpy"][
+                        self.instructions["temperature"]
+                    ] = None  # set this to None for predictability
+                    result["entropy"][
+                        self.instructions["temperature"]
+                    ] = None  # set this to None for predictability
 
             # only determine symmetry if all the needed information is there
             if "point group" and "linear" in data.keys():

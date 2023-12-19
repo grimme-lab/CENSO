@@ -92,14 +92,16 @@ class GeometryData:
         ]
         for element, allcoords in self.xyz.items():
             for atom in allcoords:
-                lines.append(f"{element} {atom[0]:.10f} {atom[1]:.10f} {atom[2]:.10f}\n")
+                lines.append(
+                    f"{element} {atom[0]:.10f} {atom[1]:.10f} {atom[2]:.10f}\n"
+                )
 
         return lines
 
 
 class MoleculeData:
     """
-    MoleculeData contains identifier, a GeometryData object, 
+    MoleculeData contains identifier, a GeometryData object,
     as well as the sorting keys
 
     The confomers' MoleculeDatas are set up in censo.core.CensoCore.setup_conformers
@@ -125,18 +127,22 @@ class MoleculeData:
         # list to store the paths to all MO-files from the jobs run for this conformer
         self.mo_paths: list[str] = []
 
+        # store all Boltzmann weights in order of calculation
+        # TODO - this might not be the nicest way of doing this
+        self.bmws: list[float] = []
+
         # stores the results of the calculations
         self.results = {}
         # should be structured like the following:
         # 'part': <results from part jobs/in-part-calculations>
-        # => e.g. self.results["prescreening"]["gtot"] 
+        # => e.g. self.results["prescreening"]["gtot"]
         #    would return the free enthalpy of the conformer calculated in prescreening
         #    (not calculated with an external program)
         #
-        #    self.results["prescreening"]["sp"] 
+        #    self.results["prescreening"]["sp"]
         #    returns the 'result' of the DFT single point in prescreening
         #    (calculated by external program)
-        #    to get the single-point energy: self.results["prescreening"]["sp"]["energy"] 
+        #    to get the single-point energy: self.results["prescreening"]["sp"]["energy"]
         #    (confer to the results for each jobtype)
 
 

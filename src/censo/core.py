@@ -8,11 +8,7 @@ import os
 from math import exp
 from collections.abc import Callable
 
-from .params import (
-    AU2J,
-    KB,
-    AU2KCAL
-)
+from .params import AU2J, KB, AU2KCAL
 from .datastructure import MoleculeData
 from .utilities import (
     check_for_float,
@@ -25,8 +21,7 @@ logger = setup_logger(__name__)
 
 
 class CensoCore:
-    """
-    """
+    """ """
 
     def __init__(self, workdir: str, args: Namespace = None):
         """
@@ -62,7 +57,13 @@ class CensoCore:
         # absolute path to ensemble input file
         self.ensemble_path: str
 
-    def read_input(self, ensemble_path: str, charge: int = None, unpaired: int = None, nconf: int = None) -> None:
+    def read_input(
+        self,
+        ensemble_path: str,
+        charge: int = None,
+        unpaired: int = None,
+        nconf: int = None,
+    ) -> None:
         """
         read ensemble input file (e.g. crest_conformers.xyz)
         """
@@ -103,11 +104,11 @@ class CensoCore:
         read out energy from xyz file if possible
         """
         # open ensemble input
-        with (open(self.ensemble_path, "r") as file):
+        with open(self.ensemble_path, "r") as file:
             lines = file.readlines()
             nat = self.runinfo["nat"]
 
-            # check for correct line count in input 
+            # check for correct line count in input
             # assuming consecutive xyz-file format (every conf therefore needs nat + 2 lines)
             if len(lines) % (nat + 2) != 0:
                 # check if the last lines contain any alphanumeric characters
@@ -122,8 +123,10 @@ class CensoCore:
                 nconf = int(len(lines) / (nat + 2))
                 if self.args.nconf > nconf:
                     global logger
-                    logger.warning(f"Provided nconf is larger than number of conformers in input file. Setting to "
-                                   f"the max. amount automatically.")
+                    logger.warning(
+                        f"Provided nconf is larger than number of conformers in input file. Setting to "
+                        f"the max. amount automatically."
+                    )
                 else:
                     nconf = self.args.nconf
             else:
@@ -133,16 +136,27 @@ class CensoCore:
 
             # get precalculated energies if possible
             for i in range(nconf):
-                self.conformers.append(MoleculeData(f"CONF{i + 1}", lines[2 + i * (nat + 2):(i + 1) * (nat + 2)]))
+                self.conformers.append(
+                    MoleculeData(
+                        f"CONF{i + 1}", lines[2 + i * (nat + 2) : (i + 1) * (nat + 2)]
+                    )
+                )
 
                 # precalculated energy set to 0.0 if it cannot be found
-                self.conformers[i].xtb_energy = check_for_float(lines[i * (nat + 2) + 1]) or 0.0
+                self.conformers[i].xtb_energy = (
+                    check_for_float(lines[i * (nat + 2) + 1]) or 0.0
+                )
 
-            # also works if xtb_energy is None for some reason (None is put first)    
+            # also works if xtb_energy is None for some reason (None is put first)
             self.conformers.sort(key=lambda x: x.xtb_energy)
 
-    def update_conformers(self, target: Callable[[MoleculeData], float], threshold: float,
-                          additional_filter: Callable[[MoleculeData], bool] = None) -> list[str]:
+    def update_conformers(
+        self,
+        target: Callable[[MoleculeData], float],
+        threshold: float,
+        additional_filter: Callable[[MoleculeData], bool] = None,
+        boltzmann: bool = False,
+    ) -> list[str]:
         """
         Update the conformers based on a target function, a threshold, and an additional filter.
         Logic for the additional filter is "and".
@@ -159,17 +173,34 @@ class CensoCore:
         Returns:
             None
         """
-        # pick the free enthalpy of the lowest conformer
-        limit = min([target(conf) for conf in self.conformers])
+        if not boltzmann:
+            # pick the free enthalpy of the lowest conformer
+            limit = min([target(conf) for conf in self.conformers])
 
-        # filter out all conformers above threshold
-        # so that 'filtered' contains all conformers that should not be considered any further
-        filtered = [
-            conf for conf in filter(
-                (additional_filter or True) and (lambda x: target(x) - limit > threshold),
-                self.conformers
-            )
-        ]
+            # filter out all conformers above threshold
+            # so that 'filtered' contains all conformers that should not be considered any further
+            filtered = [
+                conf
+                for conf in filter(
+                    (additional_filter or True)
+                    and (lambda x: target(x) - limit > threshold),
+                    self.conformers,
+                )
+            ]
+        elif boltzmann and 0.0 <= threshold <= 1.0:
+            # Sort and iterate through the conformers by target (should be the Boltzmann population) in reverse order
+            # Therefore, the conformer with the highest population is first
+            s = 0.0
+            filtered = []
+            for conf in sorted(self.conformers, key=target, reverse=True):
+                if s > threshold:
+                    # The conformer is above the population threshold and should be removed
+                    filtered.append(conf)
+                else:
+                    # The population of the conformer is appended
+                    s += target(conf)
+        else:
+            raise RuntimeError("Invalid filter settings for updating conformer list.")
 
         # move the sorted out conformers to rem list
         for conf in filtered:
@@ -177,7 +208,7 @@ class CensoCore:
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
             # Log removed conformers
-            logger.debug(f"Removed {conf.name} with ΔG = {(target(conf) - limit) * AU2KCAL:.2f} kcal/mol.")
+            logger.debug(f"Removed {conf.name}.")
 
         return [conf.name for conf in filtered]
 
@@ -185,7 +216,9 @@ class CensoCore:
         """
         dump the conformers to a file
         """
-        with open(os.path.join(f"{self.workdir}", f"censo_ensemble_{part}.xyz"), "w") as file:
+        with open(
+            os.path.join(f"{self.workdir}", f"censo_ensemble_{part}.xyz"), "w"
+        ) as file:
             for conf in self.conformers:
                 file.writelines(conf.geom.toxyz())
 
@@ -196,11 +229,14 @@ class CensoCore:
         """
         # find lowest gtot value
         if all(["gtot" in conf.results[part].keys() for conf in self.conformers]):
-            minfree: float = min([conf.results[part]["gtot"] for conf in self.conformers])
+            minfree: float = min(
+                [conf.results[part]["gtot"] for conf in self.conformers]
+            )
 
             # calculate boltzmann factors
             bmfactors = {
-                id(conf): conf.degen * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp))
+                id(conf): conf.degen
+                * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp))
                 for conf in self.conformers
             }
         else:
@@ -210,11 +246,18 @@ class CensoCore:
             gtot_replacement = False
             for jt in ["xtb_opt", "sp"]:
                 if all(jt in conf.results[part].keys() for conf in self.conformers):
-                    minfree: float = min([conf.results[part][jt]["energy"] for conf in self.conformers])
+                    minfree: float = min(
+                        [conf.results[part][jt]["energy"] for conf in self.conformers]
+                    )
 
                     # calculate boltzmann factors
                     bmfactors = {
-                        id(conf): conf.degen * exp(-(conf.results[part][jt]["energy"] - minfree) * AU2J / (KB * temp))
+                        id(conf): conf.degen
+                        * exp(
+                            -(conf.results[part][jt]["energy"] - minfree)
+                            * AU2J
+                            / (KB * temp)
+                        )
                         for conf in self.conformers
                     }
                     gtot_replacement = True
@@ -226,5 +269,7 @@ class CensoCore:
         # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())
 
+        # Store Boltzmann populations in results and also in a special list for convenience
         for conf in self.conformers:
             conf.results[part]["bmw"] = bmfactors[id(conf)] / bsum
+            conf.bmws.append(bmfactors[id(conf)] / bsum)
