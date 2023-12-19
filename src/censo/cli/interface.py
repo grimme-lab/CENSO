@@ -4,7 +4,7 @@ import sys
 from os import getcwd
 
 from .cml_parser import parse
-from ..configuration import configure
+from ..configuration import configure, override_rc
 from ..core import CensoCore
 from ..ensembleopt import Prescreening, Screening, Optimization
 from ..properties import EnsembleNMR
@@ -67,7 +67,8 @@ def startup(args) -> CensoCore | None:
     elif args.inprcpath is not None:
         configure(args.inprcpath)
 
-    # TODO - Parse cml arguments for settings
+    # Override settings with command line arguments
+    override_rc(args)
 
     # initialize core, constructor get runinfo from args
     core = CensoCore(cwd, args=args)
