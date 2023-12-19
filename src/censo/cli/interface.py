@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 from os import getcwd
+from argparse import ArgumentError
 
 from .cml_parser import parse
 from ..configuration import configure, override_rc
@@ -20,6 +21,9 @@ def entry_point(argv: list[str] | None = None) -> int:
     """
     try:
         args = parse(DESCR, argv)
+    except ArgumentError as e:
+        print(e.message)
+        return 1
     except SystemExit:
         return 0
 

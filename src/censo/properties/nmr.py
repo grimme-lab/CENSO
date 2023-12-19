@@ -101,7 +101,7 @@ class EnsembleNMR(CensoPart):
             # store results
             conf.results.setdefault(self._name, {}).update(results[conf.geom.id])
 
-        # TODO - Calculate Boltzmann-weighted NMR parameters
+        # TODO - calculate Boltzmann weighted parameters and generate files for ANMR
 
         # Write data
         self.write_results()

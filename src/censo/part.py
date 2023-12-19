@@ -66,6 +66,11 @@ class CensoPart:
         cls._settings = settings
 
     @classmethod
+    def set_setting(cls, setting_name: str, setting_value: any):
+        assert type(setting_value) is type(cls._settings[setting_name])
+        cls._settings[setting_name] = setting_value
+
+    @classmethod
     def get_options(cls):
         return cls._options
 

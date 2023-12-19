@@ -6,6 +6,35 @@ cml parsing
 import argparse
 
 
+def check_soft_requirements(args: argparse.Namespace) -> bool:
+    """
+    Checks for soft-required options (e.g. if you call -newconfig you don't need to give -inp, for a normal
+    CENSO run you need to, though).
+    """
+    soft_required = [
+        "inp",
+        "charge",
+        "unpaired",
+    ]
+    requirement_override = [
+        "writeconfig", 
+        "cleanup", 
+        "cleanup_all", 
+        "version"
+    ]
+    # If all settings, that override soft-requirement, are unused
+    if all(getattr(args, s, None) is False for s in requirement_override):
+        # Check, if all the soft-required settings are given
+        if all(getattr(args, s, None) is not None for s in soft_required):
+            return True
+        # Else, the check fails
+        else:
+            return False
+    # Else, the the soft requirement is overridden
+    else:
+        return True
+
+
 def parse(startup_description, argv=None) -> argparse.Namespace:
     """
     Process commandline arguments
@@ -28,7 +57,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--input",
         dest="inp",
         type=str,
-        required=True,
         help="Relative path to ensemble file, e.g. crest_conformers.xyz ",
     )
     groups[0].add_argument(
@@ -43,7 +71,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--charge",
         dest="charge",
         type=int,
-        required=True,
         help="Integer charge of the investigated molecule.",
     )
     groups[0].add_argument(
@@ -51,7 +78,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--unpaired",
         dest="unpaired",
         type=int,
-        required=True,
         help="Integer number of unpaired electrons of the investigated molecule.",
     )
     groups[0].add_argument(
@@ -507,5 +533,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     ) """
 
     args = parser.parse_args(argv)
+    if not check_soft_requirements(args):
+        raise argparse.ArgumentError(None, "One of the soft requirements ('-inp', '-chrg', '-u') not met.")
 
     return args
