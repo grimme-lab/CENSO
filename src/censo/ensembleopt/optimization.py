@@ -81,7 +81,7 @@ class Optimization(CensoPart):
         )
         self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
 
-        # Special 'todo-list' for optimization part, contains all unconverged conformers, 
+        # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
         self.confs_nc: list[MoleculeData]
 

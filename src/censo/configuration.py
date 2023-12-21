@@ -233,6 +233,7 @@ def override_rc(args: Namespace) -> None:
     # TODO - might be made nicer by using the argument groups?
     global parts
     from .part import CensoPart
+
     for part in list(parts.values()) + [CensoPart]:
         part_settings = part.get_settings()
         for setting in part_settings.keys():

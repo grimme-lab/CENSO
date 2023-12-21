@@ -49,7 +49,6 @@ class Prescreening(CensoPart):
         )
         self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
 
-
     @timeit
     @CensoPart._create_dir
     def run(self) -> None:

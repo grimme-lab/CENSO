@@ -270,11 +270,12 @@ class Screening(Prescreening):
         ]
 
         # minimal xtb energy from single-point (and mRRHO)
-        if all("prescreening" in conf.results.keys() for conf in self.core.conformers) and not self._instructions["gas-phase"]:
+        if (
+            all("prescreening" in conf.results.keys() for conf in self.core.conformers)
+            and not self._instructions["gas-phase"]
+        ):
             gxtb = {
-                id(conf): conf.results["prescreening"]["xtb_gsolv"][
-                    "energy_xtb_gas"
-                ]
+                id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
                 for conf in self.core.conformers
             }
             if self._instructions["evaluate_rrho"]:

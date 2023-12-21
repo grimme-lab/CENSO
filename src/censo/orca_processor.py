@@ -386,17 +386,31 @@ class OrcaProc(QmProc):
             indict["main"] = []
 
         # grab func, basis
-        func = self.instructions["func_name"]
-        basis = self.instructions["basis"]
+        if jobtype == "nmr_s":
+            func = self.instructions["func_name_s"]
+            basis = self.instructions["basis_s"]
+            functype = self.instructions["func_type_s"]
+            disp = self.instructions["disp_s"]
+        elif jobtype == "nmr_j":
+            func = self.instructions["func_name_j"]
+            basis = self.instructions["basis_j"]
+            functype = self.instructions["func_type_j"]
+            disp = self.instructions["disp_j"]
+        else:
+            func = self.instructions["func_name"]
+            basis = self.instructions["basis"]
+            functype = self.instructions["func_type"]
+            disp = self.instructions["disp"]
+
         indict["main"].append(func)
 
         # For non-composite methods, parameters for RI, RIJCOSX, and RIJK are set
-        if "composite" not in self.instructions["func_type"]:
+        if "composite" not in functype:
             indict["main"].append(basis)
             # set  RI def2/J,   RIJCOSX def2/J
             # this is only set if no composite DFA is used
             # settings for double hybrids
-            if self.instructions["func_type"] == "double":
+            if functype == "double":
                 indict["main"].extend(["def2/J", "RIJCOSX"])
 
                 if "nmr" in jobtype:
@@ -427,13 +441,13 @@ class OrcaProc(QmProc):
                         indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
             # settings for hybrids
-            elif "hybrid" in self.instructions["func_type"]:
+            elif "hybrid" in functype:
                 indict["main"].append("RIJCOSX")
                 if not orca5:
                     indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
             # settings for (m)ggas
-            elif "gga" in self.instructions["func_type"]:
+            elif "gga" in functype:
                 indict["main"].append("RI")
 
         # use 'grid' setting from instructions to quickly configure the grid
@@ -449,7 +463,6 @@ class OrcaProc(QmProc):
             "nl": "NL",
         }
 
-        disp = self.instructions["disp"]
         if disp != "composite" and disp != "included":
             indict["main"].append(mapping.get(disp, ""))
 
@@ -1047,77 +1060,101 @@ class OrcaProc(QmProc):
             "success": None,
             "error": None,
         }
-        job.meta.setdefault("nmr", {})
+        
+        # The following is a workaround to avoid a complicated nested if-else
+        conds = (
+            self.instructions["func_s"] == self.instructions["func_j"] and self.instructions["disp_s"] == self.instructions["disp_j"] and self.instructions["basis_s"] == self.instructions["basis_j"],
+            self.instructions["shieldings"],
+            self.instructions["couplings"],
+        )
 
-        # Set in/out path
-        inputpath = os.path.join(jobdir, f"{filename}.inp")
-        outputpath = os.path.join(jobdir, f"{filename}.out")
+        conds_to_endings = {
+            (True, False): ["_s"],
+            (False, True): ["_j"],
+            (True, True): ["_s", "_j"]
+        }
 
-        # Prepare an input file for _sp
-        indict = self.__prep(job, "nmr")
-        parser = OrcaParser()
-        parser.write_input(inputpath, indict)
+        # Basically this selects the proper jobs to run, so run two calculations if the settings for shieldings and 
+        # couplings calculations differ even in one parameter, otherwise both can be calculated in one go
+        endings = []
+        if all(cond for cond in conds):
+            endings.append("")
+        else:
+            endings.extend(conds_to_endings[conds[1:]])
 
-        # Run _sp using the input file generated above
-        self._sp(job, jobdir, filename=filename, prep=False)
+        # If settings are the same, endings = [""], otherwise it contains "_s" and/or "_j", depending on conditions
+        for ending in endings:
+            job.meta.setdefault("nmr", {})
 
-        if not job.meta["sp"]["success"]:
-            meta["success"] = False
-            meta["error"] = "sp failed"
-            job.meta["nmr"].update(meta)
-            return result
+            # Set in/out path
+            inputpath = os.path.join(jobdir, f"{filename}{ending}.inp")
+            outputpath = os.path.join(jobdir, f"{filename}{ending}.out")
 
-        # Grab shieldings and/or couplings from the output
-        with open(outputpath, "r") as f:
-            lines = f.readlines()
+            # Prepare an input file for _sp
+            indict = self.__prep(job, f"nmr{ending}")
+            parser = OrcaParser()
+            parser.write_input(inputpath, indict)
 
-        # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY (ppm)"
-        if self.instructions["shieldings"]:
-            start = (
-                lines.index(next(x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x))
-                + 6
-            )
+            # Run _sp using the input file generated above
+            self._sp(job, jobdir, filename=f"{filename}{ending}", prep=False)
 
-            result["shieldings"] = {}
+            if not job.meta["sp"]["success"]:
+                meta["success"] = False
+                meta["error"] = "sp failed"
+                job.meta["nmr"].update(meta)
+                return result
 
-            for line in lines[start:]:
-                # Try to extract values from the lines, if that fails (probably IndexError) stop
-                try:
-                    element = line.split()[1]
-                    result["shieldings"].setdefault(element, {}).setdefault(
-                        "isotropic", []
-                    ).append(float(line.split()[2]))
-                    result["shieldings"][element].setdefault("anisotropy", []).append(
-                        float(line.split()[3])
-                    )
-                except IndexError:
-                    break
+            # Grab shieldings and/or couplings from the output
+            with open(outputpath, "r") as f:
+                lines = f.readlines()
 
-        # For couplings watch out for the line "SUMMARY OF ISOTROPIC COUPLINGS (Hz)"
-        if self.instructions["couplings"]:
-            start = (
-                lines.index(next(x for x in lines if "SUMMARY OF ISOTROPIC" in x)) + 3
-            )
+            # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY (ppm)"
+            if ending in ["", "_s"]:
+                start = (
+                    lines.index(next(x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x))
+                    + 6
+                )
 
-            result["couplings"] = {}
+                result["shieldings"] = {}
 
-            for line in lines[start:]:
-                # Try to extract values from the lines, if that fails (probably IndexError) stop
-                try:
-                    # The couplings will be listed as they appear in the ORCA output, so e.g.
-                    #       C1  C2  C3  O1
-                    # C1    ..  ..  ..  ..
-                    # C2    ..  ..  ..  ..
-                    # C3    ..  ..  ..  ..
-                    # O1    ..  ..  ..  ..
-                    # will yield a list for every atom no. Y for every element-key X where the couplings will be in order:
-                    # [XYC1, XYC2, XYC3, XYO1]
-                    element = line.split()[1]
-                    result["couplings"].setdefault(element, []).append(
-                        [float(substr) for substr in line[2:].split()]
-                    )
-                except IndexError:
-                    break
+                for line in lines[start:]:
+                    # Try to extract values from the lines, if that fails (probably IndexError) stop
+                    try:
+                        element = line.split()[1]
+                        result["shieldings"].setdefault(element, {}).setdefault(
+                            "isotropic", []
+                        ).append(float(line.split()[2]))
+                        result["shieldings"][element].setdefault("anisotropy", []).append(
+                            float(line.split()[3])
+                        )
+                    except IndexError:
+                        break
+
+            # For couplings watch out for the line "SUMMARY OF ISOTROPIC COUPLINGS (Hz)"
+            if ending in ["", "_j"]:
+                start = (
+                    lines.index(next(x for x in lines if "SUMMARY OF ISOTROPIC" in x)) + 3
+                )
+
+                result["couplings"] = {}
+
+                for line in lines[start:]:
+                    # Try to extract values from the lines, if that fails (probably IndexError) stop
+                    try:
+                        # The couplings will be listed as they appear in the ORCA output, so e.g.
+                        #       C1  C2  C3  O1
+                        # C1    ..  ..  ..  ..
+                        # C2    ..  ..  ..  ..
+                        # C3    ..  ..  ..  ..
+                        # O1    ..  ..  ..  ..
+                        # will yield a list for every atom no. Y for every element-key X where the couplings will be in order:
+                        # [XYC1, XYC2, XYC3, XYO1]
+                        element = line.split()[1]
+                        result["couplings"].setdefault(element, []).append(
+                            [float(substr) for substr in line[2:].split()]
+                        )
+                    except IndexError:
+                        break
 
         meta["success"] = True
 

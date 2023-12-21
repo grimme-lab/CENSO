@@ -10,7 +10,6 @@ from censo.params import DESCR
 
 
 class CensoTest(unittest.TestCase):
-
     def test_blank_startup(self):
         entry_point("")
 
@@ -48,8 +47,8 @@ class CensoTest(unittest.TestCase):
         args = parse(DESCR, argv)
         startup(args)
         from censo.part import CensoPart
-        self.assertTrue(CensoPart.get_general_settings()["gas-phase"])
 
+        self.assertTrue(CensoPart.get_general_settings()["gas-phase"])
 
     def doCleanups(self):
         # perform cleanup

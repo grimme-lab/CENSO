@@ -54,12 +54,13 @@ class EnsembleNMR(CensoPart):
     def __init__(self, censo: CensoCore):
         super().__init__(censo)
 
-        # set the correct name for 'func'
-        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
-        self._instructions["func_name"] = DfaHelper.get_name(
-            self._instructions["func"], self._instructions["prog"]
-        )
-        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
+        # Set the correct name for 'func_s' and 'func_j'
+        for c in ["s", "j"]:
+            self._instructions[f"func_type_{c}"] = DfaHelper.get_type(self._instructions[f"func_{c}"])
+            self._instructions[f"func_name_{c}"] = DfaHelper.get_name(
+                    self._instructions[f"func_{c}"], self._instructions["prog"]
+            )
+            self._instructions[f"disp_{c}"] = DfaHelper.get_disp(self._instructions[f"func_{c}"])
 
     @timeit
     @CensoPart._create_dir

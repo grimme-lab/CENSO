@@ -16,12 +16,7 @@ def check_soft_requirements(args: argparse.Namespace) -> bool:
         "charge",
         "unpaired",
     ]
-    requirement_override = [
-        "writeconfig", 
-        "cleanup", 
-        "cleanup_all", 
-        "version"
-    ]
+    requirement_override = ["writeconfig", "cleanup", "cleanup_all", "version"]
     # If all settings, that override soft-requirement, are unused
     if all(getattr(args, s, None) is False for s in requirement_override):
         # Check, if all the soft-required settings are given
@@ -534,6 +529,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
 
     args = parser.parse_args(argv)
     if not check_soft_requirements(args):
-        raise argparse.ArgumentError(None, "One of the soft requirements ('-inp', '-chrg', '-u') not met.")
+        raise argparse.ArgumentError(
+            None, "One of the soft requirements ('-inp', '-chrg', '-u') not met."
+        )
 
     return args
