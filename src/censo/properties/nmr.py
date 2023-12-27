@@ -17,7 +17,7 @@ from ..utilities import print, timeit, DfaHelper, setup_logger
 logger = setup_logger(__name__)
 
 
-class EnsembleNMR(CensoPart):
+class NMR(CensoPart):
     alt_name = "part2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())

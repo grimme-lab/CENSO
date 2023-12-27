@@ -21,14 +21,16 @@ def configure(rcpath: str = None, create_new: bool = False):
         censorc_path = find_rcfile()
     else:
         if not os.path.isfile(rcpath) and not create_new:
-            raise FileNotFoundError(f"No configuration file found at {rcpath}.")
+            raise FileNotFoundError(
+                f"No configuration file found at {rcpath}.")
         else:
             censorc_path = rcpath
 
     # TODO - Set up the logger
 
     # Set up the DFAHelper
-    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
+    DfaHelper.set_dfa_dict(os.path.join(
+        ASSETS_PATH, "censo_dfa_settings.json"))
 
     # Load the lookup tables from the assets directory
     load_dbs()
@@ -38,14 +40,14 @@ def configure(rcpath: str = None, create_new: bool = False):
     # otherwise there will be errors in the CensoPart._options
     from .part import CensoPart
     from .ensembleopt import Prescreening, Screening, Optimization
-    from .properties import EnsembleNMR
+    from .properties import NMR
 
     global parts
     parts = {
         "prescreening": Prescreening,
         "screening": Screening,
         "optimization": Optimization,
-        "nmr": EnsembleNMR,
+        "nmr": NMR,
     }
 
     # If no configuration file is found, create a new one and configure parts with default settings
@@ -87,7 +89,8 @@ def read_rcfile(path: str) -> dict[str, dict[str, any]]:
     with open(path, "r") as file:
         parser.read_file(file)
 
-    returndict = {section: dict(parser[section]) for section in parser.sections()}
+    returndict = {section: dict(parser[section])
+                  for section in parser.sections()}
     return returndict
 
 

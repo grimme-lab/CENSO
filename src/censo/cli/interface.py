@@ -8,7 +8,7 @@ from .cml_parser import parse
 from ..configuration import configure, override_rc
 from ..core import CensoCore
 from ..ensembleopt import Prescreening, Screening, Optimization
-from ..properties import EnsembleNMR
+from ..properties import NMR
 from ..params import DESCR, __version__
 from ..utilities import print, setup_logger
 
@@ -37,7 +37,7 @@ def entry_point(argv: list[str] | None = None) -> int:
 
     run = filter(
         lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization, EnsembleNMR],
+        [Prescreening, Screening, Optimization, NMR],
     )
 
     for part in run:
@@ -80,7 +80,7 @@ def startup(args) -> CensoCore | None:
     # read input and setup conformers
     core.read_input(args.inp)
 
-    ### END of setup
+    # END of setup
     # -> core.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
 
     return core
