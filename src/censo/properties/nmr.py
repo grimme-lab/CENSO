@@ -10,6 +10,7 @@ from ..params import (
     PROGS,
     BASIS_SETS,
     GRIDOPTIONS,
+    SOLVENTS_DB,
 )
 from ..part import CensoPart
 from ..utilities import print, timeit, DfaHelper, setup_logger
@@ -55,7 +56,7 @@ class NMR(CensoPart):
     def __init__(self, censo: CensoCore):
         super().__init__(censo)
 
-        # Set the correct name for 'func_s' and 'func_j'
+        # Set the correct name for 'func_s' and 'func_j', as well as the solvent key
         for c in ["s", "j"]:
             self._instructions[f"func_type_{c}"] = DfaHelper.get_type(
                 self._instructions[f"func_{c}"]
@@ -66,6 +67,9 @@ class NMR(CensoPart):
             self._instructions[f"disp_{c}"] = DfaHelper.get_disp(
                 self._instructions[f"func_{c}"]
             )
+            self._instructions[f"solvent_key_prog_{c}"] = SOLVENTS_DB.get(
+                self._instructions["solvent"]
+            )[self._instructions[f"sm_{c}"]][1]
 
     @timeit
     @CensoPart._create_dir

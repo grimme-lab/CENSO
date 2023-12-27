@@ -172,7 +172,8 @@ class CensoPart:
                     f"Folder {self.dir} already exists. Potentially overwriting files."
                 )
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
-                raise RuntimeError(f"Could not create directory for {self._name}.")
+                raise RuntimeError(
+                    f"Could not create directory for {self._name}.")
 
             return runner(self, *args, **kwargs)
 
@@ -258,7 +259,8 @@ class CensoPart:
         Returns:
             None
         """
-        results = {conf.name: conf.results[self._name] for conf in self.core.conformers}
+        results = {conf.name: conf.results[self._name]
+                   for conf in self.core.conformers}
         with open(
             os.path.join(self.core.workdir, f"{self._name}.json"), "w"
         ) as outfile:

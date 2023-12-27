@@ -544,10 +544,13 @@ class OrcaProc(QmProc):
         ):
             if jobtype == "nmr_s" or jobtype == "nmr":
                 sm = self.instructions["sm_s"]
+                solv_key = self.instructions["solvent_key_prog_s"]
             elif jobtype == "nmr_j":
                 sm = self.instructions["sm_j"]
+                solv_key = self.instructions["solvent_key_prog_j"]
             else:
                 sm = self.instructions["sm"]
+                solv_key = self.instructions["solvent_key_prog"]
 
             if sm == "smd":
                 indict = od_insert(
@@ -555,13 +558,13 @@ class OrcaProc(QmProc):
                     "cpcm",
                     {
                         "smd": ["true"],
-                        "smdsolvent": [f"\"{self.instructions['solvent_key_prog']}\""],
+                        "smdsolvent": [f"\"{solv_key}\""],
                     },
                     list(indict.keys()).index("main") + 1,
                 )
             elif sm == "cpcm":
                 indict["main"].append(
-                    f"CPCM({self.instructions['solvent_key_prog']})")
+                    f"CPCM({solv_key})")
 
         return indict
 
