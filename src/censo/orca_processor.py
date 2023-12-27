@@ -536,18 +536,19 @@ class OrcaProc(QmProc):
         # single jobs clogging everything up
 
         # set keywords for the selected solvent model
-        if jobtype == "nmr_s" or jobtype == "nmr":
-            sm = self.instructions["sm_s"]
-        elif jobtype == "nmr_j":
-            sm = self.instructions["sm_j"]
-        else:
-            sm = self.instructions["sm"]
-
+        # TODO - this is not good, reduce cyclomatic complexity
         if (
             not self.instructions["gas-phase"]
             and not no_solv
             and ("sm" in self.instructions.keys() or "sm_s" in self.instructions.keys()) or "sm_j" in self.instructions.keys()
         ):
+            if jobtype == "nmr_s" or jobtype == "nmr":
+                sm = self.instructions["sm_s"]
+            elif jobtype == "nmr_j":
+                sm = self.instructions["sm_j"]
+            else:
+                sm = self.instructions["sm"]
+
             if sm == "smd":
                 indict = od_insert(
                     indict,
