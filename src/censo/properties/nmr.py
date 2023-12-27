@@ -25,7 +25,7 @@ class NMR(CensoPart):
     _options = {
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
-        "prog": {"default": "orca", "options": PROGS},
+        "prog": {"default": "orca", "options": PROGS},  # required
         "func_j": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_j")},
         "basis_j": {"default": "def2-TZVP", "options": BASIS_SETS},
         "sm_j": {"default": "smd", "options": __solv_mods},
@@ -37,8 +37,10 @@ class NMR(CensoPart):
         "f_ref": {"default": "CFCl3", "options": ["CFCl3"]},
         "si_ref": {"default": "TMS", "options": ["TMS"]},
         "p_ref": {"default": "TMP", "options": ["TMP", "PH3"]},
-        "grid": {"default": "high+", "options": GRIDOPTIONS},
-        "run": {"default": False},
+        "grid": {"default": "high+", "options": GRIDOPTIONS},  # required
+        "run": {"default": False},  # required
+        "template": {"default": False},  # required
+        "gcp": {"default": True},  # required
         "couplings": {"default": True},
         "shieldings": {"default": True},
         "h_active": {"default": True},
@@ -95,7 +97,7 @@ class NMR(CensoPart):
 
         # Store the utilized Boltzmann population in order to have it in the resulting json file
         for conf in self.core.conformers:
-            conf.results[self._name]["bmw"] = conf.bmws[-1]
+            conf.results.setdefault(self._name, {})["bmw"] = conf.bmws[-1]
 
         # Execute jobs in parallel
         results = execute(self.core.conformers, self._instructions, self.dir)

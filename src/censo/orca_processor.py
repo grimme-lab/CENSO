@@ -385,7 +385,7 @@ class OrcaProc(QmProc):
 
         # prepare all options that are supposed to be placed before the
         # geometry definition
-        indict = self.__prep_pregeom(indict, orca5, no_solv, job.omp)
+        indict = self.__prep_pregeom(indict, orca5, jobtype, no_solv, job.omp)
 
         # prepare the geometry
         indict = self.__prep_geom(indict, job.conf, xyzfile)
@@ -401,7 +401,8 @@ class OrcaProc(QmProc):
             indict["main"] = []
 
         # grab func, basis
-        if jobtype == "nmr_s":
+        # first case catches the shielding & coupling all-in-one
+        if jobtype == "nmr_s" or jobtype == "nmr":
             func = self.instructions["func_name_s"]
             basis = self.instructions["basis_s"]
             functype = self.instructions["func_type_s"]
@@ -448,8 +449,8 @@ class OrcaProc(QmProc):
 
                 def2cbasis = ("def2-svp", "def2-tzvp",
                               "def2-tzvpp", "def2-qzvpp")
-                if self.instructions["basis"].lower() in def2cbasis:
-                    indict["main"].append(f"{self.instructions['basis']}/C")
+                if basis.lower() in def2cbasis:
+                    indict["main"].append(f"{basis}/C")
                     if not orca5:
                         indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
                 else:
@@ -498,10 +499,10 @@ class OrcaProc(QmProc):
         }
         if (
             self.instructions["gcp"]
-            and self.instructions["basis"].lower() in gcp_keywords.keys()
+            and basis.lower() in gcp_keywords.keys()
         ):
             indict["main"].append(
-                f"GCP(DFT/{gcp_keywords[self.instructions['basis'].lower()]})"
+                f"GCP(DFT/{gcp_keywords[basis.lower()]})"
             )
         elif self.instructions["gcp"]:
             # TODO - error handling
@@ -520,7 +521,7 @@ class OrcaProc(QmProc):
         return indict
 
     def __prep_pregeom(
-        self, indict: OrderedDict, orca5: bool, no_solv: bool, nprocs: int
+            self, indict: OrderedDict, orca5: bool, jobtype: str, no_solv: bool, nprocs: int
     ) -> OrderedDict:
         # Check ORCA version (important for grid keywords)
         if orca5 and nprocs > 1:
@@ -535,12 +536,19 @@ class OrcaProc(QmProc):
         # single jobs clogging everything up
 
         # set keywords for the selected solvent model
+        if jobtype == "nmr_s" or jobtype == "nmr":
+            sm = self.instructions["sm_s"]
+        elif jobtype == "nmr_j":
+            sm = self.instructions["sm_j"]
+        else:
+            sm = self.instructions["sm"]
+
         if (
             not self.instructions["gas-phase"]
             and not no_solv
-            and "sm" in self.instructions.keys()
+            and ("sm" in self.instructions.keys() or "sm_s" in self.instructions.keys()) or "sm_j" in self.instructions.keys()
         ):
-            if self.instructions["sm"] == "smd":
+            if sm == "smd":
                 indict = od_insert(
                     indict,
                     "cpcm",
@@ -550,7 +558,7 @@ class OrcaProc(QmProc):
                     },
                     list(indict.keys()).index("main") + 1,
                 )
-            elif self.instructions["sm"] == "cpcm":
+            elif sm == "cpcm":
                 indict["main"].append(
                     f"CPCM({self.instructions['solvent_key_prog']})")
 
