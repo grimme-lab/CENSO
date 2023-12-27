@@ -25,11 +25,10 @@ class EnsembleNMR(CensoPart):
     _options = {
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
-        "prog_j": {"default": "orca", "options": PROGS},
+        "prog": {"default": "orca", "options": PROGS},
         "func_j": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_j")},
         "basis_j": {"default": "def2-TZVP", "options": BASIS_SETS},
         "sm_j": {"default": "smd", "options": __solv_mods},
-        "prog_s": {"default": "orca", "options": PROGS},
         "func_s": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_s")},
         "basis_s": {"default": "def2-TZVP", "options": BASIS_SETS},
         "sm_s": {"default": "smd", "options": __solv_mods},
@@ -56,11 +55,15 @@ class EnsembleNMR(CensoPart):
 
         # Set the correct name for 'func_s' and 'func_j'
         for c in ["s", "j"]:
-            self._instructions[f"func_type_{c}"] = DfaHelper.get_type(self._instructions[f"func_{c}"])
-            self._instructions[f"func_name_{c}"] = DfaHelper.get_name(
-                    self._instructions[f"func_{c}"], self._instructions["prog"]
+            self._instructions[f"func_type_{c}"] = DfaHelper.get_type(
+                self._instructions[f"func_{c}"]
             )
-            self._instructions[f"disp_{c}"] = DfaHelper.get_disp(self._instructions[f"func_{c}"])
+            self._instructions[f"func_name_{c}"] = DfaHelper.get_name(
+                self._instructions[f"func_{c}"], self._instructions["prog"]
+            )
+            self._instructions[f"disp_{c}"] = DfaHelper.get_disp(
+                self._instructions[f"func_{c}"]
+            )
 
     @timeit
     @CensoPart._create_dir
@@ -100,12 +103,20 @@ class EnsembleNMR(CensoPart):
         # Put results into conformers
         for conf in self.core.conformers:
             # store results
-            conf.results.setdefault(self._name, {}).update(results[conf.geom.id])
+            conf.results.setdefault(self._name, {}).update(
+                results[conf.geom.id])
 
-        # TODO - calculate Boltzmann weighted parameters and generate files for ANMR
+        # Calculate Boltzmann weighted parameters and generate files for ANMR
+        self.__generate_anmr()
 
         # Write data
         self.write_results()
+
+    def __generate_anmr(self):
+        """
+        Generate all necessary files for an ANMR run.
+        """
+        pass
 
     def write_results(self, results: dict[int, any]) -> None:
         """
