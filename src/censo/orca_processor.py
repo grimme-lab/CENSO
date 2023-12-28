@@ -349,17 +349,36 @@ class OrcaProc(QmProc):
     }
 
     @classmethod
-    def check_requirements(cls, jobs: list[ParallelJob]):
+    def check_requirements(cls, jobs: list[ParallelJob]) -> None:
+        """
+        Check, if the required settings are implemented in the jobs' prepinfo attributes for all the jobtypes.
+
+        Args:
+            jobs(list[ParallelJob]): List of jobs that are to be checked.
+
+        Returns:
+            None
+        """
         for job in jobs:
             for jt in job.jobtype:
-                # Check requirements for sp always except for xtb_sp or xtb_gsolv
-                if jt not in ["xtb_sp", "xtb_gsolv"]:
-                    assert all(s in job.prepinfo[jt].keys()
-                               for s in cls.__req_settings["sp"])
+                try:
+                    # Check requirements for sp always except for xtb_sp or xtb_gsolv
+                    if jt not in ["xtb_sp", "xtb_gsolv"]:
+                        assert all(s in job.prepinfo[jt].keys()
+                                   for s in cls.__req_settings["sp"])
 
-                # Check specific requirements
-                assert all(s in job.prepinfo[jt].keys()
-                           for s in cls.__req_settings[jt])
+                    # Check specific requirements
+                    assert all(s in job.prepinfo[jt].keys()
+                               for s in cls.__req_settings[jt])
+                except AssertionError:
+                    logger.debug(
+                        "The following settings are missing for implementation:")
+                    if jt not in ["xtb_sp", "xtb_gsolv"]:
+                        logger.debug(list(s for s in filter(
+                            lambda x: x not in job.prepinfo[jt].keys(), cls.__req_settings["sp"])))
+
+                    logger.debug(list(s for s in filter(
+                        lambda x: x not in job.prepinfo[jt].keys(), cls.__req_settings[jt])))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

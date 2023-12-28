@@ -52,6 +52,8 @@ def execute(
         for conf in conformers
     ]
 
+    processor.check_requirements(jobs)
+
     if instructions["copy_mo"]:
         # check for the most recent mo files for each conformer
         # TODO - how would this work when multiple different programs are supported?
@@ -122,7 +124,8 @@ def execute(
             if len(retry) > 0:
                 set_omp_chunking([jobs[i] for i in retry])
                 for i, job in zip(
-                    [i for i in retry], dqp([jobs[i] for i in retry], processor)
+                    [i for i in retry], dqp([jobs[i]
+                                            for i in retry], processor)
                 ):
                     jobs[i] = job
 
@@ -138,8 +141,10 @@ def execute(
 
             # make sure there is at least one conformer left (TODO - is this reasonable?)
             if len(conformers) == 0:
-                logger.critical("No conformers left after retrying failed jobs.")
-                raise RuntimeError("No conformers left after retrying failed jobs.")
+                logger.critical(
+                    "No conformers left after retrying failed jobs.")
+                raise RuntimeError(
+                    "No conformers left after retrying failed jobs.")
 
             # again, try to get the mo_path from metadata and store it in the respective conformer object
             if instructions["copy_mo"]:
@@ -253,7 +258,8 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
 
     # Calculate the maximum and minimum number of processes (number of jobs that can be executed simultaneously)
     maxprocs = ncores // OMPMIN  # Calculate the maximum number of processes
-    minprocs = max(1, ncores // OMPMAX)  # Calculate the minimum number of processes
+    # Calculate the minimum number of processes
+    minprocs = max(1, ncores // OMPMAX)
 
     # Loop until all jobs are distributed
     while jobs_left > 0:
@@ -273,6 +279,6 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
 
         # Set the number of cores for each job for as many jobs as possible before moving onto the next omp value
         while jobs_left - p >= 0:
-            for job in jobs[tot_jobs - jobs_left : tot_jobs - jobs_left + p]:
+            for job in jobs[tot_jobs - jobs_left: tot_jobs - jobs_left + p]:
                 job.omp = ncores // p  # Set the number of cores for each job
             jobs_left -= p  # Decrement the number of remaining jobs
