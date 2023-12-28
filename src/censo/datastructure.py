@@ -59,7 +59,8 @@ class GeometryData:
         for element, allcoords in self.xyz.items():
             for atom in allcoords:
                 atom = list(map(lambda x: float(x) / BOHR2ANG, atom))
-                coord.append(reduce(lambda x, y: f"{x} {y}", atom + [f"{element}\n"]))
+                coord.append(
+                    reduce(lambda x, y: f"{x} {y}", atom + [f"{element}\n"]))
 
         coord.append("$end\n")
 
@@ -159,6 +160,9 @@ class ParallelJob:
 
         # stores path to an mo file which is supposed to be used as a guess
         self.mo_guess = None
+
+        # Stores all the important information for preparation of the input files for every jobtype
+        self.prepinfo: dict[str, dict[str, any]]
 
         # store metadata, is updated by the processor
         # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}

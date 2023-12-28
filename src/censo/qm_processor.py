@@ -48,6 +48,19 @@ class QmProc:
         "escfpath": "",
     }
 
+    _req_settings_xtb = {
+        "xtb_sp": [
+            "gfnv",
+        ],
+        "xtb_gsolv": [
+            "gfnv",
+            "solvent_key_xtb",
+        ],
+        "xtb_rrho": [
+            "gfnv",
+        ]
+    }
+
     @classmethod
     def print_paths(cls) -> None:
         """
@@ -60,7 +73,8 @@ class QmProc:
         lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
 
         # Append the title of the section to the output, centered.
-        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
+        lines.append("PATHS of external QM programs".center(
+            PLENGTH, " ") + "\n")
 
         # Append a separator line to the output.
         lines.append("".ljust(PLENGTH, "-") + "\n")
@@ -99,7 +113,8 @@ class QmProc:
         Returns:
             job (ParallelJob): job with results
         """
-        logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
+        logger.debug(
+            f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
         # list containing the types of computations to do
         if not all(t in self._jobtypes.keys() for t in job.jobtype):
@@ -127,7 +142,7 @@ class QmProc:
 
             # if a calculation failed all following calculations will not be executed
             if not job.meta[j]["success"]:
-                for j2 in job.jobtype[job.jobtype.index(j) + 1 :]:
+                for j2 in job.jobtype[job.jobtype.index(j) + 1:]:
                     job.meta[j2]["success"] = False
                     job.meta[j2]["error"] = "Previous calculation failed"
                 break
@@ -156,7 +171,8 @@ class QmProc:
         """
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
-            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
+            logger.debug(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
 
             # create subprocess for external program
             sub = subprocess.Popen(
@@ -176,7 +192,8 @@ class QmProc:
 
             # make sure to send SIGTERM to subprocess if program is quit
             signal.signal(
-                signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
+                signal.SIGTERM, lambda signum, frame: handle_sigterm(
+                    signum, frame, sub)
             )
 
             # wait for process to finish
@@ -478,7 +495,8 @@ class QmProc:
                 trange.append(self.instructions["temperature"])
 
                 # Write trange to the xcontrol file
-                xcout.write(f"    temp=" f"{','.join([str(i) for i in trange])}\n")
+                xcout.write(
+                    f"    temp=" f"{','.join([str(i) for i in trange])}\n")
             else:
                 xcout.write(f"    temp={self.instructions['temperature']}\n")
 
@@ -584,7 +602,7 @@ class QmProc:
             # Get Gibbs energy and enthalpy
             for line in lines:
                 if "T/K" in line:
-                    for line2 in lines[lines.index(line) + 2 :]:
+                    for line2 in lines[lines.index(line) + 2:]:
                         if "----------------------------------" in line2:
                             break
 

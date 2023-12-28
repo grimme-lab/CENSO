@@ -313,6 +313,54 @@ class OrcaProc(QmProc):
         },
     }
 
+    __req_settings = {
+        **{
+            "sp": [
+                "func",
+                "basis",
+                "grid",
+                "template",
+                "func_name",
+                "func_type",
+                "disp",
+                "gcp",
+            ],
+            "gsolv": [
+                "sm",
+                "solvent_key_prog",
+            ],
+            "xtb_opt": [
+                "macrocycles",
+                "optcycles",
+                "hlow",
+                "optlevel",
+            ],
+            "nmr": [
+                "shieldings",
+                "couplings",
+                "h_active",
+                "c_active",
+                "f_active",
+                "si_active",
+                "p_active",
+            ],
+        },
+        **super()._req_settings_xtb
+    }
+
+    @classmethod
+    def check_requirements(cls, jobs: list[ParallelJob]):
+        for job in jobs:
+            for jt in job.jobtype:
+                # Check requirements for sp always except for xtb_sp or xtb_gsolv
+                if jt not in ["xtb_sp", "xtb_gsolv"]:
+                    assert all(s in job.prepinfo[jt].keys()
+                               for s in cls.__req_settings["sp"])
+
+                # Check specific requirements
+                assert all(s in job.prepinfo[jt].keys()
+                           for s in cls.__req_settings[jt])
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

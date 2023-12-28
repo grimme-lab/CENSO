@@ -19,7 +19,19 @@ logger = setup_logger(__name__)
 
 class CensoPart:
     """
-    Part class as parent class for all parts of the calculation
+    Part class as parent class for all parts of the calculation.
+
+    Settings that are not part of the general settings and strictly necessary for ...
+    ... DFT calculations:
+        - prog
+        - func
+        - basis
+        - grid
+        - template
+        - gcp
+    ... xtb calculations:
+        - gfnv
+    Further requirements are defined in dictionaries belonging to processor classes.
     """
 
     _options = {
