@@ -19,42 +19,47 @@ ncores = os.cpu_count()
 
 
 def execute(
-    conformers: list[MoleculeData], instructions: dict[str, any], workdir: str
+        jobs: list[ParallelJob], workdir: str, prog: str, copy_mo: bool = False,
+        retry_failed: bool = False, balance: bool = True, maxcores: int = OMPMIN,
+        omp: int = OMPMIN,
 ) -> dict[int, any]:
+    """
+    Manages parallel execution of external program calls. Sets cores used per job, checks requirements,
+    can copy MO-files, and retry failed jobs.
+
+    Args:
+        jobs (list[ParallelJob]): List of jobs to be executed.
+        workdir (str): Working directory.
+        prog (str): Name of the program to be used.
+        copy_mo (bool, optional): Whether to copy the MO-files from the previous calculation.
+        retry_failed (bool, optional): Whether to retry failed jobs.
+        balance (bool, optional): Whether to balance the number of cores used per job.
+        maxcores (int, optional): Maximum number of cores to be used.
+        omp (int, optional): Number of cores to be used per job.
+
+    Returns:
+        dict[int, any]: Dictionary of results.
+    """
+
     # Check first if there are any conformers at all
     try:
-        assert len(conformers) > 0
+        assert len(jobs) > 0
     except AssertionError as e:
         raise e("No jobs to compute!")
-
-    # try to get program from instructions
-    prog = instructions.get("prog", None)
-
-    if prog is None:
-        raise RuntimeError("Could not determine program from instructions.")
 
     # initialize the processor for the respective program
     processor = ProcessorFactory.create_processor(
         prog,
-        instructions,
         workdir,
     )
 
-    balance = instructions["balance"]
-
     # adjust value for the number of available cores
     global ncores
-    ncores = min(ncores, instructions["maxcores"])
-
-    # create jobs, by default with the omp setting from instructions
-    jobs = [
-        ParallelJob(conf.geom, instructions["jobtype"], instructions["omp"])
-        for conf in conformers
-    ]
+    ncores = min(ncores, maxcores)
 
     processor.check_requirements(jobs)
 
-    if instructions["copy_mo"]:
+    if copy_mo:
         # check for the most recent mo files for each conformer
         # TODO - how would this work when multiple different programs are supported?
         for job in jobs:
@@ -75,14 +80,14 @@ def execute(
     jobs = dqp(jobs, processor)
 
     # if 'copy_mo' is enabled, try to get the mo_path from metadata and store it in the respective conformer object
-    if instructions["copy_mo"]:
+    if copy_mo:
         mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
         for conf in conformers:
             if mo_paths[conf.geom.id] is not None:
                 conf.mo_paths.append(mo_paths[conf.geom.id])
 
     # create a new list of failed jobs that should be restarted with special flags
-    if instructions["retry_failed"]:
+    if retry_failed:
         # determine failed jobs
         logger.debug("Retrying failed jobs...")
         failed_jobs = [
@@ -147,7 +152,7 @@ def execute(
                     "No conformers left after retrying failed jobs.")
 
             # again, try to get the mo_path from metadata and store it in the respective conformer object
-            if instructions["copy_mo"]:
+            if copy_mo:
                 mo_paths = {
                     job.conf.id: job.meta["mo_path"] for job in [jobs[i] for i in retry]
                 }

@@ -9,6 +9,7 @@ from ..params import (
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
+    SOLVENTS_DB,
 )
 from ..part import CensoPart
 from ..utilities import (
@@ -42,13 +43,6 @@ class Prescreening(CensoPart):
     def __init__(self, core: CensoCore):
         super().__init__(core)
 
-        # set the correct name for 'func'
-        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
-        self._instructions["func_name"] = DfaHelper.get_name(
-            self._instructions["func"], self._instructions["prog"]
-        )
-        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
-
     @timeit
     @CensoPart._create_dir
     def run(self) -> None:
@@ -57,7 +51,7 @@ class Prescreening(CensoPart):
         using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
         the gsolv contribution is calculated using xtb.
 
-        the list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
+        The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
         """
         # print instructions
         self.print_info()
@@ -66,13 +60,21 @@ class Prescreening(CensoPart):
         if self._instructions["gas-phase"] or self._instructions.get("implicit", False):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
-            self._instructions["jobtype"] = ["sp"]
+            jobtype = ["sp"]
         else:
-            self._instructions["jobtype"] = ["xtb_gsolv", "sp"]
+            jobtype = ["xtb_gsolv", "sp"]
+
+        # Compile all information required for the preparation of input files in parallel execution step
+        prepinfo = self.setup_prepinfo(jobtype)
+
+        # Create ParallelJobs with the previously compiled prepinfo to be sent to execute
+        jobs = self.setup_jobs(jobtype, prepinfo)
 
         # compute results
         # for structure of results from handler.execute look there
-        results = execute(self.core.conformers, self._instructions, self.dir)
+        results = execute(jobs, self.dir, self._instructions["prog"])
+
+        # TODO - remove failed conformers
 
         # update results for each conformer
         for conf in self.core.conformers:
@@ -107,6 +109,41 @@ class Prescreening(CensoPart):
         self.core.dump_ensemble(self._name)
 
         # DONE
+
+    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
+        prepinfo = {jt: {} for jt in jobtype}
+
+        prepinfo["partname"] = self._name
+        prepinfo["charge"] = self.core.runinfo.get("charge")
+        prepinfo["unpaired"] = self.core.runinfo.get("unpaired")
+
+        prepinfo["sp"] = {
+            "func_name": DfaHelper.get_name(
+                self._instructions["func"], self._instructions["prog"]
+            ),
+            "func_type": DfaHelper.get_type(
+                self._instructions["func"]),
+            "disp": DfaHelper.get_disp(
+                self._instructions["func"]),
+            "basis": self._instructions["basis"],
+            "grid": self._instructions["grid"],
+            "template": self._instructions["template"],
+            "gcp": self._instructions["gcp"],
+        }
+
+        if "xtb_gsolv" in jobtype:
+            # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
+            prepinfo["xtb_gsolv"] = {
+                "solvent_key_xtb": SOLVENTS_DB.get(self._instructions["solvent"])["xtb"][1],
+                "gfnv": self._instructions["gfnv"],
+            }
+        elif "gsolv" in jobtype:
+            prepinfo["gsolv"] = {
+                "sm": self._instructions["sm"],
+                "solvent_key_prog": SOLVENTS_DB.get(self._instructions["solvent"])[self._instructions["sm"]][1],
+            }
+
+        return prepinfo
 
     def gtot(self, conf: MoleculeData) -> float:
         """
@@ -275,7 +312,8 @@ class Prescreening(CensoPart):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                conf.results[self._name]["bmw"] * conf.results[self._name]["gtot"]
+                conf.results[self._name]["bmw"] *
+                conf.results[self._name]["gtot"]
                 for conf in self.core.conformers
             ]
         )

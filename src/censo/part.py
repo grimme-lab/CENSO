@@ -12,7 +12,8 @@ from .params import (
     OMPMAX,
     SOLVENTS_DB,
 )
-from .utilities import setup_logger
+from .datastructure import ParallelJob
+from .utilities import setup_logger, DfaHelper
 
 logger = setup_logger(__name__)
 
@@ -100,10 +101,17 @@ class CensoPart:
     @classmethod
     def _validate(cls, tovalidate: dict[str, any]) -> None:
         """
-        validate the type of each setting in the given dict
-        also potentially validate if the setting is allowed by checking with cls._options
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by 
+        checking with cls._options.
 
-        raises exceptions if some setting's type is invalid or the settings value is not within predefined options
+        Args:
+            tovalidate (dict[str, any]): The dict containing the settings to be validated.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the setting is not allowed or the value is not within the allowed range.
         """
         # go through each section and try to validate each setting's type
         remove = []
@@ -149,7 +157,8 @@ class CensoPart:
                 if not interval[0] <= setting_value <= interval[1]:
                     # This is fatal so an exception is raised
                     raise ValueError(
-                        f"Value '{setting_value}' is out of range ({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'."
+                        f"Value '{setting_value}' is out of range "
+                        f"({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'."
                     )
             # NOTE: there is no check for complex types yet (i.e. lists)
 
@@ -207,31 +216,18 @@ class CensoPart:
         # every part instance depends on a core instance to manage the conformers
         self.core: CensoCore = core
 
-        # dictionary with instructions that get passed to the processors
-        # basically collapses the first level of nesting into a dict that is not divided into parts
-        self._instructions: dict[str, any] = {
-            **self.get_settings(),
-            **self.get_general_settings(),
-        }
-
-        # add some additional settings to instructions so that the processors don't have to do any lookups
-        # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-        self._instructions["solvent_key_xtb"] = SOLVENTS_DB.get(
-            self._instructions["solvent"]
-        )["xtb"][1]
-        if "sm" in self._instructions.keys():
-            self._instructions["solvent_key_prog"] = SOLVENTS_DB.get(
-                self._instructions["solvent"]
-            )[self._instructions["sm"]][1]
-
-        # add 'charge' and 'unpaired' to instructions
-        self._instructions["charge"] = core.runinfo.get("charge")
-        self._instructions["unpaired"] = core.runinfo.get("unpaired")
-
-        # also pass the name of the part to the processors
-        self._instructions["part_name"] = self._name
-
         self.dir: str = None
+
+    def setup_jobs(self, jobtype: list[str], prepinfo: dict[str, dict]) -> list[ParallelJob]:
+        # create jobs from conformers
+        jobs = [ParallelJob(conf.geom, jobtype, self._instructions["omp"])
+                for conf in self.core.conformers]
+
+        # put settings into jobs
+        for job in jobs:
+            job.prepinfo = prepinfo
+
+        return jobs
 
     def run(self) -> None:
         """

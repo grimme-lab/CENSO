@@ -162,7 +162,12 @@ class ParallelJob:
         self.mo_guess = None
 
         # Stores all the important information for preparation of the input files for every jobtype
-        self.prepinfo: dict[str, dict[str, any]]
+        # Always contains the 'general' key, which basically stores settings from the general section
+        # that are supposed to be applied for every job
+        # Also should always contain the name of the part where the job is launched from, as well as charge and
+        # number of unpaired electrons
+        self.prepinfo: dict[str, dict[str, any]] = {
+            "general": {}, "partname": "", "charge": 0, "unpaired": 0}
 
         # store metadata, is updated by the processor
         # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
