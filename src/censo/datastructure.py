@@ -1,7 +1,13 @@
 from functools import reduce
 from collections import OrderedDict
+from typing import TypedDict
 
 from .params import BOHR2ANG
+
+
+class Atom(TypedDict):
+    element: str
+    xyz: list[float]
 
 
 class GeometryData:
@@ -22,29 +28,28 @@ class GeometryData:
         # name of the linked MoleculeData
         self.name: str = name
 
-        # dict with element symbols as keys and lists of three-item lists as values
+        # list of dicts preserving the order of the input file for easy mapping
         # the coordinates should be given in Angstrom
-        # self.xyz = {"H": [[0.0, 0.0, 0.0], [...], ...], "C": [[0.0, 0.0, 0.0], ...], ...}
-        self.xyz: OrderedDict[str, list[list[float]]] = OrderedDict()
+        # self.xyz = [{"element": "H", "xyz": [0.0, 0.0, 0.0]}, {"element": "C", "xyz": [0.0, 0.0 0.7]}, ...]
+        self.xyz: list[Atom] = []
 
         # set up xyz dict from the input lines
         for line in xyz:
             spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
-            self.xyz.setdefault(element, []).append(
-                [float(i) for i in spl[1:]])
+            self.xyz.append({"element": element, "xyz": [
+                            float(i) for i in spl[1:]]})
 
-        # compute number of atoms
-        self.nat: int = sum(len(i) for i in self.xyz.values())
+        # Count atoms
+        self.nat: int = len(self.xyz)
 
     def toorca(self) -> list:
         """
         method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
         """
         coord = []
-        for element, allcoords in self.xyz.items():
-            for atom in allcoords:
-                coord.append([element] + atom)
+        for atom in self.xyz:
+            coord.append([atom["element"]] + atom["xyz"])
 
         return coord
 
@@ -53,11 +58,14 @@ class GeometryData:
         method to convert the internal cartesian coordinates (self.xyz) to coord file format (for tm or xtb)
         """
         coord = ["$coord\n"]
-        for element, allcoords in self.xyz.items():
-            for atom in allcoords:
-                atom = list(map(lambda x: float(x) / BOHR2ANG, atom))
-                coord.append(
-                    reduce(lambda x, y: f"{x} {y}", atom + [f"{element}\n"]))
+        for atom in self.xyz:
+            coord.append(
+                reduce(
+                    lambda x, y: f"{x} {y}",
+                    map(lambda x: float(x) / BOHR2ANG,
+                        atom["xyz"]) + [f"{atom['element']}\n"]
+                )
+            )
 
         coord.append("$end\n")
 
@@ -70,12 +78,13 @@ class GeometryData:
         with open(path, "r") as file:
             lines = file.readlines()
 
+        self.xyz = []
         for line in lines:
             if not line.startswith("$"):
                 coords = line.split()
                 element = coords[-1]
                 cartesian_coords = [float(x) * BOHR2ANG for x in coords[:-1]]
-                self.xyz.setdefault(element, []).append(cartesian_coords)
+                self.xyz.append({"element": element, "xyz": cartesian_coords})
             elif line.startswith("$end"):
                 break
 
@@ -87,11 +96,10 @@ class GeometryData:
             f"{self.nat}\n",
             f"{self.name}\n",
         ]
-        for element, allcoords in self.xyz.items():
-            for atom in allcoords:
-                lines.append(
-                    f"{element} {atom[0]:.10f} {atom[1]:.10f} {atom[2]:.10f}\n"
-                )
+        for atom in self.xyz:
+            lines.append(
+                f"{atom['element']} {atom['xyz'][0]:.10f} {atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
+            )
 
         return lines
 
@@ -104,7 +112,7 @@ class MoleculeData:
     The confomers' MoleculeDatas are set up in censo.core.CensoCore.setup_conformers
     """
 
-    def __init__(self, name: str, xyz):
+    def __init__(self, name: str, xyz: list[str]):
         """
         takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor
         """
