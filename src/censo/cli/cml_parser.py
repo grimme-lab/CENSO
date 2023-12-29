@@ -45,7 +45,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
 
     groups = []
 
-    ### RUN SETTINGS
+    # RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
     groups[0].add_argument(
         "-inp",
@@ -114,7 +114,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         " than the default (~/.censo2rc).",
     )
 
-    ### GENERAL SETTINGS
+    # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))
     groups[1].add_argument(
         "-T",
@@ -246,25 +246,25 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     )
     """
 
-    ### PRESCREENING SETTINGS
+    # PRESCREENING SETTINGS
     groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
 
-    ### SCREENING SETTINGS
+    # SCREENING SETTINGS
     groups.append(parser.add_argument_group("SCREENING SETTINGS"))
 
-    ### OPTIMIZATION SETTINGS
+    # OPTIMIZATION SETTINGS
     groups.append(parser.add_argument_group("OPTIMIZATION SETTINGS"))
 
-    ### REFINEMENT SETTINGS
+    # REFINEMENT SETTINGS
     groups.append(parser.add_argument_group("REFINEMENT SETTINGS"))
 
-    ### NMR SETTINGS
+    # NMR SETTINGS
     groups.append(parser.add_argument_group("NMR SETTINGS"))
 
-    ### OPTROT SETTINGS
+    # OPTROT SETTINGS
     groups.append(parser.add_argument_group("OPTROT SETTINGS"))
 
-    ### UVVIS SETTINGS
+    # UVVIS SETTINGS
     groups.append(parser.add_argument_group("UVVIS SETTINGS"))
 
     # leave these options out for now, implementation for cml complicated

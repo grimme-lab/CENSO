@@ -5,24 +5,25 @@ import unittest
 from unittest.mock import patch
 from pprint import pprint
 
-from censo.core import CensoCore
+from censo.ensembledata import EnsembleData
 from censo.ensembleopt.optimization import Optimization
 
 
 class TestOptimization(unittest.TestCase):
     @patch("censo.ensembleopt.optimization.execute")
     def test_run(self, mock_execute):
-        core = CensoCore(os.getcwd())
-        core.read_input("testfiles/crest_conformers.xyz", charge=2, unpaired=7)
+        ensemble = EnsembleData(os.getcwd())
+        ensemble.read_input(
+            "testfiles/crest_conformers.xyz", charge=2, unpaired=7)
 
         # Create an instance of the Optimization class
-        optimization = Optimization(core)
+        optimization = Optimization(ensemble)
 
         # Mock execution
         mock_results = {
-            id(conf): {"xtb_opt": {}, "xtb_rrho": {}} for conf in core.conformers
+            id(conf): {"xtb_opt": {}, "xtb_rrho": {}} for conf in ensemble.conformers
         }
-        for conf in core.conformers:
+        for conf in ensemble.conformers:
             mock_results[id(conf)]["xtb_opt"][
                 "energy"
             ] = -1396.397775 + random.normalvariate(0, 0.001)

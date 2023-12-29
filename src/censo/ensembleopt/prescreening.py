@@ -1,6 +1,6 @@
 import os
 
-from ..core import CensoCore
+from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import PLENGTH, AU2KCAL
@@ -40,8 +40,8 @@ class Prescreening(CensoPart):
 
     _settings = {}
 
-    def __init__(self, core: CensoCore):
-        super().__init__(core)
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
 
     @timeit
     @CensoPart._create_dir
@@ -79,7 +79,7 @@ class Prescreening(CensoPart):
         # TODO - remove failed conformers
 
         # update results for each conformer
-        for conf in self.core.conformers:
+        for conf in self.ensemble.conformers:
             # store results of single jobs for each conformer
             conf.results.setdefault(self._name, {}).update(results[id(conf)])
 
@@ -87,13 +87,13 @@ class Prescreening(CensoPart):
             conf.results[self._name]["gtot"] = self.gtot(conf)
 
         # sort conformers list with prescreening key (gtot)
-        self.core.conformers.sort(
+        self.ensemble.conformers.sort(
             key=lambda conf: conf.results[self._name]["gtot"],
         )
 
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-        self.core.calc_boltzmannweights(
+        self.ensemble.calc_boltzmannweights(
             self._instructions.get("temperature", 298.15), self._name
         )
 
@@ -103,12 +103,12 @@ class Prescreening(CensoPart):
         # update conformers with threshold
         threshold = self._instructions["threshold"] / AU2KCAL
 
-        # update the conformer list in core (remove confs if below threshold)
-        for confname in self.core.update_conformers(self.gtot, threshold):
+        # update the conformer list in ensemble (remove confs if below threshold)
+        for confname in self.ensemble.update_conformers(self.gtot, threshold):
             print(f"No longer considering {confname}.")
 
         # dump ensemble
-        self.core.dump_ensemble(self._name)
+        self.ensemble.dump_ensemble(self._name)
 
         # DONE
 
@@ -116,8 +116,8 @@ class Prescreening(CensoPart):
         prepinfo = {jt: {} for jt in jobtype}
 
         prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.core.runinfo.get("charge")
-        prepinfo["unpaired"] = self.core.runinfo.get("unpaired")
+        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
 
         prepinfo["sp"] = {
             "func_name": DfaHelper.get_name(
@@ -215,26 +215,26 @@ class Prescreening(CensoPart):
         # minimal xtb single-point energy
         if all(
             "xtb_gsolv" in conf.results[self._name].keys()
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ):
             xtbmin = min(
                 conf.results[self._name]["xtb_gsolv"]["energy_xtb_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             )
 
         # minimal dft single-point energy
         dft_energies = (
             {
                 id(conf): conf.results[self._name]["sp"]["energy"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
             if not all(
                 "gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
         )
 
@@ -247,19 +247,19 @@ class Prescreening(CensoPart):
             # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
             if all(
                 "xtb_gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ):
                 gsolvmin = min(
                     conf.results[self._name]["xtb_gsolv"]["gsolv"]
-                    for conf in self.core.conformers
+                    for conf in self.ensemble.conformers
                 )
             elif all(
                 "gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ):
                 gsolvmin = min(
                     conf.results[self._name]["gsolv"]["gsolv"]
-                    for conf in self.core.conformers
+                    for conf in self.ensemble.conformers
                 )
             else:
                 raise RuntimeError(
@@ -268,7 +268,7 @@ class Prescreening(CensoPart):
                 )
 
         # minimal total free enthalpy
-        gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
+        gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
 
         # determines what to print for each conformer in each column
         printmap = {
@@ -294,7 +294,7 @@ class Prescreening(CensoPart):
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
@@ -313,7 +313,7 @@ class Prescreening(CensoPart):
             [
                 conf.results[self._name]["bmw"] *
                 conf.results[self._name]["gtot"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ]
         )
 
@@ -322,7 +322,7 @@ class Prescreening(CensoPart):
             [
                 conf.results[self._name]["bmw"]
                 * conf.results[self._name]["sp"]["energy"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ]
         )
 
@@ -336,10 +336,10 @@ class Prescreening(CensoPart):
 
         # write everything to a file
         logger.debug(
-            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
         )
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 

@@ -4,7 +4,7 @@ import os
 import ast
 from collections.abc import Callable
 
-from .core import CensoCore
+from .ensembledata import EnsembleData
 from .params import (
     PLENGTH,
     DIGILEN,
@@ -186,7 +186,7 @@ class CensoPart:
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(self.core.workdir, self._name)
+            self.dir = os.path.join(self.ensemble.workdir, self._name)
             if os.path.isdir(self.dir):
                 global logger
                 logger.warning(
@@ -200,12 +200,12 @@ class CensoPart:
 
         return wrapper
 
-    def __init__(self, core: CensoCore):
+    def __init__(self, ensemble: EnsembleData):
         """
         Initializes a part instance.
 
         Args:
-            core: The core instance that manages the conformers.
+            ensemble: The ensemble instance that manages the conformers.
 
         Returns:
             None
@@ -219,15 +219,15 @@ class CensoPart:
             **self.get_settings(),
         }
 
-        # every part instance depends on a core instance to manage the conformers
-        self.core: CensoCore = core
+        # every part instance depends on a ensemble instance to manage the conformers
+        self.ensemble: EnsembleData = ensemble
 
         self.dir: str = None
 
     def setup_jobs(self, jobtype: list[str], prepinfo: dict[str, dict]) -> list[ParallelJob]:
         # create jobs from conformers
         jobs = [ParallelJob(conf.geom, jobtype, self._instructions["omp"])
-                for conf in self.core.conformers]
+                for conf in self.ensemble.conformers]
 
         # put settings into jobs
         for job in jobs:
@@ -274,8 +274,8 @@ class CensoPart:
             None
         """
         results = {conf.name: conf.results[self._name]
-                   for conf in self.core.conformers}
+                   for conf in self.ensemble.conformers}
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.json"), "w"
+            os.path.join(self.ensemble.workdir, f"{self._name}.json"), "w"
         ) as outfile:
             json.dump(results, outfile, indent=4)

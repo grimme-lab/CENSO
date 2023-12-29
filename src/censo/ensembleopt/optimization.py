@@ -6,7 +6,7 @@ import os
 from functools import reduce
 from math import exp
 
-from ..core import CensoCore
+from ..core import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import (
@@ -72,14 +72,16 @@ class Optimization(CensoPart):
 
     _settings = {}
 
-    def __init__(self, core: CensoCore):
-        super().__init__(core)
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
         # set the correct name for 'func'
-        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
+        self._instructions["func_type"] = DfaHelper.get_type(
+            self._instructions["func"])
         self._instructions["func_name"] = DfaHelper.get_name(
             self._instructions["func"], self._instructions["prog"]
         )
-        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
+        self._instructions["disp"] = DfaHelper.get_disp(
+            self._instructions["func"])
 
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
@@ -116,7 +118,7 @@ class Optimization(CensoPart):
         self._instructions["jobtype"] = ["xtb_opt"]
 
         # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
-        if self._instructions["macrocycles"] and len(self.core.conformers) > 1:
+        if self._instructions["macrocycles"] and len(self.ensemble.conformers) > 1:
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
@@ -129,9 +131,9 @@ class Optimization(CensoPart):
             """
             do normal geometry optimization
             """
-            if not len(self.core.conformers) > 1:
+            if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"Only one conformer ({self.core.conformers[0].name}) is available for optimization."
+                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
@@ -139,27 +141,30 @@ class Optimization(CensoPart):
             self._instructions["macrocycles"] = False
 
             # run optimizations using xtb as driver
-            results_opt = execute(self.core.conformers, self._instructions, self.dir)
+            results_opt = execute(self.ensemble.conformers,
+                                  self._instructions, self.dir)
 
             # update results for each conformer
-            for conf in self.core.conformers:
+            for conf in self.ensemble.conformers:
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[id(conf)]["xtb_opt"]["geom"]
 
                 # store results
-                conf.results.setdefault(self._name, {}).update(results_opt[id(conf)])
+                conf.results.setdefault(self._name, {}).update(
+                    results_opt[id(conf)])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
         # solvent model, since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
-        results_rrho = execute(self.core.conformers, self._instructions, self.dir)
+        results_rrho = execute(self.ensemble.conformers,
+                               self._instructions, self.dir)
 
-        for conf in self.core.conformers:
+        for conf in self.ensemble.conformers:
             conf.results[self._name].update(results_rrho[id(conf)])
 
         # calculate boltzmann weights from gtot values calculated here
-        self.core.calc_boltzmannweights(
+        self.ensemble.calc_boltzmannweights(
             self._instructions.get("temperature", 298.15), self._name
         )
 
@@ -167,7 +172,7 @@ class Optimization(CensoPart):
         self.write_results()
 
         # dump ensemble
-        self.core.dump_ensemble(self._name)
+        self.ensemble.dump_ensemble(self._name)
 
     def grrho(self, conf: MoleculeData) -> float:
         """
@@ -196,8 +201,8 @@ class Optimization(CensoPart):
         """
         # make a separate list of conformers that only includes (considered) conformers that are not converged
         # NOTE: this is a special step only necessary for macrocycle optimization
-        # at this point it's just self.core.conformers, it is basically a todo-list
-        self.confs_nc = self.core.conformers.copy()
+        # at this point it's just self.ensemble.conformers, it is basically a todo-list
+        self.confs_nc = self.ensemble.conformers.copy()
 
         ncyc = 0
         rrho_done = False
@@ -230,7 +235,8 @@ class Optimization(CensoPart):
                 tmp = self._instructions["bhess"]
                 self._instructions["bhess"] = True
                 self._instructions["jobtype"] = ["xtb_rrho"]
-                results_rrho = execute(self.confs_nc, self._instructions, self.dir)
+                results_rrho = execute(
+                    self.confs_nc, self._instructions, self.dir)
                 self._instructions["jobtype"] = ["xtb_opt"]
                 self._instructions["bhess"] = tmp
 
@@ -245,14 +251,14 @@ class Optimization(CensoPart):
             # TODO - crestcheck each iteration if ncyc >= 6
 
             # sort conformers
-            self.core.conformers.sort(key=lambda conf: self.grrho(conf))
+            self.ensemble.conformers.sort(key=lambda conf: self.grrho(conf))
 
             threshold = self._instructions["threshold"] / AU2KCAL
 
             # threshold increase based on mean trajectory similarity
-            if len(self.core.conformers) > 1:
+            if len(self.ensemble.conformers) > 1:
                 trajectories = []
-                for conf in self.core.conformers:
+                for conf in self.ensemble.conformers:
                     # If conformers already converged before, use the constant final energy as trajectory
                     if conf not in self.confs_nc:
                         trajectories.append(
@@ -270,16 +276,19 @@ class Optimization(CensoPart):
                                 conf.results[self._name]["xtb_opt"]["energy"]
                                 for _ in range(
                                     self._instructions["optcycles"]
-                                    - len(results_opt[conf.geom.id]["xtb_opt"]["ecyc"])
+                                    - len(results_opt[conf.geom.id]
+                                          ["xtb_opt"]["ecyc"])
                                 )
                             ]
                         )
                     # If conformers did not converge, use the trajectory from the results
                     else:
-                        trajectories.append(conf.results[self._name]["xtb_opt"]["ecyc"])
+                        trajectories.append(
+                            conf.results[self._name]["xtb_opt"]["ecyc"])
 
                 mu_sim = mean_similarity(trajectories)
-                threshold += (1.5 / AU2KCAL) * max(1 - exp(-AU2KCAL * mu_sim), 0.0)
+                threshold += (1.5 / AU2KCAL) * \
+                    max(1 - exp(-AU2KCAL * mu_sim), 0.0)
                 logger.debug(
                     f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol"
                 )
@@ -300,7 +309,7 @@ class Optimization(CensoPart):
 
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
             # this macrocycle)
-            self.core.update_conformers(
+            self.ensemble.update_conformers(
                 self.grrho,
                 threshold,
                 additional_filter=lambda x: all(
@@ -312,8 +321,9 @@ class Optimization(CensoPart):
 
             # make sure that all the conformers, that are not converged but filtered out, are also removed
             # from self.confs_nc
-            limit = min(self.grrho(conf) for conf in self.core.conformers)
-            for conf in self.core.rem:
+            limit = min(self.grrho(conf)
+                        for conf in self.ensemble.conformers)
+            for conf in self.ensemble.rem:
                 if conf in self.confs_nc:
                     print(
                         f"{conf.name} is no longer considered (gradient too small and"
@@ -355,11 +365,11 @@ class Optimization(CensoPart):
         ]
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(self.grrho(conf) for conf in self.core.conformers)
+        gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
         dftmin = min(
             conf.results[self._name]["xtb_opt"]["energy"]
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         )
 
         printmap = {
@@ -376,17 +386,17 @@ class Optimization(CensoPart):
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
         )
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
@@ -398,7 +408,7 @@ class Optimization(CensoPart):
         writes information about the current state of the ensemble
         """
         # TODO
-        limit = min(self.grrho(conf) for conf in self.core.conformers)
+        limit = min(self.grrho(conf) for conf in self.ensemble.conformers)
         for conf in self.confs_nc:
             print(
                 f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm:"

@@ -617,7 +617,11 @@ class OrcaProc(QmProc):
         if (
             not self.instructions["gas-phase"]
             and not no_solv
-            and ("sm" in self.instructions.keys() or "sm_s" in self.instructions.keys()) or "sm_j" in self.instructions.keys()
+            and (
+                "sm" in self.instructions.keys()
+                or "sm_s" in self.instructions.keys()
+            )
+            or "sm_j" in self.instructions.keys()
         ):
             if jobtype == "nmr_s" or jobtype == "nmr":
                 sm = self.instructions["sm_s"]
@@ -898,9 +902,7 @@ class OrcaProc(QmProc):
         return result
 
     # TODO - split this up
-    def _xtb_opt(
-        self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt"
-    ) -> dict[str, any]:
+    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, any]:
         """
         ORCA geometry optimization using ANCOPT.
 
@@ -989,9 +991,7 @@ class OrcaProc(QmProc):
         parser.write_input(inputpath, indict)
 
         # append some additional lines to the coord file for ancopt
-        with open(
-            os.path.join(jobdir, f"{filename}.coord"), "a", newline=None
-        ) as newcoord:
+        with open(os.path.join(jobdir, f"{filename}.coord"), "a", newline=None) as newcoord:
             newcoord.writelines(
                 [
                     "$external\n",
@@ -1073,12 +1073,8 @@ class OrcaProc(QmProc):
 
         # Check if xtb terminated normally (if there are any error indicators
         # in the output)
-        meta["success"] = (
-            False
-            if next((x for x in lines if any(y in x for y in error_ind)), None)
-            is not None
-            else True
-        )
+        meta["success"] = (False if next((x for x in lines if any(
+            y in x for y in error_ind)), None) is not None else True)
         if not meta["success"]:
             meta["error"] = "what went wrong in xtb_opt"
             job.meta["xtb_opt"].update(meta)
@@ -1106,8 +1102,7 @@ class OrcaProc(QmProc):
             tmp = tmp[result["converged"]]
 
             result["cycles"] = int(
-                next(x for x in lines if tmp[0] in x).split()[tmp[1]]
-            )
+                next(x for x in lines if tmp[0] in x).split()[tmp[1]])
 
             # Get energies for each cycle
             result["ecyc"].extend(
@@ -1118,11 +1113,7 @@ class OrcaProc(QmProc):
             # Get the gradient norm (lines reversed so it takes the last
             # gradient norm value)
             result["grad_norm"] = float(
-                next(
-                    (x for x in lines[::-1]
-                     if " :: gradient norm      " in x), None
-                ).split()[3]
-            )
+                next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
 
             # Get all other gradient norms for evaluation
             result["gncyc"] = [
@@ -1154,9 +1145,7 @@ class OrcaProc(QmProc):
 
         return result
 
-    def _nmr(
-        self, job: ParallelJob, jobdir: str, filename: str = "nmr"
-    ) -> dict[str, any]:
+    def _nmr(self, job: ParallelJob, jobdir: str, filename: str = "nmr") -> dict[str, any]:
         """
         Calculate the NMR shieldings and/or couplings for a conformer. ORCA gives only the active cores in the output
         so there is not need for more thinking here.
@@ -1232,13 +1221,23 @@ class OrcaProc(QmProc):
                 job.meta["nmr"].update(meta)
                 return result
 
+            # Grab shieldings and energy from the output
+            with open(outputpath, "r") as f:
+                lines = f.readlines()
+
+            # Get final energy
+            result["energy"] = next(
+                (
+                    float(line.split()[4])
+                    for line in lines
+                    if "FINAL SINGLE POINT ENERGY" in line
+                ),
+                None,
+            )
+
             # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY
             # (ppm)"
             if ending in ["", "_s"]:
-                # Grab shieldings from the output
-                with open(outputpath, "r") as f:
-                    lines = f.readlines()
-
                 start = lines.index(
                     next(x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x)) + 6
 
@@ -1290,8 +1289,7 @@ class OrcaProc(QmProc):
         return result
 
     @staticmethod
-    def __apply_flags(
-            indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
+    def __apply_flags(indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
         """
         apply flags to an orca input
 

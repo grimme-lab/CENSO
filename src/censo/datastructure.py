@@ -109,7 +109,7 @@ class MoleculeData:
     MoleculeData contains identifier, a GeometryData object,
     as well as the sorting keys
 
-    The confomers' MoleculeDatas are set up in censo.core.CensoCore.setup_conformers
+    The confomers' MoleculeDatas are set up in censo.ensembledata.EnsembleData.setup_conformers
     """
 
     def __init__(self, name: str, xyz: list[str]):
