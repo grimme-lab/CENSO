@@ -324,6 +324,8 @@ class OrcaProc(QmProc):
                 "func_type",
                 "disp",
                 "gcp",
+                # in principal there is the soft requirement of having sm and solvent_key_prog, but this is only used
+                # in the case of implicit solvation (this is handled in the _sp method)
             ],
             "gsolv": [
                 "sm",
@@ -345,7 +347,7 @@ class OrcaProc(QmProc):
                 "p_active",
             ],
         },
-        **super()._req_settings_xtb
+        **QmProc._req_settings_xtb
     }
 
     @classmethod

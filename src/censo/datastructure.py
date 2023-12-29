@@ -1,5 +1,5 @@
 from functools import reduce
-from collections import defaultdict
+from collections import OrderedDict
 
 from .params import BOHR2ANG
 
@@ -10,7 +10,7 @@ class GeometryData:
     in order to keep the object small, since it has to be pickled for multiprocessing
     """
 
-    def __init__(self, identifier: int, name: str, xyz):
+    def __init__(self, identifier: int, name: str, xyz: list[str]):
         """
         takes an identifier and the geometry lines from the xyz-file as input
         """
@@ -25,17 +25,14 @@ class GeometryData:
         # dict with element symbols as keys and lists of three-item lists as values
         # the coordinates should be given in Angstrom
         # self.xyz = {"H": [[0.0, 0.0, 0.0], [...], ...], "C": [[0.0, 0.0, 0.0], ...], ...}
-        self.xyz: dict[str, list[list[float]]] = {}
+        self.xyz: OrderedDict[str, list[list[float]]] = OrderedDict()
 
         # set up xyz dict from the input lines
         for line in xyz:
             spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
-            tmp = spl[1:]
-            if element not in self.xyz.keys():
-                self.xyz[element] = []
-
-            self.xyz[element].append([float(i) for i in tmp])
+            self.xyz.setdefault(element, []).append(
+                [float(i) for i in spl[1:]])
 
         # compute number of atoms
         self.nat: int = sum(len(i) for i in self.xyz.values())
@@ -73,13 +70,12 @@ class GeometryData:
         with open(path, "r") as file:
             lines = file.readlines()
 
-        self.xyz = defaultdict(list)
         for line in lines:
             if not line.startswith("$"):
                 coords = line.split()
-                last_coord = coords[-1]
+                element = coords[-1]
                 cartesian_coords = [float(x) * BOHR2ANG for x in coords[:-1]]
-                self.xyz[last_coord].append(cartesian_coords)
+                self.xyz.setdefault(element, []).append(cartesian_coords)
             elif line.startswith("$end"):
                 break
 
@@ -133,7 +129,7 @@ class MoleculeData:
         self.bmws: list[float] = []
 
         # stores the results of the calculations
-        self.results = {}
+        self.results = OrderedDict()
         # should be structured like the following:
         # 'part': <results from part jobs/in-part-calculations>
         # => e.g. self.results["prescreening"]["gtot"]

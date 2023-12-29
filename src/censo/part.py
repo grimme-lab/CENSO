@@ -213,6 +213,12 @@ class CensoPart:
         # sets the name of the part (used for printing and folder creation)
         self._name: str = self.__class__.__name__.lower()
 
+        # compile all settings for this part
+        self._instructions = {
+            **self.get_general_settings(),
+            **self.get_settings(),
+        }
+
         # every part instance depends on a core instance to manage the conformers
         self.core: CensoCore = core
 

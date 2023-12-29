@@ -1,12 +1,15 @@
+from censo.cli.cml_parser import parse
+from censo.params import DESCR
+from censo.core import CensoCore
 import shutil
 import unittest
 import os
 
-from censo.cli.cml_parser import parse
-from censo.params import DESCR
-from censo.core import CensoCore
+os.chdir(os.path.split(__file__)[0])
 
-test_args = parse(DESCR, "-inp testfiles/crest_conformers.xyz -chrg 0 -u 0".split())
+
+test_args = parse(
+    DESCR, "-inp testfiles/crest_conformers.xyz -chrg 0 -u 0".split())
 test_dir = os.getcwd()
 
 

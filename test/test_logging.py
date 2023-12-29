@@ -2,7 +2,7 @@ import os
 import shutil
 import unittest
 
-from ..src.censo.utilities import setup_logger
+from censo.utilities import setup_logger
 
 
 class TestLogging(unittest.TestCase):

@@ -2,6 +2,7 @@
 Calculates the ensemble NMR spectrum for all active nuclei.
 """
 from functools import reduce
+import os
 
 from ..core import CensoCore
 from ..parallel import execute
@@ -13,7 +14,7 @@ from ..params import (
     SOLVENTS_DB,
 )
 from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, setup_logger
+from ..utilities import print, timeit, DfaHelper, setup_logger, format_data
 
 logger = setup_logger(__name__)
 
@@ -122,7 +123,40 @@ class NMR(CensoPart):
         """
         Generate all necessary files for an ANMR run.
         """
-        pass
+        # Write anmr_enso
+        headers = [
+            "ONOFF",
+            "NMR",
+            "CONF",
+            "BW",
+            "Energy",
+            "Gsolv",
+            "mRRHO",
+            "gi",
+        ]
+
+        rows = []
+
+        lines = format_data(headers, rows)
+
+        # Write lines to file
+        logger.debug(
+            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+        )
+        with open(
+            os.path.join(self.core.workdir, f"{self._name}.out"), "a", newline=None
+        ) as outfile:
+            outfile.writelines(lines)
+
+        # Additionally, write the results to a json file
+        self.write_json()
+
+        # Write anmrrc
+
+        # Write nmrprop.dat
+        # first: atom no. | sigma(iso)
+        # then: atom no.1 | atom no.2 | J12
+        # atom no.s according to their appearance in the xyz-file
 
     def write_results(self, results: dict[int, any]) -> None:
         """

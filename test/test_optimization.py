@@ -26,6 +26,8 @@ class TestOptimization(unittest.TestCase):
             mock_results[id(conf)]["xtb_opt"][
                 "energy"
             ] = -1396.397775 + random.normalvariate(0, 0.001)
+            mock_results[id(conf)]["xtb_opt"]["ecyc"] = [-1396.387775 -
+                                                         i * random.normalvariate(0, 0.0001) for i in range(7)]
             mock_results[id(conf)]["xtb_opt"]["converged"] = True
             mock_results[id(conf)]["xtb_opt"]["cycles"] = 7
             mock_results[id(conf)]["xtb_opt"]["geom"] = conf.geom.xyz
@@ -49,6 +51,7 @@ class TestOptimization(unittest.TestCase):
             "censo.log",
             "censo_ensemble_optimization.xyz",
             "optimization.out",
+            "optimization.json",
         ]
         for f in delete:
             f = os.path.join(os.getcwd(), f)

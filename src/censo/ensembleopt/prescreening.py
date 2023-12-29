@@ -61,8 +61,10 @@ class Prescreening(CensoPart):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
-        else:
+        elif not self._instructions.get("implicit", False):
             jobtype = ["xtb_gsolv", "sp"]
+        else:
+            jobtype = ["gsolv"]
 
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo(jobtype)
@@ -129,6 +131,8 @@ class Prescreening(CensoPart):
             "grid": self._instructions["grid"],
             "template": self._instructions["template"],
             "gcp": self._instructions["gcp"],
+            "sm": self._instructions["sm"],
+            "solvent_key_prog": SOLVENTS_DB.get(self._instructions["solvent"])[self._instructions["sm"]][1],
         }
 
         if "xtb_gsolv" in jobtype:
@@ -136,11 +140,6 @@ class Prescreening(CensoPart):
             prepinfo["xtb_gsolv"] = {
                 "solvent_key_xtb": SOLVENTS_DB.get(self._instructions["solvent"])["xtb"][1],
                 "gfnv": self._instructions["gfnv"],
-            }
-        elif "gsolv" in jobtype:
-            prepinfo["gsolv"] = {
-                "sm": self._instructions["sm"],
-                "solvent_key_prog": SOLVENTS_DB.get(self._instructions["solvent"])[self._instructions["sm"]][1],
             }
 
         return prepinfo
