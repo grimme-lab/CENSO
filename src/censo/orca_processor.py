@@ -1158,12 +1158,13 @@ class OrcaProc(QmProc):
         self, job: ParallelJob, jobdir: str, filename: str = "nmr"
     ) -> dict[str, any]:
         """
-        Calculate the NMR shieldings and/or couplings for a conformer.
+        Calculate the NMR shieldings and/or couplings for a conformer. ORCA gives only the active cores in the output
+        so there is not need for more thinking here.
         Formatting:
-            'shielding' contains a dict with (key, value) = (element, shieldings), with the shieldings in the order of
-            how they appear in the xyz-coordinates.
-            'couplings' contains a dict with (key, value) = (element, couplings), with the couplings in the order of
-            how they appear in the ORCA output.
+            'shielding' contains a list of tuples (atom_index, shielding), with atom_index being the index of the atom
+            in the internal coordinates of the GeometryData.
+            'couplings' contains a list of tuples (set(atom_index1, atom_index2), coupling), with the indices of the atoms
+            in the internal coordinates of the GeometryData. A set is used to represent an atom pair.
 
         Args:
             job: ParallelJob object containing the job information, metadata is stored in job.meta
@@ -1231,68 +1232,56 @@ class OrcaProc(QmProc):
                 job.meta["nmr"].update(meta)
                 return result
 
-            # Grab shieldings and/or couplings from the output
-            with open(outputpath, "r") as f:
-                lines = f.readlines()
-
             # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY
             # (ppm)"
             if ending in ["", "_s"]:
-                start = (
-                    lines.index(
-                        next(
-                            x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x)) +
-                    6)
+                # Grab shieldings from the output
+                with open(outputpath, "r") as f:
+                    lines = f.readlines()
 
-                result["shieldings"] = {}
+                start = lines.index(
+                    next(x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x)) + 6
+
+                result["shieldings"] = []
 
                 for line in lines[start:]:
                     # Try to extract values from the lines, if that fails
                     # (probably IndexError) stop
                     try:
-                        element = line.split()[1]
-                        result["shieldings"].setdefault(
-                            element,
-                            {}).setdefault(
-                            "isotropic",
-                            []).append(
-                            float(
-                                line.split()[2]))
-                        result["shieldings"][element].setdefault(
-                            "anisotropy", []
-                        ).append(float(line.split()[3]))
+                        result["shieldings"].append(
+                            (int(line.split()[0]), float(line.split()[2])))
                     except IndexError:
                         break
 
-            # For couplings watch out for the line "SUMMARY OF ISOTROPIC
-            # COUPLINGS (Hz)"
             if ending in ["", "_j"]:
-                start = (
-                    lines.index(
-                        next(x for x in lines if "SUMMARY OF ISOTROPIC" in x))
-                    + 3
-                )
+                # Read couplings from *_properties.txt for easier parsing
+                with open(os.path.join(jobdir, f"{filename}{ending}_properties.txt"), "r") as f:
+                    lines = f.readlines()
 
-                result["couplings"] = {}
+                start = lines.index(
+                    next(x for x in lines if "EPRNMR_SSCoupling" in x)) + 13
 
-                for line in lines[start:]:
-                    # Try to extract values from the lines, if that fails
-                    # (probably IndexError) stop
-                    try:
-                        # The couplings will be listed as they appear in the ORCA output, so e.g.
-                        #       C1  C2  C3  O1
-                        # C1    ..  ..  ..  ..
-                        # C2    ..  ..  ..  ..
-                        # C3    ..  ..  ..  ..
-                        # O1    ..  ..  ..  ..
-                        # will yield a list for every atom no. Y for every element-key X where the couplings will be in order:
-                        # [XYC1, XYC2, XYC3, XYO1]
-                        element = line.split()[1]
-                        result["couplings"].setdefault(element, []).append(
-                            [float(substr) for substr in line[2:].split()]
-                        )
-                    except IndexError:
-                        break
+                lines = lines[start:]
+
+                end = lines.index(next(x for x in lines if "-----" in x))
+
+                lines = lines[:end]
+
+                result["couplings"] = []
+
+                # This goes through all the pairs, even though ORCA gives also non-unique pairs, since it makes life
+                # easier (basically every element of a symmetric square matrix)
+                # Only every third line a new pair is defined
+                # The iterator created here unpacks a tuple consisting of the multiples of three (indices of every
+                # third line) and every third line in 'lines'
+                for i, line in zip(range(0, len(lines), 3), lines[::3]):
+                    pair = {int(line.split()[4]), int(line.split()[11])}
+                    coupling = float(lines[i + 2].split()[4])
+                    result["couplings"].append((pair, coupling))
+
+                # Convert to set and back to get rid of duplicates
+                # ('vectorizing the symmetric matrix')
+                result["couplings"] = list(set(result["couplings"]))
 
         meta["success"] = True
 

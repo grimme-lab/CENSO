@@ -92,7 +92,8 @@ class CensoCore:
             self.runinfo["unpaired"] = unpaired
 
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
-            raise RuntimeError("Charge or number of unpaired electrons not defined.")
+            raise RuntimeError(
+                "Charge or number of unpaired electrons not defined.")
 
         self.setup_conformers(nconf)
 
@@ -138,7 +139,8 @@ class CensoCore:
             for i in range(nconf):
                 self.conformers.append(
                     MoleculeData(
-                        f"CONF{i + 1}", lines[2 + i * (nat + 2) : (i + 1) * (nat + 2)]
+                        f"CONF{i + 1}", lines[2 + i *
+                                              (nat + 2):(i + 1) * (nat + 2)]
                     )
                 )
 
@@ -200,12 +202,14 @@ class CensoCore:
                     # The population of the conformer is appended
                     s += target(conf)
         else:
-            raise RuntimeError("Invalid filter settings for updating conformer list.")
+            raise RuntimeError(
+                "Invalid filter settings for updating conformer list.")
 
         # move the sorted out conformers to rem list
         for conf in filtered:
             # pop item from conformers and insert this item at index 0 in rem
-            self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
+            self.rem.insert(0, self.conformers.pop(
+                self.conformers.index(conf)))
 
             # Log removed conformers
             logger.debug(f"Removed {conf.name}.")
@@ -247,7 +251,8 @@ class CensoCore:
             for jt in ["xtb_opt", "sp"]:
                 if all(jt in conf.results[part].keys() for conf in self.conformers):
                     minfree: float = min(
-                        [conf.results[part][jt]["energy"] for conf in self.conformers]
+                        [conf.results[part][jt]["energy"]
+                            for conf in self.conformers]
                     )
 
                     # calculate boltzmann factors
@@ -264,7 +269,8 @@ class CensoCore:
                     break
 
             if not gtot_replacement:
-                raise RuntimeError(f"Could not determine Boltzmann factors for {part}.")
+                raise RuntimeError(
+                    f"Could not determine Boltzmann factors for {part}.")
 
         # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())
