@@ -142,7 +142,6 @@ class NMR(CensoPart):
         # The second and third check which one should be executed
         conds = (
             self.get_settings()["func_s"] == self.get_settings()["func_j"]
-            and self.get_settings()["disp_s"] == self.get_settings()["disp_j"]
             and self.get_settings()["basis_s"] == self.get_settings()["basis_j"]
             and self.get_settings()["sm_s"] == self.get_settings()["sm_j"],
             self.get_settings()["shieldings"],

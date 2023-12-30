@@ -16,7 +16,7 @@ from collections.abc import Callable
 from .params import CODING, BOHR2ANG
 
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
-__loglevel = logging.INFO
+__loglevel = logging.DEBUG
 
 
 # __loglevel = logging.DEBUG

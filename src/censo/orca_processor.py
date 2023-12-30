@@ -366,7 +366,7 @@ class OrcaProc(QmProc):
             for jt in job.jobtype:
                 try:
                     # Check requirements for sp always except for xtb_sp or xtb_gsolv
-                    if jt not in ["xtb_sp", "xtb_gsolv"]:
+                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
                         assert all(s in job.prepinfo[jt].keys()
                                    for s in cls.__req_settings["sp"])
 
@@ -377,7 +377,7 @@ class OrcaProc(QmProc):
                     failed = True
                     logger.debug(
                         "The following settings are missing for implementation:")
-                    if jt not in ["xtb_sp", "xtb_gsolv"]:
+                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
                         logger.debug(list(s for s in filter(
                             lambda x: x not in job.prepinfo[jt].keys(), cls.__req_settings["sp"])))
 

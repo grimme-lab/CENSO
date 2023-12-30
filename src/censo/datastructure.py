@@ -62,8 +62,8 @@ class GeometryData:
             coord.append(
                 reduce(
                     lambda x, y: f"{x} {y}",
-                    map(lambda x: float(x) / BOHR2ANG,
-                        atom["xyz"]) + [f"{atom['element']}\n"]
+                    list(map(lambda x: float(x) / BOHR2ANG,
+                             atom["xyz"])) + [f"{atom['element']}\n"]
                 )
             )
 

@@ -164,7 +164,7 @@ class Optimization(CensoPart):
         # do rrho on converged geometries (overwrites previous rrho calculations)
         jobtype = ["xtb_rrho"]
         prepinfo = self.setup_prepinfo(jobtype)
-        results_rrho = execute(
+        results_rrho, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -523,11 +523,11 @@ class Optimization(CensoPart):
             "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
         }
         rows = [
-            printmap[header](conf) for header in headers
+            [printmap[header](conf) for header in headers]
             for conf in self.ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
 
         for line in lines:
-            print(line)
+            print(line, end="")
