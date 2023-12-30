@@ -61,9 +61,9 @@ class Screening(Prescreening):
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
-        if self._instructions["evaluate_rrho"]:
+        if self.get_general_settings()["evaluate_rrho"]:
             # PART (2)
-            threshold = self._instructions["threshold"] / AU2KCAL
+            threshold = self.get_settings()["threshold"] / AU2KCAL
 
             self._instructions["jobtype"] = ["xtb_rrho"]
 
@@ -105,7 +105,7 @@ class Screening(Prescreening):
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
             self.ensemble.calc_boltzmannweights(
-                self._instructions.get("temperature", 298.15), self._name
+                self.get_general_settings().get("temperature", 298.15), self._name
             )
 
             # if no conformers are filtered basically nothing happens
@@ -174,7 +174,7 @@ class Screening(Prescreening):
         if (
             all("prescreening" in conf.results.keys()
                 for conf in self.ensemble.conformers)
-            and not self._instructions["gas-phase"]
+            and not self.get_general_settings()["gas-phase"]
         ):
             xtb_energies = {
                 id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
@@ -277,16 +277,16 @@ class Screening(Prescreening):
         if (
             all("prescreening" in conf.results.keys()
                 for conf in self.ensemble.conformers)
-            and not self._instructions["gas-phase"]
+            and not self.get_general_settings()["gas-phase"]
         ):
             gxtb = {
                 id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
                 for conf in self.ensemble.conformers
             }
-            if self._instructions["evaluate_rrho"]:
+            if self.get_general_settings()["evaluate_rrho"]:
                 for conf in self.ensemble.conformers:
                     gxtb[id(conf)] += conf.results[self._name]["xtb_rrho"]["gibbs"][
-                        self._instructions["temperature"]
+                        self.get_general_settings()["temperature"]
                     ]
             gxtbmin = min(gxtb.values())
         else:
@@ -323,8 +323,8 @@ class Screening(Prescreening):
             "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
             if not isclose(self.gtot(conf), dft_energies[id(conf)])
             else "---",
-            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
-            if self._instructions["evaluate_rrho"]
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            if self.get_general_settings()["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",

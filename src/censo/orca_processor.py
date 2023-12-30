@@ -403,6 +403,10 @@ class OrcaProc(QmProc):
                 "nmr": self._nmr,
             },
         }
+
+        # Stores setting wether to copy MO-files for faster SCFs
+        self.copy_mo: bool = False
+
         """self._jobtypes = {
             **self._jobtypes, **{
                 "opt": self._opt,
@@ -782,7 +786,7 @@ class OrcaProc(QmProc):
 
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
-        if self.instructions["copy_mo"]:
+        if self.copy_mo:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
@@ -830,7 +834,7 @@ class OrcaProc(QmProc):
             meta["success"] = False
             meta["error"] = "Unknown error"
 
-        if self.instructions["copy_mo"]:
+        if self.copy_mo:
             # store the path to the current .gbw file for this conformer if
             # possible
             if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
@@ -1024,7 +1028,7 @@ class OrcaProc(QmProc):
 
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
-        if self.instructions["copy_mo"]:
+        if self.copy_mo:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
@@ -1125,7 +1129,7 @@ class OrcaProc(QmProc):
             result["energy"] = result["ecyc"][-1]
             meta["success"] = True
 
-        if self.instructions["copy_mo"]:
+        if self.copy_mo:
             # store the path to the current .gbw file for this conformer
             job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 

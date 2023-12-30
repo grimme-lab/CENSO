@@ -19,8 +19,8 @@ ncores = os.cpu_count()
 
 
 def execute(
-        jobs: list[ParallelJob], workdir: str, prog: str, copy_mo: bool = False,
-        retry_failed: bool = False, balance: bool = True, maxcores: int = OMPMIN,
+        conformers: list[MoleculeData], workdir: str, prog: str, prepinfo: dict[str, dict],
+        copy_mo: bool = False, retry_failed: bool = False, balance: bool = True, maxcores: int = OMPMIN,
         omp: int = OMPMIN,
 ) -> dict[int, any]:
     """
@@ -28,7 +28,7 @@ def execute(
     can copy MO-files, and retry failed jobs.
 
     Args:
-        jobs (list[ParallelJob]): List of jobs to be executed.
+        conformers (list[MoleculeData]): List of conformers for which jobs will be created and executed.
         workdir (str): Working directory.
         prog (str): Name of the program to be used.
         copy_mo (bool, optional): Whether to copy the MO-files from the previous calculation.
@@ -38,14 +38,17 @@ def execute(
         omp (int, optional): Number of cores to be used per job.
 
     Returns:
-        dict[int, any]: Dictionary of results.
+        dict[int, any]: Dictionary of results. Key: the id of the conformer.
     """
 
     # Check first if there are any conformers at all
     try:
-        assert len(jobs) > 0
+        assert len(conformers) > 0
     except AssertionError as e:
         raise e("No jobs to compute!")
+
+    # Create jobs from conformers data
+    jobs = prepare_jobs(conformers, prepinfo)
 
     # initialize the processor for the respective program
     processor = ProcessorFactory.create_processor(
@@ -59,111 +62,62 @@ def execute(
 
     processor.check_requirements(jobs)
 
-    if copy_mo:
-        # check for the most recent mo files for each conformer
-        # TODO - how would this work when multiple different programs are supported?
-        for job in jobs:
-            try:
-                job.mo_guess = next(
-                    c for c in conformers if c.geom.id == job.conf.id
-                ).mo_paths[-1]
-            except IndexError:
-                pass
+    # Set processor to copy the MO-files
+    processor.copy_mo = True
+
+    # check for the most recent mo files for each conformer
+    # TODO - how would this work when multiple different programs are supported?
+    for job in jobs:
+        try:
+            job.mo_guess = next(
+                c for c in conformers if c.geom.id == job.conf.id
+            ).mo_paths[-1]
+        except IndexError:
+            pass
 
     # set cores per process for each job
     if balance:
         set_omp_chunking(jobs)
+    else:
+        for job in jobs:
+            job.omp = omp
 
     # execute the jobs
     # TODO - let this exit gracefully when process is killed
     # RuntimeError: cannot schedule new futures after shutdown
     jobs = dqp(jobs, processor)
 
-    # if 'copy_mo' is enabled, try to get the mo_path from metadata and store it in the respective conformer object
-    if copy_mo:
-        mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
+    # Try to get the mo_path from metadata and store it in the respective conformer object
+    mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
+    for conf in conformers:
+        if mo_paths[conf.geom.id] is not None:
+            conf.mo_paths.append(mo_paths[conf.geom.id])
+
+    if retry_failed:
+        retried, failed_confs = retry_failed_jobs(jobs, processor)
+
+        # Again, try to get the mo_path from metadata and store it in the respective conformer object
+        mo_paths = {
+            job.conf.id: job.meta["mo_path"] for job in [jobs[i] for i in retried]
+        }
         for conf in conformers:
-            if mo_paths[conf.geom.id] is not None:
+            if mo_paths.get(conf.geom.id, None) is not None:
                 conf.mo_paths.append(mo_paths[conf.geom.id])
 
-    # create a new list of failed jobs that should be restarted with special flags
-    if retry_failed:
-        # determine failed jobs
-        logger.debug("Retrying failed jobs...")
-        failed_jobs = [
-            i
-            for i, job in enumerate(jobs)
-            if any(not job.meta[jt]["success"] for jt in job.jobtype)
-        ]
-
-        if len(failed_jobs) != 0:
-            # contains jobs that should be retried (depends if the error can be handled or not)
-            retry = []
-
-            # determine flags for jobs based on error messages
-            for failed_job in failed_jobs:
-                # list of jobtypes that should be removed from the jobtype list
-                jtremove = []
-                for jt in jobs[failed_job].jobtype:
-                    # for now only sp and gsolv calculations are caught
-                    if not jobs[failed_job].meta[jt]["success"] and jt in [
-                        "sp",
-                        "gsolv",
-                    ]:
-                        if jobs[failed_job].meta[jt]["error"] == "SCF not converged":
-                            retry.append(failed_job)
-                            jobs[failed_job].flags[jt] = "scf_not_converged"
-                    # store all successful jobtypes
-                    elif jobs[failed_job].meta[jt]["success"]:
-                        jtremove.append(jt)
-
-                # remove all successful jobs from jobtype to avoid re-execution
-                for jt in jtremove:
-                    jobs[failed_job].jobtype.remove(jt)
-
-            # execute jobs that should be retried
-            logger.info(
-                f"Failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
-            )
-
-            if len(retry) > 0:
-                set_omp_chunking([jobs[i] for i in retry])
-                for i, job in zip(
-                    [i for i in retry], dqp([jobs[i]
-                                            for i in retry], processor)
-                ):
-                    jobs[i] = job
-
-            # any jobs that still failed will lead to the conformer to be removed from the list
-            for job in jobs:
-                if not all(job.meta[jt]["success"] for jt in job.jobtype):
-                    logger.warning(
-                        f"Removed {job.conf.name} from conformer list due to failed jobs."
-                    )
-                    conformers.remove(
-                        next(c for c in conformers if c.geom.id == job.conf.id)
-                    )
-
-            # make sure there is at least one conformer left (TODO - is this reasonable?)
-            if len(conformers) == 0:
-                logger.critical(
-                    "No conformers left after retrying failed jobs.")
-                raise RuntimeError(
-                    "No conformers left after retrying failed jobs.")
-
-            # again, try to get the mo_path from metadata and store it in the respective conformer object
-            if copy_mo:
-                mo_paths = {
-                    job.conf.id: job.meta["mo_path"] for job in [jobs[i] for i in retry]
-                }
-                for conf in conformers:
-                    if mo_paths.get(conf.geom.id, None) is not None:
-                        conf.mo_paths.append(mo_paths[conf.geom.id])
-        else:
-            logger.info("All jobs executed successfully.")
-
     # collect all results from the job objects
-    return {job.conf.id: job.results for job in jobs}
+    return {job.conf.id: job.results for job in jobs}, failed_confs
+
+
+def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict]) -> list[ParallelJob]:
+    # create jobs from conformers
+    jobs = [ParallelJob(conf.geom, list(prepinfo.keys()))
+            for conf in conformers]
+
+    # put settings into jobs
+    for job in jobs:
+        job.prepinfo = prepinfo
+
+    return jobs
 
 
 def reduce_cores(
@@ -287,3 +241,75 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
             for job in jobs[tot_jobs - jobs_left: tot_jobs - jobs_left + p]:
                 job.omp = ncores // p  # Set the number of cores for each job
             jobs_left -= p  # Decrement the number of remaining jobs
+
+
+def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[int], list[int]]:
+    """
+    Tries to recover failed jobs.
+
+    Args:
+        jobs (list[ParallelJob]): List of jobs.
+        processor (QmProc): Processor object.
+
+    Returns:
+        tuple[list[int], list[int]]: List of indices of jobs that should be retried, list of ids of conformers
+            that could not be recovered.
+    """
+    # determine failed jobs
+    logger.debug("Retrying failed jobs...")
+    failed_jobs = [
+        i
+        for i, job in enumerate(jobs)
+        if any(not job.meta[jt]["success"] for jt in job.jobtype)
+    ]
+
+    if len(failed_jobs) != 0:
+        # create a new list of failed jobs that should be restarted with special flags
+        # contains jobs that should be retried (depends if the error can be handled or not)
+        retry = []
+
+        # determine flags for jobs based on error messages
+        for failed_job in failed_jobs:
+            # list of jobtypes that should be removed from the jobtype list
+            jtremove = []
+            for jt in jobs[failed_job].jobtype:
+                # for now only sp and gsolv calculations are caught
+                if not jobs[failed_job].meta[jt]["success"] and jt in [
+                    "sp",
+                    "gsolv",
+                ]:
+                    if jobs[failed_job].meta[jt]["error"] == "SCF not converged":
+                        retry.append(failed_job)
+                        jobs[failed_job].flags[jt] = "scf_not_converged"
+                # store all successful jobtypes
+                elif jobs[failed_job].meta[jt]["success"]:
+                    jtremove.append(jt)
+
+            # remove all successful jobs from jobtype to avoid re-execution
+            for jt in jtremove:
+                jobs[failed_job].jobtype.remove(jt)
+
+        # execute jobs that should be retried
+        logger.info(
+            f"Failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
+        )
+
+        if len(retry) > 0:
+            set_omp_chunking([jobs[i] for i in retry])
+            for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
+                jobs[i] = job
+
+        # any jobs that still failed will lead to the conformer being marked as unrecoverable
+        failed_confs = []
+        for job in jobs:
+            if not all(job.meta[jt]["success"] for jt in job.jobtype):
+                logger.warning(
+                    f"{job.conf.name} job recovery failed."
+                )
+                failed_confs.append(job.conf.id)
+    else:
+        retry = []
+        failed_confs = []
+        logger.info("All jobs executed successfully.")
+
+    return retry, failed_confs

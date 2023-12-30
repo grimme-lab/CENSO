@@ -57,11 +57,11 @@ class Prescreening(CensoPart):
         self.print_info()
 
         # set jobtype to pass to handler
-        if self._instructions["gas-phase"] or self._instructions.get("implicit", False):
+        if self.get_general_settings()["gas-phase"] or self.get_settings().get("implicit", False):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
-        elif not self._instructions.get("implicit", False):
+        elif not self.get_settings().get("implicit", False):
             jobtype = ["xtb_gsolv", "sp"]
         else:
             jobtype = ["gsolv"]
@@ -69,14 +69,22 @@ class Prescreening(CensoPart):
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo(jobtype)
 
-        # Create ParallelJobs with the previously compiled prepinfo to be sent to execute
-        jobs = self.setup_jobs(jobtype, prepinfo)
-
         # compute results
         # for structure of results from handler.execute look there
-        results = execute(jobs, self.dir, self._instructions["prog"])
+        results, failed = execute(
+            self.ensemble.conformers,
+            prepinfo,
+            self.dir, self.get_settings()["prog"],
+            copy_mo=self.get_general_settings()["copy_mo"],
+            balance=self.get_general_settings()["balance"],
+            omp=self.get_general_settings()["omp"],
+            maxcores=self.get_general_settings()["maxcores"],
+            retry_failed=self.get_general_settings()["retry_failed"],
+        )
 
-        # TODO - remove failed conformers
+        # Remove failed conformers
+        for confid in failed:
+            self.ensemble.remove_conformers(failed)
 
         # update results for each conformer
         for conf in self.ensemble.conformers:
@@ -94,14 +102,14 @@ class Prescreening(CensoPart):
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
         self.ensemble.calc_boltzmannweights(
-            self._instructions.get("temperature", 298.15), self._name
+            self.get_general_settings().get("temperature", 298.15), self._name
         )
 
         # write results (analogous to deprecated print)
         self.write_results()
 
         # update conformers with threshold
-        threshold = self._instructions["threshold"] / AU2KCAL
+        threshold = self.get_settings()["threshold"] / AU2KCAL
 
         # update the conformer list in ensemble (remove confs if below threshold)
         for confname in self.ensemble.update_conformers(self.gtot, threshold):
@@ -121,25 +129,25 @@ class Prescreening(CensoPart):
 
         prepinfo["sp"] = {
             "func_name": DfaHelper.get_name(
-                self._instructions["func"], self._instructions["prog"]
+                self.get_settings()["func"], self.get_settings()["prog"]
             ),
             "func_type": DfaHelper.get_type(
-                self._instructions["func"]),
+                self.get_settings()["func"]),
             "disp": DfaHelper.get_disp(
-                self._instructions["func"]),
-            "basis": self._instructions["basis"],
-            "grid": self._instructions["grid"],
-            "template": self._instructions["template"],
-            "gcp": self._instructions["gcp"],
-            "sm": self._instructions["sm"],
-            "solvent_key_prog": SOLVENTS_DB.get(self._instructions["solvent"])[self._instructions["sm"]][1],
+                self.get_settings()["func"]),
+            "basis": self.get_settings()["basis"],
+            "grid": self.get_settings()["grid"],
+            "template": self.get_settings()["template"],
+            "gcp": self.get_settings()["gcp"],
+            "sm": self.get_settings()["sm"],
+            "solvent_key_prog": SOLVENTS_DB.get(self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1],
         }
 
         if "xtb_gsolv" in jobtype:
             # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
             prepinfo["xtb_gsolv"] = {
-                "solvent_key_xtb": SOLVENTS_DB.get(self._instructions["solvent"])["xtb"][1],
-                "gfnv": self._instructions["gfnv"],
+                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+                "gfnv": self.get_settings()["gfnv"],
             }
 
         return prepinfo
@@ -156,7 +164,7 @@ class Prescreening(CensoPart):
                 conf.results[self._name]["gsolv"]["energy_gas"]
                 + conf.results[self._name]["gsolv"]["gsolv"]
             )
-        elif not self._instructions["gas-phase"]:
+        elif not self.get_general_settings()["gas-phase"]:
             gtot = (
                 conf.results[self._name]["sp"]["energy"]
                 + conf.results[self._name]["xtb_gsolv"]["gsolv"]
@@ -208,7 +216,7 @@ class Prescreening(CensoPart):
             "[kcal/mol]",
             "[kcal/mol]",
             "[kcal/mol]",
-            f"% at {self._instructions.get('temperature', 298.15)} K",
+            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
         ]
 
         # variables for printmap
@@ -241,7 +249,7 @@ class Prescreening(CensoPart):
         dftmin = min(dft_energies.values())
 
         # minimal solvation free enthalpy
-        if self._instructions["gas-phase"]:
+        if self.get_general_settings()["gas-phase"]:
             gsolvmin = 0.0
         else:
             # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
@@ -328,7 +336,7 @@ class Prescreening(CensoPart):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 

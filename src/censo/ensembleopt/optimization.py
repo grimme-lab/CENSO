@@ -75,13 +75,13 @@ class Optimization(CensoPart):
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
         # set the correct name for 'func'
-        self._instructions["func_type"] = DfaHelper.get_type(
-            self._instructions["func"])
-        self._instructions["func_name"] = DfaHelper.get_name(
-            self._instructions["func"], self._instructions["prog"]
+        self.get_settings()["func_type"] = DfaHelper.get_type(
+            self.get_settings()["func"])
+        self.get_settings()["func_name"] = DfaHelper.get_name(
+            self.get_settings()["func"], self.get_settings()["prog"]
         )
-        self._instructions["disp"] = DfaHelper.get_disp(
-            self._instructions["func"])
+        self.get_settings()["disp"] = DfaHelper.get_disp(
+            self.get_settings()["func"])
 
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
@@ -118,7 +118,7 @@ class Optimization(CensoPart):
         self._instructions["jobtype"] = ["xtb_opt"]
 
         # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
-        if self._instructions["macrocycles"] and len(self.ensemble.conformers) > 1:
+        if self.get_settings()["macrocycles"] and len(self.ensemble.conformers) > 1:
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
@@ -138,7 +138,7 @@ class Optimization(CensoPart):
 
             # disable spearman optimization
             print("Macrocycle optimization turned off.")
-            self._instructions["macrocycles"] = False
+            self.get_settings()["macrocycles"] = False
 
             # run optimizations using xtb as driver
             results_opt = execute(self.ensemble.conformers,
@@ -165,7 +165,7 @@ class Optimization(CensoPart):
 
         # calculate boltzmann weights from gtot values calculated here
         self.ensemble.calc_boltzmannweights(
-            self._instructions.get("temperature", 298.15), self._name
+            self.get_general_settings().get("temperature", 298.15), self._name
         )
 
         # write final results
@@ -207,14 +207,15 @@ class Optimization(CensoPart):
         ncyc = 0
         rrho_done = False
         print(
-            f"Optimization using macrocycles, {self._instructions['optcycles']} microcycles per step."
+            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         print(f"NCYC: {ncyc}")
-        while len(self.confs_nc) > 0 and ncyc < self._instructions["maxcyc"]:
+        while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
-            results_opt = execute(self.confs_nc, self._instructions, self.dir)
+            results_opt = execute(
+                self.confs_nc, self.get_general_settings(), self.dir)
 
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
@@ -229,16 +230,16 @@ class Optimization(CensoPart):
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
             # TODO - make this better
-            if ncyc + self._instructions["optcycles"] >= 6 and not rrho_done:
+            if ncyc + self.get_settings()["optcycles"] >= 6 and not rrho_done:
                 # evaluate rrho using bhess flag (reset after this)
                 # TODO - this smells a bit
-                tmp = self._instructions["bhess"]
-                self._instructions["bhess"] = True
+                tmp = self.get_general_settings()["bhess"]
+                self.get_general_settings()["bhess"] = True
                 self._instructions["jobtype"] = ["xtb_rrho"]
                 results_rrho = execute(
                     self.confs_nc, self._instructions, self.dir)
                 self._instructions["jobtype"] = ["xtb_opt"]
-                self._instructions["bhess"] = tmp
+                self.get_general_settings()["bhess"] = tmp
 
                 # put results into conformer objects
                 for conf in self.confs_nc:
@@ -253,7 +254,7 @@ class Optimization(CensoPart):
             # sort conformers
             self.ensemble.conformers.sort(key=lambda conf: self.grrho(conf))
 
-            threshold = self._instructions["threshold"] / AU2KCAL
+            threshold = self.get_settings()["threshold"] / AU2KCAL
 
             # threshold increase based on mean trajectory similarity
             if len(self.ensemble.conformers) > 1:
@@ -264,7 +265,7 @@ class Optimization(CensoPart):
                         trajectories.append(
                             [
                                 conf.results[self._name]["xtb_opt"]["energy"]
-                                for _ in range(self._instructions["optcycles"])
+                                for _ in range(self.get_settings()["optcycles"])
                             ]
                         )
                     # If conformers converged in this macrocycle, use the trajectory from the results and pad it with
@@ -275,7 +276,7 @@ class Optimization(CensoPart):
                             + [
                                 conf.results[self._name]["xtb_opt"]["energy"]
                                 for _ in range(
-                                    self._instructions["optcycles"]
+                                    self.get_settings()["optcycles"]
                                     - len(results_opt[conf.geom.id]
                                           ["xtb_opt"]["ecyc"])
                                 )
@@ -313,10 +314,10 @@ class Optimization(CensoPart):
                 self.grrho,
                 threshold,
                 additional_filter=lambda x: all(
-                    gn < self._instructions["gradthr"]
+                    gn < self.get_settings()["gradthr"]
                     for gn in x.results[self._name]["xtb_opt"]["gncyc"]
                 )
-                # x.results[self._name]["xtb_opt"]["grad_norm"] < self._instructions["gradthr"]
+                # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
             )
 
             # make sure that all the conformers, that are not converged but filtered out, are also removed
@@ -335,7 +336,7 @@ class Optimization(CensoPart):
             self.print_update()
 
             # update number of cycles
-            ncyc += self._instructions["optcycles"]
+            ncyc += self.get_settings()["optcycles"]
             print(f"NCYC: {ncyc}")
 
     def write_results(self) -> None:
@@ -361,7 +362,7 @@ class Optimization(CensoPart):
             "[Eh]",
             "[Eh]",
             "[kcal/mol]",
-            f"% at {self._instructions.get('temperature', 298.15)} K",
+            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
         ]
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
@@ -376,8 +377,8 @@ class Optimization(CensoPart):
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
-            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
-            if self._instructions["evaluate_rrho"]
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            if self.get_general_settings()["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
@@ -434,8 +435,8 @@ class Optimization(CensoPart):
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name]['xtb_opt']['energy'] - limit) * AU2KCAL:.2f}",
-            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
-            if self._instructions["evaluate_rrho"]
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            if self.get_general_settings()["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit2) * AU2KCAL:.2f}",

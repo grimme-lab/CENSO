@@ -231,6 +231,29 @@ class EnsembleData:
 
         return [conf.name for conf in filtered]
 
+    def remove_conformers(self, confids: list[int]) -> None:
+        """
+        Remove the conformers with the IDs listed in 'confids' from further consideration.
+
+        Args:
+            confids (list[int]): A list of conformer IDs.
+
+        Returns:
+            None
+        """
+        remove = []
+        for confid in confids:
+            remove.append(
+                next(c for c in self.__conformers if c.geom.id == confid))
+
+        for r in remove:
+            # pop item from conformers and insert this item at index 0 in rem
+            self.rem.insert(0, self.conformers.pop(
+                self.conformers.index(r)))
+
+            # Log removed conformers
+            logger.debug(f"Removed {r.name}.")
+
     def dump_ensemble(self, part: str) -> None:
         """
         dump the conformers to a file
@@ -247,6 +270,8 @@ class EnsembleData:
         results, given values for free enthalpy
 
         Args:
+            temp (float): Temperature in Kelvin.
+            part (str): Name of the part to search results for.
 
         Returns:
             None

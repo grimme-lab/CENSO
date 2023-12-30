@@ -2,7 +2,7 @@ from functools import reduce
 from collections import OrderedDict
 from typing import TypedDict
 
-from .params import BOHR2ANG
+from .params import BOHR2ANG, OMPMIN
 
 
 class Atom(TypedDict):
@@ -152,7 +152,7 @@ class MoleculeData:
 
 
 class ParallelJob:
-    def __init__(self, conf: GeometryData, jobtype: list[str], omp: int):
+    def __init__(self, conf: GeometryData, jobtype: list[str]):
         # conformer for the job
         self.conf = conf
 
@@ -160,7 +160,7 @@ class ParallelJob:
         self.jobtype = jobtype
 
         # number of cores to use
-        self.omp = omp
+        self.omp = OMPMIN
 
         # stores path to an mo file which is supposed to be used as a guess
         self.mo_guess = None

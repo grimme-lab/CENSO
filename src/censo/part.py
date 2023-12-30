@@ -213,27 +213,10 @@ class CensoPart:
         # sets the name of the part (used for printing and folder creation)
         self._name: str = self.__class__.__name__.lower()
 
-        # compile all settings for this part
-        self._instructions = {
-            **self.get_general_settings(),
-            **self.get_settings(),
-        }
-
         # every part instance depends on a ensemble instance to manage the conformers
         self.ensemble: EnsembleData = ensemble
 
         self.dir: str = None
-
-    def setup_jobs(self, jobtype: list[str], prepinfo: dict[str, dict]) -> list[ParallelJob]:
-        # create jobs from conformers
-        jobs = [ParallelJob(conf.geom, jobtype, self._instructions["omp"])
-                for conf in self.ensemble.conformers]
-
-        # put settings into jobs
-        for job in jobs:
-            job.prepinfo = prepinfo
-
-        return jobs
 
     def run(self) -> None:
         """
