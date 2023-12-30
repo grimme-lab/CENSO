@@ -337,8 +337,6 @@ class OrcaProc(QmProc):
                 "optlevel",
             ],
             "nmr": [
-                "shieldings",
-                "couplings",
                 "h_active",
                 "c_active",
                 "f_active",
@@ -472,7 +470,7 @@ class OrcaProc(QmProc):
         indict = self.__prep_geom(
             indict, job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"])
 
-        # indict = self.__prep_postgeom(indict, jobtype, orca5)
+        indict = self.__prep_postgeom(job.prepinfo, indict, jobtype, orca5)
 
         return indict
 
@@ -665,20 +663,18 @@ class OrcaProc(QmProc):
         # Set NMR parameters
         # TODO - this is not very nice, maybe make a list setting that contains
         # all the active nuclei
-        todo = []
-        if prepinfo[jobtype]["h_active"]:
-            todo.append("H")
-        if prepinfo[jobtype]["c_active"]:
-            todo.append("C")
-        if prepinfo[jobtype]["f_active"]:
-            todo.append("F")
-        if prepinfo[jobtype]["si_active"]:
-            todo.append("Si")
-        if prepinfo[jobtype]["p_active"]:
-            todo.append("P")
-
-        todo2 = []
         if "nmr" in jobtype:
+            active_elements_map = {
+                "H": prepinfo[jobtype]["h_active"],
+                "C": prepinfo[jobtype]["c_active"],
+                "F": prepinfo[jobtype]["f_active"],
+                "Si": prepinfo[jobtype]["si_active"],
+                "P": prepinfo[jobtype]["p_active"],
+            }
+            todo = [element for element in active_elements_map.keys()
+                    if active_elements_map[element]]
+
+            todo2 = []
             if jobtype.endswith("_s") or jobtype == "nmr":
                 todo2.append("shift")
                 indict["eprnmr"]["origin"] = ["giao"]
@@ -746,20 +742,21 @@ class OrcaProc(QmProc):
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # prepare input dict
-        indict = self.__prep(job, "sp", no_solv=no_solv)
+        if prep:
+            indict = self.__prep(job, "sp", no_solv=no_solv)
 
-        # check for flags raised for this jobtype
-        if "sp" in job.flags or "gsolv" in job.flags:
-            if (
-                job.flags["sp"] == "scf_not_converged"
-                or job.flags["gsolv"] == "scf_not_converged"
-            ):
-                indict = self.__apply_flags(indict, "scf_not_converged")
+            # check for flags raised for this jobtype
+            if "sp" in job.flags or "gsolv" in job.flags:
+                if (
+                    job.flags["sp"] == "scf_not_converged"
+                    or job.flags["gsolv"] == "scf_not_converged"
+                ):
+                    indict = self.__apply_flags(indict, "scf_not_converged")
 
-        # write input into file "{filename}.inp" in a subdir created for the
-        # conformer
-        parser = OrcaParser()
-        parser.write_input(inputpath, indict)
+            # write input into file "{filename}.inp" in a subdir created for the
+            # conformer
+            parser = OrcaParser()
+            parser.write_input(inputpath, indict)
 
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true

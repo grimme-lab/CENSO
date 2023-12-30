@@ -170,6 +170,11 @@ class NMR(CensoPart):
                 "solvent_key_prog": SOLVENTS_DB.get(
                     self.get_general_settings()["solvent"]
                 )[self.get_settings()["sm_s"]][1],
+                "h_active": self.get_settings()["h_active"],
+                "c_active": self.get_settings()["c_active"],
+                "f_active": self.get_settings()["f_active"],
+                "si_active": self.get_settings()["si_active"],
+                "p_active": self.get_settings()["p_active"],
             }
         else:
             todo = {
@@ -193,6 +198,11 @@ class NMR(CensoPart):
                     "solvent_key_prog": SOLVENTS_DB.get(
                         self.get_general_settings()["solvent"]
                     )[self.get_settings()[f"sm{ending}"]][1],
+                    "h_active": self.get_settings()["h_active"],
+                    "c_active": self.get_settings()["c_active"],
+                    "f_active": self.get_settings()["f_active"],
+                    "si_active": self.get_settings()["si_active"],
+                    "p_active": self.get_settings()["p_active"],
                 }
 
         return prepinfo
