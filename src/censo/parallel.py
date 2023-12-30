@@ -115,7 +115,7 @@ def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict]) -> l
 
     # put settings into jobs
     for job in jobs:
-        job.prepinfo = prepinfo
+        job.prepinfo.update(prepinfo)
 
     return jobs
 

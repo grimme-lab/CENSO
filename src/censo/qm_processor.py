@@ -1,5 +1,5 @@
 """
-Contains QmProc base class, 
+Contains QmProc base class,
 Additionally contains functions which should be present irrespective of the QM
 code. (xTB always available)
 """
@@ -88,11 +88,7 @@ class QmProc:
         for line in lines:
             print(line)
 
-    def __init__(self, instructions: dict[str, any], workdir: str):
-        # stores instructions, meaning the settings that should be applied for all jobs
-        # e.g. 'gfnv' (GFN version for xtb_sp/xtb_rrho/xtb_gsolv)
-        self.instructions: dict[str, any] = instructions
-
+    def __init__(self, workdir: str):
         # dict to map the jobtypes to their respective methods
         self._jobtypes: dict[str, Callable] = {
             "xtb_sp": self._xtb_sp,
@@ -304,10 +300,10 @@ class QmProc:
         call = [
             self._paths["xtbpath"],
             f"{filename}.coord",
-            "--" + self.instructions["gfnv"],
+            "--" + job.prepinfo["xtb_sp"]["gfnv"],
             "--sp",
             "--chrg",
-            f"{self.instructions['charge']}",
+            f"{job.prepinfo['charge']}",
             "--norestart",
             "--parallel",
             f"{job.omp}",
@@ -317,11 +313,11 @@ class QmProc:
         # (set either through run settings or by call kwarg e.g. for _xtb_gsolv)
         # NOTE on solvents_dict (or rather censo_solvents.json):
         # [0] is the normal name of the solvent, if it is available, [1] is the replacement
-        if not (self.instructions.get("gas-phase", False) or no_solv):
+        if not (job.prepinfo["general"].get("gas-phase", False) or no_solv):
             call.extend(
                 [
-                    "--" + self.instructions["sm_rrho"],
-                    self.instructions["solvent_key_xtb"],
+                    "--" + job.prepinfo["general"]["sm_rrho"],
+                    job.prepinfo["xtb_sp"]["solvent_key_xtb"],
                     "reference",
                     "-I",
                     xcontrolname,
@@ -483,26 +479,27 @@ class QmProc:
         # setup xcontrol
         with open(xcontrolpath, "w", newline=None) as xcout:
             xcout.write("$thermo\n")
-            if self.instructions.get("multitemp", False):
+            if job.prepinfo["general"]["multitemp"]:
                 trange = frange(
-                    self.instructions["trange"][0],
-                    self.instructions["trange"][1],
-                    step=self.instructions["trange"][2],
+                    job.prepinfo["general"]["trange"][0],
+                    job.prepinfo["general"]["trange"][1],
+                    step=job.prepinfo["general"]["trange"][2],
                 )
 
                 # Always append the fixed temperature to the trange so that it is the last value
                 # (important since --enso will make xtb give the G(T) value for this temperature)
-                trange.append(self.instructions["temperature"])
+                trange.append(job.prepinfo["general"]["temperature"])
 
                 # Write trange to the xcontrol file
                 xcout.write(
                     f"    temp=" f"{','.join([str(i) for i in trange])}\n")
             else:
-                xcout.write(f"    temp={self.instructions['temperature']}\n")
+                xcout.write(
+                    f"    temp={job.prepinfo['general']['temperature']}\n")
 
-            xcout.write(f"    sthr={self.instructions['sthr']}\n")
+            xcout.write(f"    sthr={job.prepinfo['general']['sthr']}\n")
 
-            xcout.write(f"    imagthr={self.instructions['imagthr']}\n")
+            xcout.write(f"    imagthr={job.prepinfo['general']['imagthr']}\n")
 
             # TODO - when do you actually want to set the scale manually?
             # don't set scale manually for now
@@ -518,13 +515,13 @@ class QmProc:
             # xcout.write("    desy=0.0\n")
 
             # set gbsa grid
-            if not self.instructions["gas-phase"]:
+            if not job.prepinfo["general"]["gas-phase"]:
                 xcout.write("$gbsa\n")
                 xcout.write("  gbsagrid=tight\n")
 
             xcout.write("$end\n")
 
-        if self.instructions["bhess"]:
+        if job.prepinfo["general"]["bhess"]:
             # set ohess or bhess
             dohess = "--bhess"
         else:
@@ -537,11 +534,11 @@ class QmProc:
         call = [
             self._paths["xtbpath"],
             f"{filename}.coord",
-            "--" + self.instructions["gfnv"],
+            "--" + job.prepinfo["xtb_rrho"]["gfnv"],
             dohess,
             "vtight",
             "--chrg",
-            f"{self.instructions['charge']}",
+            f"{job.prepinfo['charge']}",
             "--enso",
             "--norestart",
             "-I",
@@ -551,16 +548,16 @@ class QmProc:
         ]
 
         # add solvent to xtb call if necessary
-        if not self.instructions["gas-phase"]:
+        if not job.prepinfo["general"]["gas-phase"]:
             call.extend(
                 [
-                    "--" + self.instructions["sm_rrho"],
-                    self.instructions["solvent_key_xtb"],
+                    "--" + job.prepinfo["general"]["sm_rrho"],
+                    job.prepinfo["xtb_rrho"]["solvent_key_xtb"],
                 ]
             )
 
         # if rmsd bias is used (should be defined in censo workdir (cwd)) TODO
-        if self.instructions["rmsdbias"]:
+        if job.prepinfo["general"]["rmsdbias"]:
             # move one dir up to get to cwd (FIXME)
             cwd = os.path.join(os.path.split(self.workdir)[::-1][1:][::-1])
 
@@ -585,12 +582,12 @@ class QmProc:
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
             lines = outputfile.readlines()
 
-        if self.instructions["multitemp"]:
+        if job.prepinfo["general"]["multitemp"]:
             # get gibbs energy, enthalpy and entropy for given temperature range
             trange = frange(
-                self.instructions["trange"][0],
-                self.instructions["trange"][1],
-                step=self.instructions["trange"][2],
+                job.prepinfo["general"]["trange"][0],
+                job.prepinfo["general"]["trange"][1],
+                step=job.prepinfo["general"]["trange"][2],
             )
 
             # gibbs energy
@@ -636,13 +633,13 @@ class QmProc:
             (
                 float(line.split()[3])
                 for line in lines
-                if "final rmsd / " in line and self.instructions["bhess"]
+                if "final rmsd / " in line and job.prepinfo["general"]["bhess"]
             ),
             None,
         )
 
         # check if xtb calculated the temperature range correctly
-        if self.instructions["multitemp"] and not (
+        if job.prepinfo["general"]["multitemp"] and not (
             len(trange) == len(gt)
             and len(trange) == len(ht)
             and len(trange) == len(rotS)
@@ -651,7 +648,7 @@ class QmProc:
             meta["error"] = "what went wrong in xtb_rrho"
             job.meta["xtb_rrho"].update(meta)
             return result
-        elif self.instructions["multitemp"]:
+        elif job.prepinfo["general"]["multitemp"]:
             result["gibbs"] = gt
             result["enthalpy"] = ht
             result["entropy"] = rotS
@@ -680,29 +677,29 @@ class QmProc:
         if "G(T)" in data:
             meta["success"] = True
 
-            if self.instructions["temperature"] == 0.0:
+            if job.prepinfo["general"]["temperature"] == 0.0:
                 result["energy"] = data.get("ZPVE", 0.0)
-                if self.instructions["multitemp"]:
-                    result["gibbs"][self.instructions["temperature"]] = data.get(
+                if job.prepinfo["general"]["multitemp"]:
+                    result["gibbs"][job.prepinfo["general"]["temperature"]] = data.get(
                         "ZPVE", 0.0
                     )
-                    result["enthalpy"][self.instructions["temperature"]] = data.get(
+                    result["enthalpy"][job.prepinfo["general"]["temperature"]] = data.get(
                         "ZPVE", 0.0
                     )
                     result["entropy"][
-                        self.instructions["temperature"]
+                        job.prepinfo["general"]["temperature"]
                     ] = None  # set this to None for predictability
             else:
                 result["energy"] = data.get("G(T)", 0.0)
-                if self.instructions["multitemp"]:
-                    result["gibbs"][self.instructions["temperature"]] = data.get(
+                if job.prepinfo["general"]["multitemp"]:
+                    result["gibbs"][job.prepinfo["general"]["temperature"]] = data.get(
                         "G(T)", 0.0
                     )
                     result["enthalpy"][
-                        self.instructions["temperature"]
+                        job.prepinfo["general"]["temperature"]
                     ] = None  # set this to None for predictability
                     result["entropy"][
-                        self.instructions["temperature"]
+                        job.prepinfo["general"]["temperature"]
                     ] = None  # set this to None for predictability
 
             # only determine symmetry if all the needed information is there

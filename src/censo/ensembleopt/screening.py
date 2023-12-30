@@ -65,7 +65,7 @@ class Screening(Prescreening):
             # PART (2)
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
-            self._instructions["jobtype"] = ["xtb_rrho"]
+            jobtype = ["xtb_rrho"]
 
             # append results to previous results
             results = execute(self.ensemble.conformers,
@@ -82,18 +82,10 @@ class Screening(Prescreening):
                 key=lambda conf: conf.results[self._name]["gtot"])
 
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (
-                1
-                - exp(
-                    -AU2KCAL
-                    * stdev(
-                        [
-                            conf.results[self._name]["xtb_rrho"]["energy"]
-                            for conf in self.ensemble.conformers
-                        ]
-                    )
-                )
-            )
+            fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
+                [conf.results[self._name]["xtb_rrho"]["energy"]
+                    for conf in self.ensemble.conformers]
+            )))
             threshold += fuzzy
             print(
                 f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")

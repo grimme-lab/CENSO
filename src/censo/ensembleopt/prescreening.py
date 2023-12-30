@@ -126,6 +126,7 @@ class Prescreening(CensoPart):
         prepinfo["partname"] = self._name
         prepinfo["charge"] = self.ensemble.runinfo.get("charge")
         prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["general"] = self.get_general_settings()
 
         prepinfo["sp"] = {
             "func_name": DfaHelper.get_name(
@@ -143,11 +144,18 @@ class Prescreening(CensoPart):
             "solvent_key_prog": SOLVENTS_DB.get(self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1],
         }
 
+        # TODO - this doesn't look very nice
         if "xtb_gsolv" in jobtype:
             # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-            prepinfo["xtb_gsolv"] = {
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+            prepinfo["xtb_sp"] = {
                 "gfnv": self.get_settings()["gfnv"],
+                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+            }
+
+        if "xtb_rrho" in jobtype:
+            prepinfo["xtb_rrho"] = {
+                "gfnv": self.get_settings()["gfnv"],
+                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
             }
 
         return prepinfo

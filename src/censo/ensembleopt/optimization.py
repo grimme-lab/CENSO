@@ -16,6 +16,7 @@ from ..params import (
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
+    SOLVENTS_DB,
 )
 from ..part import CensoPart
 from ..utilities import (
@@ -74,14 +75,6 @@ class Optimization(CensoPart):
 
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
-        # set the correct name for 'func'
-        self.get_settings()["func_type"] = DfaHelper.get_type(
-            self.get_settings()["func"])
-        self.get_settings()["func_name"] = DfaHelper.get_name(
-            self.get_settings()["func"], self.get_settings()["prog"]
-        )
-        self.get_settings()["disp"] = DfaHelper.get_disp(
-            self.get_settings()["func"])
 
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
@@ -115,22 +108,20 @@ class Optimization(CensoPart):
         # print instructions
         self.print_info()
 
-        self._instructions["jobtype"] = ["xtb_opt"]
-
         # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
         if self.get_settings()["macrocycles"] and len(self.ensemble.conformers) > 1:
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
-            # if not self.args.spearmanthr:
-            #     # set spearmanthr by number of atoms:
-            #     self.spearmanthr = 1 / (exp(0.03 * (self.runinfo["nat"] ** (1 / 4))))
-
             self.__macrocycle_opt()
         else:
             """
             do normal geometry optimization
             """
+
+            jobtype = ["xtb_opt"]
+            prepinfo = self.setup_prepinfo(jobtype)
+
             if not len(self.ensemble.conformers) > 1:
                 print(
                     f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
@@ -138,11 +129,23 @@ class Optimization(CensoPart):
 
             # disable spearman optimization
             print("Macrocycle optimization turned off.")
-            self.get_settings()["macrocycles"] = False
+            self.set_setting("macrocycles", False)
 
             # run optimizations using xtb as driver
-            results_opt = execute(self.ensemble.conformers,
-                                  self._instructions, self.dir)
+            results_opt, failed = execute(
+                self.ensemble.conformers,
+                prepinfo,
+                self.dir, self.get_settings()["prog"],
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
+
+            # Remove failed conformers
+            for confid in failed:
+                self.ensemble.remove_conformers(failed)
 
             # update results for each conformer
             for conf in self.ensemble.conformers:
@@ -157,8 +160,22 @@ class Optimization(CensoPart):
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
         # solvent model, since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
-        results_rrho = execute(self.ensemble.conformers,
-                               self._instructions, self.dir)
+        jobtype = ["xtb_rrho"]
+        prepinfo = self.setup_prepinfo(jobtype)
+        results_rrho = execute(
+            self.ensemble.conformers,
+            prepinfo,
+            self.dir, self.get_settings()["prog"],
+            copy_mo=self.get_general_settings()["copy_mo"],
+            balance=self.get_general_settings()["balance"],
+            omp=self.get_general_settings()["omp"],
+            maxcores=self.get_general_settings()["maxcores"],
+            retry_failed=self.get_general_settings()["retry_failed"],
+        )
+
+        for confid in failed:
+            # Remove failed conformers
+            self.ensemble.remove_conformers(failed)
 
         for conf in self.ensemble.conformers:
             conf.results[self._name].update(results_rrho[id(conf)])
@@ -194,6 +211,43 @@ class Optimization(CensoPart):
         except KeyError:
             return conf.results[self._name]["xtb_opt"]["energy"]
 
+    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, any]:
+        prepinfo = {jt: {} for jt in jobtype}
+
+        prepinfo["partname"] = self._name
+        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["general"] = self.get_general_settings()
+
+        if "xtb_opt" in jobtype:
+            prepinfo["xtb_opt"] = {
+                "func_name": DfaHelper.get_name(
+                    self.get_settings()["func"], self.get_settings()["prog"]
+                ),
+                "func_type": DfaHelper.get_type(
+                    self.get_settings()["func"]),
+                "disp": DfaHelper.get_disp(
+                    self.get_settings()["func"]),
+                "basis": self.get_settings()["basis"],
+                "grid": self.get_settings()["grid"],
+                "template": self.get_settings()["template"],
+                "gcp": self.get_settings()["gcp"],
+                "sm": self.get_settings()["sm"],
+                "solvent_key_prog": SOLVENTS_DB.get(self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1],
+                "optcycles": self.get_settings()["optcycles"],
+                "hlow": self.get_settings()["hlow"],
+                "optlevel": self.get_settings()["optlevel"],
+                "macrocycles": self.get_settings()["macrocycles"],
+            }
+
+        if "xtb_rrho" in jobtype:
+            prepinfo["xtb_rrho"] = {
+                "gfnv": self.get_settings()["gfnv"],
+                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+            }
+
+        return prepinfo
+
     def __macrocycle_opt(self):
         """
         Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
@@ -203,6 +257,9 @@ class Optimization(CensoPart):
         # NOTE: this is a special step only necessary for macrocycle optimization
         # at this point it's just self.ensemble.conformers, it is basically a todo-list
         self.confs_nc = self.ensemble.conformers.copy()
+
+        jobtype = ["xtb_opt"]
+        prepinfo = self.setup_prepinfo(jobtype)
 
         ncyc = 0
         rrho_done = False
@@ -214,8 +271,16 @@ class Optimization(CensoPart):
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
-            results_opt = execute(
-                self.confs_nc, self.get_general_settings(), self.dir)
+            results_opt, failed = execute(
+                self.ensemble.conformers,
+                prepinfo,
+                self.dir, self.get_settings()["prog"],
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
 
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
@@ -234,12 +299,22 @@ class Optimization(CensoPart):
                 # evaluate rrho using bhess flag (reset after this)
                 # TODO - this smells a bit
                 tmp = self.get_general_settings()["bhess"]
-                self.get_general_settings()["bhess"] = True
-                self._instructions["jobtype"] = ["xtb_rrho"]
-                results_rrho = execute(
-                    self.confs_nc, self._instructions, self.dir)
-                self._instructions["jobtype"] = ["xtb_opt"]
-                self.get_general_settings()["bhess"] = tmp
+                self.set_general_setting("bhess", True)
+                jobtype = ["xtb_rrho"]
+                results_rrho, failed = execute(
+                    self.ensemble.conformers,
+                    self.setup_prepinfo(jobtype),
+                    self.dir, self.get_settings()["prog"],
+                    copy_mo=self.get_general_settings()["copy_mo"],
+                    balance=self.get_general_settings()["balance"],
+                    omp=self.get_general_settings()["omp"],
+                    maxcores=self.get_general_settings()["maxcores"],
+                    retry_failed=self.get_general_settings()["retry_failed"],
+                )
+
+                # Reset
+                jobtype = ["xtb_opt"]
+                self.set_general_setting("bhess", tmp)
 
                 # put results into conformer objects
                 for conf in self.confs_nc:
@@ -272,14 +347,11 @@ class Optimization(CensoPart):
                     # the final energy
                     elif results_opt[conf.geom.id]["xtb_opt"]["converged"]:
                         trajectories.append(
-                            results_opt[conf.geom.id]["xtb_opt"]["ecyc"]
-                            + [
+                            results_opt[conf.geom.id]["xtb_opt"]["ecyc"] +
+                            [
                                 conf.results[self._name]["xtb_opt"]["energy"]
-                                for _ in range(
-                                    self.get_settings()["optcycles"]
-                                    - len(results_opt[conf.geom.id]
-                                          ["xtb_opt"]["ecyc"])
-                                )
+                                for _ in range(self.get_settings()["optcycles"] -
+                                               len(results_opt[conf.geom.id]["xtb_opt"]["ecyc"]))
                             ]
                         )
                     # If conformers did not converge, use the trajectory from the results

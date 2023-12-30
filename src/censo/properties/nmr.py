@@ -55,23 +55,8 @@ class NMR(CensoPart):
 
     _settings = {}
 
-    def __init__(self, censo: EnsembleData):
-        super().__init__(censo)
-
-        # Set the correct name for 'func_s' and 'func_j', as well as the solvent key
-        for c in ["s", "j"]:
-            self._instructions[f"func_type_{c}"] = DfaHelper.get_type(
-                self._instructions[f"func_{c}"]
-            )
-            self._instructions[f"func_name_{c}"] = DfaHelper.get_name(
-                self._instructions[f"func_{c}"], self._instructions["prog"]
-            )
-            self._instructions[f"disp_{c}"] = DfaHelper.get_disp(
-                self._instructions[f"func_{c}"]
-            )
-            self._instructions[f"solvent_key_prog_{c}"] = SOLVENTS_DB.get(
-                self._instructions["solvent"]
-            )[self._instructions[f"sm_{c}"]][1]
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
 
     @timeit
     @CensoPart._create_dir
@@ -83,8 +68,8 @@ class NMR(CensoPart):
         # print instructions
         self.print_info()
 
-        self._instructions["jobtype"] = ["nmr"]
-        if not self._instructions["couplings"] and not self._instructions["shieldings"]:
+        jobtype = ["nmr"]
+        if not self.get_settings()["couplings"] and not self.get_settings()["shieldings"]:
             # This case should basically never happen except for user input error
             raise (
                 RuntimeError(
@@ -97,7 +82,7 @@ class NMR(CensoPart):
         # calculated Boltzmann weight
         self.ensemble.update_conformers(
             lambda conf: conf.bmws[-1],
-            self._instructions["threshold_bmw"],
+            self.get_settings()["threshold_bmw"],
             boltzmann=True,
         )
 
@@ -105,9 +90,25 @@ class NMR(CensoPart):
         for conf in self.ensemble.conformers:
             conf.results.setdefault(self._name, {})["bmw"] = conf.bmws[-1]
 
-        # Execute jobs in parallel
-        results = execute(self.ensemble.conformers,
-                          self._instructions, self.dir)
+        # Compile all information required for the preparation of input files in parallel execution step
+        prepinfo = self.setup_prepinfo()
+
+        # compute results
+        # for structure of results from handler.execute look there
+        results, failed = execute(
+            self.ensemble.conformers,
+            prepinfo,
+            self.dir, self.get_settings()["prog"],
+            copy_mo=self.get_general_settings()["copy_mo"],
+            balance=self.get_general_settings()["balance"],
+            omp=self.get_general_settings()["omp"],
+            maxcores=self.get_general_settings()["maxcores"],
+            retry_failed=self.get_general_settings()["retry_failed"],
+        )
+
+        # Remove failed conformers
+        for confid in failed:
+            self.ensemble.remove_conformers(failed)
 
         # Put results into conformers
         for conf in self.ensemble.conformers:
@@ -128,6 +129,72 @@ class NMR(CensoPart):
 
         # Write data
         self.write_results()
+
+    def setup_prepinfo(self) -> dict[str, dict]:
+        prepinfo = {}
+
+        prepinfo["partname"] = self._name
+        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["general"] = self.get_general_settings()
+
+        # The first condition checks if the settings are the same for shieldings and couplings calculations
+        # The second and third check which one should be executed
+        conds = (
+            self.get_settings()["func_s"] == self.get_settings()["func_j"]
+            and self.get_settings()["disp_s"] == self.get_settings()["disp_j"]
+            and self.get_settings()["basis_s"] == self.get_settings()["basis_j"]
+            and self.get_settings()["sm_s"] == self.get_settings()["sm_j"],
+            self.get_settings()["shieldings"],
+            self.get_settings()["couplings"],
+        )
+
+        # Configure the jobtypes in prepinfo according to what can be done
+        # (only one calculation if all the settings are the same and/or only one type of calculation should be done,
+        # otherwise both)
+        # TODO - this doesn't look very nice
+        if all(conds):
+            prepinfo["nmr"] = {
+                "func_name": DfaHelper.get_name(
+                    self.get_settings()["func_s"],
+                    self.get_settings()["prog"]
+                ),
+                "func_type": DfaHelper.get_type(self.get_settings()["func_s"]),
+                "disp": DfaHelper.get_disp(self.get_settings()["func_s"]),
+                "basis": self.get_settings()["basis_s"],
+                "grid": self.get_settings()["grid"],
+                "template": self.get_settings()["template"],
+                "gcp": self.get_settings()["gcp"],
+                "sm": self.get_settings()["sm_s"],
+                "solvent_key_prog": SOLVENTS_DB.get(
+                    self.get_general_settings()["solvent"]
+                )[self.get_settings()["sm_s"]][1],
+            }
+        else:
+            todo = {
+                "_s": self.get_settings()["shieldings"],
+                "_j": self.get_settings()["couplings"]
+            }
+            endings = [ending for ending in todo.keys() if todo[ending]]
+            for ending in endings:
+                prepinfo[f"nmr{ending}"] = {
+                    "func_name": DfaHelper.get_name(
+                        self.get_settings()[f"func{ending}"],
+                        self.get_settings()["prog"]
+                    ),
+                    "func_type": DfaHelper.get_type(self.get_settings()[f"func{ending}"]),
+                    "disp": DfaHelper.get_disp(self.get_settings()[f"func{ending}"]),
+                    "basis": self.get_settings()[f"basis{ending}"],
+                    "grid": self.get_settings()["grid"],
+                    "template": self.get_settings()["template"],
+                    "gcp": self.get_settings()["gcp"],
+                    "sm": self.get_settings()[f"sm{ending}"],
+                    "solvent_key_prog": SOLVENTS_DB.get(
+                        self.get_general_settings()["solvent"]
+                    )[self.get_settings()[f"sm{ending}"]][1],
+                }
+
+        return prepinfo
 
     def gtot(self, conformer: MoleculeData) -> float:
         """

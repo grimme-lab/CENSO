@@ -65,6 +65,11 @@ class CensoPart:
         CensoPart._settings = settings
 
     @staticmethod
+    def set_general_setting(setting, value):
+        assert type(value) is type(CensoPart._settings[setting])
+        CensoPart._settings[setting] = value
+
+    @staticmethod
     def get_general_settings():
         return CensoPart._settings
 
