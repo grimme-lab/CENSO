@@ -664,6 +664,7 @@ class OrcaProc(QmProc):
         # TODO - this is not very nice, maybe make a list setting that contains
         # all the active nuclei
         if "nmr" in jobtype:
+            # Determine the settings that need to be put into the input file for the NMR calculation
             active_elements_map = {
                 "H": prepinfo[jobtype]["h_active"],
                 "C": prepinfo[jobtype]["c_active"],
@@ -675,15 +676,18 @@ class OrcaProc(QmProc):
                     if active_elements_map[element]]
 
             todo2 = []
+            todo3 = {}
+            indict.setdefault("eprnmr", {})
             if jobtype.endswith("_s") or jobtype == "nmr":
                 todo2.append("shift")
-                indict["eprnmr"]["origin"] = ["giao"]
-                indict["eprnmr"]["giao_2el", "giao_2el_same_as_scf"]
-                indict["eprnmr"]["giao_1el", "giao_1el_analytic"]
+                todo3["origin"] = ["giao"]
+                todo3["giao_2el"] = ["giao_2el_same_as_scf"]
+                todo3["giao_1el"] = ["giao_1el_analytic"]
             if jobtype.endswith("_j") or jobtype == "nmr":
                 todo2.append("ssfc")
-                indict["eprnmr"]["SpinSpinRThresh"] = ["8.0"]
+                todo3["SpinSpinRThresh"] = ["8.0"]
 
+            # Insert the main settings for NMR calculation
             indict = od_insert(
                 indict,
                 "eprnmr",
@@ -698,6 +702,10 @@ class OrcaProc(QmProc):
                 },
                 list(indict.keys()).index("geom") + 1,
             )
+
+            # Insert the remaining settings
+            for k, v in todo3.items():
+                indict["eprnmr"][k] = v
 
         return indict
 
