@@ -19,7 +19,7 @@ ncores = os.cpu_count()
 
 
 def execute(
-        conformers: list[MoleculeData], workdir: str, prog: str, prepinfo: dict[str, dict],
+        conformers: list[MoleculeData], workdir: str, prog: str, prepinfo: dict[str, dict], jobtype: list[str],
         copy_mo: bool = False, retry_failed: bool = False, balance: bool = True, maxcores: int = OMPMIN,
         omp: int = OMPMIN,
 ) -> dict[int, any]:
@@ -48,7 +48,7 @@ def execute(
         raise e("No jobs to compute!")
 
     # Create jobs from conformers data
-    jobs = prepare_jobs(conformers, prepinfo)
+    jobs = prepare_jobs(conformers, prepinfo, jobtype)
 
     # initialize the processor for the respective program
     processor = ProcessorFactory.create_processor(
@@ -108,9 +108,9 @@ def execute(
     return {job.conf.id: job.results for job in jobs}, failed_confs
 
 
-def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict]) -> list[ParallelJob]:
+def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict], jobtype: list[str]) -> list[ParallelJob]:
     # create jobs from conformers
-    jobs = [ParallelJob(conf.geom, list(prepinfo.keys()))
+    jobs = [ParallelJob(conf.geom, jobtype)
             for conf in conformers]
 
     # put settings into jobs

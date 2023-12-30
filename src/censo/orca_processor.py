@@ -1171,33 +1171,9 @@ class OrcaProc(QmProc):
             "error": None,
         }
 
-        # The following is a workaround to avoid a complicated nested if-else
-        conds = (
-            job.prepinfo["nmr"]["func_s"] == job.prepinfo["nmr"]["func_j"]
-            and job.prepinfo["nmr"]["disp_s"] == job.prepinfo["nmr"]["disp_j"]
-            and job.prepinfo["nmr"]["basis_s"] == job.prepinfo["nmr"]["basis_j"],
-            job.prepinfo["nmr"]["shieldings"],
-            job.prepinfo["nmr"]["couplings"],
-        )
-
-        conds_to_endings = {
-            (True, False): ["_s"],
-            (False, True): ["_j"],
-            (True, True): ["_s", "_j"],
-        }
-
-        # Basically this selects the proper jobs to run, so run two calculations if the settings for shieldings and
-        # couplings calculations differ even in one parameter, otherwise both
-        # can be calculated in one go
-        endings = []
-        if all(cond for cond in conds):
-            endings.append("")
-        else:
-            endings.extend(conds_to_endings[conds[1:]])
-
         # If settings are the same, endings = [""], otherwise it contains "_s"
         # and/or "_j", depending on conditions
-        for ending in endings:
+        for ending in [x[4:] for x in job.prepinfo.keys() if "nmr" in x]:
             job.meta.setdefault("nmr", {})
 
             # Set in/out path

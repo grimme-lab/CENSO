@@ -76,6 +76,7 @@ class Prescreening(CensoPart):
             self.dir,
             self.get_settings()["prog"],
             prepinfo,
+            jobtype,
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],

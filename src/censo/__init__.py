@@ -1,3 +1,8 @@
+from .configuration import configure
+from .__version__ import __version__
+
+configure()
+
 from .cli import interface, cml_parser
 from . import (
     configuration,
@@ -11,9 +16,5 @@ from . import (
     qm_processor,
     utilities,
     ensembleopt,
-    # properties
+    properties
 )
-from .configuration import configure
-from .__version__ import __version__
-
-configure()
