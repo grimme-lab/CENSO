@@ -172,7 +172,7 @@ class Screening(Prescreening):
             "[Eh]",
             "[kcal/mol]",
             "[Eh]",
-            "[kcal/mol]",
+            "[Eh]",
             "[Eh]",
             "[kcal/mol]",
         ]

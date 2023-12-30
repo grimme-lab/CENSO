@@ -97,8 +97,10 @@ class NMR(CensoPart):
         # for structure of results from handler.execute look there
         results, failed = execute(
             self.ensemble.conformers,
+            self.dir,
+            self.get_settings()["prog"],
             prepinfo,
-            self.dir, self.get_settings()["prog"],
+            jobtype,
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
