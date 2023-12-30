@@ -407,10 +407,46 @@ class Optimization(CensoPart):
         """
         writes information about the current state of the ensemble
         """
-        # TODO
-        limit = min(self.grrho(conf) for conf in self.ensemble.conformers)
-        for conf in self.confs_nc:
-            print(
-                f"{conf.name}: {self.grrho(conf)} (ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f}, grad_norm:"
-                f" {conf.results[self._name]['xtb_opt']['grad_norm']})"
-            )
+        headers = [
+            "CONF#",
+            "E (DFT) (+ ΔGsolv)",
+            "ΔE (DFT) (+ δΔGsolv)",
+            "GmRRHO",
+            "Gtot",
+            "ΔGtot",
+            "grad_norm",
+        ]
+        units = [
+            "",
+            "[Eh]",
+            "[kcal/mol]",
+            "[Eh]",
+            "[Eh]",
+            "[kcal/mol]",
+            "[Eh/a0]",
+        ]
+
+        limit = min(conf.results[self._name]['xtb_opt']['energy']
+                    for conf in self.ensemble.conformers)
+        limit2 = min(self.grrho(conf) for conf in self.ensemble.conformers)
+
+        printmap = {
+            "CONF#": lambda conf: conf.name,
+            "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
+            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name]['xtb_opt']['energy'] - limit) * AU2KCAL:.2f}",
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
+            if self._instructions["evaluate_rrho"]
+            else "---",
+            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit2) * AU2KCAL:.2f}",
+            "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
+        }
+        rows = [
+            printmap[header](conf) for header in headers
+            for conf in self.ensemble.conformers
+        ]
+
+        lines = format_data(headers, rows, units=units)
+
+        for line in lines:
+            print(line)
