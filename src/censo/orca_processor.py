@@ -316,7 +316,6 @@ class OrcaProc(QmProc):
     __req_settings = {
         **{
             "sp": [
-                "func",
                 "basis",
                 "grid",
                 "template",
@@ -609,23 +608,14 @@ class OrcaProc(QmProc):
         # set keywords for the selected solvent model
         # TODO - this is not good, reduce cyclomatic complexity
         if (
-            not prepinfo[jobtype]["gas-phase"]
+            not prepinfo["general"]["gas-phase"]
             and not no_solv
             and (
                 "sm" in prepinfo[jobtype].keys()
-                or "sm_s" in prepinfo[jobtype].keys()
             )
-            or "sm_j" in prepinfo[jobtype].keys()
         ):
-            if jobtype == "nmr_s" or jobtype == "nmr":
-                sm = prepinfo[jobtype]["sm_s"]
-                solv_key = prepinfo[jobtype]["solvent_key_prog_s"]
-            elif jobtype == "nmr_j":
-                sm = prepinfo[jobtype]["sm_j"]
-                solv_key = prepinfo[jobtype]["solvent_key_prog_j"]
-            else:
-                sm = prepinfo[jobtype]["sm"]
-                solv_key = prepinfo[jobtype]["solvent_key_prog"]
+            sm = prepinfo[jobtype]["sm"]
+            solv_key = prepinfo[jobtype]["solvent_key_prog"]
 
             if sm == "smd":
                 indict = od_insert(
@@ -688,12 +678,16 @@ class OrcaProc(QmProc):
             todo.append("P")
 
         todo2 = []
-        if prepinfo[jobtype]["shieldings"]:
-            todo2.append("shift")
-        if prepinfo[jobtype]["couplings"]:
-            todo2.append("ssfc")
+        if "nmr" in jobtype:
+            if jobtype.endswith("_s") or jobtype == "nmr":
+                todo2.append("shift")
+                indict["eprnmr"]["origin"] = ["giao"]
+                indict["eprnmr"]["giao_2el", "giao_2el_same_as_scf"]
+                indict["eprnmr"]["giao_1el", "giao_1el_analytic"]
+            if jobtype.endswith("_j") or jobtype == "nmr":
+                todo2.append("ssfc")
+                indict["eprnmr"]["SpinSpinRThresh"] = ["8.0"]
 
-        if jobtype == "nmr":
             indict = od_insert(
                 indict,
                 "eprnmr",
@@ -708,13 +702,6 @@ class OrcaProc(QmProc):
                 },
                 list(indict.keys()).index("geom") + 1,
             )
-            if prepinfo[jobtype]["shieldings"]:
-                indict["eprnmr"]["origin"] = ["giao"]
-                indict["eprnmr"]["giao_2el", "giao_2el_same_as_scf"]
-                indict["eprnmr"]["giao_1el", "giao_1el_analytic"]
-
-            if prepinfo[jobtype]["couplings"]:
-                indict["eprnmr"]["SpinSpinRThresh"] = ["8.0"]
 
         return indict
 
