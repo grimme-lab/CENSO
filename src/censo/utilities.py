@@ -283,6 +283,8 @@ def od_insert(
 ) -> OrderedDict[str, any]:
     """
     Insert a new key/value pair into an OrderedDict at a specific position.
+    If it was a normal dict:
+        od[key] = value, with insertion before the 'index'th key.
 
     Args:
         od: The OrderedDict to insert into.
@@ -293,6 +295,7 @@ def od_insert(
     Returns:
         The updated OrderedDict.
     """
+    # FIXME - somehow this doesn't work reliably, no idea why but sometimes the value is not inserted
     items: list[tuple[str, any]] = list(od.items())
     items.insert(index, (key, value))
     return OrderedDict(items)

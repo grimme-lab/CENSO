@@ -76,7 +76,7 @@ class OrcaParser:
         Format of the result:
         "main": [...], (contains all main input line options)
 
-        "some setting": {"some option": [...], ...}, (contains a settings that is started with a % with the respective keywords and values)
+        "some setting": {"some option": [...], ...}, (contains a setting that is started with a % with the respective keywords and values)
         (the list under "some option" contains just all the following substrings, that, in the input file,
         are separated by a whitespace, nothing fancy)
 
@@ -252,7 +252,7 @@ class OrcaParser:
         allkeys = list(indict.keys())
 
         # skip first key ('main')
-        for key in allkeys[1: allkeys.index("geom")]:
+        for key in allkeys[1:allkeys.index("geom")]:
             lines.append(f"%{key}\n")
             # FIXME - temporary workaround for definition blocks that have no
             # 'end', this code smells immensely
@@ -687,11 +687,8 @@ class OrcaProc(QmProc):
                 todo2.append("ssfc")
                 todo3["SpinSpinRThresh"] = ["8.0"]
 
-            # Insert the main settings for NMR calculation
-            indict = od_insert(
-                indict,
-                "eprnmr",
-                {
+            compiled = {
+                **{
                     "Nuclei": [
                         "=",
                         ",".join(element for element in todo),
@@ -700,12 +697,11 @@ class OrcaProc(QmProc):
                         "}",
                     ],
                 },
-                list(indict.keys()).index("geom") + 1,
-            )
+                **todo3
+            }
 
-            # Insert the remaining settings
-            for k, v in todo3.items():
-                indict["eprnmr"][k] = v
+            # Insert the settings for NMR calculation
+            indict["eprnmr"] = compiled
 
         return indict
 
