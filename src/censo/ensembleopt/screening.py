@@ -66,10 +66,25 @@ class Screening(Prescreening):
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             jobtype = ["xtb_rrho"]
+            prepinfo = self.setup_prepinfo(jobtype)
 
             # append results to previous results
-            results = execute(self.ensemble.conformers,
-                              self._instructions, self.dir)
+            results, failed = execute(
+                self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
+                prepinfo,
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
+
+            # Remove failed conformers
+            for confid in failed:
+                self.ensemble.remove_conformers(failed)
+
             for conf in self.ensemble.conformers:
                 # update results for each conformer
                 conf.results[self._name].update(results[id(conf)])

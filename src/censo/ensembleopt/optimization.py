@@ -6,7 +6,7 @@ import os
 from functools import reduce
 from math import exp
 
-from ..core import EnsembleData
+from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import (
@@ -134,8 +134,9 @@ class Optimization(CensoPart):
             # run optimizations using xtb as driver
             results_opt, failed = execute(
                 self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
                 prepinfo,
-                self.dir, self.get_settings()["prog"],
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
@@ -164,8 +165,9 @@ class Optimization(CensoPart):
         prepinfo = self.setup_prepinfo(jobtype)
         results_rrho = execute(
             self.ensemble.conformers,
+            self.dir,
+            self.get_settings()["prog"],
             prepinfo,
-            self.dir, self.get_settings()["prog"],
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
@@ -273,8 +275,9 @@ class Optimization(CensoPart):
             # run optimizations for 'optcycles' steps
             results_opt, failed = execute(
                 self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
                 prepinfo,
-                self.dir, self.get_settings()["prog"],
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
@@ -303,8 +306,9 @@ class Optimization(CensoPart):
                 jobtype = ["xtb_rrho"]
                 results_rrho, failed = execute(
                     self.ensemble.conformers,
+                    self.dir,
+                    self.get_settings()["prog"],
                     self.setup_prepinfo(jobtype),
-                    self.dir, self.get_settings()["prog"],
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],

@@ -62,7 +62,7 @@ class EnsembleData:
         """
         Returns the conformers list. Includes a check wether there are any conformers left.
         """
-        assert len(self.conformers) > 0
+        assert len(self.__conformers) > 0
         return self.__conformers
 
     @conformers.setter
@@ -150,7 +150,9 @@ class EnsembleData:
 
             # get precalculated energies if possible
             for i in range(nconf):
-                self.conformers.append(
+                # Don't use the property here since the conformer list is expected to be empty, otherwise assertion
+                # would fail
+                self.__conformers.append(
                     MoleculeData(
                         f"CONF{i + 1}", lines[2 + i *
                                               (nat + 2):(i + 1) * (nat + 2)]

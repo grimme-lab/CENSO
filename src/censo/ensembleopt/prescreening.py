@@ -73,8 +73,9 @@ class Prescreening(CensoPart):
         # for structure of results from handler.execute look there
         results, failed = execute(
             self.ensemble.conformers,
+            self.dir,
+            self.get_settings()["prog"],
             prepinfo,
-            self.dir, self.get_settings()["prog"],
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
@@ -140,9 +141,16 @@ class Prescreening(CensoPart):
             "grid": self.get_settings()["grid"],
             "template": self.get_settings()["template"],
             "gcp": self.get_settings()["gcp"],
-            "sm": self.get_settings()["sm"],
-            "solvent_key_prog": SOLVENTS_DB.get(self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1],
         }
+
+        # Add the solvent key if a solvent model exists in the part settings (this method is also used for Screening)
+        # TODO - this is not best practice
+        try:
+            prepinfo["sp"]["sm"] = self.get_settings()["sm"]
+            prepinfo["sp"]["solvent_key_prog"] = SOLVENTS_DB.get(
+                self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1]
+        except KeyError:
+            pass
 
         # TODO - this doesn't look very nice
         if "xtb_gsolv" in jobtype:
