@@ -13,6 +13,7 @@ from ..params import (
     GRIDOPTIONS,
     SOLVENTS_DB,
 )
+from ..datastructure import MoleculeData
 from ..part import CensoPart
 from ..utilities import print, timeit, DfaHelper, setup_logger, format_data
 
@@ -114,11 +115,33 @@ class NMR(CensoPart):
             conf.results.setdefault(self._name, {}).update(
                 results[conf.geom.id])
 
-        # Calculate Boltzmann weighted parameters and generate files for ANMR
+        # Recalculate Boltzmann populations based on new single-point energy
+        for conf in self.ensemble.conformers:
+            conf.results[self._name]["gtot"] = self.gtot(conf)
+        self.ensemble.calc_boltzmannweights(
+            self.get_general_settings()["temperature"],
+            self._name
+        )
+
+        # Generate files for ANMR
         self.__generate_anmr()
 
         # Write data
         self.write_results()
+
+    def gtot(self, conformer: MoleculeData) -> float:
+        """
+        Calculates the free enthalpy of the conformer. If any RRHO energy is found, use it in order of priority:
+            optimization -> screening
+        Otherwise just returns the single-point energy.
+        """
+        if self.get_general_settings()["evaluate_rrho"]:
+            if "optimization" in conformer.results.keys():
+                return conformer.results[self._name]["nmr"]["energy"] + conformer.results["optimization"]["xtb_rrho"]["energy"]
+            elif "screening" in conformer.results.keys():
+                return conformer.results[self._name]["nmr"]["energy"] + conformer.results["screening"]["xtb_rrho"]["energy"]
+            else:
+                return conformer.results[self._name]["nmr"]["energy"]
 
     def __generate_anmr(self):
         """
@@ -136,7 +159,24 @@ class NMR(CensoPart):
             "gi",
         ]
 
-        rows = []
+        # determines what to print for each conformer in each column
+        printmap = {
+            "ONOFF": lambda conf: 1,
+            "NMR": lambda conf: conf.name[4:],
+            "CONF": lambda conf: conf.name[4:],
+            "BW": lambda conf: f"{conf.results[self._name]['bmw']:.2f}",
+            "Energy": lambda conf: f"{conf.results[self._name]['nmr']['energy']:.6f}",
+            "Gsolv": lambda conf: f"{0.0:.6f}",
+            "mRRHO": lambda conf: f"{conf.results['optimization']['xtb_rrho']['energy']:.6f}"
+            if "optimization" in conf.results.keys() and self.get_general_settings()["evaluate_rrho"]
+            else f"{0.0:.6f}",
+            "gi": lambda conf: conf.degen,
+        }
+
+        rows = [
+            [printmap[header](conf) for header in headers]
+            for conf in self.ensemble.conformers
+        ]
 
         lines = format_data(headers, rows)
 
@@ -149,21 +189,21 @@ class NMR(CensoPart):
         ) as outfile:
             outfile.writelines(lines)
 
-        # Additionally, write the results to a json file
-        self.write_json()
-
         # Write 'anmrrc'
+        # TODO - this is not finished, also don't do this for now, it's pretty straightforward to configure .anmrrc
+        # manually
+        """
         lines = []
 
         general_settings = self.get_general_settings()
         lines.append("7 8 XH acid atoms\n")
         lines.append(
-            f"ENSO qm= {self._settigs['prog'].upper()} "
-            f"mf= {self._settings['resonance_frequency']:.2f} "
-            f"lw= 1.0 J= {'on' if self._settings['couplings'] else 'off'} "
-            f"S= {'on' if self._settings['shieldings'] else 'off'} "
-            f"T= {general_settings['temperature']:6.2f}\n"
-        )
+                f"ENSO qm= {self._settigs['prog'].upper()} "
+                f"mf= {self._settings['resonance_frequency']:.2f} "
+                f"lw= 1.0 J= {'on' if self._settings['couplings'] else 'off'} "
+                f"S= {'on' if self._settings['shieldings'] else 'off'} "
+                f"T= {general_settings['temperature']:6.2f}\n"
+                )
 
         # TODO - since the only program right now is ORCA, the reference solvent model is always SMD
         # Check, if a geometry optimization has been done before
@@ -176,42 +216,21 @@ class NMR(CensoPart):
             logger.warning("Geometries of conformers have not been optimized using CENSO. "
                            "This is advised for accurate results. Also, user configuration"
                            " of .anmrrc is required. Insert functional and basis used for "
-                           "reference geometry.")
+                           "reference geometry as well as reference shieldings.")
             func_geomopt = "GEOMOPT_FUNC"
             basis_geomopt = "GEOMOPT_BASIS"
 
         # '{reference molecule}[{solvent}] {func used for nmr}[{reference solvent model}]/
         # {reference basis}//{geomopt func}[{reference solvent model geomopt}]/{geomopt basis}'
         lines.append(
-            f"{self._settings['h_ref']}"
-            f"[{general_settings['solvent'] if not general_settings['gas-phase'] else 'gas'}] "
-            f"{self._settings['func_s']}[{'SMD' if not general_settings['gas-phase'] else None}]/"
-            f"{'def2-TZVP'}//{func_geomopt}[{'SMD' if not general_settings['gas-phase'] else None}]/"
-            f"{basis_geomopt}\n"
-        )
-
-        lines.append(f"")
-
+                f"{self._settings['h_ref']}"
+                f"[{general_settings['solvent'] if not general_settings['gas-phase'] else 'gas'}] "
+                f"{self._settings['func_s']}[{'SMD' if not general_settings['gas-phase'] else None}]/"
+                f"{'def2-TZVP'}//{func_geomopt}[{'SMD' if not general_settings['gas-phase'] else None}]/"
+                f"{basis_geomopt}\n"
+                )
+        """
         # Write 'nmrprop.dat's
-        # Determine the active elements
-        active_map = {
-            "H": "h_active",
-            "C": "c_active",
-            "F": "f_active",
-            "Si": "si_active",
-            "P": "p_active",
-        }
-        active_elements = [
-            element for element in active_map.keys()
-            if self._settings[active_map[element]]
-        ]
-
-        # Get the indices of the active nuclei
-        active_atoms = [
-            i for i in range(self.ensemble.conformers[0].geom.nat)
-            if self.ensemble.conformers[0].geom.xyz[i]["element"] in active_elements
-        ]
-
         for conf in self.ensemble.conformers:
             confdir = os.path.join(self.ensemble.workdir,
                                    self._name, conf.name)
@@ -224,7 +243,7 @@ class NMR(CensoPart):
                 lines.append(f"{i + 1:4} {shielding:.3f}\n")
 
             # Fill in blank lines
-            for _ in range(conf.geom.nat - len(active_atoms)):
+            for _ in range(conf.geom.nat - len(conf.results[self._name]["shieldings"])):
                 lines.append("\n")
 
             # then: atom no.1 | atom no.2 | J12
@@ -235,7 +254,9 @@ class NMR(CensoPart):
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
                 f.writelines(lines)
 
-    def write_results(self, results: dict[int, any]) -> None:
+        print("\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file.")
+
+    def write_results(self) -> None:
         """
         Write result shieldings and/or couplings to files.
         """

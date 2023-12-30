@@ -243,8 +243,13 @@ class EnsembleData:
 
     def calc_boltzmannweights(self, temp: float, part: str) -> None:
         """
-        Calculate weights for boltzmann distribution of ensemble at given temperature and part name to search results,
-        given values for free enthalpy
+        Calculate populations for boltzmann distribution of ensemble at given temperature and part name to search 
+        results, given values for free enthalpy
+
+        Args:
+
+        Returns:
+            None
         """
         # find lowest gtot value
         if all(["gtot" in conf.results[part].keys() for conf in self.conformers]):
