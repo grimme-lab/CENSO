@@ -39,7 +39,7 @@ class Optimization(CensoPart):
     _options = {
         "optcycles": {"default": 8, "range": [1, 10]},
         "maxcyc": {"default": 200, "range": [10, 1000]},
-        "threshold": {"default": 1.5, "range": [0.5, 5]},
+        "threshold": {"default": 1.5, "range": [0.5, 5.0]},
         "hlow": {"default": 0.01, "range": [0.001, 0.1]},
         "gradthr": {"default": 0.01, "range": [0.01, 1.0]},
         "func": {

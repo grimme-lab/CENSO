@@ -691,6 +691,7 @@ class OrcaProc(QmProc):
                 **{
                     "Nuclei": [
                         "=",
+                        "all",
                         ",".join(element for element in todo),
                         "{",
                         ",".join(x for x in todo2),
@@ -1137,8 +1138,9 @@ class OrcaProc(QmProc):
         Formatting:
             'shielding' contains a list of tuples (atom_index, shielding), with atom_index being the index of the atom
             in the internal coordinates of the GeometryData.
-            'couplings' contains a list of tuples (set(atom_index1, atom_index2), coupling), with the indices of the atoms
-            in the internal coordinates of the GeometryData. A set is used to represent an atom pair.
+            'couplings' contains a list of tuples ((atom_index1, atom_index2), coupling), with the indices of the atoms
+            in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
+            to tuple to be serializable.
 
         Args:
             job: ParallelJob object containing the job information, metadata is stored in job.meta
@@ -1215,7 +1217,7 @@ class OrcaProc(QmProc):
 
             if ending in ["", "_j"]:
                 # Read couplings from *_properties.txt for easier parsing
-                with open(os.path.join(jobdir, f"{filename}{ending}_properties.txt"), "r") as f:
+                with open(os.path.join(jobdir, f"{filename}{ending}_property.txt"), "r") as f:
                     lines = f.readlines()
 
                 start = lines.index(
@@ -1235,7 +1237,10 @@ class OrcaProc(QmProc):
                 # The iterator created here unpacks a tuple consisting of the multiples of three (indices of every
                 # third line) and every third line in 'lines'
                 for i, line in zip(range(0, len(lines), 3), lines[::3]):
-                    pair = {int(line.split()[4]), int(line.split()[11])}
+                    # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
+                    # of a normal set
+                    pair = frozenset(
+                        (int(line.split()[4]), int(line.split()[11])))
                     coupling = float(lines[i + 2].split()[4])
                     result["couplings"].append((pair, coupling))
 
@@ -1243,13 +1248,20 @@ class OrcaProc(QmProc):
                 # ('vectorizing the symmetric matrix')
                 result["couplings"] = list(set(result["couplings"]))
 
+                # Convert all the frozensets to a tuple to be serializable
+                for i in range(len(result["couplings"])):
+                    result["couplings"][i] = (
+                        tuple(result["couplings"][i][0]),
+                        result["couplings"][i][1]
+                    )
+
         meta["success"] = True
 
         job.meta["nmr"].update(meta)
 
         return result
 
-    @staticmethod
+    @ staticmethod
     def __apply_flags(indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
         """
         apply flags to an orca input
