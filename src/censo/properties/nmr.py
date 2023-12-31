@@ -242,7 +242,7 @@ class NMR(CensoPart):
             "ONOFF": lambda conf: 1,
             "NMR": lambda conf: conf.name[4:],
             "CONF": lambda conf: conf.name[4:],
-            "BW": lambda conf: f"{conf.results[self._name]['bmw']:.2f}",
+            "BW": lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
             "Energy": lambda conf: f"{conf.results[self._name]['nmr']['energy']:.6f}",
             "Gsolv": lambda conf: f"{0.0:.6f}",
             "mRRHO": lambda conf: f"{conf.results['optimization']['xtb_rrho']['energy']:.6f}"

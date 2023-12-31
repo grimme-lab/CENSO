@@ -1215,6 +1215,9 @@ class OrcaProc(QmProc):
                     except IndexError:
                         break
 
+                # Sort shieldings by atom index
+                result["shieldings"].sort(lambda x: x[0])
+
             if ending in ["", "_j"]:
                 # Read couplings from *_properties.txt for easier parsing
                 with open(os.path.join(jobdir, f"{filename}{ending}_property.txt"), "r") as f:
@@ -1254,6 +1257,9 @@ class OrcaProc(QmProc):
                         tuple(result["couplings"][i][0]),
                         result["couplings"][i][1]
                     )
+
+                # Sort couplings by pairs
+                result["couplings"].sort(lambda x: x[0])
 
         meta["success"] = True
 
