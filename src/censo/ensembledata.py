@@ -20,12 +20,12 @@ from .utilities import (
 logger = setup_logger(__name__)
 
 
-class CensoCore:
+class EnsembleData:
     """ """
 
     def __init__(self, workdir: str, args: Namespace = None):
         """
-        Setup a CensoCore object using the args from the command line
+        Setup a EnsembleData object using the args from the command line
         workdir is the directory where the CENSO run should be executed in
         """
 
@@ -36,7 +36,7 @@ class CensoCore:
         self.args: Namespace = args
 
         # contains run-specific info that may change during runtime
-        # initialized in CensoCore.read_input
+        # initialized in EnsembleData.read_input
         self.runinfo = {
             "nconf": None,
             "nat": None,  # TODO - maybe remove?
@@ -49,13 +49,26 @@ class CensoCore:
 
         # stores the conformers with all info
         # NOTE: this is deliberately chosen to be a list since lists are ordered
-        self.conformers: list[MoleculeData] = []
+        self.__conformers: list[MoleculeData] = []
 
         # stores the conformers which were sorted out
         self.rem: list[MoleculeData] = []
 
         # absolute path to ensemble input file
         self.ensemble_path: str
+
+    @property
+    def conformers(self):
+        """
+        Returns the conformers list. Includes a check wether there are any conformers left.
+        """
+        assert len(self.__conformers) > 0
+        return self.__conformers
+
+    @conformers.setter
+    def conformers(self, confs):
+        assert all(isinstance(conf, MoleculeData) for conf in confs)
+        self.__conformers = confs
 
     def read_input(
         self,
@@ -92,7 +105,8 @@ class CensoCore:
             self.runinfo["unpaired"] = unpaired
 
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
-            raise RuntimeError("Charge or number of unpaired electrons not defined.")
+            raise RuntimeError(
+                "Charge or number of unpaired electrons not defined.")
 
         self.setup_conformers(nconf)
 
@@ -136,9 +150,12 @@ class CensoCore:
 
             # get precalculated energies if possible
             for i in range(nconf):
-                self.conformers.append(
+                # Don't use the property here since the conformer list is expected to be empty, otherwise assertion
+                # would fail
+                self.__conformers.append(
                     MoleculeData(
-                        f"CONF{i + 1}", lines[2 + i * (nat + 2) : (i + 1) * (nat + 2)]
+                        f"CONF{i + 1}", lines[2 + i *
+                                              (nat + 2):(i + 1) * (nat + 2)]
                     )
                 )
 
@@ -200,17 +217,44 @@ class CensoCore:
                     # The population of the conformer is appended
                     s += target(conf)
         else:
-            raise RuntimeError("Invalid filter settings for updating conformer list.")
+            raise RuntimeError(
+                "Invalid filter settings for updating conformer list.")
 
         # move the sorted out conformers to rem list
         for conf in filtered:
             # pop item from conformers and insert this item at index 0 in rem
-            self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
+            self.rem.insert(0, self.conformers.pop(
+                self.conformers.index(conf)))
 
             # Log removed conformers
             logger.debug(f"Removed {conf.name}.")
 
+        # TODO - signal CENSO to stop if there are no conformers left
+
         return [conf.name for conf in filtered]
+
+    def remove_conformers(self, confids: list[int]) -> None:
+        """
+        Remove the conformers with the IDs listed in 'confids' from further consideration.
+
+        Args:
+            confids (list[int]): A list of conformer IDs.
+
+        Returns:
+            None
+        """
+        remove = []
+        for confid in confids:
+            remove.append(
+                next(c for c in self.__conformers if c.geom.id == confid))
+
+        for r in remove:
+            # pop item from conformers and insert this item at index 0 in rem
+            self.rem.insert(0, self.conformers.pop(
+                self.conformers.index(r)))
+
+            # Log removed conformers
+            logger.debug(f"Removed {r.name}.")
 
     def dump_ensemble(self, part: str) -> None:
         """
@@ -224,8 +268,15 @@ class CensoCore:
 
     def calc_boltzmannweights(self, temp: float, part: str) -> None:
         """
-        Calculate weights for boltzmann distribution of ensemble at given temperature and part name to search results,
-        given values for free enthalpy
+        Calculate populations for boltzmann distribution of ensemble at given temperature and part name to search 
+        results, given values for free enthalpy
+
+        Args:
+            temp (float): Temperature in Kelvin.
+            part (str): Name of the part to search results for.
+
+        Returns:
+            None
         """
         # find lowest gtot value
         if all(["gtot" in conf.results[part].keys() for conf in self.conformers]):
@@ -247,7 +298,8 @@ class CensoCore:
             for jt in ["xtb_opt", "sp"]:
                 if all(jt in conf.results[part].keys() for conf in self.conformers):
                     minfree: float = min(
-                        [conf.results[part][jt]["energy"] for conf in self.conformers]
+                        [conf.results[part][jt]["energy"]
+                            for conf in self.conformers]
                     )
 
                     # calculate boltzmann factors
@@ -264,7 +316,8 @@ class CensoCore:
                     break
 
             if not gtot_replacement:
-                raise RuntimeError(f"Could not determine Boltzmann factors for {part}.")
+                raise RuntimeError(
+                    f"Could not determine Boltzmann factors for {part}.")
 
         # calculate partition function from boltzmann factors
         bsum: float = sum(bmfactors.values())

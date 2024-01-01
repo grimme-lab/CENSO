@@ -4,15 +4,16 @@ import shutil
 import unittest
 from unittest.mock import patch
 
-from censo.core import CensoCore
+from censo.ensembledata import EnsembleData
 from censo.datastructure import ParallelJob
 from censo.parallel import execute
 
 
 class TestParallel(unittest.TestCase):
     def setUp(self):
-        self.core = CensoCore(os.getcwd())
-        self.core.read_input("testfiles/crest_conformers.xyz", charge=2, unpaired=7)
+        self.ensemble = EnsembleData(os.getcwd())
+        self.ensemble.read_input(
+            "testfiles/crest_conformers.xyz", charge=2, unpaired=7)
 
     @patch("censo.parallel.dqp")
     def test_execute(self, mock_dqp):
@@ -38,13 +39,14 @@ class TestParallel(unittest.TestCase):
         ]
         print(f"Failed jobs (indices): {failed_jobs}")
 
-        execute(self.core.conformers, mock_instructions, os.getcwd())
+        execute(mock_dqp_results, os.getcwd(), mock_instructions["prog"])
 
     def __mock_dqp(self, instructions: dict) -> list[ParallelJob]:
         mock_dqp_results = []
-        for conf in self.core.conformers:
+        for conf in self.ensemble.conformers:
             mock_dqp_results.append(
-                ParallelJob(conf.geom, instructions["jobtype"], instructions["omp"])
+                ParallelJob(
+                    conf.geom, instructions["jobtype"], instructions["omp"])
             )
 
         for job in mock_dqp_results:

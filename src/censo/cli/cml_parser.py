@@ -16,12 +16,7 @@ def check_soft_requirements(args: argparse.Namespace) -> bool:
         "charge",
         "unpaired",
     ]
-    requirement_override = [
-        "writeconfig", 
-        "cleanup", 
-        "cleanup_all", 
-        "version"
-    ]
+    requirement_override = ["writeconfig", "cleanup", "cleanup_all", "version"]
     # If all settings, that override soft-requirement, are unused
     if all(getattr(args, s, None) is False for s in requirement_override):
         # Check, if all the soft-required settings are given
@@ -50,7 +45,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
 
     groups = []
 
-    ### RUN SETTINGS
+    # RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
     groups[0].add_argument(
         "-inp",
@@ -119,7 +114,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         " than the default (~/.censo2rc).",
     )
 
-    ### GENERAL SETTINGS
+    # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))
     groups[1].add_argument(
         "-T",
@@ -251,25 +246,25 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     )
     """
 
-    ### PRESCREENING SETTINGS
+    # PRESCREENING SETTINGS
     groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
 
-    ### SCREENING SETTINGS
+    # SCREENING SETTINGS
     groups.append(parser.add_argument_group("SCREENING SETTINGS"))
 
-    ### OPTIMIZATION SETTINGS
+    # OPTIMIZATION SETTINGS
     groups.append(parser.add_argument_group("OPTIMIZATION SETTINGS"))
 
-    ### REFINEMENT SETTINGS
+    # REFINEMENT SETTINGS
     groups.append(parser.add_argument_group("REFINEMENT SETTINGS"))
 
-    ### NMR SETTINGS
+    # NMR SETTINGS
     groups.append(parser.add_argument_group("NMR SETTINGS"))
 
-    ### OPTROT SETTINGS
+    # OPTROT SETTINGS
     groups.append(parser.add_argument_group("OPTROT SETTINGS"))
 
-    ### UVVIS SETTINGS
+    # UVVIS SETTINGS
     groups.append(parser.add_argument_group("UVVIS SETTINGS"))
 
     # leave these options out for now, implementation for cml complicated
@@ -534,6 +529,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
 
     args = parser.parse_args(argv)
     if not check_soft_requirements(args):
-        raise argparse.ArgumentError(None, "One of the soft requirements ('-inp', '-chrg', '-u') not met.")
+        raise argparse.ArgumentError(
+            None, "One of the soft requirements ('-inp', '-chrg', '-u') not met."
+        )
 
     return args

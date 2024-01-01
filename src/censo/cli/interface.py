@@ -6,8 +6,9 @@ from argparse import ArgumentError
 
 from .cml_parser import parse
 from ..configuration import configure, override_rc
-from ..core import CensoCore
+from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization
+from ..properties import NMR
 from ..params import DESCR, __version__
 from ..utilities import print, setup_logger
 
@@ -30,25 +31,25 @@ def entry_point(argv: list[str] | None = None) -> int:
         print("CENSO needs at least one argument!")
         return 1
 
-    core = startup(args)
-    if core is None:
+    ensemble = startup(args)
+    if ensemble is None:
         return 0
 
     run = filter(
         lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization],
+        [Prescreening, Screening, Optimization, NMR],
     )
 
     for part in run:
-        tmp = part(core)
+        tmp = part(ensemble)
         print(f"Ran {tmp._name} in {tmp.run()} seconds!")
 
     print("\nCENSO all done!")
     return 0
 
 
-# sets up a core object for you using the given cml arguments and censorc
-def startup(args) -> CensoCore | None:
+# sets up a ensemble object for you using the given cml arguments and censorc
+def startup(args) -> EnsembleData | None:
     # get most important infos for current run
     cwd = getcwd()
 
@@ -73,16 +74,16 @@ def startup(args) -> CensoCore | None:
     # Override settings with command line arguments
     override_rc(args)
 
-    # initialize core, constructor get runinfo from args
-    core = CensoCore(cwd, args=args)
+    # initialize ensemble, constructor get runinfo from args
+    ensemble = EnsembleData(cwd, args=args)
 
     # read input and setup conformers
-    core.read_input(args.inp)
+    ensemble.read_input(args.inp)
 
-    ### END of setup
-    # -> core.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
+    # END of setup
+    # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
 
-    return core
+    return ensemble
 
 
 def cleanup_run(cwd, complete=False):

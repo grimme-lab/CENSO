@@ -2,9 +2,11 @@ from .configuration import configure
 from .__version__ import __version__
 
 configure()
+
+from .cli import interface, cml_parser
 from . import (
     configuration,
-    core,
+    ensembledata,
     datastructure,
     orca_processor,
     parallel,
@@ -14,6 +16,5 @@ from . import (
     qm_processor,
     utilities,
     ensembleopt,
-    # properties
+    properties
 )
-from .cli import interface, cml_parser

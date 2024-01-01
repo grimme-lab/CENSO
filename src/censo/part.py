@@ -4,7 +4,7 @@ import os
 import ast
 from collections.abc import Callable
 
-from .core import CensoCore
+from .ensembledata import EnsembleData
 from .params import (
     PLENGTH,
     DIGILEN,
@@ -12,14 +12,27 @@ from .params import (
     OMPMAX,
     SOLVENTS_DB,
 )
-from .utilities import setup_logger
+from .datastructure import ParallelJob
+from .utilities import setup_logger, DfaHelper
 
 logger = setup_logger(__name__)
 
 
 class CensoPart:
     """
-    Part class as parent class for all parts of the calculation
+    Part class as parent class for all parts of the calculation.
+
+    Settings that are not part of the general settings and strictly necessary for ...
+    ... DFT calculations:
+        - prog
+        - func
+        - basis
+        - grid
+        - template
+        - gcp
+    ... xtb calculations:
+        - gfnv
+    Further requirements are defined in dictionaries belonging to processor classes.
     """
 
     _options = {
@@ -50,6 +63,11 @@ class CensoPart:
         CensoPart._validate(settings)
         settings = CensoPart._complete(settings)
         CensoPart._settings = settings
+
+    @staticmethod
+    def set_general_setting(setting, value):
+        assert type(value) is type(CensoPart._settings[setting])
+        CensoPart._settings[setting] = value
 
     @staticmethod
     def get_general_settings():
@@ -88,10 +106,17 @@ class CensoPart:
     @classmethod
     def _validate(cls, tovalidate: dict[str, any]) -> None:
         """
-        validate the type of each setting in the given dict
-        also potentially validate if the setting is allowed by checking with cls._options
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by 
+        checking with cls._options.
 
-        raises exceptions if some setting's type is invalid or the settings value is not within predefined options
+        Args:
+            tovalidate (dict[str, any]): The dict containing the settings to be validated.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the setting is not allowed or the value is not within the allowed range.
         """
         # go through each section and try to validate each setting's type
         remove = []
@@ -137,7 +162,8 @@ class CensoPart:
                 if not interval[0] <= setting_value <= interval[1]:
                     # This is fatal so an exception is raised
                     raise ValueError(
-                        f"Value '{setting_value}' is out of range ({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'."
+                        f"Value '{setting_value}' is out of range "
+                        f"({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'."
                     )
             # NOTE: there is no check for complex types yet (i.e. lists)
 
@@ -165,25 +191,26 @@ class CensoPart:
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(self.core.workdir, self._name)
+            self.dir = os.path.join(self.ensemble.workdir, self._name)
             if os.path.isdir(self.dir):
                 global logger
                 logger.warning(
                     f"Folder {self.dir} already exists. Potentially overwriting files."
                 )
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
-                raise RuntimeError(f"Could not create directory for {self._name}.")
+                raise RuntimeError(
+                    f"Could not create directory for {self._name}.")
 
             return runner(self, *args, **kwargs)
 
         return wrapper
 
-    def __init__(self, core: CensoCore):
+    def __init__(self, ensemble: EnsembleData):
         """
         Initializes a part instance.
 
         Args:
-            core: The core instance that manages the conformers.
+            ensemble: The ensemble instance that manages the conformers.
 
         Returns:
             None
@@ -191,32 +218,8 @@ class CensoPart:
         # sets the name of the part (used for printing and folder creation)
         self._name: str = self.__class__.__name__.lower()
 
-        # every part instance depends on a core instance to manage the conformers
-        self.core: CensoCore = core
-
-        # dictionary with instructions that get passed to the processors
-        # basically collapses the first level of nesting into a dict that is not divided into parts
-        self._instructions: dict[str, any] = {
-            **self.get_settings(),
-            **self.get_general_settings(),
-        }
-
-        # add some additional settings to instructions so that the processors don't have to do any lookups
-        # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-        self._instructions["solvent_key_xtb"] = SOLVENTS_DB.get(
-            self._instructions["solvent"]
-        )["xtb"][1]
-        if "sm" in self._instructions.keys():
-            self._instructions["solvent_key_prog"] = SOLVENTS_DB.get(
-                self._instructions["solvent"]
-            )[self._instructions["sm"]][1]
-
-        # add 'charge' and 'unpaired' to instructions
-        self._instructions["charge"] = core.runinfo.get("charge")
-        self._instructions["unpaired"] = core.runinfo.get("unpaired")
-
-        # also pass the name of the part to the processors
-        self._instructions["part_name"] = self._name
+        # every part instance depends on a ensemble instance to manage the conformers
+        self.ensemble: EnsembleData = ensemble
 
         self.dir: str = None
 
@@ -258,8 +261,9 @@ class CensoPart:
         Returns:
             None
         """
-        results = {conf.name: conf.results[self._name] for conf in self.core.conformers}
+        results = {conf.name: conf.results[self._name]
+                   for conf in self.ensemble.conformers}
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.json"), "w"
+            os.path.join(self.ensemble.workdir, f"{self._name}.json"), "w"
         ) as outfile:
             json.dump(results, outfile, indent=4)

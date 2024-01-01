@@ -1,6 +1,6 @@
 import os
 
-from ..core import CensoCore
+from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import PLENGTH, AU2KCAL
@@ -9,6 +9,7 @@ from ..params import (
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
+    SOLVENTS_DB,
 )
 from ..part import CensoPart
 from ..utilities import (
@@ -39,16 +40,8 @@ class Prescreening(CensoPart):
 
     _settings = {}
 
-    def __init__(self, core: CensoCore):
-        super().__init__(core)
-
-        # set the correct name for 'func'
-        self._instructions["func_type"] = DfaHelper.get_type(self._instructions["func"])
-        self._instructions["func_name"] = DfaHelper.get_name(
-            self._instructions["func"], self._instructions["prog"]
-        )
-        self._instructions["disp"] = DfaHelper.get_disp(self._instructions["func"])
-
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
 
     @timeit
     @CensoPart._create_dir
@@ -58,25 +51,45 @@ class Prescreening(CensoPart):
         using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
         the gsolv contribution is calculated using xtb.
 
-        the list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
+        The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
         """
         # print instructions
         self.print_info()
 
         # set jobtype to pass to handler
-        if self._instructions["gas-phase"] or self._instructions.get("implicit", False):
+        if self.get_general_settings()["gas-phase"] or self.get_settings().get("implicit", False):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
-            self._instructions["jobtype"] = ["sp"]
+            jobtype = ["sp"]
+        elif not self.get_settings().get("implicit", False):
+            jobtype = ["xtb_gsolv", "sp"]
         else:
-            self._instructions["jobtype"] = ["xtb_gsolv", "sp"]
+            jobtype = ["gsolv"]
+
+        # Compile all information required for the preparation of input files in parallel execution step
+        prepinfo = self.setup_prepinfo(jobtype)
 
         # compute results
         # for structure of results from handler.execute look there
-        results = execute(self.core.conformers, self._instructions, self.dir)
+        results, failed = execute(
+            self.ensemble.conformers,
+            self.dir,
+            self.get_settings()["prog"],
+            prepinfo,
+            jobtype,
+            copy_mo=self.get_general_settings()["copy_mo"],
+            balance=self.get_general_settings()["balance"],
+            omp=self.get_general_settings()["omp"],
+            maxcores=self.get_general_settings()["maxcores"],
+            retry_failed=self.get_general_settings()["retry_failed"],
+        )
+
+        # Remove failed conformers
+        for confid in failed:
+            self.ensemble.remove_conformers(failed)
 
         # update results for each conformer
-        for conf in self.core.conformers:
+        for conf in self.ensemble.conformers:
             # store results of single jobs for each conformer
             conf.results.setdefault(self._name, {}).update(results[id(conf)])
 
@@ -84,30 +97,77 @@ class Prescreening(CensoPart):
             conf.results[self._name]["gtot"] = self.gtot(conf)
 
         # sort conformers list with prescreening key (gtot)
-        self.core.conformers.sort(
+        self.ensemble.conformers.sort(
             key=lambda conf: conf.results[self._name]["gtot"],
         )
 
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-        self.core.calc_boltzmannweights(
-            self._instructions.get("temperature", 298.15), self._name
+        self.ensemble.calc_boltzmannweights(
+            self.get_general_settings().get("temperature", 298.15), self._name
         )
 
         # write results (analogous to deprecated print)
         self.write_results()
 
         # update conformers with threshold
-        threshold = self._instructions["threshold"] / AU2KCAL
+        threshold = self.get_settings()["threshold"] / AU2KCAL
 
-        # update the conformer list in core (remove confs if below threshold)
-        for confname in self.core.update_conformers(self.gtot, threshold):
+        # update the conformer list in ensemble (remove confs if below threshold)
+        for confname in self.ensemble.update_conformers(self.gtot, threshold):
             print(f"No longer considering {confname}.")
 
         # dump ensemble
-        self.core.dump_ensemble(self._name)
+        self.ensemble.dump_ensemble(self._name)
 
         # DONE
+
+    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
+        prepinfo = {jt: {} for jt in jobtype}
+
+        prepinfo["partname"] = self._name
+        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["general"] = self.get_general_settings()
+
+        prepinfo["sp"] = {
+            "func_name": DfaHelper.get_name(
+                self.get_settings()["func"], self.get_settings()["prog"]
+            ),
+            "func_type": DfaHelper.get_type(
+                self.get_settings()["func"]),
+            "disp": DfaHelper.get_disp(
+                self.get_settings()["func"]),
+            "basis": self.get_settings()["basis"],
+            "grid": self.get_settings()["grid"],
+            "template": self.get_settings()["template"],
+            "gcp": self.get_settings()["gcp"],
+        }
+
+        # Add the solvent key if a solvent model exists in the part settings (this method is also used for Screening)
+        # TODO - this is not best practice
+        try:
+            prepinfo["sp"]["sm"] = self.get_settings()["sm"]
+            prepinfo["sp"]["solvent_key_prog"] = SOLVENTS_DB.get(
+                self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1]
+        except KeyError:
+            pass
+
+        # TODO - this doesn't look very nice
+        if "xtb_gsolv" in jobtype:
+            # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
+            prepinfo["xtb_sp"] = {
+                "gfnv": self.get_settings()["gfnv"],
+                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+            }
+
+        if "xtb_rrho" in jobtype:
+            prepinfo["xtb_rrho"] = {
+                "gfnv": self.get_settings()["gfnv"],
+                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+            }
+
+        return prepinfo
 
     def gtot(self, conf: MoleculeData) -> float:
         """
@@ -121,7 +181,7 @@ class Prescreening(CensoPart):
                 conf.results[self._name]["gsolv"]["energy_gas"]
                 + conf.results[self._name]["gsolv"]["gsolv"]
             )
-        elif not self._instructions["gas-phase"]:
+        elif not self.get_general_settings()["gas-phase"]:
             gtot = (
                 conf.results[self._name]["sp"]["energy"]
                 + conf.results[self._name]["xtb_gsolv"]["gsolv"]
@@ -173,58 +233,58 @@ class Prescreening(CensoPart):
             "[kcal/mol]",
             "[kcal/mol]",
             "[kcal/mol]",
-            f"% at {self._instructions.get('temperature', 298.15)} K",
+            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
         ]
 
         # variables for printmap
         # minimal xtb single-point energy
         if all(
             "xtb_gsolv" in conf.results[self._name].keys()
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ):
             xtbmin = min(
                 conf.results[self._name]["xtb_gsolv"]["energy_xtb_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             )
 
         # minimal dft single-point energy
         dft_energies = (
             {
                 id(conf): conf.results[self._name]["sp"]["energy"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
             if not all(
                 "gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
         )
 
         dftmin = min(dft_energies.values())
 
         # minimal solvation free enthalpy
-        if self._instructions["gas-phase"]:
+        if self.get_general_settings()["gas-phase"]:
             gsolvmin = 0.0
         else:
             # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
             if all(
                 "xtb_gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ):
                 gsolvmin = min(
                     conf.results[self._name]["xtb_gsolv"]["gsolv"]
-                    for conf in self.core.conformers
+                    for conf in self.ensemble.conformers
                 )
             elif all(
                 "gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ):
                 gsolvmin = min(
                     conf.results[self._name]["gsolv"]["gsolv"]
-                    for conf in self.core.conformers
+                    for conf in self.ensemble.conformers
                 )
             else:
                 raise RuntimeError(
@@ -233,7 +293,7 @@ class Prescreening(CensoPart):
                 )
 
         # minimal total free enthalpy
-        gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
+        gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
 
         # determines what to print for each conformer in each column
         printmap = {
@@ -259,7 +319,7 @@ class Prescreening(CensoPart):
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
@@ -276,8 +336,9 @@ class Prescreening(CensoPart):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                conf.results[self._name]["bmw"] * conf.results[self._name]["gtot"]
-                for conf in self.core.conformers
+                conf.results[self._name]["bmw"] *
+                conf.results[self._name]["gtot"]
+                for conf in self.ensemble.conformers
             ]
         )
 
@@ -286,13 +347,13 @@ class Prescreening(CensoPart):
             [
                 conf.results[self._name]["bmw"]
                 * conf.results[self._name]["sp"]["energy"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             ]
         )
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self._instructions.get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
@@ -300,10 +361,10 @@ class Prescreening(CensoPart):
 
         # write everything to a file
         logger.debug(
-            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
         )
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 

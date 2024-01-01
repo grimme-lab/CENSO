@@ -61,15 +61,32 @@ class Screening(Prescreening):
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
-        if self._instructions["evaluate_rrho"]:
+        if self.get_general_settings()["evaluate_rrho"]:
             # PART (2)
-            threshold = self._instructions["threshold"] / AU2KCAL
+            threshold = self.get_settings()["threshold"] / AU2KCAL
 
-            self._instructions["jobtype"] = ["xtb_rrho"]
+            jobtype = ["xtb_rrho"]
+            prepinfo = self.setup_prepinfo(jobtype)
 
             # append results to previous results
-            results = execute(self.core.conformers, self._instructions, self.dir)
-            for conf in self.core.conformers:
+            results, failed = execute(
+                self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
+                prepinfo,
+                jobtype,
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
+
+            # Remove failed conformers
+            for confid in failed:
+                self.ensemble.remove_conformers(failed)
+
+            for conf in self.ensemble.conformers:
                 # update results for each conformer
                 conf.results[self._name].update(results[id(conf)])
 
@@ -77,32 +94,26 @@ class Screening(Prescreening):
                 conf.results[self._name]["gtot"] = self.grrho(conf)
 
             # sort conformers list
-            self.core.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
+            self.ensemble.conformers.sort(
+                key=lambda conf: conf.results[self._name]["gtot"])
 
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (
-                1
-                - exp(
-                    -AU2KCAL
-                    * stdev(
-                        [
-                            conf.results[self._name]["xtb_rrho"]["energy"]
-                            for conf in self.core.conformers
-                        ]
-                    )
-                )
-            )
+            fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
+                [conf.results[self._name]["xtb_rrho"]["energy"]
+                    for conf in self.ensemble.conformers]
+            )))
             threshold += fuzzy
-            print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
+            print(
+                f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
-            # update the conformer list in core (remove conf if below threshold)
-            for confname in self.core.update_conformers(self.grrho, threshold):
+            # update the conformer list in ensemble (remove conf if below threshold)
+            for confname in self.ensemble.update_conformers(self.grrho, threshold):
                 print(f"No longer considering {confname}.")
 
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-            self.core.calc_boltzmannweights(
-                self._instructions.get("temperature", 298.15), self._name
+            self.ensemble.calc_boltzmannweights(
+                self.get_general_settings().get("temperature", 298.15), self._name
             )
 
             # if no conformers are filtered basically nothing happens
@@ -111,7 +122,7 @@ class Screening(Prescreening):
             self.write_results2()
 
         # dump ensemble
-        self.core.dump_ensemble(self._name)
+        self.ensemble.dump_ensemble(self._name)
 
         # DONE
 
@@ -161,7 +172,7 @@ class Screening(Prescreening):
             "[Eh]",
             "[kcal/mol]",
             "[Eh]",
-            "[kcal/mol]",
+            "[Eh]",
             "[Eh]",
             "[kcal/mol]",
         ]
@@ -169,33 +180,34 @@ class Screening(Prescreening):
         # variables for printmap
         # minimal xtb single-point energy (taken from prescreening)
         if (
-            all("prescreening" in conf.results.keys() for conf in self.core.conformers)
-            and not self._instructions["gas-phase"]
+            all("prescreening" in conf.results.keys()
+                for conf in self.ensemble.conformers)
+            and not self.get_general_settings()["gas-phase"]
         ):
             xtb_energies = {
                 id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
             xtbmin = min(xtb_energies.values())
         else:
             xtb_energies = None
 
         # minimal total free enthalpy (single-point and potentially gsolv)
-        gtotmin = min(self.gtot(conf) for conf in self.core.conformers)
+        gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
             {
                 id(conf): conf.results[self._name]["sp"]["energy"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
             if not all(
                 "gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
         )
 
@@ -219,14 +231,14 @@ class Screening(Prescreening):
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
 
         # write everything to a file
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
@@ -270,38 +282,40 @@ class Screening(Prescreening):
         ]
 
         # minimal xtb energy from single-point (and mRRHO)
-        if all("prescreening" in conf.results.keys() for conf in self.core.conformers) and not self._instructions["gas-phase"]:
+        if (
+            all("prescreening" in conf.results.keys()
+                for conf in self.ensemble.conformers)
+            and not self.get_general_settings()["gas-phase"]
+        ):
             gxtb = {
-                id(conf): conf.results["prescreening"]["xtb_gsolv"][
-                    "energy_xtb_gas"
-                ]
-                for conf in self.core.conformers
+                id(conf): conf.results["prescreening"]["xtb_gsolv"]["energy_xtb_gas"]
+                for conf in self.ensemble.conformers
             }
-            if self._instructions["evaluate_rrho"]:
-                for conf in self.core.conformers:
+            if self.get_general_settings()["evaluate_rrho"]:
+                for conf in self.ensemble.conformers:
                     gxtb[id(conf)] += conf.results[self._name]["xtb_rrho"]["gibbs"][
-                        self._instructions["temperature"]
+                        self.get_general_settings()["temperature"]
                     ]
             gxtbmin = min(gxtb.values())
         else:
             gxtb = None
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(self.grrho(conf) for conf in self.core.conformers)
+        gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
             {
                 id(conf): conf.results[self._name]["sp"]["energy"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
             if not all(
                 "gsolv" in conf.results[self._name].keys()
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
-                for conf in self.core.conformers
+                for conf in self.ensemble.conformers
             }
         )
 
@@ -317,8 +331,8 @@ class Screening(Prescreening):
             "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
             if not isclose(self.gtot(conf), dft_energies[id(conf)])
             else "---",
-            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self._instructions['temperature']]:.6f}"
-            if self._instructions["evaluate_rrho"]
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            if self.get_general_settings()["evaluate_rrho"]
             else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
@@ -326,17 +340,17 @@ class Screening(Prescreening):
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.core.conformers
+            for conf in self.ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
 
         # append lines to already existing file
         logger.debug(
-            f"Writing to {os.path.join(self.core.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
         )
         with open(
-            os.path.join(self.core.workdir, f"{self._name}.out"), "a", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "a", newline=None
         ) as outfile:
             outfile.writelines(lines)
 

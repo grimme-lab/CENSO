@@ -1,6 +1,7 @@
 """
 Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
+from .utilities import od_insert, setup_logger
 import os
 import shutil
 from collections import OrderedDict
@@ -13,7 +14,6 @@ from .params import (
     WARNLEN,
 )
 from .qm_processor import QmProc
-from .utilities import od_insert, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -76,7 +76,7 @@ class OrcaParser:
         Format of the result:
         "main": [...], (contains all main input line options)
 
-        "some setting": {"some option": [...], ...}, (contains a settings that is started with a % with the respective keywords and values)
+        "some setting": {"some option": [...], ...}, (contains a setting that is started with a % with the respective keywords and values)
         (the list under "some option" contains just all the following substrings, that, in the input file,
         are separated by a whitespace, nothing fancy)
 
@@ -108,6 +108,7 @@ class OrcaParser:
                     converted["main"].extend(line.split())
                 else:
                     converted["main"] = line.split()
+
             # configuration line found
             elif line.startswith("%"):
                 # get rid of '%'
@@ -120,7 +121,8 @@ class OrcaParser:
                 setting = split[0]
                 converted[setting] = {}
 
-                # check it there is already some option in the same line as the setting declaration
+                # check it there is already some option in the same line as the
+                # setting declaration
                 if len(split) > 1:
                     option = split[1]
                     converted[setting][option] = split[2:]
@@ -128,12 +130,13 @@ class OrcaParser:
                 # find end of definition block
                 end = i + self.__eob(lines[i:])
 
-                # in case the eob is found within the line itself remove the 'end' substring
+                # in case the eob is found within the line itself remove the
+                # 'end' substring
                 if end == i:
                     converted[setting][option].remove("end")
                 # consume remaining definitions
                 else:
-                    for line2 in lines[i + 1 : end]:
+                    for line2 in lines[i + 1:end]:
                         split = line2.split()
                         option = split[0]
                         converted[setting][option] = split[1:]
@@ -163,13 +166,15 @@ class OrcaParser:
                 if converted["geom"]["def"][0] == "xyz":
                     converted["geom"]["coord"] = []
                     # find end of definition block
-                    # start search from next line since geometry definition starts with an '*'
-                    end = i + self.__eob(lines[i + 1 :], endchar="*") + 1
+                    # start search from next line since geometry definition
+                    # starts with an '*'
+                    end = i + self.__eob(lines[i + 1:], endchar="*") + 1
 
-                    for line2 in lines[i + 1 : end]:
+                    for line2 in lines[i + 1: end]:
                         converted["geom"]["coord"].append(line2.split())
             # check for template lines
-            # NOTE: only these two need to be checked since they're the only ones that are sensitive to ordering
+            # NOTE: only these two need to be checked since they're the only
+            # ones that are sensitive to ordering
             elif "{main}" in line:
                 # create the main key for ordering if it does not already exist
                 if "main" not in converted.keys():
@@ -181,7 +186,8 @@ class OrcaParser:
                         "Error parsing ORCA input file (main not defined first)."
                     )
             elif "{postgeom}" in line:
-                # there should be no geometry definition block in a template file
+                # there should be no geometry definition block in a template
+                # file
                 if "geom" in converted.keys():
                     raise RuntimeError(
                         "Error parsing ORCA input file (double geom definition)."
@@ -241,13 +247,15 @@ class OrcaParser:
         lines[0] += reduce(lambda x, y: x + " " + y, indict["main"])
         lines[0] += "\n"
 
-        # next, write all keywords and options that come between the main input line and the geom input
+        # next, write all keywords and options that come between the main input
+        # line and the geom input
         allkeys = list(indict.keys())
 
         # skip first key ('main')
-        for key in allkeys[1 : allkeys.index("geom")]:
+        for key in allkeys[1:allkeys.index("geom")]:
             lines.append(f"%{key}\n")
-            # FIXME - temporary workaround for definition blocks that have no 'end', this code smells immensely
+            # FIXME - temporary workaround for definition blocks that have no
+            # 'end', this code smells immensely
             try:
                 for option in indict[key].keys():
                     lines.append(
@@ -258,8 +266,10 @@ class OrcaParser:
                 lines[-1] = f"%{key} {list(indict[key].keys())[0]}\n"
 
         # next, write the geometry input lines
-        # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0 1")
-        lines.append(f"* {reduce(lambda x, y: f'{x} {y}', indict['geom']['def'])}\n")
+        # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0
+        # 1")
+        lines.append(
+            f"* {reduce(lambda x, y: f'{x} {y}', indict['geom']['def'])}\n")
 
         # write coordinates if "xyz" keyword is used
         # if "xyzfile" is used, nothing more has to be done
@@ -268,8 +278,9 @@ class OrcaParser:
                 lines.append(f"{reduce(lambda x, y: f'{x} {y}', coord)}\n")
             lines.append("*\n")
 
-        # lastly, write all the keywords and options that should be placed after the geometry input (e.g. NMR settings)
-        for key in allkeys[allkeys.index("geom") + 1 :]:
+        # lastly, write all the keywords and options that should be placed
+        # after the geometry input (e.g. NMR settings)
+        for key in allkeys[allkeys.index("geom") + 1:]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
                 lines.append(
@@ -302,6 +313,80 @@ class OrcaProc(QmProc):
         },
     }
 
+    __req_settings = {
+        **{
+            "sp": [
+                "basis",
+                "grid",
+                "template",
+                "func_name",
+                "func_type",
+                "disp",
+                "gcp",
+                # in principal there is the soft requirement of having sm and solvent_key_prog, but this is only used
+                # in the case of implicit solvation (this is handled in the _sp method)
+            ],
+            "gsolv": [
+                "sm",
+                "solvent_key_prog",
+            ],
+            "xtb_opt": [
+                "macrocycles",
+                "optcycles",
+                "hlow",
+                "optlevel",
+            ],
+            "nmr": [
+                "h_active",
+                "c_active",
+                "f_active",
+                "si_active",
+                "p_active",
+            ],
+        },
+        **QmProc._req_settings_xtb
+    }
+
+    @classmethod
+    def check_requirements(cls, jobs: list[ParallelJob]) -> None:
+        """
+        Check, if the required settings are implemented in the jobs' prepinfo attributes for all the jobtypes.
+        Checks requirements for single-point always, except for xtb-only jobtypes.
+
+        Args:
+            jobs(list[ParallelJob]): List of jobs that are to be checked.
+
+        Returns:
+            None
+        """
+        failed = False
+        for job in jobs:
+            for jt in job.jobtype:
+                try:
+                    # Check requirements for sp always except for xtb_sp or xtb_gsolv
+                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
+                        assert all(s in job.prepinfo[jt].keys()
+                                   for s in cls.__req_settings["sp"])
+
+                    # Check specific requirements
+                    assert all(s in job.prepinfo[jt].keys()
+                               for s in cls.__req_settings[jt])
+                except AssertionError:
+                    failed = True
+                    logger.debug(
+                        "The following settings are missing for implementation:")
+                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
+                        logger.debug(list(s for s in filter(
+                            lambda x: x not in job.prepinfo[jt].keys(), cls.__req_settings["sp"])))
+
+                    logger.debug(list(s for s in filter(
+                        lambda x: x not in job.prepinfo[jt].keys(), cls.__req_settings[jt])))
+
+        if failed:
+            raise RuntimeError(
+                "For at least one jobtype at least one setting is missing from job.prepinfo. "
+                "Set __loglevel to logging.DEBUG and check log file for more info.")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -315,6 +400,10 @@ class OrcaProc(QmProc):
                 "nmr": self._nmr,
             },
         }
+
+        # Stores setting wether to copy MO-files for faster SCFs
+        self.copy_mo: bool = False
+
         """self._jobtypes = {
             **self._jobtypes, **{
                 "opt": self._opt,
@@ -323,8 +412,11 @@ class OrcaProc(QmProc):
         }"""
 
     def __prep(
-        self, job: ParallelJob, jobtype: str, no_solv: bool = False, xyzfile: str = None
-    ) -> OrderedDict:
+            self,
+            job: ParallelJob,
+            jobtype: str,
+            no_solv: bool = False,
+            xyzfile: str = None) -> OrderedDict:
         """
         Prepares an OrderedDict to be fed into the parser in order to write an input file for jobtype 'jobtype'
         (e.g. sp).
@@ -350,7 +442,7 @@ class OrcaProc(QmProc):
 
         indict = OrderedDict()
 
-        if self.instructions["template"]:
+        if job.prepinfo[jobtype]["template"]:
             # NOTE: when using templates we're not going to check for double definitions!
             # if the template is messed up, orca will fail and the user should deal with that
             # load template file
@@ -358,45 +450,52 @@ class OrcaProc(QmProc):
                 indict = OrcaParser().read_input(
                     os.path.join(
                         USER_ASSETS_PATH,
-                        f"{self.instructions['part_name']}.orca.template",
+                        f"{job.prepinfo['partname']}.orca.template",
                     )
                 )
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    f"Could not find template file {self.instructions['part_name']}.orca.template."
+                    f"Could not find template file {job.prepinfo['partname']}.orca.template."
                 )
 
         # prepare the main line of the orca input
-        indict = self.__prep_main(indict, jobtype, orca5)
+        indict = self.__prep_main(job.prepinfo, indict, jobtype, orca5)
 
-        # prepare all options that are supposed to be placed before the geometry definition
-        indict = self.__prep_pregeom(indict, orca5, no_solv, job.omp)
+        # prepare all options that are supposed to be placed before the
+        # geometry definition
+        indict = self.__prep_pregeom(
+            job.prepinfo, indict, orca5, jobtype, no_solv, job.omp)
 
         # prepare the geometry
-        indict = self.__prep_geom(indict, job.conf, xyzfile)
+        indict = self.__prep_geom(
+            indict, job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"])
 
-        # indict = self.__prep_postgeom(indict, jobtype, orca5)
+        indict = self.__prep_postgeom(job.prepinfo, indict, jobtype, orca5)
 
         return indict
 
     def __prep_main(
-        self, indict: OrderedDict, jobtype: str, orca5: bool
+            self, prepinfo: dict[str, any], indict: OrderedDict, jobtype: str, orca5: bool
     ) -> OrderedDict:
         if "main" not in indict:
             indict["main"] = []
 
         # grab func, basis
-        func = self.instructions["func_name"]
-        basis = self.instructions["basis"]
+        func = prepinfo[jobtype]["func_name"]
+        basis = prepinfo[jobtype]["basis"]
+        functype = prepinfo[jobtype]["func_type"]
+        disp = prepinfo[jobtype]["disp"]
+
         indict["main"].append(func)
 
-        # For non-composite methods, parameters for RI, RIJCOSX, and RIJK are set
-        if "composite" not in self.instructions["func_type"]:
+        # For non-composite methods, parameters for RI, RIJCOSX, and RIJK are
+        # set
+        if "composite" not in functype:
             indict["main"].append(basis)
             # set  RI def2/J,   RIJCOSX def2/J
             # this is only set if no composite DFA is used
             # settings for double hybrids
-            if self.instructions["func_type"] == "double":
+            if functype == "double":
                 indict["main"].extend(["def2/J", "RIJCOSX"])
 
                 if "nmr" in jobtype:
@@ -416,9 +515,10 @@ class OrcaProc(QmProc):
                         list(indict.keys()).index("main") + 1,
                     )
 
-                def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
-                if self.instructions["basis"].lower() in def2cbasis:
-                    indict["main"].append(f"{self.instructions['basis']}/C")
+                def2cbasis = ("def2-svp", "def2-tzvp",
+                              "def2-tzvpp", "def2-qzvpp")
+                if basis.lower() in def2cbasis:
+                    indict["main"].append(f"{basis}/C")
                     if not orca5:
                         indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
                 else:
@@ -427,17 +527,18 @@ class OrcaProc(QmProc):
                         indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
             # settings for hybrids
-            elif "hybrid" in self.instructions["func_type"]:
+            elif "hybrid" in functype:
                 indict["main"].append("RIJCOSX")
                 if not orca5:
                     indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
             # settings for (m)ggas
-            elif "gga" in self.instructions["func_type"]:
+            elif "gga" in functype:
                 indict["main"].append("RI")
 
         # use 'grid' setting from instructions to quickly configure the grid
-        indict["main"].extend(self.__gridsettings[orca5][self.instructions["grid"]])
+        indict["main"].extend(self.__gridsettings[orca5]
+                              [prepinfo[jobtype]["grid"]])
 
         # add dispersion
         # dispersion correction information
@@ -449,7 +550,6 @@ class OrcaProc(QmProc):
             "nl": "NL",
         }
 
-        disp = self.instructions["disp"]
         if disp != "composite" and disp != "included":
             indict["main"].append(mapping.get(disp, ""))
 
@@ -466,13 +566,13 @@ class OrcaProc(QmProc):
             "def2-tzvp": "TZ",
         }
         if (
-            self.instructions["gcp"]
-            and self.instructions["basis"].lower() in gcp_keywords.keys()
+            prepinfo[jobtype]["gcp"]
+            and basis.lower() in gcp_keywords.keys()
         ):
             indict["main"].append(
-                f"GCP(DFT/{gcp_keywords[self.instructions['basis'].lower()]})"
+                f"GCP(DFT/{gcp_keywords[basis.lower()]})"
             )
-        elif self.instructions["gcp"]:
+        elif prepinfo[jobtype]["gcp"]:
             # TODO - error handling
             logger.warning(
                 f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP."
@@ -489,7 +589,7 @@ class OrcaProc(QmProc):
         return indict
 
     def __prep_pregeom(
-        self, indict: OrderedDict, orca5: bool, no_solv: bool, nprocs: int
+            self, prepinfo: dict[str, any], indict: OrderedDict, orca5: bool, jobtype: str, no_solv: bool, nprocs: int
     ) -> OrderedDict:
         # Check ORCA version (important for grid keywords)
         if orca5 and nprocs > 1:
@@ -500,31 +600,39 @@ class OrcaProc(QmProc):
                 list(indict.keys()).index("main") + 1,
             )
 
-        # TODO - maybe limit TRAH macro steps (or when TRAH activates) to avoid single jobs clogging everything up
+        # TODO - maybe limit TRAH macro steps (or when TRAH activates) to avoid
+        # single jobs clogging everything up
 
         # set keywords for the selected solvent model
+        # TODO - this is not good, reduce cyclomatic complexity
         if (
-            not self.instructions["gas-phase"]
+            not prepinfo["general"]["gas-phase"]
             and not no_solv
-            and "sm" in self.instructions.keys()
+            and (
+                "sm" in prepinfo[jobtype].keys()
+            )
         ):
-            if self.instructions["sm"] == "smd":
+            sm = prepinfo[jobtype]["sm"]
+            solv_key = prepinfo[jobtype]["solvent_key_prog"]
+
+            if sm == "smd":
                 indict = od_insert(
                     indict,
                     "cpcm",
                     {
                         "smd": ["true"],
-                        "smdsolvent": [f"\"{self.instructions['solvent_key_prog']}\""],
+                        "smdsolvent": [f"\"{solv_key}\""],
                     },
                     list(indict.keys()).index("main") + 1,
                 )
-            elif self.instructions["sm"] == "cpcm":
-                indict["main"].append(f"CPCM({self.instructions['solvent_key_prog']})")
+            elif sm == "cpcm":
+                indict["main"].append(
+                    f"CPCM({solv_key})")
 
         return indict
 
     def __prep_geom(
-        self, indict: OrderedDict, conf: GeometryData, xyzfile: str
+            self, indict: OrderedDict, conf: GeometryData, xyzfile: str, charge: int, unpaired: int
     ) -> OrderedDict:
         # unpaired, charge, and coordinates
         # by default coordinates are written directly into input file
@@ -532,8 +640,8 @@ class OrcaProc(QmProc):
             indict["geom"] = {
                 "def": [
                     "xyz",
-                    self.instructions["charge"],
-                    self.instructions["unpaired"] + 1,
+                    charge,
+                    unpaired + 1,
                 ],
                 "coord": conf.toorca(),
             }
@@ -541,8 +649,8 @@ class OrcaProc(QmProc):
             indict["geom"] = {
                 "def": [
                     "xyzfile",
-                    self.instructions["charge"],
-                    self.instructions["unpaired"] + 1,
+                    charge,
+                    unpaired + 1,
                     xyzfile,
                 ],
             }
@@ -550,50 +658,51 @@ class OrcaProc(QmProc):
         return indict
 
     def __prep_postgeom(
-        self, indict: OrderedDict, jobtype: str, orca5: bool
+            self, prepinfo: dict[str, any], indict: OrderedDict, jobtype: str, orca5: bool
     ) -> OrderedDict:
         # Set NMR parameters
-        # TODO - this is not very nice, maybe make a list setting that contains all the active nuclei
-        todo = []
-        if self.instructions["h_active"]:
-            todo.append("H")
-        if self.instructions["c_active"]:
-            todo.append("C")
-        if self.instructions["f_active"]:
-            todo.append("F")
-        if self.instructions["si_active"]:
-            todo.append("Si")
-        if self.instructions["p_active"]:
-            todo.append("P")
+        # TODO - this is not very nice, maybe make a list setting that contains
+        # all the active nuclei
+        if "nmr" in jobtype:
+            # Determine the settings that need to be put into the input file for the NMR calculation
+            active_elements_map = {
+                "H": prepinfo[jobtype]["h_active"],
+                "C": prepinfo[jobtype]["c_active"],
+                "F": prepinfo[jobtype]["f_active"],
+                "Si": prepinfo[jobtype]["si_active"],
+                "P": prepinfo[jobtype]["p_active"],
+            }
+            todo = [element for element in active_elements_map.keys()
+                    if active_elements_map[element]]
 
-        todo2 = []
-        if self.instructions["shieldings"]:
-            todo2.append("shift")
-        if self.instructions["couplings"]:
-            todo2.append("ssfc")
+            todo2 = []
+            todo3 = {}
+            indict.setdefault("eprnmr", {})
+            if jobtype.endswith("_s") or jobtype == "nmr":
+                todo2.append("shift")
+                todo3["origin"] = ["giao"]
+                todo3["giao_2el"] = ["giao_2el_same_as_scf"]
+                todo3["giao_1el"] = ["giao_1el_analytic"]
+            if jobtype.endswith("_j") or jobtype == "nmr":
+                todo2.append("ssfc")
+                todo3["SpinSpinRThresh"] = ["8.0"]
 
-        if jobtype == "nmr":
-            indict = od_insert(
-                indict,
-                "eprnmr",
-                {
+            compiled = {
+                **{
                     "Nuclei": [
                         "=",
+                        "all",
                         ",".join(element for element in todo),
                         "{",
                         ",".join(x for x in todo2),
                         "}",
                     ],
                 },
-                list(indict.keys()).index("geom") + 1,
-            )
-            if self.instructions["shieldings"]:
-                indict["eprnmr"]["origin"] = ["giao"]
-                indict["eprnmr"]["giao_2el", "giao_2el_same_as_scf"]
-                indict["eprnmr"]["giao_1el", "giao_1el_analytic"]
+                **todo3
+            }
 
-            if self.instructions["couplings"]:
-                indict["eprnmr"]["SpinSpinRThresh"] = ["8.0"]
+            # Insert the settings for NMR calculation
+            indict["eprnmr"] = compiled
 
         return indict
 
@@ -638,28 +747,32 @@ class OrcaProc(QmProc):
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # prepare input dict
-        indict = self.__prep(job, "sp", no_solv=no_solv)
+        if prep:
+            indict = self.__prep(job, "sp", no_solv=no_solv)
 
-        # check for flags raised for this jobtype
-        if "sp" in job.flags or "gsolv" in job.flags:
-            if (
-                job.flags["sp"] == "scf_not_converged"
-                or job.flags["gsolv"] == "scf_not_converged"
-            ):
-                indict = self.__apply_flags(indict, "scf_not_converged")
+            # check for flags raised for this jobtype
+            if "sp" in job.flags or "gsolv" in job.flags:
+                if (
+                    job.flags["sp"] == "scf_not_converged"
+                    or job.flags["gsolv"] == "scf_not_converged"
+                ):
+                    indict = self.__apply_flags(indict, "scf_not_converged")
 
-        # write input into file "{filename}.inp" in a subdir created for the conformer
-        parser = OrcaParser()
-        parser.write_input(inputpath, indict)
+            # write input into file "{filename}.inp" in a subdir created for the
+            # conformer
+            parser = OrcaParser()
+            parser.write_input(inputpath, indict)
 
-        # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
-        if self.instructions["copy_mo"]:
+        # check, if there is an existing .gbw file and copy it if option
+        # 'copy_mo' is true
+        if self.copy_mo:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
                         f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
                     )
-                    shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
+                    shutil.copy(job.mo_guess, os.path.join(
+                        jobdir, f"{filename}.gbw"))
 
         # call orca
         call = [self._paths["orcapath"], f"{filename}.inp"]
@@ -686,20 +799,23 @@ class OrcaProc(QmProc):
                 None,
             )
 
-            # Check if scf is converged, this results to None if it cannot be determined if the SCF converged or not
+            # Check if scf is converged, this results to None if it cannot be
+            # determined if the SCF converged or not
             meta["success"] = next(
-                (True for line in lines if "SCF CONVERGED" in line), None
-            ) or next((False for line in lines if "SCF NOT CONVERGED" in line), None)
+                (True for line in lines if "SCF CONVERGED" in line), None) or next(
+                (False for line in lines if "SCF NOT CONVERGED" in line), None)
 
-        # TODO - this is not really correct, might not mean that the scf didn't converge
+        # TODO - this is not really correct, might not mean that the scf didn't
+        # converge
         if meta["success"] is not None and not meta["success"]:
             meta["error"] = "SCF not converged"
         elif meta["success"] is None:
             meta["success"] = False
             meta["error"] = "Unknown error"
 
-        if self.instructions["copy_mo"]:
-            # store the path to the current .gbw file for this conformer if possible
+        if self.copy_mo:
+            # store the path to the current .gbw file for this conformer if
+            # possible
             if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
                 job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
@@ -769,9 +885,7 @@ class OrcaProc(QmProc):
         return result
 
     # TODO - split this up
-    def _xtb_opt(
-        self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt"
-    ) -> dict[str, any]:
+    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, any]:
         """
         ORCA geometry optimization using ANCOPT.
 
@@ -783,10 +897,11 @@ class OrcaProc(QmProc):
         Returns:
             dict[str, any]: dictionary containing the results of the calculation
 
-        Keywords required in instructions:
+        Keywords required in prepinfo:
         - optcycles
         - hlow
         - optlevel
+        - macrocycles
 
         result = {
             "energy": None,
@@ -853,15 +968,14 @@ class OrcaProc(QmProc):
 
         # prepare input dict
         parser = OrcaParser()
-        indict = self.__prep(job, filename, xyzfile=f"{filename}.xyz")
+        indict = self.__prep(job, "xtb_opt", xyzfile=f"{filename}.xyz")
 
-        # write orca input into file "xtb_opt.inp" in a subdir created for the conformer
+        # write orca input into file "xtb_opt.inp" in a subdir created for the
+        # conformer
         parser.write_input(inputpath, indict)
 
         # append some additional lines to the coord file for ancopt
-        with open(
-            os.path.join(jobdir, f"{filename}.coord"), "a", newline=None
-        ) as newcoord:
+        with open(os.path.join(jobdir, f"{filename}.coord"), "a", newline=None) as newcoord:
             newcoord.writelines(
                 [
                     "$external\n",
@@ -874,14 +988,16 @@ class OrcaProc(QmProc):
         # prepare configuration file for ancopt (xcontrol file)
         with open(os.path.join(jobdir, xcontrolname), "w", newline=None) as out:
             out.write("$opt \n")
-            if self.instructions["macrocycles"]:
-                out.write(f"maxcycle={self.instructions['optcycles']} \n")
-                out.write(f"microcycle={self.instructions['optcycles']} \n")
+            if job.prepinfo["xtb_opt"]["macrocycles"]:
+                out.write(
+                    f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
+                out.write(
+                    f"microcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
 
             out.writelines(
                 [
                     "average conv=true \n",
-                    f"hlow={self.instructions['hlow']} \n",
+                    f"hlow={job.prepinfo['xtb_opt']['hlow']} \n",
                     "s6=30.00 \n",
                     # remove unnecessary sp/gradient call in xTB
                     "engine=lbfgs\n",
@@ -892,21 +1008,23 @@ class OrcaProc(QmProc):
                 ]
             )
 
-        # check, if there is an existing .gbw file and copy it if option 'copy_mo' is true
-        if self.instructions["copy_mo"]:
+        # check, if there is an existing .gbw file and copy it if option
+        # 'copy_mo' is true
+        if self.copy_mo:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
                         f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
                     )
-                    shutil.copy(job.mo_guess, os.path.join(jobdir, f"{filename}.gbw"))
+                    shutil.copy(job.mo_guess, os.path.join(
+                        jobdir, f"{filename}.gbw"))
 
         # prepare xtb call
         call = [
             self._paths["xtbpath"],
             f"{filename}.coord",  # name of the coord file generated above
             "--opt",
-            self.instructions["optlevel"],
+            job.prepinfo["xtb_opt"]["optlevel"],
             "--orca",
             "-I",
             xcontrolname,
@@ -939,13 +1057,10 @@ class OrcaProc(QmProc):
             "abnormal termination of xtb",
         ]
 
-        # Check if xtb terminated normally (if there are any error indicators in the output)
-        meta["success"] = (
-            False
-            if next((x for x in lines if any(y in x for y in error_ind)), None)
-            is not None
-            else True
-        )
+        # Check if xtb terminated normally (if there are any error indicators
+        # in the output)
+        meta["success"] = (False if next((x for x in lines if any(
+            y in x for y in error_ind)), None) is not None else True)
         if not meta["success"]:
             meta["error"] = "what went wrong in xtb_opt"
             job.meta["xtb_opt"].update(meta)
@@ -973,8 +1088,7 @@ class OrcaProc(QmProc):
             tmp = tmp[result["converged"]]
 
             result["cycles"] = int(
-                next(x for x in lines if tmp[0] in x).split()[tmp[1]]
-            )
+                next(x for x in lines if tmp[0] in x).split()[tmp[1]])
 
             # Get energies for each cycle
             result["ecyc"].extend(
@@ -982,12 +1096,10 @@ class OrcaProc(QmProc):
                 for line in filter(lambda x: "av. E: " in x, lines)
             )
 
-            # Get the gradient norm (lines reversed so it takes the last gradient norm value)
+            # Get the gradient norm (lines reversed so it takes the last
+            # gradient norm value)
             result["grad_norm"] = float(
-                next(
-                    (x for x in lines[::-1] if " :: gradient norm      " in x), None
-                ).split()[3]
-            )
+                next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
 
             # Get all other gradient norms for evaluation
             result["gncyc"] = [
@@ -999,7 +1111,7 @@ class OrcaProc(QmProc):
             result["energy"] = result["ecyc"][-1]
             meta["success"] = True
 
-        if self.instructions["copy_mo"]:
+        if self.copy_mo:
             # store the path to the current .gbw file for this conformer
             job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
@@ -1007,7 +1119,8 @@ class OrcaProc(QmProc):
         job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
         result["geom"] = job.conf.xyz
 
-        # TODO - this might be a case where it would be reasonable to raise an exception
+        # TODO - this might be a case where it would be reasonable to raise an
+        # exception
         try:
             assert result["converged"] is not None
         except AssertionError:
@@ -1018,16 +1131,16 @@ class OrcaProc(QmProc):
 
         return result
 
-    def _nmr(
-        self, job: ParallelJob, jobdir: str, filename: str = "nmr"
-    ) -> dict[str, any]:
+    def _nmr(self, job: ParallelJob, jobdir: str, filename: str = "nmr") -> dict[str, any]:
         """
-        Calculate the NMR shieldings and/or couplings for a conformer.
+        Calculate the NMR shieldings and/or couplings for a conformer. ORCA gives only the active cores in the output
+        so there is not need for more thinking here.
         Formatting:
-            'shielding' contains a dict with (key, value) = (element, shieldings), with the shieldings in the order of
-            how they appear in the xyz-coordinates.
-            'couplings' contains a dict with (key, value) = (element, couplings), with the couplings in the order of
-            how they appear in the ORCA output.
+            'shielding' contains a list of tuples (atom_index, shielding), with atom_index being the index of the atom
+            in the internal coordinates of the GeometryData.
+            'couplings' contains a list of tuples ((atom_index1, atom_index2), coupling), with the indices of the atoms
+            in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
+            to tuple to be serializable.
 
         Args:
             job: ParallelJob object containing the job information, metadata is stored in job.meta
@@ -1047,77 +1160,106 @@ class OrcaProc(QmProc):
             "success": None,
             "error": None,
         }
-        job.meta.setdefault("nmr", {})
 
-        # Set in/out path
-        inputpath = os.path.join(jobdir, f"{filename}.inp")
-        outputpath = os.path.join(jobdir, f"{filename}.out")
+        # If settings are the same, endings = [""], otherwise it contains "_s"
+        # and/or "_j", depending on conditions
+        for ending in [x[4:] for x in job.prepinfo.keys() if "nmr" in x]:
+            job.meta.setdefault("nmr", {})
 
-        # Prepare an input file for _sp
-        indict = self.__prep(job, "nmr")
-        parser = OrcaParser()
-        parser.write_input(inputpath, indict)
+            # Set in/out path
+            inputpath = os.path.join(jobdir, f"{filename}{ending}.inp")
+            outputpath = os.path.join(jobdir, f"{filename}{ending}.out")
 
-        # Run _sp using the input file generated above
-        self._sp(job, jobdir, filename=filename, prep=False)
+            # Prepare an input file for _sp
+            indict = self.__prep(job, f"nmr{ending}")
+            parser = OrcaParser()
+            parser.write_input(inputpath, indict)
 
-        if not job.meta["sp"]["success"]:
-            meta["success"] = False
-            meta["error"] = "sp failed"
-            job.meta["nmr"].update(meta)
-            return result
+            # Run _sp using the input file generated above
+            self._sp(job, jobdir, filename=f"{filename}{ending}", prep=False)
 
-        # Grab shieldings and/or couplings from the output
-        with open(outputpath, "r") as f:
-            lines = f.readlines()
+            if not job.meta["sp"]["success"]:
+                meta["success"] = False
+                meta["error"] = "sp failed"
+                job.meta["nmr"].update(meta)
+                return result
 
-        # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY (ppm)"
-        if self.instructions["shieldings"]:
-            start = (
-                lines.index(next(x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x))
-                + 6
+            # Grab shieldings and energy from the output
+            with open(outputpath, "r") as f:
+                lines = f.readlines()
+
+            # Get final energy
+            result["energy"] = next(
+                (
+                    float(line.split()[4])
+                    for line in lines
+                    if "FINAL SINGLE POINT ENERGY" in line
+                ),
+                None,
             )
 
-            result["shieldings"] = {}
+            # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY
+            # (ppm)"
+            if ending in ["", "_s"]:
+                start = lines.index(
+                    next(x for x in lines if "CHEMICAL SHIELDING SUMMARY" in x)) + 6
 
-            for line in lines[start:]:
-                # Try to extract values from the lines, if that fails (probably IndexError) stop
-                try:
-                    element = line.split()[1]
-                    result["shieldings"].setdefault(element, {}).setdefault(
-                        "isotropic", []
-                    ).append(float(line.split()[2]))
-                    result["shieldings"][element].setdefault("anisotropy", []).append(
-                        float(line.split()[3])
+                result["shieldings"] = []
+
+                for line in lines[start:]:
+                    # Try to extract values from the lines, if that fails
+                    # (probably IndexError) stop
+                    try:
+                        result["shieldings"].append(
+                            (int(line.split()[0]), float(line.split()[2])))
+                    except IndexError:
+                        break
+
+                # Sort shieldings by atom index
+                result["shieldings"].sort(lambda x: x[0])
+
+            if ending in ["", "_j"]:
+                # Read couplings from *_properties.txt for easier parsing
+                with open(os.path.join(jobdir, f"{filename}{ending}_property.txt"), "r") as f:
+                    lines = f.readlines()
+
+                start = lines.index(
+                    next(x for x in lines if "EPRNMR_SSCoupling" in x)) + 13
+
+                lines = lines[start:]
+
+                end = lines.index(next(x for x in lines if "-----" in x))
+
+                lines = lines[:end]
+
+                result["couplings"] = []
+
+                # This goes through all the pairs, even though ORCA gives also non-unique pairs, since it makes life
+                # easier (basically every element of a symmetric square matrix)
+                # Only every third line a new pair is defined
+                # The iterator created here unpacks a tuple consisting of the multiples of three (indices of every
+                # third line) and every third line in 'lines'
+                for i, line in zip(range(0, len(lines), 3), lines[::3]):
+                    # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
+                    # of a normal set
+                    pair = frozenset(
+                        (int(line.split()[4]), int(line.split()[11])))
+                    coupling = float(lines[i + 2].split()[4])
+                    result["couplings"].append((pair, coupling))
+
+                # Convert to set and back to get rid of duplicates
+                # ('vectorizing the symmetric matrix')
+                result["couplings"] = list(set(result["couplings"]))
+
+                # Convert all the frozensets to a tuple to be serializable
+                for i in range(len(result["couplings"])):
+                    result["couplings"][i] = (
+                        tuple(result["couplings"][i][0]),
+                        result["couplings"][i][1]
                     )
-                except IndexError:
-                    break
 
-        # For couplings watch out for the line "SUMMARY OF ISOTROPIC COUPLINGS (Hz)"
-        if self.instructions["couplings"]:
-            start = (
-                lines.index(next(x for x in lines if "SUMMARY OF ISOTROPIC" in x)) + 3
-            )
-
-            result["couplings"] = {}
-
-            for line in lines[start:]:
-                # Try to extract values from the lines, if that fails (probably IndexError) stop
-                try:
-                    # The couplings will be listed as they appear in the ORCA output, so e.g.
-                    #       C1  C2  C3  O1
-                    # C1    ..  ..  ..  ..
-                    # C2    ..  ..  ..  ..
-                    # C3    ..  ..  ..  ..
-                    # O1    ..  ..  ..  ..
-                    # will yield a list for every atom no. Y for every element-key X where the couplings will be in order:
-                    # [XYC1, XYC2, XYC3, XYO1]
-                    element = line.split()[1]
-                    result["couplings"].setdefault(element, []).append(
-                        [float(substr) for substr in line[2:].split()]
-                    )
-                except IndexError:
-                    break
+                # Sort couplings by pairs
+                result["couplings"].sort(lambda x: x[0])
 
         meta["success"] = True
 
@@ -1125,7 +1267,7 @@ class OrcaProc(QmProc):
 
         return result
 
-    @staticmethod
+    @ staticmethod
     def __apply_flags(indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
         """
         apply flags to an orca input
@@ -1148,7 +1290,8 @@ class OrcaProc(QmProc):
 
         for flag in args:
             if flag in flag_to_setting:
-                # insert all settings dictated by the flags after the main input line (TODO)
+                # insert all settings dictated by the flags after the main
+                # input line (TODO)
                 for key, value in flag_to_setting[flag].items():
                     if key == "main":
                         indict[key].extend(value)

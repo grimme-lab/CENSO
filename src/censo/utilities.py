@@ -23,12 +23,12 @@ __loglevel = logging.INFO
 
 
 class DfaHelper:
-    __dfa_dict: dict
+    _dfa_dict: dict
 
     @classmethod
     def set_dfa_dict(cls, dfadict_path: str):
         with open(dfadict_path, "r") as f:
-            cls.__dfa_dict = json.load(f)
+            cls._dfa_dict = json.load(f)
 
     @classmethod
     def find_func(cls, part: str, prog=None):
@@ -37,7 +37,7 @@ class DfaHelper:
         """
         # TODO - turn into filter using filterfunction defined within find_func
         tmp = []
-        for k, v in cls.__dfa_dict["functionals"].items():
+        for k, v in cls._dfa_dict["functionals"].items():
             if part in v["part"]:
                 if prog is None:
                     tmp.append(k)
@@ -52,25 +52,25 @@ class DfaHelper:
         """
         return the name of a certain functional in the given qm program
         """
-        return cls.__dfa_dict["functionals"][func][prog]
+        return cls._dfa_dict["functionals"][func][prog]
 
     @classmethod
     def get_disp(cls, func: str):
         """
         return the dispersion correction of a certain functional
         """
-        return cls.__dfa_dict["functionals"][func]["disp"]
+        return cls._dfa_dict["functionals"][func]["disp"]
 
     @classmethod
     def get_type(cls, func: str):
         """
         return the type of a certain functional
         """
-        return cls.__dfa_dict["functionals"][func]["type"]
+        return cls._dfa_dict["functionals"][func]["type"]
 
     @classmethod
     def functionals(cls) -> dict[str, dict]:
-        return cls.__dfa_dict["functionals"]
+        return cls._dfa_dict["functionals"]
 
 
 def print(*args, **kwargs):
@@ -118,13 +118,15 @@ def format_data(
         header: collen
         for header, collen in zip(
             headers,
-            (max(len(header), max(len(row) for row in rows)) for header in headers),
+            (max(len(header), max(len(row) for row in rows))
+             for header in headers),
         )
     }
 
     # add table header
     lines.append(
-        " ".join(f"{header:^{collen + 6}}" for header, collen in collens.items())
+        " ".join(f"{header:^{collen + 6}}" for header,
+                 collen in collens.items())
     )
     lines[0] += "\n"
     if units is not None:
@@ -209,7 +211,8 @@ def t2x(
     # get path from args without the filename of the ensemble (last element of path)
     if os.path.isfile(path):
         outpath = functools.reduce(
-            lambda x, y: os.path.join(x, y), list(os.path.split(path))[::-1][1:][::-1]
+            lambda x, y: os.path.join(x, y), list(
+                os.path.split(path))[::-1][1:][::-1]
         )
     # or just use the given path if it is not a file path
     else:
@@ -280,6 +283,8 @@ def od_insert(
 ) -> OrderedDict[str, any]:
     """
     Insert a new key/value pair into an OrderedDict at a specific position.
+    If it was a normal dict:
+        od[key] = value, with insertion before the 'index'th key.
 
     Args:
         od: The OrderedDict to insert into.
@@ -290,6 +295,7 @@ def od_insert(
     Returns:
         The updated OrderedDict.
     """
+    # FIXME - somehow this doesn't work reliably, no idea why but sometimes the value is not inserted
     items: list[tuple[str, any]] = list(od.items())
     items.insert(index, (key, value))
     return OrderedDict(items)
@@ -322,9 +328,10 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
 
     # Define the log message format
     formatter = logging.Formatter(
-        "{asctime:24s}-{name:^20s}-{levelname:^10s}- {message}", style="{"
+        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
     )
-    stream_formatter = logging.Formatter("{levelname:^10s}- {message}", style="{")
+    stream_formatter = logging.Formatter(
+        "{levelname:^10s}- {message}", style="{")
     handler.setFormatter(formatter)
     stream_handler.setFormatter(stream_formatter)
 
@@ -367,7 +374,7 @@ def mean_similarity(trajectories: list[list[float]]) -> float:
     # Calculate the MAD of each trajectory to every other trajectory
     similarities = []
     for i, trajectory1 in enumerate(trajectories):
-        for _, trajectory2 in enumerate(trajectories[i + 1 :]):
+        for _, trajectory2 in enumerate(trajectories[i + 1:]):
             similarities.append(mad(trajectory1, trajectory2))
 
     # Return the mean similarity

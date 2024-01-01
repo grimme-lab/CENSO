@@ -1,1 +1,1 @@
-from .nmr import EnsembleNMR
+from .nmr import NMR

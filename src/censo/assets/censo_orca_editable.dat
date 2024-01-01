@@ -1,8 +1,0 @@
-! smallprint printgap noloewdin
-! NOSOSCF
-%MaxCore 8000
-%output
-       print[P_BondOrder_M] 1
-       print[P_Mayer] 1
-       print[P_basis] 2
-end
