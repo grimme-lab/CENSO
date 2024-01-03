@@ -496,6 +496,7 @@ class Optimization(CensoPart):
             "Gtot",
             "ΔGtot",
             "grad_norm",
+            "converged",
         ]
         units = [
             "",
@@ -505,6 +506,7 @@ class Optimization(CensoPart):
             "[Eh]",
             "[kcal/mol]",
             "[Eh/a0]",
+            "",
         ]
 
         limit = min(conf.results[self._name]['xtb_opt']['energy']
@@ -521,6 +523,7 @@ class Optimization(CensoPart):
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit2) * AU2KCAL:.2f}",
             "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
+            "converged": lambda conf: f"{conf.results[self._name]['xtb_opt']['converged']}",
         }
         rows = [
             [printmap[header](conf) for header in headers]

@@ -40,9 +40,13 @@ def entry_point(argv: list[str] | None = None) -> int:
         [Prescreening, Screening, Optimization, NMR],
     )
 
+    time = 0.0
     for part in run:
-        tmp = part(ensemble)
-        print(f"Ran {tmp._name} in {tmp.run()} seconds!")
+        p = part(ensemble)
+        time += p.run()
+        print(f"Ran {p._name} in {time} seconds!")
+
+    print(f"\nTotal timing: {time} seconds")
 
     print("\nCENSO all done!")
     return 0

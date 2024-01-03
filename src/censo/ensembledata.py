@@ -39,10 +39,8 @@ class EnsembleData:
         # initialized in EnsembleData.read_input
         self.runinfo = {
             "nconf": None,
-            "nat": None,  # TODO - maybe remove?
-            "maxconf": None,  # TODO - probably remove
+            "nat": None,
             "md5": None,
-            "consider_unconverged": None,  # TODO - probably remove
             "charge": None,
             "unpaired": None,
         }
@@ -78,7 +76,23 @@ class EnsembleData:
         nconf: int = None,
     ) -> None:
         """
-        read ensemble input file (e.g. crest_conformers.xyz)
+        Read ensemble input file. Should be a file in xyz-file format with all the conformers in consecutive order.
+        If command line arguments are given, the priorities of parameters will be:
+            1. method arguments,
+            2. cml arguments,
+            3. defaults.
+
+        Args:
+            ensemble_path (str): Path to the ensemble input file.
+            charge (int, optional): Charge of the system. Defaults to None.
+            unpaired (int, optional): Number of unpaired electrons. Defaults to None.
+            nconf (int, optional): Number of conformers to consider. Defaults to None.
+
+        Returns:
+            None
+
+        Raises:
+            RuntimeError: If the charge or the number of unpaired electrons is not defined.
         """
 
         self.ensemble_path = ensemble_path
@@ -116,6 +130,12 @@ class EnsembleData:
         split into conformers
         create MoleculeData objects out of coord input
         read out energy from xyz file if possible
+
+        Args: 
+            maxconf (int): Maximum number of conformers to consider.
+
+        Returns:
+            None
         """
         # open ensemble input
         with open(self.ensemble_path, "r") as file:

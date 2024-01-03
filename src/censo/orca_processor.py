@@ -1216,7 +1216,7 @@ class OrcaProc(QmProc):
                         break
 
                 # Sort shieldings by atom index
-                result["shieldings"].sort(lambda x: x[0])
+                result["shieldings"].sort(key=lambda x: x[0])
 
             if ending in ["", "_j"]:
                 # Read couplings from *_properties.txt for easier parsing
@@ -1259,7 +1259,7 @@ class OrcaProc(QmProc):
                     )
 
                 # Sort couplings by pairs
-                result["couplings"].sort(lambda x: x[0])
+                result["couplings"].sort(key=lambda x: x[0])
 
         meta["success"] = True
 
