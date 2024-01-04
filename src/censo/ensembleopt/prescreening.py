@@ -179,7 +179,10 @@ class Prescreening(CensoPart):
                 conf.results[self._name]["gsolv"]["energy_gas"]
                 + conf.results[self._name]["gsolv"]["gsolv"]
             )
-        elif not self.get_general_settings()["gas-phase"]:
+        elif (
+            not self.get_general_settings()["gas-phase"]
+            and "xtb_gsolv" in conf.results[self._name].keys()
+        ):
             gtot = (
                 conf.results[self._name]["sp"]["energy"]
                 + conf.results[self._name]["xtb_gsolv"]["gsolv"]
