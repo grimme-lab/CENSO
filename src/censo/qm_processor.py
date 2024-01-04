@@ -53,8 +53,7 @@ class QmProc:
             "gfnv",
         ],
         "xtb_gsolv": [
-            "gfnv",
-            "solvent_key_xtb",
+            # no special requirements
         ],
         "xtb_rrho": [
             "gfnv",

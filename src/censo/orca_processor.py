@@ -363,8 +363,12 @@ class OrcaProc(QmProc):
         for job in jobs:
             for jt in job.jobtype:
                 try:
-                    # Check requirements for sp always except for xtb_sp or xtb_gsolv
-                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
+                    # To check requirements, look into the 'xtb_sp' for jts that call xtb single-points
+                    if jt == "xtb_gsolv":
+                        assert all(s in job.prepinfo[jt].keys()
+                                   for s in cls.__req_settings["xtb_sp"])
+                    # For most other DFT-based jobs check 'sp'
+                    elif jt == "gsolv" or jt in ["nmr", "nmr_s", "nmr_j"]:
                         assert all(s in job.prepinfo[jt].keys()
                                    for s in cls.__req_settings["sp"])
 
