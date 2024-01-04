@@ -201,11 +201,11 @@ class EnsembleData:
 
         Args:
             target (Callable[[MoleculeData], float]): A function that takes a MoleculeData object as input and returns a
-                                                      float.
+            float.
             threshold (float): The threshold value.
             additional_filter (Callable[[MoleculeData], bool], optional): An optional function that takes a MoleculeData
-                                                                          object as input and returns a boolean.
-                                                                          Defaults to None.
+            object as input and returns a boolean. Defaults to None.
+            boltzmann (bool, optional): If True, the threshold is interpreted as a population threshold.
 
         Returns:
             None
@@ -248,8 +248,6 @@ class EnsembleData:
 
             # Log removed conformers
             logger.debug(f"Removed {conf.name}.")
-
-        # TODO - signal CENSO to stop if there are no conformers left
 
         return [conf.name for conf in filtered]
 

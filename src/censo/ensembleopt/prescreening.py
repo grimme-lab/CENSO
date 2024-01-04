@@ -145,13 +145,11 @@ class Prescreening(CensoPart):
         }
 
         # Add the solvent key if a solvent model exists in the part settings (this method is also used for Screening)
-        # TODO - this is not best practice
-        try:
+        # NOTE: 'sm' in key catches also cases like NMR (sm_s and sm_j)
+        if any("sm" in key for key in self.get_settings().keys()):
             prepinfo["sp"]["sm"] = self.get_settings()["sm"]
             prepinfo["sp"]["solvent_key_prog"] = SOLVENTS_DB.get(
                 self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1]
-        except KeyError:
-            pass
 
         # TODO - this doesn't look very nice
         if "xtb_gsolv" in jobtype:

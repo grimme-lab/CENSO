@@ -661,8 +661,6 @@ class OrcaProc(QmProc):
             self, prepinfo: dict[str, any], indict: OrderedDict, jobtype: str, orca5: bool
     ) -> OrderedDict:
         # Set NMR parameters
-        # TODO - this is not very nice, maybe make a list setting that contains
-        # all the active nuclei
         if "nmr" in jobtype:
             # Determine the settings that need to be put into the input file for the NMR calculation
             active_elements_map = {
@@ -805,7 +803,7 @@ class OrcaProc(QmProc):
                 (True for line in lines if "SCF CONVERGED" in line), None) or next(
                 (False for line in lines if "SCF NOT CONVERGED" in line), None)
 
-        # TODO - this is not really correct, might not mean that the scf didn't
+        # TODO - important - this is not really correct, might not mean that the scf didn't
         # converge
         if meta["success"] is not None and not meta["success"]:
             meta["error"] = "SCF not converged"
@@ -855,7 +853,6 @@ class OrcaProc(QmProc):
         }
 
         # calculate gas phase
-        # TODO - does this need it's own folder? this is a bit messy
         spres = self._sp(job, jobdir, filename="sp_gas", no_solv=True)
 
         if job.meta["sp"]["success"]:
@@ -1291,7 +1288,6 @@ class OrcaProc(QmProc):
         for flag in args:
             if flag in flag_to_setting:
                 # insert all settings dictated by the flags after the main
-                # input line (TODO)
                 for key, value in flag_to_setting[flag].items():
                     if key == "main":
                         indict[key].extend(value)
