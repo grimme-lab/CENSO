@@ -53,8 +53,7 @@ class QmProc:
             "gfnv",
         ],
         "xtb_gsolv": [
-            "gfnv",
-            "solvent_key_xtb",
+            # no special requirements
         ],
         "xtb_rrho": [
             "gfnv",
@@ -346,7 +345,7 @@ class QmProc:
                 if "| TOTAL ENERGY" in line:
                     result["energy"] = float(line.split()[3])
                     meta["success"] = True
-                # TODO - what to do if calculation not converged?
+                # TODO - important - what to do if calculation not converged?
 
         # FIXME - right now the case meta["success"] = None might appear if "TOTAL ENERGY" is not found in outputfile
         job.meta["xtb_sp"].update(meta)
@@ -383,7 +382,6 @@ class QmProc:
         }
 
         # run gas-phase GFN single-point
-        # TODO - does this need it's own folder?
         spres = self._xtb_sp(job, jobdir, filename="gas", no_solv=True)
         if job.meta["xtb_sp"]["success"]:
             result["energy_xtb_gas"] = spres["energy"]
@@ -453,8 +451,6 @@ class QmProc:
             "success": None,
             "error": None,
         }
-
-        # if not self.job["onlyread"]: # TODO ???
 
         # set in/out path
         outputpath = os.path.join(jobdir, f"{filename}.out")

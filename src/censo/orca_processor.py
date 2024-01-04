@@ -363,8 +363,12 @@ class OrcaProc(QmProc):
         for job in jobs:
             for jt in job.jobtype:
                 try:
-                    # Check requirements for sp always except for xtb_sp or xtb_gsolv
-                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
+                    # To check requirements, look into the 'xtb_sp' for jts that call xtb single-points
+                    if jt == "xtb_gsolv":
+                        assert all(s in job.prepinfo[jt].keys()
+                                   for s in cls.__req_settings["xtb_sp"])
+                    # For most other DFT-based jobs check 'sp'
+                    elif jt == "gsolv" or jt in ["nmr", "nmr_s", "nmr_j"]:
                         assert all(s in job.prepinfo[jt].keys()
                                    for s in cls.__req_settings["sp"])
 
@@ -661,8 +665,6 @@ class OrcaProc(QmProc):
             self, prepinfo: dict[str, any], indict: OrderedDict, jobtype: str, orca5: bool
     ) -> OrderedDict:
         # Set NMR parameters
-        # TODO - this is not very nice, maybe make a list setting that contains
-        # all the active nuclei
         if "nmr" in jobtype:
             # Determine the settings that need to be put into the input file for the NMR calculation
             active_elements_map = {
@@ -805,7 +807,7 @@ class OrcaProc(QmProc):
                 (True for line in lines if "SCF CONVERGED" in line), None) or next(
                 (False for line in lines if "SCF NOT CONVERGED" in line), None)
 
-        # TODO - this is not really correct, might not mean that the scf didn't
+        # TODO - important - this is not really correct, might not mean that the scf didn't
         # converge
         if meta["success"] is not None and not meta["success"]:
             meta["error"] = "SCF not converged"
@@ -855,7 +857,6 @@ class OrcaProc(QmProc):
         }
 
         # calculate gas phase
-        # TODO - does this need it's own folder? this is a bit messy
         spres = self._sp(job, jobdir, filename="sp_gas", no_solv=True)
 
         if job.meta["sp"]["success"]:
@@ -1216,7 +1217,7 @@ class OrcaProc(QmProc):
                         break
 
                 # Sort shieldings by atom index
-                result["shieldings"].sort(lambda x: x[0])
+                result["shieldings"].sort(key=lambda x: x[0])
 
             if ending in ["", "_j"]:
                 # Read couplings from *_properties.txt for easier parsing
@@ -1259,7 +1260,7 @@ class OrcaProc(QmProc):
                     )
 
                 # Sort couplings by pairs
-                result["couplings"].sort(lambda x: x[0])
+                result["couplings"].sort(key=lambda x: x[0])
 
         meta["success"] = True
 
@@ -1291,7 +1292,6 @@ class OrcaProc(QmProc):
         for flag in args:
             if flag in flag_to_setting:
                 # insert all settings dictated by the flags after the main
-                # input line (TODO)
                 for key, value in flag_to_setting[flag].items():
                     if key == "main":
                         indict[key].extend(value)

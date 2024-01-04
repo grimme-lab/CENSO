@@ -60,7 +60,7 @@ def execute(
     global ncores
     ncores = min(ncores, maxcores)
 
-    processor.check_requirements(jobs)
+    # processor.check_requirements(jobs)
 
     # Set processor to copy the MO-files
     processor.copy_mo = True
@@ -83,9 +83,9 @@ def execute(
             job.omp = omp
 
     # execute the jobs
-    # TODO - let this exit gracefully when process is killed
-    # RuntimeError: cannot schedule new futures after shutdown
     jobs = dqp(jobs, processor)
+
+    assert jobs is not None
 
     # Try to get the mo_path from metadata and store it in the respective conformer object
     mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
@@ -185,18 +185,22 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
                 # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
                 reduce_cores(free_cores, jobs[i].omp, enough_cores)
 
-                # submit the job
-                tasks.append(executor.submit(processor.run, jobs[i]))
-                # NOTE: explanation of the lambda: the first argument passed to the done_callback is always the future
-                # itself, it is not assigned (_), the second parameter is the number of openmp threads of the job (i.e.
-                # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
-                # omp of the current item in the for-iterator (e.g. the submitted job has omp=4, but the current jobs[i]
-                # has omp=7, so the callback would use 7 instead of 4)
-                tasks[-1].add_done_callback(
-                    lambda _, omp=jobs[i].omp: increase_cores(
-                        free_cores, omp, enough_cores
+                try:
+                    # submit the job
+                    tasks.append(executor.submit(processor.run, jobs[i]))
+                    # NOTE: explanation of the lambda: the first argument passed to the done_callback is always the future
+                    # itself, it is not assigned (_), the second parameter is the number of openmp threads of the job (i.e.
+                    # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
+                    # omp of the current item in the for-iterator (e.g. the submitted job has omp=4, but the current jobs[i]
+                    # has omp=7, so the callback would use 7 instead of 4)
+                    tasks[-1].add_done_callback(
+                        lambda _, omp=jobs[i].omp: increase_cores(
+                            free_cores, omp, enough_cores
+                        )
                     )
-                )
+                except RuntimeError:
+                    # Makes this exit gracefully in case that the main process is killed
+                    return None
 
             # wait for all jobs to finish and collect results
             results = [task.result() for task in as_completed(tasks)]

@@ -78,7 +78,7 @@ class Optimization(CensoPart):
 
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
-        self.confs_nc: list[MoleculeData]
+        self.confs_nc: list[MoleculeData] = None
 
     @timeit
     @CensoPart._create_dir
@@ -90,9 +90,6 @@ class Optimization(CensoPart):
         by calculating the thermodynamics of the optimized geometries
 
         Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'macrocycles')
-
-        TODO - implement regular geometry optimization (no xtb driver)
-        TODO - what happens if not a single conformer converges?
         """
 
         """
@@ -108,7 +105,7 @@ class Optimization(CensoPart):
         # print instructions
         self.print_info()
 
-        # decide for doing spearman ensembleopt or standard geometry optimization (TODO)
+        # Use macrocycle optimization only if there is more than one conformer
         if self.get_settings()["macrocycles"] and len(self.ensemble.conformers) > 1:
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
@@ -158,6 +155,26 @@ class Optimization(CensoPart):
                 conf.results.setdefault(self._name, {}).update(
                     results_opt[id(conf)])
 
+        # Handle unconverged conformers (TODO)
+        unconverged = self.confs_nc or [
+            conf for conf in self.ensemble.conformers
+            if not conf.results[self._name]["xtb_opt"]["converged"]
+        ]
+
+        if len(unconverged) == len(self.ensemble.conformers):
+            # TODO - important - is this somehow recoverable?
+            raise RuntimeError(
+                "Cannot continue because there is no conformer with converged geometry optimization.")
+        else:
+            logger.warning(
+                "The geometry optimization of at least one conformer did not converge.")
+            print("Unconverged conformers:")
+            for conf in unconverged:
+                print(
+                    f"{conf.name}, grad_norm: {conf.results[self._name]['xtb_opt']['grad_norm']}")
+            print("The unconverged conformers will now be removed from consideration.")
+            self.ensemble.remove_conformers(unconverged)
+
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
         # solvent model, since this basically makes no difference in comp time
@@ -206,7 +223,6 @@ class Optimization(CensoPart):
         Returns:
             float: Gtot (in the unit of the results)
         """
-        # TODO - implement branch for standard geometry optimization (no ancopt)
         try:
             return (
                 conf.results[self._name]["xtb_opt"]["energy"]
@@ -412,7 +428,7 @@ class Optimization(CensoPart):
                     )
                     self.confs_nc.remove(conf)
 
-            # TODO - print out information about current state of the ensemble
+            # Print out information about current state of the ensemble
             self.print_update()
 
             # update number of cycles
@@ -496,6 +512,7 @@ class Optimization(CensoPart):
             "Gtot",
             "ΔGtot",
             "grad_norm",
+            "converged",
         ]
         units = [
             "",
@@ -505,6 +522,7 @@ class Optimization(CensoPart):
             "[Eh]",
             "[kcal/mol]",
             "[Eh/a0]",
+            "",
         ]
 
         limit = min(conf.results[self._name]['xtb_opt']['energy']
@@ -521,6 +539,7 @@ class Optimization(CensoPart):
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit2) * AU2KCAL:.2f}",
             "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
+            "converged": lambda conf: f"{conf.results[self._name]['xtb_opt']['converged']}",
         }
         rows = [
             [printmap[header](conf) for header in headers]

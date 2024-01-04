@@ -33,38 +33,63 @@ class DfaHelper:
     @classmethod
     def find_func(cls, part: str, prog=None):
         """
-        return all functionals available for a certain part and (optionally) program
-        """
-        # TODO - turn into filter using filterfunction defined within find_func
-        tmp = []
-        for k, v in cls._dfa_dict["functionals"].items():
-            if part in v["part"]:
-                if prog is None:
-                    tmp.append(k)
-                else:
-                    if v[prog] != "":
-                        tmp.append(k)
+        Returns all functionals available for a given part and (optionally) qm program.
 
-        return tmp
+        Args:
+            part (str): The name of the part.
+            prog (str, optional): The qm program name. Defaults to None.
+
+        Returns:
+            list[str]: The list of functionals.
+        """
+        if prog is None:
+            return [
+                func for func, v in cls._dfa_dict["functionals"].items()
+                if part in v["part"]
+            ]
+        else:
+            return [
+                func for func, v in cls._dfa_dict["functionals"].items()
+                if part in v["part"] and v[prog] != ""
+            ]
 
     @classmethod
     def get_name(cls, func: str, prog: str):
         """
-        return the name of a certain functional in the given qm program
+        Returns the name of a certain functional in the given qm program.
+
+        Args:
+            func (str): The functional.
+            prog (str): The qm program.
+
+        Returns:
+            str: The name of the functional.
         """
         return cls._dfa_dict["functionals"][func][prog]
 
     @classmethod
     def get_disp(cls, func: str):
         """
-        return the dispersion correction of a certain functional
+        Returns the dispersion correction of a given functional.
+
+        Args:
+            func (str): The functional.
+
+        Returns:
+            str: The dispersion correction name.
         """
         return cls._dfa_dict["functionals"][func]["disp"]
 
     @classmethod
     def get_type(cls, func: str):
         """
-        return the type of a certain functional
+        Returns the type of a certain functional.
+
+        Args:
+            func (str): The functional.
+
+        Returns:
+            str: The type of the functional.
         """
         return cls._dfa_dict["functionals"][func]["type"]
 
