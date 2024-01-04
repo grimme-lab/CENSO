@@ -60,7 +60,7 @@ def execute(
     global ncores
     ncores = min(ncores, maxcores)
 
-    processor.check_requirements(jobs)
+    # processor.check_requirements(jobs)
 
     # Set processor to copy the MO-files
     processor.copy_mo = True
