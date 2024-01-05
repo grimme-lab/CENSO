@@ -153,7 +153,8 @@ class Optimization(CensoPart):
 
                 # store results
                 conf.results.setdefault(self._name, {}).update(
-                    results_opt[id(conf)])
+                    results_opt[conf.geom.id]
+                )
 
         # Handle unconverged conformers (TODO)
         unconverged = self.confs_nc or [
@@ -165,7 +166,7 @@ class Optimization(CensoPart):
             # TODO - important - is this somehow recoverable?
             raise RuntimeError(
                 "Cannot continue because there is no conformer with converged geometry optimization.")
-        else:
+        elif len(unconverged) > 0:
             logger.warning(
                 "The geometry optimization of at least one conformer did not converge.")
             print("Unconverged conformers:")
@@ -310,9 +311,25 @@ class Optimization(CensoPart):
                 conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
                 # store results
-                conf.results.setdefault(self._name, {}).update(
-                    results_opt[conf.geom.id]
-                )
+                conf.results.setdefault(
+                    self._name, {}).setdefault("xtb_opt", {})
+
+                # Update results dict for "energy", "converged", "grad_norm"
+                for key in ["energy", "converged", "grad_norm"]:
+                    conf.results[self._name]["xtb_opt"][key] = results_opt[id(
+                        conf)]["xtb_opt"][key]
+
+                # Do special update for "cycles", "ecyc", "gncyc", "geom"
+                conf.results[self._name]["xtb_opt"].setdefault("cycles", 0)
+                conf.results[self._name]["xtb_opt"]["cycles"] += results_opt[id(
+                    conf)]["xtb_opt"]["cycles"]
+                for key in ["ecyc", "gncyc"]:
+                    conf.results[self._name]["xtb_opt"].setdefault(key, []).extend(
+                        results_opt[id(conf)]["xtb_opt"][key])
+
+                # Store all the macrocycle geometries in a list
+                conf.results[self._name]["xtb_opt"].setdefault(
+                    "geom", []).append(results_opt[id(conf)]["xtb_opt"]["geom"])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
@@ -356,6 +373,9 @@ class Optimization(CensoPart):
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             # threshold increase based on mean trajectory similarity
+            # NOTE: it is important to work with the results of the current macrocycle,
+            # since in the results dict of the MoleculeData objects all the results
+            # from previous cycles are stored
             if len(self.ensemble.conformers) > 1:
                 trajectories = []
                 for conf in self.ensemble.conformers:
@@ -381,7 +401,7 @@ class Optimization(CensoPart):
                     # If conformers did not converge, use the trajectory from the results
                     else:
                         trajectories.append(
-                            conf.results[self._name]["xtb_opt"]["ecyc"])
+                            results_opt[id(conf)]["xtb_opt"]["ecyc"])
 
                 mu_sim = mean_similarity(trajectories)
                 threshold += (1.5 / AU2KCAL) * \

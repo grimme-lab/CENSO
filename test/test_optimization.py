@@ -23,6 +23,7 @@ class TestOptimization(unittest.TestCase):
         mock_results = {
             id(conf): {"xtb_opt": {}, "xtb_rrho": {}} for conf in ensemble.conformers
         }
+        mock_results_2 = []
         for conf in ensemble.conformers:
             mock_results[id(conf)]["xtb_opt"][
                 "energy"
@@ -35,12 +36,14 @@ class TestOptimization(unittest.TestCase):
             mock_results[id(conf)]["xtb_opt"][
                 "grad_norm"
             ] = 0.0001 + random.normalvariate(0, 0.0003)
+            mock_results[id(conf)]["xtb_opt"]["gncyc"] = [
+                0.001 - i * random.normalvariate(0, 0.0001) for i in range(7)]
             mock_results[id(conf)]["xtb_rrho"]["energy"] = 0.001
             mock_results[id(conf)]["xtb_rrho"].setdefault("gibbs", {}).setdefault(
-                optimization._instructions["temperature"], 0.001
+                optimization.get_general_settings()["temperature"], 0.001
             )
 
-        mock_execute.return_value = mock_results
+        mock_execute.return_value = (mock_results, mock_results_2)
 
         # Call the run method
         optimization.run()
