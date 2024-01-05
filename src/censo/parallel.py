@@ -63,7 +63,7 @@ def execute(
     # processor.check_requirements(jobs)
 
     # Set processor to copy the MO-files
-    processor.copy_mo = True
+    processor.copy_mo = copy_mo
 
     # check for the most recent mo files for each conformer
     # TODO - how would this work when multiple different programs are supported?
