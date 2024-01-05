@@ -1097,16 +1097,14 @@ class OrcaProc(QmProc):
                 for line in filter(lambda x: "av. E: " in x, lines)
             )
 
-            # Get the gradient norm (lines reversed so it takes the last
-            # gradient norm value)
-            result["grad_norm"] = float(
-                next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
-
             # Get all other gradient norms for evaluation
             result["gncyc"] = [
                 float(line.split()[3])
                 for line in filter(lambda x: " :: gradient norm      " in x, lines)
             ]
+
+            # Get the last gradient norm
+            result["grad_norm"] = result["gncyc"][-1]
 
             # store the final energy of the optimization in 'energy'
             result["energy"] = result["ecyc"][-1]

@@ -310,26 +310,21 @@ class Optimization(CensoPart):
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
-                # store results
                 conf.results.setdefault(
                     self._name, {}).setdefault("xtb_opt", {})
 
-                # Update results dict for "energy", "converged", "grad_norm"
-                for key in ["energy", "converged", "grad_norm"]:
-                    conf.results[self._name]["xtb_opt"][key] = results_opt[id(
-                        conf)]["xtb_opt"][key]
+                # Update the values for "energy", "grad_norm", "converged", "geom"
+                for key in ["energy", "grad_norm", "converged", "geom"]:
+                    conf.results[self._name]["xtb_opt"][key] = results_opt[conf.geom.id]["xtb_opt"][key]
 
-                # Do special update for "cycles", "ecyc", "gncyc", "geom"
+                # Add the number of cycles
                 conf.results[self._name]["xtb_opt"].setdefault("cycles", 0)
-                conf.results[self._name]["xtb_opt"]["cycles"] += results_opt[id(
-                    conf)]["xtb_opt"]["cycles"]
-                for key in ["ecyc", "gncyc"]:
-                    conf.results[self._name]["xtb_opt"].setdefault(key, []).extend(
-                        results_opt[id(conf)]["xtb_opt"][key])
+                conf.results[self._name]["xtb_opt"]["cycles"] += results_opt[conf.geom.id]["xtb_opt"]["cycles"]
 
-                # Store all the macrocycle geometries in a list
-                conf.results[self._name]["xtb_opt"].setdefault(
-                    "geom", []).append(results_opt[id(conf)]["xtb_opt"]["geom"])
+                # Extend the energy and grad_norm lists
+                for key in ["ecyc", "gncyc"]:
+                    conf.results[self._name]["xtb_opt"].setdefault(
+                        key, []).extend(results_opt[conf.geom.id]["xtb_opt"][key])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
