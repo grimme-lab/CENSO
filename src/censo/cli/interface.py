@@ -43,8 +43,9 @@ def entry_point(argv: list[str] | None = None) -> int:
     time = 0.0
     for part in run:
         p = part(ensemble)
-        time += p.run()
-        print(f"Ran {p._name} in {time} seconds!")
+        runtime = p.run()
+        print(f"Ran {p._name} in {runtime} seconds!")
+        time += runtime
 
     print(f"\nTotal timing: {time} seconds")
 
