@@ -139,7 +139,7 @@ class Screening(Prescreening):
             + conf.results[self._name]["gsolv"]["gsolv"]
         # Otherwise, return just the single-point energy
         else:
-            return conf.results[self._name]["sp"]
+            return conf.results[self._name]["sp"]["energy"]
 
     def grrho(self, conf: MoleculeData) -> float:
         """
