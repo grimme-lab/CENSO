@@ -5,7 +5,7 @@ from os import getcwd
 from argparse import ArgumentError
 
 from .cml_parser import parse
-from ..configuration import configure, override_rc
+from ..configuration import configure, override_rc, homerc
 from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization
 from ..properties import NMR
@@ -75,6 +75,10 @@ def startup(args) -> EnsembleData | None:
         return None
     elif args.inprcpath is not None:
         configure(args.inprcpath)
+    # In the case that no inprcpath has been provided assert that the rcfile in the
+    # user's home directory exist
+    elif args.inprcpath is None:
+        assert homerc is True
 
     # Override settings with command line arguments
     override_rc(args)

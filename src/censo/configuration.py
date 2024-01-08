@@ -9,6 +9,9 @@ from .utilities import DfaHelper
 
 parts = {}
 
+# Flag to indicate wether a rcfile has been found in the home directory
+homerc = None
+
 
 def configure(rcpath: str = None, create_new: bool = False):
     """
@@ -16,7 +19,8 @@ def configure(rcpath: str = None, create_new: bool = False):
     If no configuration file path is provided, it searches for the default configuration file.
     If no configuration file is found, it creates a new one with default settings.
     """
-    # Try to find the .censo2rc in the user's home directory if no configuration file path is provided
+    # Try to find the .censo2rc in the user's home directory
+    # if no configuration file path is provided
     if rcpath is None:
         censorc_path = find_rcfile()
     else:
@@ -50,16 +54,18 @@ def configure(rcpath: str = None, create_new: bool = False):
         "nmr": NMR,
     }
 
-    # If no configuration file is found, create a new one and configure parts with default settings
+    # If no configuration file was found above, set the rcflag to False
+    global homerc
     if censorc_path is None:
-        censorc_path = os.path.join(os.path.expanduser("~"), CENSORCNAME)
-        write_rcfile(censorc_path)
-    # if explicitely set to create a new configuration file, do so
+        homerc = False
+        return
+    # if explicitely told to create a new configuration file, do so
     elif create_new:
         censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
+        homerc = True
         settings_dict = read_rcfile(censorc_path)
 
         # first set general settings

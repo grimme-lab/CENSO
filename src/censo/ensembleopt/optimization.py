@@ -143,8 +143,7 @@ class Optimization(CensoPart):
             )
 
             # Remove failed conformers
-            for confid in failed:
-                self.ensemble.remove_conformers(failed)
+            self.ensemble.remove_conformers(failed)
 
             # update results for each conformer
             for conf in self.ensemble.conformers:
@@ -153,7 +152,8 @@ class Optimization(CensoPart):
 
                 # store results
                 conf.results.setdefault(self._name, {}).update(
-                    results_opt[id(conf)])
+                    results_opt[conf.geom.id]
+                )
 
         # Handle unconverged conformers (TODO)
         unconverged = self.confs_nc or [
@@ -165,7 +165,7 @@ class Optimization(CensoPart):
             # TODO - important - is this somehow recoverable?
             raise RuntimeError(
                 "Cannot continue because there is no conformer with converged geometry optimization.")
-        else:
+        elif len(unconverged) > 0:
             logger.warning(
                 "The geometry optimization of at least one conformer did not converge.")
             print("Unconverged conformers:")
@@ -194,9 +194,8 @@ class Optimization(CensoPart):
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
-        for confid in failed:
-            # Remove failed conformers
-            self.ensemble.remove_conformers(failed)
+        # Remove failed conformers
+        self.ensemble.remove_conformers(failed)
 
         for conf in self.ensemble.conformers:
             conf.results[self._name].update(results_rrho[id(conf)])
@@ -304,15 +303,29 @@ class Optimization(CensoPart):
                 retry_failed=self.get_general_settings()["retry_failed"],
             )
 
+            # Remove failed conformers
+            self.ensemble.remove_conformers(failed)
+
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
-                # store results
-                conf.results.setdefault(self._name, {}).update(
-                    results_opt[conf.geom.id]
-                )
+                conf.results.setdefault(
+                    self._name, {}).setdefault("xtb_opt", {})
+
+                # Update the values for "energy", "grad_norm", "converged", "geom"
+                for key in ["energy", "grad_norm", "converged", "geom"]:
+                    conf.results[self._name]["xtb_opt"][key] = results_opt[conf.geom.id]["xtb_opt"][key]
+
+                # Add the number of cycles
+                conf.results[self._name]["xtb_opt"].setdefault("cycles", 0)
+                conf.results[self._name]["xtb_opt"]["cycles"] += results_opt[conf.geom.id]["xtb_opt"]["cycles"]
+
+                # Extend the energy and grad_norm lists
+                for key in ["ecyc", "gncyc"]:
+                    conf.results[self._name]["xtb_opt"].setdefault(
+                        key, []).extend(results_opt[conf.geom.id]["xtb_opt"][key])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
@@ -336,6 +349,8 @@ class Optimization(CensoPart):
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
+                # TODO - what to do about failed conformers?
+
                 # Reset
                 jobtype = ["xtb_opt"]
                 self.set_general_setting("bhess", tmp)
@@ -356,6 +371,9 @@ class Optimization(CensoPart):
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             # threshold increase based on mean trajectory similarity
+            # NOTE: it is important to work with the results of the current macrocycle,
+            # since in the results dict of the MoleculeData objects all the results
+            # from previous cycles are stored
             if len(self.ensemble.conformers) > 1:
                 trajectories = []
                 for conf in self.ensemble.conformers:
@@ -381,7 +399,7 @@ class Optimization(CensoPart):
                     # If conformers did not converge, use the trajectory from the results
                     else:
                         trajectories.append(
-                            conf.results[self._name]["xtb_opt"]["ecyc"])
+                            results_opt[id(conf)]["xtb_opt"]["ecyc"])
 
                 mu_sim = mean_similarity(trajectories)
                 threshold += (1.5 / AU2KCAL) * \
@@ -464,11 +482,13 @@ class Optimization(CensoPart):
         # minimal gtot from E(DFT), Gsolv and GmRRHO
         gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
+        # Minimal pure DFT energy
         dftmin = min(
             conf.results[self._name]["xtb_opt"]["energy"]
             for conf in self.ensemble.conformers
         )
 
+        # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
@@ -481,11 +501,13 @@ class Optimization(CensoPart):
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
+        # Create rows via the printmap
         rows = [
             [printmap[header](conf) for header in headers]
             for conf in self.ensemble.conformers
         ]
 
+        # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
@@ -502,8 +524,9 @@ class Optimization(CensoPart):
 
     def print_update(self) -> None:
         """
-        writes information about the current state of the ensemble
+        writes information about the current state of the ensemble in form of a table
         """
+        # Define headers for the table
         headers = [
             "CONF#",
             "E (DFT) (+ ΔGsolv)",
@@ -514,6 +537,8 @@ class Optimization(CensoPart):
             "grad_norm",
             "converged",
         ]
+
+        # Define the units for the table
         units = [
             "",
             "[Eh]",
@@ -525,10 +550,14 @@ class Optimization(CensoPart):
             "",
         ]
 
+        # Lower limit for the pure DFT energy
         limit = min(conf.results[self._name]['xtb_opt']['energy']
                     for conf in self.ensemble.conformers)
+
+        # Lower limit for the free enthalpy
         limit2 = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
+        # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
@@ -541,12 +570,16 @@ class Optimization(CensoPart):
             "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
             "converged": lambda conf: f"{conf.results[self._name]['xtb_opt']['converged']}",
         }
+
+        # Create rows via the printmap
         rows = [
             [printmap[header](conf) for header in headers]
             for conf in self.ensemble.conformers
         ]
 
+        # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
+        # Print the lines
         for line in lines:
             print(line, end="")

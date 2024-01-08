@@ -109,8 +109,7 @@ class NMR(CensoPart):
         )
 
         # Remove failed conformers
-        for confid in failed:
-            self.ensemble.remove_conformers(failed)
+        self.ensemble.remove_conformers(failed)
 
         # Put results into conformers
         for conf in self.ensemble.conformers:
@@ -165,6 +164,8 @@ class NMR(CensoPart):
                 "basis": self.get_settings()["basis_s"],
                 "grid": self.get_settings()["grid"],
                 "template": self.get_settings()["template"],
+                # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
+                # while the other functional isn't
                 "gcp": self.get_settings()["gcp"],
                 "sm": self.get_settings()["sm_s"],
                 "solvent_key_prog": SOLVENTS_DB.get(

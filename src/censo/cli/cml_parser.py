@@ -13,8 +13,8 @@ def check_soft_requirements(args: argparse.Namespace) -> bool:
     """
     soft_required = [
         "inp",
-        "charge",
-        "unpaired",
+        # "charge",
+        # "unpaired",
     ]
     requirement_override = ["writeconfig", "cleanup", "cleanup_all", "version"]
     # If all settings, that override soft-requirement, are unused
@@ -65,6 +65,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "-chrg",
         "--charge",
         dest="charge",
+        default=0,
         type=int,
         help="Integer charge of the investigated molecule.",
     )
@@ -72,6 +73,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "-u",
         "--unpaired",
         dest="unpaired",
+        default=0,
         type=int,
         help="Integer number of unpaired electrons of the investigated molecule.",
     )
@@ -530,7 +532,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if not check_soft_requirements(args):
         raise argparse.ArgumentError(
-            None, "One of the soft requirements ('-inp', '-chrg', '-u') not met."
+            # None, "One of the soft requirements ('-inp', '-chrg', '-u') not met."
+            None, "You must provide an input file via '-inp'."
         )
 
     return args

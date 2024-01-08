@@ -185,7 +185,7 @@ class OrcaParser:
                     raise RuntimeError(
                         "Error parsing ORCA input file (main not defined first)."
                     )
-            elif "{postgeom}" in line:
+            elif "{geom}" in line:
                 # there should be no geometry definition block in a template
                 # file
                 if "geom" in converted.keys():
@@ -492,53 +492,56 @@ class OrcaProc(QmProc):
 
         indict["main"].append(func)
 
-        # For non-composite methods, parameters for RI, RIJCOSX, and RIJK are
-        # set
         if "composite" not in functype:
             indict["main"].append(basis)
-            # set  RI def2/J,   RIJCOSX def2/J
-            # this is only set if no composite DFA is used
-            # settings for double hybrids
-            if functype == "double":
-                indict["main"].extend(["def2/J", "RIJCOSX"])
 
-                if "nmr" in jobtype:
-                    indict["main"].append("NOFROZENCORE")
-                    indict = od_insert(
-                        indict,
-                        "mp2",
-                        {"RI": ["true"], "density": ["relaxed"]},
-                        list(indict.keys()).index("main") + 1,
-                    )
-                else:
-                    indict["main"].append("frozencore")
-                    indict = od_insert(
-                        indict,
-                        "mp2",
-                        {"RI": ["true"]},
-                        list(indict.keys()).index("main") + 1,
-                    )
+        # set  RI def2/J,   RIJCOSX def2/J
 
-                def2cbasis = ("def2-svp", "def2-tzvp",
-                              "def2-tzvpp", "def2-qzvpp")
-                if basis.lower() in def2cbasis:
-                    indict["main"].append(f"{basis}/C")
-                    if not orca5:
-                        indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
-                else:
-                    indict["main"].append("def2-TZVPP/C")
-                    if not orca5:
-                        indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+        # Set def2/J in all cases
+        indict["main"].append("def2/J")
 
-            # settings for hybrids
-            elif "hybrid" in functype:
-                indict["main"].append("RIJCOSX")
+        # settings for double hybrids
+        if "double" in functype:
+            indict["main"].extend(["def2/J", "RIJCOSX"])
+
+            if "nmr" in jobtype:
+                indict["main"].append("NOFROZENCORE")
+                indict = od_insert(
+                    indict,
+                    "mp2",
+                    {"RI": ["true"], "density": ["relaxed"]},
+                    list(indict.keys()).index("main") + 1,
+                )
+            else:
+                indict["main"].append("frozencore")
+                indict = od_insert(
+                    indict,
+                    "mp2",
+                    {"RI": ["true"]},
+                    list(indict.keys()).index("main") + 1,
+                )
+
+            # TODO - this doesn't handle composite double hybrids
+            def2cbasis = ("def2-svp", "def2-tzvp",
+                          "def2-tzvpp", "def2-qzvpp")
+            if basis.lower() in def2cbasis:
+                indict["main"].append(f"{basis}/C")
+                if not orca5:
+                    indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+            else:
+                indict["main"].append("def2-TZVPP/C")
                 if not orca5:
                     indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
-            # settings for (m)ggas
-            elif "gga" in functype:
-                indict["main"].append("RI")
+        # settings for hybrids
+        elif "hybrid" in functype:
+            indict["main"].append("RIJCOSX")
+            if not orca5:
+                indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+
+        # settings for (m)ggas
+        elif "gga" in functype:
+            indict["main"].append("RI")
 
         # use 'grid' setting from instructions to quickly configure the grid
         indict["main"].extend(self.__gridsettings[orca5]
@@ -560,27 +563,25 @@ class OrcaProc(QmProc):
         if disp == "nl" and not orca5:
             indict["main"].append("vdwgrid3")
 
-        # try to apply gcp if basis set available
-        gcp_keywords = {
-            "minis": "MINIS",
-            "sv": "SV",
-            "6-31g(d)": "631GD",
-            "def2-sv(p)": "SV(P)",
-            "def2-svp": "SVP",
-            "def2-tzvp": "TZ",
-        }
-        if (
-            prepinfo[jobtype]["gcp"]
-            and basis.lower() in gcp_keywords.keys()
-        ):
-            indict["main"].append(
-                f"GCP(DFT/{gcp_keywords[basis.lower()]})"
-            )
-        elif prepinfo[jobtype]["gcp"]:
-            # TODO - error handling
-            logger.warning(
-                f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP."
-            )
+        if "composite" not in functype:
+            # try to apply gcp if basis set available
+            gcp_keywords = {
+                "minis": "MINIS",
+                "sv": "SV",
+                "6-31g(d)": "631GD",
+                "def2-sv(p)": "SV(P)",
+                "def2-svp": "SVP",
+                "def2-tzvp": "TZ",
+            }
+            if prepinfo[jobtype]["gcp"]:
+                if basis.lower() in gcp_keywords.keys():
+                    indict["main"].append(
+                        f"GCP(DFT/{gcp_keywords[basis.lower()]})"
+                    )
+                else:
+                    logger.warning(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
+                    )
 
         # add job keyword for geometry optimizations
         # with ANCOPT
@@ -1097,16 +1098,14 @@ class OrcaProc(QmProc):
                 for line in filter(lambda x: "av. E: " in x, lines)
             )
 
-            # Get the gradient norm (lines reversed so it takes the last
-            # gradient norm value)
-            result["grad_norm"] = float(
-                next((x for x in lines[::-1] if " :: gradient norm      " in x), None).split()[3])
-
-            # Get all other gradient norms for evaluation
+            # Get all gradient norms for evaluation
             result["gncyc"] = [
                 float(line.split()[3])
-                for line in filter(lambda x: " :: gradient norm      " in x, lines)
+                for line in filter(lambda x: ":: gradient norm" in x, lines)
             ]
+
+            # Get the last gradient norm
+            result["grad_norm"] = result["gncyc"][-1]
 
             # store the final energy of the optimization in 'energy'
             result["energy"] = result["ecyc"][-1]

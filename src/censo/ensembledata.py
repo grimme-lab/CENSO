@@ -261,18 +261,19 @@ class EnsembleData:
         Returns:
             None
         """
-        remove = []
-        for confid in confids:
-            remove.append(
-                next(c for c in self.__conformers if c.geom.id == confid))
+        if len(confids) > 0:
+            remove = []
+            for confid in confids:
+                remove.append(
+                    next(c for c in self.conformers if c.geom.id == confid))
 
-        for r in remove:
-            # pop item from conformers and insert this item at index 0 in rem
-            self.rem.insert(0, self.conformers.pop(
-                self.conformers.index(r)))
+            for r in remove:
+                # pop item from conformers and insert this item at index 0 in rem
+                self.rem.insert(0, self.conformers.pop(
+                    self.conformers.index(r)))
 
-            # Log removed conformers
-            logger.debug(f"Removed {r.name}.")
+                # Log removed conformers
+                logger.debug(f"Removed {r.name}.")
 
     def dump_ensemble(self, part: str) -> None:
         """
