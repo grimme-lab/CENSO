@@ -55,8 +55,8 @@ def configure(rcpath: str = None, create_new: bool = False):
     }
 
     # If no configuration file was found above, set the rcflag to False
+    global homerc
     if censorc_path is None:
-        global homerc
         homerc = False
         return
     # if explicitely told to create a new configuration file, do so
@@ -65,7 +65,6 @@ def configure(rcpath: str = None, create_new: bool = False):
         write_rcfile(censorc_path)
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
-        global homerc
         homerc = True
         settings_dict = read_rcfile(censorc_path)
 

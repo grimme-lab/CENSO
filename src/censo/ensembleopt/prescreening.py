@@ -86,8 +86,7 @@ class Prescreening(CensoPart):
         )
 
         # Remove failed conformers
-        for confid in failed:
-            self.ensemble.remove_conformers(failed)
+        self.ensemble.remove_conformers(failed)
 
         # update results for each conformer
         for conf in self.ensemble.conformers:

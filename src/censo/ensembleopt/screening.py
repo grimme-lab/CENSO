@@ -83,8 +83,7 @@ class Screening(Prescreening):
             )
 
             # Remove failed conformers
-            for confid in failed:
-                self.ensemble.remove_conformers(failed)
+            self.ensemble.remove_conformers(failed)
 
             for conf in self.ensemble.conformers:
                 # update results for each conformer

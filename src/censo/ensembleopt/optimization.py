@@ -143,8 +143,7 @@ class Optimization(CensoPart):
             )
 
             # Remove failed conformers
-            for confid in failed:
-                self.ensemble.remove_conformers(failed)
+            self.ensemble.remove_conformers(failed)
 
             # update results for each conformer
             for conf in self.ensemble.conformers:
@@ -195,9 +194,8 @@ class Optimization(CensoPart):
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
-        for confid in failed:
-            # Remove failed conformers
-            self.ensemble.remove_conformers(failed)
+        # Remove failed conformers
+        self.ensemble.remove_conformers(failed)
 
         for conf in self.ensemble.conformers:
             conf.results[self._name].update(results_rrho[id(conf)])
@@ -305,6 +303,9 @@ class Optimization(CensoPart):
                 retry_failed=self.get_general_settings()["retry_failed"],
             )
 
+            # Remove failed conformers
+            self.ensemble.remove_conformers(failed)
+
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
                 # update geometry of the conformer
@@ -347,6 +348,8 @@ class Optimization(CensoPart):
                     maxcores=self.get_general_settings()["maxcores"],
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
+
+                # TODO - what to do about failed conformers?
 
                 # Reset
                 jobtype = ["xtb_opt"]

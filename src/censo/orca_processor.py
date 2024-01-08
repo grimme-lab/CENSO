@@ -563,17 +563,17 @@ class OrcaProc(QmProc):
         if disp == "nl" and not orca5:
             indict["main"].append("vdwgrid3")
 
-        # try to apply gcp if basis set available
-        gcp_keywords = {
-            "minis": "MINIS",
-            "sv": "SV",
-            "6-31g(d)": "631GD",
-            "def2-sv(p)": "SV(P)",
-            "def2-svp": "SVP",
-            "def2-tzvp": "TZ",
-        }
-        if prepinfo[jobtype]["gcp"]:
-            if "composite" not in functype:
+        if "composite" not in functype:
+            # try to apply gcp if basis set available
+            gcp_keywords = {
+                "minis": "MINIS",
+                "sv": "SV",
+                "6-31g(d)": "631GD",
+                "def2-sv(p)": "SV(P)",
+                "def2-svp": "SVP",
+                "def2-tzvp": "TZ",
+            }
+            if prepinfo[jobtype]["gcp"]:
                 if basis.lower() in gcp_keywords.keys():
                     indict["main"].append(
                         f"GCP(DFT/{gcp_keywords[basis.lower()]})"
@@ -582,10 +582,6 @@ class OrcaProc(QmProc):
                     logger.warning(
                         f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
                     )
-            else:
-                indict["main"].append(
-                    f"GCP({func})"
-                )
 
         # add job keyword for geometry optimizations
         # with ANCOPT
