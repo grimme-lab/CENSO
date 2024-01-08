@@ -126,6 +126,22 @@ class Screening(Prescreening):
 
         # DONE
 
+    def gtot(self, conf: MoleculeData) -> float:
+        """
+        Override of the function from Prescreening.
+        """
+        # If solvation contributions should be included and the solvation free enthalpy
+        # should not be included in the single-point energy the 'gsolv' job should've been run
+        if (
+                not self.get_general_settings()["gas-phase"]
+                and not self.get_settings()["implicit"]
+        ):
+            return conf.results[self._name]["gsolv"]["energy_gas"]
+            + conf.results[self._name]["gsolv"]["gsolv"]
+        # Otherwise, return just the single-point energy
+        else:
+            return conf.results[self._name]["sp"]
+
     def grrho(self, conf: MoleculeData) -> float:
         """
         Calculate the total Gibbs free energy (Gtot) of a given molecule using DFT single-point and gsolv (if included) and RRHO contributions.
