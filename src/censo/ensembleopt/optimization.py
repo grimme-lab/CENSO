@@ -479,11 +479,13 @@ class Optimization(CensoPart):
         # minimal gtot from E(DFT), Gsolv and GmRRHO
         gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
+        # Minimal pure DFT energy
         dftmin = min(
             conf.results[self._name]["xtb_opt"]["energy"]
             for conf in self.ensemble.conformers
         )
 
+        # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
@@ -496,11 +498,13 @@ class Optimization(CensoPart):
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
+        # Create rows via the printmap
         rows = [
             [printmap[header](conf) for header in headers]
             for conf in self.ensemble.conformers
         ]
 
+        # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
         # write lines to file
@@ -517,8 +521,9 @@ class Optimization(CensoPart):
 
     def print_update(self) -> None:
         """
-        writes information about the current state of the ensemble
+        writes information about the current state of the ensemble in form of a table
         """
+        # Define headers for the table
         headers = [
             "CONF#",
             "E (DFT) (+ ΔGsolv)",
@@ -529,6 +534,8 @@ class Optimization(CensoPart):
             "grad_norm",
             "converged",
         ]
+
+        # Define the units for the table
         units = [
             "",
             "[Eh]",
@@ -540,10 +547,14 @@ class Optimization(CensoPart):
             "",
         ]
 
+        # Lower limit for the pure DFT energy
         limit = min(conf.results[self._name]['xtb_opt']['energy']
                     for conf in self.ensemble.conformers)
+
+        # Lower limit for the free enthalpy
         limit2 = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
+        # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
@@ -556,12 +567,16 @@ class Optimization(CensoPart):
             "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
             "converged": lambda conf: f"{conf.results[self._name]['xtb_opt']['converged']}",
         }
+
+        # Create rows via the printmap
         rows = [
             [printmap[header](conf) for header in headers]
             for conf in self.ensemble.conformers
         ]
 
+        # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
+        # Print the lines
         for line in lines:
             print(line, end="")
