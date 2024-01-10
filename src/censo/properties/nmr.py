@@ -21,7 +21,7 @@ logger = setup_logger(__name__)
 
 
 class NMR(CensoPart):
-    alt_name = "part2"
+    alt_name = "part4"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
