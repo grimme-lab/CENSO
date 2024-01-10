@@ -1011,6 +1011,8 @@ class OrcaProc(QmProc):
                 ]
             )
 
+            # Also write constraints if provided
+
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
         if self.copy_mo:

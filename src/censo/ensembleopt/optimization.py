@@ -402,7 +402,9 @@ class Optimization(CensoPart):
                             results_opt[id(conf)]["xtb_opt"]["ecyc"])
 
                 mu_sim = mean_similarity(trajectories)
-                threshold += (1.5 / AU2KCAL) * \
+                # At maximum dissimilarity the threshold is doubled (can be changed through modification of the
+                # constant prefactor, 1 for double, 2 for triple, etc.)
+                threshold += (1 * self.get_settings()["threshold"] / AU2KCAL) * \
                     max(1 - exp(-AU2KCAL * mu_sim), 0.0)
                 logger.debug(
                     f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol"
