@@ -286,6 +286,8 @@ class Optimization(CensoPart):
             f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         print(f"NCYC: {ncyc}")
+        nconv = 0
+        ninit = len(self.confs_nc)
         while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
@@ -370,45 +372,15 @@ class Optimization(CensoPart):
 
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
-            # threshold increase based on mean trajectory similarity
+            # threshold increase based on number of converged conformers
             # NOTE: it is important to work with the results of the current macrocycle,
             # since in the results dict of the MoleculeData objects all the results
             # from previous cycles are stored
             if len(self.ensemble.conformers) > 1:
-                trajectories = []
-                for conf in self.ensemble.conformers:
-                    # If conformers already converged before, use the constant final energy as trajectory
-                    if conf not in self.confs_nc:
-                        trajectories.append(
-                            [
-                                conf.results[self._name]["xtb_opt"]["energy"]
-                                for _ in range(self.get_settings()["optcycles"])
-                            ]
-                        )
-                    # If conformers converged in this macrocycle, use the trajectory from the results and pad it with
-                    # the final energy
-                    elif results_opt[conf.geom.id]["xtb_opt"]["converged"]:
-                        trajectories.append(
-                            results_opt[conf.geom.id]["xtb_opt"]["ecyc"] +
-                            [
-                                conf.results[self._name]["xtb_opt"]["energy"]
-                                for _ in range(self.get_settings()["optcycles"] -
-                                               len(results_opt[conf.geom.id]["xtb_opt"]["ecyc"]))
-                            ]
-                        )
-                    # If conformers did not converge, use the trajectory from the results
-                    else:
-                        trajectories.append(
-                            results_opt[id(conf)]["xtb_opt"]["ecyc"])
-
-                mu_sim = mean_similarity(trajectories)
-                # At maximum dissimilarity the threshold is doubled (can be changed through modification of the
-                # constant prefactor, 1 for double, 2 for triple, etc.)
-                threshold += (1 * self.get_settings()["threshold"] / AU2KCAL) * \
-                    max(1 - exp(-AU2KCAL * mu_sim), 0.0)
-                logger.debug(
-                    f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol"
-                )
+                n = 1
+                threshold += n * \
+                    (self.get_settings()["threshold"] / AU2KCAL -
+                     self.get_settings()["threshold"] * nconv / ninit)
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
@@ -423,7 +395,9 @@ class Optimization(CensoPart):
                     f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
                 )
                 self.confs_nc.remove(conf)
+                nconv += 1
 
+            # TODO - count removed conformers as converged?
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
             # this macrocycle)
             self.ensemble.update_conformers(
