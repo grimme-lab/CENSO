@@ -370,6 +370,19 @@ class Optimization(CensoPart):
             # sort conformers
             self.ensemble.conformers.sort(key=lambda conf: self.grrho(conf))
 
+            # remove converged conformers from 'todo-list'
+            for conf in list(
+                    filter(
+                        lambda x: x.results[self._name]["xtb_opt"]["converged"],
+                        self.confs_nc,
+                    )
+            ):
+                print(
+                    f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
+                )
+                self.confs_nc.remove(conf)
+                nconv += 1
+
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             # threshold increase based on number of converged conformers
@@ -379,23 +392,10 @@ class Optimization(CensoPart):
             if len(self.ensemble.conformers) > 1:
                 n = 1
                 threshold += n * \
-                    (self.get_settings()["threshold"] / AU2KCAL -
-                     self.get_settings()["threshold"] * nconv / ninit)
+                    (self.get_settings()["threshold"] -
+                     self.get_settings()["threshold"] * nconv / ninit) / AU2KCAL
 
             logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
-
-            # remove converged conformers from 'todo-list'
-            for conf in list(
-                filter(
-                    lambda x: x.results[self._name]["xtb_opt"]["converged"],
-                    self.confs_nc,
-                )
-            ):
-                print(
-                    f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
-                )
-                self.confs_nc.remove(conf)
-                nconv += 1
 
             # TODO - count removed conformers as converged?
             # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
