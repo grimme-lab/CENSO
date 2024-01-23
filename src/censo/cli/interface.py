@@ -7,7 +7,7 @@ from argparse import ArgumentError
 from .cml_parser import parse
 from ..configuration import configure, override_rc, homerc
 from ..ensembledata import EnsembleData
-from ..ensembleopt import Prescreening, Screening, Optimization
+from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..properties import NMR
 from ..params import DESCR, __version__
 from ..utilities import print, setup_logger
@@ -37,7 +37,7 @@ def entry_point(argv: list[str] | None = None) -> int:
 
     run = filter(
         lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization, NMR],
+        [Prescreening, Screening, Optimization, Refinement, NMR],
     )
 
     time = 0.0
