@@ -1104,7 +1104,7 @@ class OrcaProc(QmProc):
             # Get all gradient norms for evaluation
             result["gncyc"] = [
                 float(line.split()[3])
-                for line in filter(lambda x: ":: gradient norm" in x, lines)
+                for line in filter(lambda x: " gradient norm " in x, lines)
             ]
 
             # Get the last gradient norm

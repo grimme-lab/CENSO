@@ -293,7 +293,7 @@ class Optimization(CensoPart):
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
             results_opt, failed = execute(
-                self.ensemble.conformers,
+                self.confs_nc,
                 self.dir,
                 self.get_settings()["prog"],
                 prepinfo,
@@ -339,7 +339,7 @@ class Optimization(CensoPart):
                 self.set_general_setting("bhess", True)
                 jobtype = ["xtb_rrho"]
                 results_rrho, failed = execute(
-                    self.ensemble.conformers,
+                    self.confs_nc,
                     self.dir,
                     self.get_settings()["prog"],
                     self.setup_prepinfo(jobtype),

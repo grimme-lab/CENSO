@@ -97,7 +97,7 @@ class Refinement(Screening):
             lambda conf: conf.results[self._name]["gtot"], threshold, boltzmann=True)
 
         # second 'write_results' for the updated sorting with RRHO contributions
-        self.write_results2()
+        # self.write_results2()
 
         # dump ensemble
         self.ensemble.dump_ensemble(self._name)
