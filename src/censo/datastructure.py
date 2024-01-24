@@ -170,6 +170,8 @@ class ParallelJob:
         # that are supposed to be applied for every job
         # Also should always contain the name of the part where the job is launched from, as well as charge and
         # number of unpaired electrons
+        # NOTE: prepinfo.keys() and items in jobtype are not necessarily the same! E.g. for NMR
+        # jobtype = ["nmr"], prepinfo.keys() = ["nmr_s"], or prepinfo.keys() = ["nmr_s", "nmr_j"], ...
         self.prepinfo: dict[str, dict[str, any]] = {
             "general": {}, "partname": "", "charge": 0, "unpaired": 0}
 

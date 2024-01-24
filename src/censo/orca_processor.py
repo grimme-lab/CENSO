@@ -402,6 +402,7 @@ class OrcaProc(QmProc):
                 "gsolv": self._gsolv,
                 "xtb_opt": self._xtb_opt,
                 "nmr": self._nmr,
+                "uvvis": self._uvvis,
             },
         }
 
@@ -1010,6 +1011,8 @@ class OrcaProc(QmProc):
                 ]
             )
 
+            # Also write constraints if provided
+
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
         if self.copy_mo:
@@ -1101,7 +1104,7 @@ class OrcaProc(QmProc):
             # Get all gradient norms for evaluation
             result["gncyc"] = [
                 float(line.split()[3])
-                for line in filter(lambda x: ":: gradient norm" in x, lines)
+                for line in filter(lambda x: " gradient norm " in x, lines)
             ]
 
             # Get the last gradient norm
@@ -1264,6 +1267,75 @@ class OrcaProc(QmProc):
         meta["success"] = True
 
         job.meta["nmr"].update(meta)
+
+        return result
+
+    def _uvvis(self, job: ParallelJob, jobdir: str, filename: str = "uvvis") -> dict[str, any]:
+        """
+        Run a single-point to calculate the oscillator strengths and excitation wavelengths.
+        """
+        # Set results
+        result = {
+            "energy": None,
+            "excitations": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
+        }
+
+        job.meta.setdefault("uvvis", {})
+
+        # Set in/out path
+        inputpath = os.path.join(jobdir, f"{filename}.inp")
+        outputpath = os.path.join(jobdir, f"{filename}.out")
+
+        # Prepare an input file for _sp
+        indict = self.__prep(job, "uvvis")
+        parser = OrcaParser()
+        parser.write_input(inputpath, indict)
+
+        # Run _sp using the input file generated above
+        self._sp(job, jobdir, filename=f"{filename}", prep=False)
+
+        if not job.meta["sp"]["success"]:
+            meta["success"] = False
+            meta["error"] = "sp failed"
+            job.meta["uvvis"].update(meta)
+            return result
+
+        # Grab excitations and energy from the output
+        with open(outputpath, "r") as f:
+            lines = f.readlines()
+
+        # Get final energy
+        result["energy"] = next(
+            (
+                float(line.split()[4])
+                for line in lines
+                if "FINAL SINGLE POINT ENERGY" in line
+            ),
+            None,
+        )
+
+        # Find the line index of the actual excitations information
+        start = lines.index(
+            next(filter(lambda line: "ABSORPTION SPECTRUM" in line, lines)))
+
+        # Get all the lines where the excitations are listed (+5 because of spacing in output file)
+        uvvis_table = lines[start+5:start+5+job.prepinfo["uvvis"]["nroots"]]
+
+        # Extract excitation wavelengths and oscillator strengths
+        result["excitations"] = []
+        for row in uvvis_table:
+            spl = row.split()
+            result["excitations"].append(
+                {"wavelength": spl[2], "osc_str": spl[3]})
+
+        meta["success"] = True
+
+        job.meta["uvvis"].update(meta)
 
         return result
 

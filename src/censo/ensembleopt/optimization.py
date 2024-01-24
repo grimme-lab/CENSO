@@ -82,7 +82,7 @@ class Optimization(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -110,7 +110,7 @@ class Optimization(CensoPart):
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
-            self.__macrocycle_opt()
+            self.__macrocycle_opt(cut)
         else:
             """
             do normal geometry optimization
@@ -267,7 +267,7 @@ class Optimization(CensoPart):
 
         return prepinfo
 
-    def __macrocycle_opt(self):
+    def __macrocycle_opt(self, cut: bool):
         """
         Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
         and uses adaptive threshold based on mean trajectory similarity.
@@ -286,12 +286,14 @@ class Optimization(CensoPart):
             f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         print(f"NCYC: {ncyc}")
+        nconv = 0
+        ninit = len(self.confs_nc)
         while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
             results_opt, failed = execute(
-                self.ensemble.conformers,
+                self.confs_nc,
                 self.dir,
                 self.get_settings()["prog"],
                 prepinfo,
@@ -337,7 +339,7 @@ class Optimization(CensoPart):
                 self.set_general_setting("bhess", True)
                 jobtype = ["xtb_rrho"]
                 results_rrho, failed = execute(
-                    self.ensemble.conformers,
+                    self.confs_nc,
                     self.dir,
                     self.get_settings()["prog"],
                     self.setup_prepinfo(jobtype),
@@ -368,83 +370,58 @@ class Optimization(CensoPart):
             # sort conformers
             self.ensemble.conformers.sort(key=lambda conf: self.grrho(conf))
 
-            threshold = self.get_settings()["threshold"] / AU2KCAL
-
-            # threshold increase based on mean trajectory similarity
-            # NOTE: it is important to work with the results of the current macrocycle,
-            # since in the results dict of the MoleculeData objects all the results
-            # from previous cycles are stored
-            if len(self.ensemble.conformers) > 1:
-                trajectories = []
-                for conf in self.ensemble.conformers:
-                    # If conformers already converged before, use the constant final energy as trajectory
-                    if conf not in self.confs_nc:
-                        trajectories.append(
-                            [
-                                conf.results[self._name]["xtb_opt"]["energy"]
-                                for _ in range(self.get_settings()["optcycles"])
-                            ]
-                        )
-                    # If conformers converged in this macrocycle, use the trajectory from the results and pad it with
-                    # the final energy
-                    elif results_opt[conf.geom.id]["xtb_opt"]["converged"]:
-                        trajectories.append(
-                            results_opt[conf.geom.id]["xtb_opt"]["ecyc"] +
-                            [
-                                conf.results[self._name]["xtb_opt"]["energy"]
-                                for _ in range(self.get_settings()["optcycles"] -
-                                               len(results_opt[conf.geom.id]["xtb_opt"]["ecyc"]))
-                            ]
-                        )
-                    # If conformers did not converge, use the trajectory from the results
-                    else:
-                        trajectories.append(
-                            results_opt[id(conf)]["xtb_opt"]["ecyc"])
-
-                mu_sim = mean_similarity(trajectories)
-                threshold += (1.5 / AU2KCAL) * \
-                    max(1 - exp(-AU2KCAL * mu_sim), 0.0)
-                logger.debug(
-                    f"Mean trajectory similarity: {AU2KCAL * mu_sim:.2f} kcal/mol"
-                )
-
-            logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
-
             # remove converged conformers from 'todo-list'
             for conf in list(
-                filter(
-                    lambda x: x.results[self._name]["xtb_opt"]["converged"],
-                    self.confs_nc,
-                )
+                    filter(
+                        lambda x: x.results[self._name]["xtb_opt"]["converged"],
+                        self.confs_nc,
+                    )
             ):
                 print(
                     f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
                 )
                 self.confs_nc.remove(conf)
+                nconv += 1
 
-            # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
-            # this macrocycle)
-            self.ensemble.update_conformers(
-                self.grrho,
-                threshold,
-                additional_filter=lambda x: all(
-                    gn < self.get_settings()["gradthr"]
-                    for gn in x.results[self._name]["xtb_opt"]["gncyc"]
-                )
-                # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
-            )
+            if cut:
+                threshold = self.get_settings()["threshold"] / AU2KCAL
 
-            # make sure that all the conformers, that are not converged but filtered out, are also removed
-            # from self.confs_nc
-            limit = min(self.grrho(conf)
-                        for conf in self.ensemble.conformers)
-            for conf in self.ensemble.rem:
-                if conf in self.confs_nc:
-                    print(
-                        f"{conf.name} is no longer considered (gradient too small and"
-                        f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                # threshold increase based on number of converged conformers
+                # NOTE: it is important to work with the results of the current macrocycle,
+                # since in the results dict of the MoleculeData objects all the results
+                # from previous cycles are stored
+                if len(self.ensemble.conformers) > 1:
+                    n = 1
+                    threshold += n * \
+                        (self.get_settings()["threshold"] -
+                         self.get_settings()["threshold"] * nconv / ninit) / AU2KCAL
+
+                logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
+
+                # TODO - count removed conformers as converged?
+                # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
+                # this macrocycle)
+                self.ensemble.update_conformers(
+                    self.grrho,
+                    threshold,
+                    additional_filter=lambda x: all(
+                        gn < self.get_settings()["gradthr"]
+                        for gn in x.results[self._name]["xtb_opt"]["gncyc"]
                     )
-                    self.confs_nc.remove(conf)
+                    # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
+                )
+
+                # make sure that all the conformers, that are not converged but filtered out, are also removed
+                # from self.confs_nc
+                limit = min(self.grrho(conf)
+                            for conf in self.ensemble.conformers)
+                for conf in self.ensemble.rem:
+                    if conf in self.confs_nc:
+                        print(
+                            f"{conf.name} is no longer considered (gradient too small and"
+                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                        )
+                        self.confs_nc.remove(conf)
 
             # Print out information about current state of the ensemble
             self.print_update()

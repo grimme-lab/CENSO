@@ -48,7 +48,7 @@ class Screening(Prescreening):
 
     @timeit
     # @CensoPart._create_dir - not required here because super().run() already does this
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -57,7 +57,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().run()
+        super().run(cut=cut)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -96,18 +96,19 @@ class Screening(Prescreening):
             self.ensemble.conformers.sort(
                 key=lambda conf: conf.results[self._name]["gtot"])
 
-            # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
-                [conf.results[self._name]["xtb_rrho"]["energy"]
-                    for conf in self.ensemble.conformers]
-            )))
-            threshold += fuzzy
-            print(
-                f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
+            if cut:
+                # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
+                fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
+                    [conf.results[self._name]["xtb_rrho"]["energy"]
+                        for conf in self.ensemble.conformers]
+                )))
+                threshold += fuzzy
+                print(
+                    f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
-            # update the conformer list in ensemble (remove conf if below threshold)
-            for confname in self.ensemble.update_conformers(self.grrho, threshold):
-                print(f"No longer considering {confname}.")
+                # update the conformer list in ensemble (remove conf if below threshold)
+                for confname in self.ensemble.update_conformers(self.grrho, threshold):
+                    print(f"No longer considering {confname}.")
 
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
@@ -125,7 +126,7 @@ class Screening(Prescreening):
 
         # DONE
 
-    def gtot(self, conf: MoleculeData) -> float:
+    def gsolv(self, conf: MoleculeData) -> float:
         """
         Override of the function from Prescreening.
         """
@@ -153,7 +154,7 @@ class Screening(Prescreening):
         """
         # Gtot = E(DFT) + Gsolv + Grrho
         # NOTE: grrho should only be called if evaluate_rrho is True
-        return self.gtot(conf) + conf.results[self._name]["xtb_rrho"]["energy"]
+        return self.gsolv(conf) + conf.results[self._name]["xtb_rrho"]["energy"]
 
     def write_results(self) -> None:
         """
@@ -208,7 +209,7 @@ class Screening(Prescreening):
             xtb_energies = None
 
         # minimal total free enthalpy (single-point and potentially gsolv)
-        gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
+        gsolvmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
@@ -236,12 +237,12 @@ class Screening(Prescreening):
             if xtb_energies is not None
             else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
-            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
+            "ΔGsolv": lambda conf: f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
             if "xtb_gsolv" in conf.results[self._name].keys()
             or "gsolv" in conf.results[self._name].keys()
             else "---",
-            "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.gtot(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
         }
 
         rows = [
@@ -316,7 +317,8 @@ class Screening(Prescreening):
             gxtb = None
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(conf.results[self._name]["gtot"]
+                      for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
@@ -343,14 +345,14 @@ class Screening(Prescreening):
             if gxtb is not None
             else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
-            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
-            if not isclose(self.gtot(conf), dft_energies[id(conf)])
+            "ΔGsolv": lambda conf: f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
+            if not self.get_settings().get("implicit", False)
             else "---",
             "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"]
             else "---",
-            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Gtot": lambda conf: f"{conf.results[self._name]['gtot']:.6f}",
+            "ΔGtot": lambda conf: f"{(conf.results[self._name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
         }
 
         rows = [

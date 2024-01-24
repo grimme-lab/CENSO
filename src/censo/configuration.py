@@ -43,7 +43,7 @@ def configure(rcpath: str = None, create_new: bool = False):
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
     # otherwise there will be errors in the CensoPart._options
     from .part import CensoPart
-    from .ensembleopt import Prescreening, Screening, Optimization
+    from .ensembleopt import Prescreening, Screening, Optimization, Refinement
     from .properties import NMR
 
     global parts
@@ -51,6 +51,7 @@ def configure(rcpath: str = None, create_new: bool = False):
         "prescreening": Prescreening,
         "screening": Screening,
         "optimization": Optimization,
+        "refinement": Refinement,
         "nmr": NMR,
     }
 
