@@ -94,7 +94,7 @@ class Prescreening(CensoPart):
             conf.results.setdefault(self._name, {}).update(results[id(conf)])
 
             # calculate free enthalpy values for every conformer
-            conf.results[self._name]["gtot"] = self.gtot(conf)
+            conf.results[self._name]["gtot"] = self.gsolv(conf)
 
         # sort conformers list with prescreening key (gtot)
         self.ensemble.conformers.sort(
@@ -115,7 +115,7 @@ class Prescreening(CensoPart):
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             # update the conformer list in ensemble (remove confs if below threshold)
-            for confname in self.ensemble.update_conformers(self.gtot, threshold):
+            for confname in self.ensemble.update_conformers(self.gsolv, threshold):
                 print(f"No longer considering {confname}.")
 
         # dump ensemble
@@ -168,7 +168,7 @@ class Prescreening(CensoPart):
 
         return prepinfo
 
-    def gtot(self, conf: MoleculeData) -> float:
+    def gsolv(self, conf: MoleculeData) -> float:
         """
         Prescreening key for conformer sorting
         Calculates Gtot = E (DFT) + Gsolv (xtb) for a given conformer
@@ -289,7 +289,7 @@ class Prescreening(CensoPart):
                 )
 
         # minimal total free enthalpy
-        gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
+        gsolvmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
 
         # determines what to print for each conformer in each column
         printmap = {
@@ -304,12 +304,12 @@ class Prescreening(CensoPart):
             "ΔGsolv (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['gsolv']:.6f}"
             if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
-            "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
+            "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
             "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
             "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
             if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
-            "ΔGtot": lambda conf: f"{(self.gtot(conf) - gtotmin) * AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 

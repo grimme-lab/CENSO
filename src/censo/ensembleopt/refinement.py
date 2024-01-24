@@ -79,6 +79,7 @@ class Refinement(Screening):
             else:
                 # Use values from optimization rrho
                 for conf in self.ensemble.conformers:
+                    conf.results[self._name]["xtb_rrho"] = conf.results["optimization"]["gtot"]
                     conf.results[self._name]["gtot"] = conf.results["optimization"]["gtot"]
 
         # sort conformers list

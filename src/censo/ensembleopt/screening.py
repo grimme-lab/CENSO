@@ -126,7 +126,7 @@ class Screening(Prescreening):
 
         # DONE
 
-    def gtot(self, conf: MoleculeData) -> float:
+    def gsolv(self, conf: MoleculeData) -> float:
         """
         Override of the function from Prescreening.
         """
@@ -154,7 +154,7 @@ class Screening(Prescreening):
         """
         # Gtot = E(DFT) + Gsolv + Grrho
         # NOTE: grrho should only be called if evaluate_rrho is True
-        return self.gtot(conf) + conf.results[self._name]["xtb_rrho"]["energy"]
+        return self.gsolv(conf) + conf.results[self._name]["xtb_rrho"]["energy"]
 
     def write_results(self) -> None:
         """
@@ -209,7 +209,7 @@ class Screening(Prescreening):
             xtb_energies = None
 
         # minimal total free enthalpy (single-point and potentially gsolv)
-        gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
+        gsolvmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
@@ -237,12 +237,12 @@ class Screening(Prescreening):
             if xtb_energies is not None
             else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
-            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
+            "ΔGsolv": lambda conf: f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
             if "xtb_gsolv" in conf.results[self._name].keys()
             or "gsolv" in conf.results[self._name].keys()
             else "---",
-            "Gtot": lambda conf: f"{self.gtot(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.gtot(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
         }
 
         rows = [
@@ -317,11 +317,8 @@ class Screening(Prescreening):
             gxtb = None
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        if self.get_general_settings()["evaluate_rrho"]:
-            gtotmin = min(self.grrho(conf)
-                          for conf in self.ensemble.conformers)
-        else:
-            gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(conf.results[self._name]["gtot"]
+                      for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
@@ -348,14 +345,14 @@ class Screening(Prescreening):
             if gxtb is not None
             else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
-            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
+            "ΔGsolv": lambda conf: f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
             if not self.get_settings().get("implicit", False)
             else "---",
             "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"]
             else "---",
-            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Gtot": lambda conf: f"{conf.results[self._name]['gtot']:.6f}",
+            "ΔGtot": lambda conf: f"{(conf.results[self._name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
         }
 
         rows = [
