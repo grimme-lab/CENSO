@@ -57,7 +57,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().run(self, cut=cut)
+        super().run(cut=cut)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included

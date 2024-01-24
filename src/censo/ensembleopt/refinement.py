@@ -145,11 +145,8 @@ class Refinement(Screening):
         ]
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        if self.get_general_settings()["evaluate_rrho"]:
-            gtotmin = min(self.grrho(conf)
-                          for conf in self.ensemble.conformers)
-        else:
-            gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(conf.results[self._name]["gtot"]
+                      for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
@@ -176,8 +173,8 @@ class Refinement(Screening):
             "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"]
             else "---",
-            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Gtot": lambda conf: f"{conf.results[self._name]['gtot']:.6f}",
+            "ΔGtot": lambda conf: f"{(conf.results[self._name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
