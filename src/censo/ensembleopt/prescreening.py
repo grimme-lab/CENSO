@@ -45,7 +45,7 @@ class Prescreening(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         first screening of the ensemble by doing single-point calculation on the input geometries,
         using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
@@ -110,12 +110,13 @@ class Prescreening(CensoPart):
         # write results (analogous to deprecated print)
         self.write_results()
 
-        # update conformers with threshold
-        threshold = self.get_settings()["threshold"] / AU2KCAL
+        if cut:
+            # update conformers with threshold
+            threshold = self.get_settings()["threshold"] / AU2KCAL
 
-        # update the conformer list in ensemble (remove confs if below threshold)
-        for confname in self.ensemble.update_conformers(self.gtot, threshold):
-            print(f"No longer considering {confname}.")
+            # update the conformer list in ensemble (remove confs if below threshold)
+            for confname in self.ensemble.update_conformers(self.gtot, threshold):
+                print(f"No longer considering {confname}.")
 
         # dump ensemble
         self.ensemble.dump_ensemble(self._name)

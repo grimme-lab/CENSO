@@ -82,7 +82,7 @@ class Optimization(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -110,7 +110,7 @@ class Optimization(CensoPart):
             """
             ensembleopt using macrocycles with 'optcycles' microcycles
             """
-            self.__macrocycle_opt()
+            self.__macrocycle_opt(cut)
         else:
             """
             do normal geometry optimization
@@ -267,7 +267,7 @@ class Optimization(CensoPart):
 
         return prepinfo
 
-    def __macrocycle_opt(self):
+    def __macrocycle_opt(self, cut: bool):
         """
         Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
         and uses adaptive threshold based on mean trajectory similarity.
@@ -383,44 +383,45 @@ class Optimization(CensoPart):
                 self.confs_nc.remove(conf)
                 nconv += 1
 
-            threshold = self.get_settings()["threshold"] / AU2KCAL
+            if cut:
+                threshold = self.get_settings()["threshold"] / AU2KCAL
 
-            # threshold increase based on number of converged conformers
-            # NOTE: it is important to work with the results of the current macrocycle,
-            # since in the results dict of the MoleculeData objects all the results
-            # from previous cycles are stored
-            if len(self.ensemble.conformers) > 1:
-                n = 1
-                threshold += n * \
-                    (self.get_settings()["threshold"] -
-                     self.get_settings()["threshold"] * nconv / ninit) / AU2KCAL
+                # threshold increase based on number of converged conformers
+                # NOTE: it is important to work with the results of the current macrocycle,
+                # since in the results dict of the MoleculeData objects all the results
+                # from previous cycles are stored
+                if len(self.ensemble.conformers) > 1:
+                    n = 1
+                    threshold += n * \
+                        (self.get_settings()["threshold"] -
+                         self.get_settings()["threshold"] * nconv / ninit) / AU2KCAL
 
-            logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
+                logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
-            # TODO - count removed conformers as converged?
-            # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
-            # this macrocycle)
-            self.ensemble.update_conformers(
-                self.grrho,
-                threshold,
-                additional_filter=lambda x: all(
-                    gn < self.get_settings()["gradthr"]
-                    for gn in x.results[self._name]["xtb_opt"]["gncyc"]
-                )
-                # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
-            )
-
-            # make sure that all the conformers, that are not converged but filtered out, are also removed
-            # from self.confs_nc
-            limit = min(self.grrho(conf)
-                        for conf in self.ensemble.conformers)
-            for conf in self.ensemble.rem:
-                if conf in self.confs_nc:
-                    print(
-                        f"{conf.name} is no longer considered (gradient too small and"
-                        f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                # TODO - count removed conformers as converged?
+                # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
+                # this macrocycle)
+                self.ensemble.update_conformers(
+                    self.grrho,
+                    threshold,
+                    additional_filter=lambda x: all(
+                        gn < self.get_settings()["gradthr"]
+                        for gn in x.results[self._name]["xtb_opt"]["gncyc"]
                     )
-                    self.confs_nc.remove(conf)
+                    # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
+                )
+
+                # make sure that all the conformers, that are not converged but filtered out, are also removed
+                # from self.confs_nc
+                limit = min(self.grrho(conf)
+                            for conf in self.ensemble.conformers)
+                for conf in self.ensemble.rem:
+                    if conf in self.confs_nc:
+                        print(
+                            f"{conf.name} is no longer considered (gradient too small and"
+                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                        )
+                        self.confs_nc.remove(conf)
 
             # Print out information about current state of the ensemble
             self.print_update()

@@ -1,4 +1,5 @@
 from functools import reduce
+import os
 
 from .screening import Screening
 from .prescreening import Prescreening
@@ -9,6 +10,7 @@ from ..params import (
     BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
+    AU2KCAL,
 )
 from ..utilities import DfaHelper, setup_logger
 from ..utilities import print, timeit, format_data
@@ -40,10 +42,10 @@ class Refinement(Screening):
 
     @timeit
     # @CensoPart._create_dir - not required here because Prescreening.run(self) already does this
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         """
-        Prescreening.run(self)
+        Prescreening.run(self, cut=False)
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
@@ -89,17 +91,111 @@ class Refinement(Screening):
             self.get_general_settings().get("temperature", 298.15), self._name
         )
 
-        # Get Boltzmann population threshold from settings
-        threshold = self.get_settings()["threshold"]
+        if cut:
+            # Get Boltzmann population threshold from settings
+            threshold = self.get_settings()["threshold"]
 
-        # Update ensemble using Boltzman population threshold
-        self.ensemble.update_conformers(
-            lambda conf: conf.results[self._name]["gtot"], threshold, boltzmann=True)
+            # Update ensemble using Boltzman population threshold
+            for confname in self.ensemble.update_conformers(lambda conf: conf.results[self._name]["gtot"], threshold, boltzmann=True):
+                print(f"No longer considering {confname}.")
 
         # second 'write_results' for the updated sorting with RRHO contributions
-        # self.write_results2()
+        self.write_results2()
 
         # dump ensemble
         self.ensemble.dump_ensemble(self._name)
 
         # DONE
+
+    def write_results2(self) -> None:
+        """
+        Additional write function in case RRHO is used.
+        Write the results to a file in formatted way. This is appended to the first file.
+        writes (2):
+            G (xtb),
+            δG (xtb),
+            E (DFT),
+            δGsolv (DFT),
+            Grrho,
+            Gtot,
+            δGtot
+
+        Also writes them into an easily digestible format.
+        """
+        # column headers
+        headers = [
+            "CONF#",
+            "E (DFT)",
+            "ΔGsolv",
+            "GmRRHO",
+            "Gtot",
+            "ΔGtot",
+            "Boltzmann weights"
+        ]
+
+        # column units
+        units = [
+            "",
+            "[Eh]",
+            "[Eh]",
+            "[Eh]",
+            "[Eh]",
+            "[kcal/mol]",
+            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
+        ]
+
+        # minimal gtot from E(DFT), Gsolv and GmRRHO
+        if self.get_general_settings()["evaluate_rrho"]:
+            gtotmin = min(self.grrho(conf)
+                          for conf in self.ensemble.conformers)
+        else:
+            gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
+
+        # collect all dft single point energies
+        dft_energies = (
+            {
+                id(conf): conf.results[self._name]["sp"]["energy"]
+                for conf in self.ensemble.conformers
+            }
+            if not all(
+                "gsolv" in conf.results[self._name].keys()
+                for conf in self.ensemble.conformers
+            )
+            else {
+                id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
+                for conf in self.ensemble.conformers
+            }
+        )
+
+        printmap = {
+            "CONF#": lambda conf: conf.name,
+            "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
+            "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
+            if not self.get_settings().get("implicit", False)
+            else "---",
+            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            if self.get_general_settings()["evaluate_rrho"]
+            else "---",
+            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
+        }
+
+        rows = [
+            [printmap[header](conf) for header in headers]
+            for conf in self.ensemble.conformers
+        ]
+
+        lines = format_data(headers, rows, units=units)
+
+        # append lines to already existing file
+        logger.debug(
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+        )
+        with open(
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "a", newline=None
+        ) as outfile:
+            outfile.writelines(lines)
+
+        # Additionally, write the results to a json file
+        self.write_json()

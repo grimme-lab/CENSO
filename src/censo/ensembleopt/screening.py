@@ -48,7 +48,7 @@ class Screening(Prescreening):
 
     @timeit
     # @CensoPart._create_dir - not required here because super().run() already does this
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -57,7 +57,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().run()
+        super().run(self, cut=cut)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -96,18 +96,19 @@ class Screening(Prescreening):
             self.ensemble.conformers.sort(
                 key=lambda conf: conf.results[self._name]["gtot"])
 
-            # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
-                [conf.results[self._name]["xtb_rrho"]["energy"]
-                    for conf in self.ensemble.conformers]
-            )))
-            threshold += fuzzy
-            print(
-                f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
+            if cut:
+                # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
+                fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
+                    [conf.results[self._name]["xtb_rrho"]["energy"]
+                        for conf in self.ensemble.conformers]
+                )))
+                threshold += fuzzy
+                print(
+                    f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
-            # update the conformer list in ensemble (remove conf if below threshold)
-            for confname in self.ensemble.update_conformers(self.grrho, threshold):
-                print(f"No longer considering {confname}.")
+                # update the conformer list in ensemble (remove conf if below threshold)
+                for confname in self.ensemble.update_conformers(self.grrho, threshold):
+                    print(f"No longer considering {confname}.")
 
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
@@ -316,7 +317,11 @@ class Screening(Prescreening):
             gxtb = None
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
+        if self.get_general_settings()["evaluate_rrho"]:
+            gtotmin = min(self.grrho(conf)
+                          for conf in self.ensemble.conformers)
+        else:
+            gtotmin = min(self.gtot(conf) for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
@@ -344,7 +349,7 @@ class Screening(Prescreening):
             else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
-            if not isclose(self.gtot(conf), dft_energies[id(conf)])
+            if not self.get_settings().get("implicit", False)
             else "---",
             "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"]
