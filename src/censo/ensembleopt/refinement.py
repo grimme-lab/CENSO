@@ -131,7 +131,7 @@ class Refinement(Screening):
             "GmRRHO",
             "Gtot",
             "ΔGtot",
-            "Boltzmann weights"
+            "Boltzmann weight"
         ]
 
         # column units
