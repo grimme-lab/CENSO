@@ -97,7 +97,7 @@ class Refinement(Screening):
             threshold = self.get_settings()["threshold"]
 
             # Update ensemble using Boltzman population threshold
-            for confname in self.ensemble.update_conformers(lambda conf: conf.results[self._name]["gtot"], threshold, boltzmann=True):
+            for confname in self.ensemble.update_conformers(lambda conf: conf.results[self._name]["bmw"], threshold, boltzmann=True):
                 print(f"No longer considering {confname}.")
 
         # second 'write_results' for the updated sorting with RRHO contributions
