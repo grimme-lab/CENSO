@@ -717,7 +717,7 @@ class OrcaProc(QmProc):
         filename="sp",
         no_solv: bool = False,
         prep: bool = True,
-    ) -> dict[str, float | None]:
+    ) -> tuple[dict[str, float | None], dict[str, any]]:
         """
         ORCA single-point calculation.
 
@@ -729,7 +729,8 @@ class OrcaProc(QmProc):
             prep: if True, a new input file is generated (you only really want to make use of this for NMR)
 
         Returns:
-            dict[str, float | None]: dictionary containing the results of the calculation
+            result (dict[str, float | None]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
 
         result = {
             "energy": None,
@@ -743,8 +744,8 @@ class OrcaProc(QmProc):
         meta = {
             "success": None,
             "error": None,
+            "mo_path": None,
         }
-        job.meta.setdefault("sp", {})
 
         # set in/out path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -821,14 +822,13 @@ class OrcaProc(QmProc):
             # store the path to the current .gbw file for this conformer if
             # possible
             if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
-                job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+                meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # TODO - clean up?
-        job.meta["sp"].update(meta)
 
-        return result
+        return result, meta
 
-    def _gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, any]:
+    def _gsolv(self, job: ParallelJob, jobdir: str) -> tuple[dict[str, any], dict[str, any]]:
         """
         Calculates the solvation free enthalpy of a conformer using ORCA.
 
@@ -837,7 +837,8 @@ class OrcaProc(QmProc):
             jobdir: path to the job directory
 
         Returns:
-            dict[str, any | None]: dictionary containing the results of the calculation
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
 
         result = {
             "gsolv": None,
@@ -852,43 +853,46 @@ class OrcaProc(QmProc):
             "energy_solv": None,
         }
 
-        job.meta.setdefault("gsolv", {})
         meta = {
             "success": None,
             "error": None,
+            "mo_path": None,
         }
 
         # calculate gas phase
-        spres = self._sp(job, jobdir, filename="sp_gas", no_solv=True)
+        spres, spmeta = self._sp(job, jobdir, filename="sp_gas", no_solv=True)
 
-        if job.meta["sp"]["success"]:
+        if spmeta["success"]:
             result["energy_gas"] = spres["energy"]
         else:
             meta["success"] = False
             meta["error"] = "SCF not converged"
-            job.meta["gsolv"].update(meta)
-            return result
+            return result, meta
 
         # calculate in solution
-        spres = self._sp(job, jobdir, filename="sp_solv")
+        spres, spmeta = self._sp(job, jobdir, filename="sp_solv")
 
-        if job.meta["sp"]["success"]:
+        if spmeta["success"]:
             result["energy_solv"] = spres["energy"]
         else:
             meta["success"] = False
             meta["error"] = "SCF not converged"
-            job.meta["gsolv"].update(meta)
-            return result
+            return result, meta
+
+        if self.copy_mo:
+            # store the path to the current .gbw file for this conformer if
+            # possible
+            if os.path.isfile(os.path.join(jobdir, "sp_solv.gbw")):
+                meta["mo_path"] = os.path.join(jobdir, "sp_solv.gbw")
 
         # calculate solvation free enthalpy
         result["gsolv"] = result["energy_solv"] - result["energy_gas"]
         meta["success"] = True
-        job.meta["gsolv"].update(meta)
 
-        return result
+        return result, meta
 
     # TODO - split this up
-    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> dict[str, any]:
+    def _xtb_opt(self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt") -> tuple[dict[str, any], dict[str, any]]:
         """
         ORCA geometry optimization using ANCOPT.
 
@@ -898,7 +902,8 @@ class OrcaProc(QmProc):
             filename: name of the input file
 
         Returns:
-            dict[str, any]: dictionary containing the results of the calculation
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
 
         Keywords required in prepinfo:
         - optcycles
@@ -936,10 +941,10 @@ class OrcaProc(QmProc):
             "geom": None,
         }
 
-        job.meta.setdefault("xtb_opt", {})
         meta = {
             "success": None,
             "error": None,
+            "mo_path": None,
         }
 
         xcontrolname = "xtb_opt-xcontrol-inp"
@@ -1045,8 +1050,7 @@ class OrcaProc(QmProc):
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_opt"
-            job.meta["xtb_opt"].update(meta)
-            return result
+            return result, meta
 
         # read output
         with open(outputpath, "r", encoding=CODING, newline=None) as file:
@@ -1068,8 +1072,7 @@ class OrcaProc(QmProc):
             y in x for y in error_ind)), None) is not None else True)
         if not meta["success"]:
             meta["error"] = "what went wrong in xtb_opt"
-            job.meta["xtb_opt"].update(meta)
-            return result
+            return result, meta
 
         # check convergence
         if (
@@ -1116,7 +1119,7 @@ class OrcaProc(QmProc):
 
         if self.copy_mo:
             # store the path to the current .gbw file for this conformer
-            job.meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+            meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
 
         # read out optimized geometry and update conformer geometry with this
         job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
@@ -1130,11 +1133,9 @@ class OrcaProc(QmProc):
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_opt"
 
-        job.meta["xtb_opt"].update(meta)
+        return result, meta
 
-        return result
-
-    def _nmr(self, job: ParallelJob, jobdir: str, filename: str = "nmr") -> dict[str, any]:
+    def _nmr(self, job: ParallelJob, jobdir: str, filename: str = "nmr") -> tuple[dict[str, any], dict[str, any]]:
         """
         Calculate the NMR shieldings and/or couplings for a conformer. ORCA gives only the active cores in the output
         so there is not need for more thinking here.
@@ -1150,7 +1151,8 @@ class OrcaProc(QmProc):
             jobdir: path to the job directory
 
         Returns:
-            dict[str, any]: dictionary containing the results of the calculation
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
         """
         # Set results
         result = {
@@ -1167,8 +1169,6 @@ class OrcaProc(QmProc):
         # If settings are the same, endings = [""], otherwise it contains "_s"
         # and/or "_j", depending on conditions
         for ending in [x[4:] for x in job.prepinfo.keys() if "nmr" in x]:
-            job.meta.setdefault("nmr", {})
-
             # Set in/out path
             inputpath = os.path.join(jobdir, f"{filename}{ending}.inp")
             outputpath = os.path.join(jobdir, f"{filename}{ending}.out")
@@ -1179,12 +1179,12 @@ class OrcaProc(QmProc):
             parser.write_input(inputpath, indict)
 
             # Run _sp using the input file generated above
-            self._sp(job, jobdir, filename=f"{filename}{ending}", prep=False)
+            _, spmeta = self._sp(
+                job, jobdir, filename=f"{filename}{ending}", prep=False)
 
-            if not job.meta["sp"]["success"]:
+            if not spmeta["success"]:
                 meta["success"] = False
-                meta["error"] = "sp failed"
-                job.meta["nmr"].update(meta)
+                meta["error"] = f"sp for nmr{ending} failed"
                 return result
 
             # Grab shieldings and energy from the output
@@ -1266,11 +1266,9 @@ class OrcaProc(QmProc):
 
         meta["success"] = True
 
-        job.meta["nmr"].update(meta)
+        return result, meta
 
-        return result
-
-    def _uvvis(self, job: ParallelJob, jobdir: str, filename: str = "uvvis") -> dict[str, any]:
+    def _uvvis(self, job: ParallelJob, jobdir: str, filename: str = "uvvis") -> tuple[dict[str, any], dict[str, any]]:
         """
         Run a single-point to calculate the oscillator strengths and excitation wavelengths.
         """
@@ -1285,8 +1283,6 @@ class OrcaProc(QmProc):
             "error": None,
         }
 
-        job.meta.setdefault("uvvis", {})
-
         # Set in/out path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
         outputpath = os.path.join(jobdir, f"{filename}.out")
@@ -1297,13 +1293,12 @@ class OrcaProc(QmProc):
         parser.write_input(inputpath, indict)
 
         # Run _sp using the input file generated above
-        self._sp(job, jobdir, filename=f"{filename}", prep=False)
+        _, spmeta = self._sp(job, jobdir, filename=f"{filename}", prep=False)
 
-        if not job.meta["sp"]["success"]:
+        if not spmeta["success"]:
             meta["success"] = False
             meta["error"] = "sp failed"
-            job.meta["uvvis"].update(meta)
-            return result
+            return result, meta
 
         # Grab excitations and energy from the output
         with open(outputpath, "r") as f:
@@ -1335,9 +1330,7 @@ class OrcaProc(QmProc):
 
         meta["success"] = True
 
-        job.meta["uvvis"].update(meta)
-
-        return result
+        return result, meta
 
     @ staticmethod
     def __apply_flags(indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
