@@ -487,6 +487,10 @@ class Optimization(CensoPart):
         # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
+        # Print everything
+        for line in lines:
+            print(line, flush=True, end="")
+
         # write lines to file
         logger.debug(
             f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
@@ -506,9 +510,6 @@ class Optimization(CensoPart):
         # Define headers for the table
         headers = [
             "CONF#",
-            "E (DFT) (+ ΔGsolv)",
-            "ΔE (DFT) (+ δΔGsolv)",
-            "GmRRHO",
             "Gtot",
             "ΔGtot",
             "grad_norm",
@@ -520,30 +521,18 @@ class Optimization(CensoPart):
             "",
             "[Eh]",
             "[kcal/mol]",
-            "[Eh]",
-            "[Eh]",
-            "[kcal/mol]",
             "[Eh/a0]",
             "",
         ]
 
-        # Lower limit for the pure DFT energy
-        limit = min(conf.results[self._name]['xtb_opt']['energy']
-                    for conf in self.ensemble.conformers)
-
         # Lower limit for the free enthalpy
-        limit2 = min(self.grrho(conf) for conf in self.ensemble.conformers)
+        limit = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
         # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
-            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name]['xtb_opt']['energy'] - limit) * AU2KCAL:.2f}",
-            "GmRRHO": lambda conf: f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
-            if self.get_general_settings()["evaluate_rrho"]
-            else "---",
             "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit2) * AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit) * AU2KCAL:.2f}",
             "grad_norm": lambda conf: f"{conf.results[self._name]['xtb_opt']['grad_norm']:.6f}",
             "converged": lambda conf: f"{conf.results[self._name]['xtb_opt']['converged']}",
         }

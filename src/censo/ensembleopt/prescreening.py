@@ -13,7 +13,6 @@ from ..params import (
 )
 from ..part import CensoPart
 from ..utilities import (
-    print,
     timeit,
     format_data,
     DfaHelper,
@@ -354,6 +353,10 @@ class Prescreening(CensoPart):
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
+
+        # Print everything
+        for line in lines:
+            print(line, flush=True, end="")
 
         # write everything to a file
         logger.debug(

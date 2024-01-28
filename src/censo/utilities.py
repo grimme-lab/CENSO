@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 import time
+import re
 from builtins import print as print_orig
 from collections import OrderedDict
 from collections.abc import Callable
@@ -128,12 +129,19 @@ def format_data(
         headers (list[str]): The list of column headers.
         rows (list[list[any]]): The list of rows, where each row is a list of values.
         units (list[str], optional): The list of units for each column. Defaults to None.
-        sortby (int, optional): The index of the column to sort by. Defaults to 0.
+        sortby (int, optional): The index of the column to sort by. Defaults to 0. In case of a string column,
+                                use natural sorting.
 
     Returns:
         list[str]: The list of formatted lines representing the table.
 
     """
+    def natural_sort_key(s):
+        """
+        Natural sorting key for strings.
+        """
+        return [int(text) if text.isdigit() else text for text in re.split("(\d+)", s)]
+
     lines = []
 
     # determine column width 'collen' of column with header 'header'
@@ -165,8 +173,15 @@ def format_data(
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
 
-    # add a line for every row, sorted by the 'sortby'th column
-    for row in sorted(rows, key=lambda x: x[sortby]):
+    # Sort rows lexicographically if column sorted by is a number
+    if rows[0][sortby].replace(".", "", 1).isdigit():
+        rows = sorted(rows, key=lambda x: x[sortby])
+    # Otherwise use natural sorting
+    else:
+        rows = sorted(rows, key=lambda x: natural_sort_key(x[sortby]))
+
+    # add a line for every row
+    for row in rows:
         lines.append(
             " ".join(
                 f"{row:^{collen + 6}}" for row, collen in zip(row, collens.values())
@@ -349,7 +364,7 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     # Create a FileHandler to log messages to the logpath file
     handler = logging.FileHandler(__logpath)
     stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.INFO)
+    stream_handler.setLevel(logging.WARNING)
 
     # Define the log message format
     formatter = logging.Formatter(

@@ -129,7 +129,13 @@ class QmProc:
             logger.info(
                 f"{f'worker{os.getpid()}:':{WARNLEN}}Running {j} calculation in {jobdir}."
             )
-            job.results[j] = self._jobtypes[j](job, jobdir)
+            print(f"Running {j} calculation for {job.conf.name}.")
+            job.results[j], job.meta[j] = self._jobtypes[j](job, jobdir)
+
+            # Copy mo path if possible to be used for further calculations
+            # (processors grab the mo path from the 'mo_path' key that is always present in the meta dict)
+            if job.meta[j].get("mo_path", None) is not None:
+                job.meta["mo_path"] = job.meta[j]["mo_path"]
 
             end = perf_counter()
 
@@ -241,7 +247,7 @@ class QmProc:
         jobdir: str,
         filename: str = "xtb_sp",
         no_solv: bool = False,
-    ) -> dict[str, float | None]:
+    ) -> tuple[dict[str, float | None], dict[str, any]]:
         """
         Calculates the single-point energy with GFNn-xTB or GFN-FF.
 
@@ -253,6 +259,7 @@ class QmProc:
 
         Returns:
             result (dict[str, float | None]): result of the sp calculation
+            meta (dict[str, any]): metadata about the job
 
         result = {
             "energy": None,
@@ -264,7 +271,6 @@ class QmProc:
         }
 
         # set metadata
-        job.meta.setdefault("xtb_sp", {})
         meta = {
             "success": None,
             "error": None,
@@ -336,8 +342,7 @@ class QmProc:
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_sp"
-            job.meta["xtb_sp"].update(meta)
-            return result
+            return result, meta
 
         # read energy from outputfile
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
@@ -351,7 +356,7 @@ class QmProc:
         job.meta["xtb_sp"].update(meta)
         return result
 
-    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> dict[str, any]:
+    def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> tuple[dict[str, float | None], dict[str, any]]:
         """
         Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
 
@@ -375,45 +380,41 @@ class QmProc:
             "energy_xtb_solv": None,
         }
 
-        job.meta.setdefault("xtb_gsolv", {})
         meta = {
             "success": None,
             "error": None,
         }
 
         # run gas-phase GFN single-point
-        spres = self._xtb_sp(job, jobdir, filename="gas", no_solv=True)
-        if job.meta["xtb_sp"]["success"]:
+        spres, spmeta = self._xtb_sp(job, jobdir, filename="gas", no_solv=True)
+        if spmeta["success"]:
             result["energy_xtb_gas"] = spres["energy"]
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_gsolv"
-            job.meta["xtb_gsolv"].update(meta)
-            return result
+            return result, meta
 
         # run single-point in solution:
         # ''reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
         #   solution at infinite dilution,
-        spres = self._xtb_sp(job, jobdir, filename="solv")
-        if job.meta["xtb_sp"]["success"]:
+        spres, spmeta = self._xtb_sp(job, jobdir, filename="solv")
+        if spmeta["success"]:
             result["energy_xtb_solv"] = spres["energy"]
         else:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_gsolv"
-            job.meta["xtb_gsolv"].update(meta)
-            return result
+            return result, meta
 
         # only reached if both gas-phase and solvated sp succeeded
         result["gsolv"] = result["energy_xtb_solv"] - result["energy_xtb_gas"]
         meta["success"] = True
 
-        job.meta["xtb_gsolv"].update(meta)
-        return result
+        return result, meta
 
     # TODO - break this down
     def _xtb_rrho(
         self, job: ParallelJob, jobdir: str, filename: str = "xtb_rrho"
-    ) -> dict[str, any]:
+    ) -> tuple[dict[str, any], dict[str, any]]:
         """
         Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
 
@@ -446,7 +447,6 @@ class QmProc:
             "symnum": None,
         }
 
-        job.meta.setdefault("xtb_rrho", {})
         meta = {
             "success": None,
             "error": None,
@@ -571,8 +571,7 @@ class QmProc:
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_rrho"
-            job.meta["xtb_rrho"].update(meta)
-            return result
+            return result, meta
 
         # read output and store lines
         with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
@@ -642,8 +641,7 @@ class QmProc:
         ):
             meta["success"] = False
             meta["error"] = "what went wrong in xtb_rrho"
-            job.meta["xtb_rrho"].update(meta)
-            return result
+            return result, meta
         elif job.prepinfo["general"]["multitemp"]:
             result["gibbs"] = gt
             result["enthalpy"] = ht
@@ -715,5 +713,4 @@ class QmProc:
             meta["success"] = False
             meta["error"] = "Could not read xtb_enso.json"
 
-        job.meta["xtb_rrho"].update(meta)
-        return result
+        return result, meta

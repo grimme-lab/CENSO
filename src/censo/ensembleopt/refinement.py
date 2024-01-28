@@ -186,6 +186,10 @@ class Refinement(Screening):
 
         lines = format_data(headers, rows, units=units)
 
+        # Print everything
+        for line in lines:
+            print(line, flush=True, end="")
+
         # append lines to already existing file
         logger.debug(
             f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
