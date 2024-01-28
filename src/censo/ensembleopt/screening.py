@@ -252,6 +252,10 @@ class Screening(Prescreening):
 
         lines = format_data(headers, rows, units=units)
 
+        # Print everything
+        for line in lines:
+            print(lines)
+
         # write everything to a file
         with open(
             os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
@@ -361,6 +365,10 @@ class Screening(Prescreening):
         ]
 
         lines = format_data(headers, rows, units=units)
+
+        # Print everything
+        for line in lines:
+            print(line)
 
         # append lines to already existing file
         logger.debug(

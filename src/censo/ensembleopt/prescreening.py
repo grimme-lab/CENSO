@@ -355,6 +355,10 @@ class Prescreening(CensoPart):
 
         # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
 
+        # Print everything
+        for line in lines:
+            print(line)
+
         # write everything to a file
         logger.debug(
             f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."

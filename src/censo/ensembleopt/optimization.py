@@ -487,6 +487,10 @@ class Optimization(CensoPart):
         # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
+        # Print everything
+        for line in lines:
+            print(line)
+
         # write lines to file
         logger.debug(
             f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
