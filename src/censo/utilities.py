@@ -140,7 +140,7 @@ def format_data(
         """
         Natural sorting key for strings.
         """
-        return [int(text) if text.isdigit() else text.lower() for text in re.split("(/d+)", s)]
+        return [int(text) if text.isdigit() else text for text in re.split("(\d+)", s)]
 
     lines = []
 
