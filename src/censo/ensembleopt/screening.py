@@ -254,7 +254,7 @@ class Screening(Prescreening):
 
         # Print everything
         for line in lines:
-            print(lines)
+            print(line, flush=True, end="")
 
         # write everything to a file
         with open(
@@ -368,7 +368,7 @@ class Screening(Prescreening):
 
         # Print everything
         for line in lines:
-            print(line)
+            print(line, flush=True, end="")
 
         # append lines to already existing file
         logger.debug(

@@ -489,7 +489,7 @@ class Optimization(CensoPart):
 
         # Print everything
         for line in lines:
-            print(line)
+            print(line, flush=True, end="")
 
         # write lines to file
         logger.debug(

@@ -188,7 +188,7 @@ class Refinement(Screening):
 
         # Print everything
         for line in lines:
-            print(line)
+            print(line, flush=True, end="")
 
         # append lines to already existing file
         logger.debug(
