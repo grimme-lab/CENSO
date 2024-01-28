@@ -129,6 +129,7 @@ class QmProc:
             logger.info(
                 f"{f'worker{os.getpid()}:':{WARNLEN}}Running {j} calculation in {jobdir}."
             )
+            print(f"Running {j} calculation for {job.conf.name}.")
             job.results[j], job.meta[j] = self._jobtypes[j](job, jobdir)
 
             # Copy mo path if possible to be used for further calculations

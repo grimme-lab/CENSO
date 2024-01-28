@@ -8,7 +8,7 @@ import os
 from math import exp
 from collections.abc import Callable
 
-from .params import AU2J, KB, AU2KCAL
+from .params import AU2J, KB, AU2KCAL, DESCR
 from .datastructure import MoleculeData
 from .utilities import (
     check_for_float,
@@ -123,6 +123,17 @@ class EnsembleData:
                 "Charge or number of unpaired electrons not defined.")
 
         self.setup_conformers(nconf)
+
+        # Print CENSO header
+        print(DESCR)
+
+        # Print information about read ensemble
+        print(
+            f"Read {len(self.conformers)} conformers.\n",
+            f"Number of atoms: {self.runinfo['nat']}\n",
+            f"Charge: {self.runinfo['charge']}\n",
+            f"Unpaired electrons: {self.runinfo['unpaired']}\n"
+        )
 
     def setup_conformers(self, maxconf: int) -> None:
         """
