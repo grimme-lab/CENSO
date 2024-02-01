@@ -69,6 +69,7 @@ class Optimization(CensoPart):
         "macrocycles": {"default": True},
         "crestcheck": {"default": False},
         "template": {"default": False},
+        "constrain": {"default": False},
     }
 
     _settings = {}
@@ -79,6 +80,9 @@ class Optimization(CensoPart):
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
         self.confs_nc: list[MoleculeData] = None
+
+        # Attribute to store path to constraints file if used
+        self.constraints = None
 
     @timeit
     @CensoPart._create_dir
@@ -104,6 +108,13 @@ class Optimization(CensoPart):
 
         # print instructions
         self.print_info()
+
+        # Check for constraint file
+        if self.get_settings()["constrain"]:
+            assert os.path.isfile(os.path.join(
+                self.ensemble.workdir), "constraints.xtb")
+            self.constraints = os.path.join(
+                self.ensemble.workdir, "constraints.xtb")
 
         # Use macrocycle optimization only if there is more than one conformer
         if self.get_settings()["macrocycles"] and len(self.ensemble.conformers) > 1:
@@ -257,6 +268,8 @@ class Optimization(CensoPart):
                 "hlow": self.get_settings()["hlow"],
                 "optlevel": self.get_settings()["optlevel"],
                 "macrocycles": self.get_settings()["macrocycles"],
+                "constraints": self.constraints,
+                # this is set to a path if constraints should be used, otherwise None
             }
 
         if "xtb_rrho" in jobtype:

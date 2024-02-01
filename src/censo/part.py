@@ -221,6 +221,8 @@ class CensoPart:
         # every part instance depends on a ensemble instance to manage the conformers
         self.ensemble: EnsembleData = ensemble
 
+        # Directory where the part executes it's calculations
+        # It is set using the _create_dir method (intended to be used as wrapper for run)
         self.dir: str = None
 
     def run(self) -> None:
