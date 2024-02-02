@@ -240,16 +240,16 @@ class NMR(CensoPart):
 
         # determines what to print for each conformer in each column
         printmap = {
-            "ONOFF": lambda conf: 1,
-            "NMR": lambda conf: conf.name[4:],
-            "CONF": lambda conf: conf.name[4:],
+            "ONOFF": lambda conf: "1",
+            "NMR": lambda conf: f"{conf.name[4:]}",
+            "CONF": lambda conf: f"{conf.name[4:]}",
             "BW": lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
             "Energy": lambda conf: f"{conf.results[self._name]['nmr']['energy']:.6f}",
             "Gsolv": lambda conf: f"{0.0:.6f}",
             "mRRHO": lambda conf: f"{conf.results['optimization']['xtb_rrho']['energy']:.6f}"
             if "optimization" in conf.results.keys() and self.get_general_settings()["evaluate_rrho"]
             else f"{0.0:.6f}",
-            "gi": lambda conf: conf.degen,
+            "gi": lambda conf: f"{conf.degen}",
         }
 
         rows = [
