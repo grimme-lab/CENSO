@@ -40,12 +40,10 @@ class Refinement(Screening):
 
     _settings = {}
 
-    @timeit
-    # @CensoPart._create_dir - not required here because Prescreening.run(self) already does this
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         """
-        Prescreening.run(self, cut=False)
+        Prescreening.optimize(self, cut=False)
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
@@ -102,11 +100,6 @@ class Refinement(Screening):
 
         # second 'write_results' for the updated sorting with RRHO contributions
         self.write_results2()
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
-        # DONE
 
     def write_results2(self) -> None:
         """

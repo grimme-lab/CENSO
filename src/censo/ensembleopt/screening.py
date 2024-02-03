@@ -46,9 +46,7 @@ class Screening(Prescreening):
 
     _settings = {}
 
-    @timeit
-    # @CensoPart._create_dir - not required here because super().run() already does this
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -57,7 +55,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().run(cut=cut)
+        super().optimize(cut=cut)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -106,7 +104,7 @@ class Screening(Prescreening):
                 print(
                     f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
-                # update the conformer list in ensemble (remove conf if below threshold)
+                # update the conformer list in ensemble (remove confs if below threshold)
                 for confname in self.ensemble.update_conformers(self.grrho, threshold):
                     print(f"No longer considering {confname}.")
 
@@ -120,11 +118,6 @@ class Screening(Prescreening):
 
             # second 'write_results' for the updated sorting with RRHO contributions
             self.write_results2()
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
-        # DONE
 
     def gsolv(self, conf: MoleculeData) -> float:
         """

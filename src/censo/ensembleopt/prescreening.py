@@ -1,5 +1,6 @@
 import os
 
+from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
@@ -22,7 +23,7 @@ from ..utilities import (
 logger = setup_logger(__name__)
 
 
-class Prescreening(CensoPart):
+class Prescreening(EnsembleOptimizer):
     alt_name = "part0"
 
     _options = {
@@ -42,9 +43,7 @@ class Prescreening(CensoPart):
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
 
-    @timeit
-    @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         first screening of the ensemble by doing single-point calculation on the input geometries,
         using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
@@ -52,9 +51,6 @@ class Prescreening(CensoPart):
 
         The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
         """
-        # print instructions
-        self.print_info()
-
         # set jobtype to pass to handler
         # TODO - it is not very nice to partially handle 'Screening' settings here
         if self.get_general_settings()["gas-phase"] or self.get_settings().get("implicit", False):
@@ -106,7 +102,6 @@ class Prescreening(CensoPart):
             self.get_general_settings().get("temperature", 298.15), self._name
         )
 
-        # write results (analogous to deprecated print)
         self.write_results()
 
         if cut:
@@ -116,11 +111,6 @@ class Prescreening(CensoPart):
             # update the conformer list in ensemble (remove confs if below threshold)
             for confname in self.ensemble.update_conformers(self.gsolv, threshold):
                 print(f"No longer considering {confname}.")
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
-        # DONE
 
     def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
         prepinfo = {jt: {} for jt in jobtype}

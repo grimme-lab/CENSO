@@ -6,6 +6,7 @@ import os
 from functools import reduce
 from math import exp
 
+from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
@@ -31,7 +32,7 @@ from ..utilities import (
 logger = setup_logger(__name__)
 
 
-class Optimization(CensoPart):
+class Optimization(EnsembleOptimizer):
     alt_name = "part2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
@@ -84,9 +85,7 @@ class Optimization(CensoPart):
         # Attribute to store path to constraints file if used
         self.constraints = None
 
-    @timeit
-    @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -105,10 +104,6 @@ class Optimization(CensoPart):
             stopcycle = 200
         """
         # NOTE: (IMPORTANT) the following only uses xtb as driver (no native geometry optimizations)
-
-        # print instructions
-        self.print_info()
-
         # Check for constraint file
         if self.get_settings()["constrain"]:
             assert os.path.isfile(os.path.join(
@@ -218,9 +213,6 @@ class Optimization(CensoPart):
 
         # write final results
         self.write_results()
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
 
     def grrho(self, conf: MoleculeData) -> float:
         """
@@ -414,7 +406,7 @@ class Optimization(CensoPart):
                 # TODO - count removed conformers as converged?
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
-                self.ensemble.update_conformers(
+                for conf in self.ensemble.update_conformers(
                     self.grrho,
                     threshold,
                     additional_filter=lambda x: all(
@@ -422,7 +414,8 @@ class Optimization(CensoPart):
                         for gn in x.results[self._name]["xtb_opt"]["gncyc"]
                     )
                     # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
-                )
+                ):
+                    print(f"No longer considering {conf.name}.")
 
                 # make sure that all the conformers, that are not converged but filtered out, are also removed
                 # from self.confs_nc
@@ -437,7 +430,7 @@ class Optimization(CensoPart):
                         self.confs_nc.remove(conf)
 
             # Print out information about current state of the ensemble
-            self.print_update()
+            self.print_opt_update()
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
@@ -516,7 +509,7 @@ class Optimization(CensoPart):
         # Additionally, write the results of this part to a json file
         self.write_json()
 
-    def print_update(self) -> None:
+    def print_opt_update(self) -> None:
         """
         writes information about the current state of the ensemble in form of a table
         """
