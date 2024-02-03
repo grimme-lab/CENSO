@@ -910,6 +910,7 @@ class OrcaProc(QmProc):
         - hlow
         - optlevel
         - macrocycles
+        - constraints
 
         result = {
             "energy": None,
@@ -1012,11 +1013,17 @@ class OrcaProc(QmProc):
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",
                     f"   orca bin= {self._paths['orcapath']} \n",
-                    "$end \n",
                 ]
             )
 
-            # Also write constraints if provided
+            # Import constraints
+            if job.prepinfo["xtb_opt"]["constraints"] is not None:
+                with open(job.prepinfo["xtb_opt"]["constraints"], "r") as f:
+                    lines = f.readlines()
+
+                out.writelines(lines)
+
+            out.write("$end \n")
 
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true

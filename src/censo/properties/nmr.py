@@ -12,6 +12,7 @@ from ..params import (
     BASIS_SETS,
     GRIDOPTIONS,
     SOLVENTS_DB,
+    GFNOPTIONS,
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
@@ -35,6 +36,7 @@ class NMR(CensoPart):
         "func_s": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_s")},
         "basis_s": {"default": "def2-TZVP", "options": BASIS_SETS},
         "sm_s": {"default": "smd", "options": __solv_mods},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "h_ref": {"default": "TMS", "options": ["TMS"]},
         "c_ref": {"default": "TMS", "options": ["TMS"]},
         "f_ref": {"default": "CFCl3", "options": ["CFCl3"]},
@@ -78,17 +80,16 @@ class NMR(CensoPart):
                 )
             )
 
-        # Select conformers based on Boltzmann weight threshold, index -1 indicates to always use the most recently
+        # Preselect conformers based on Boltzmann weight threshold, index -1 indicates to always use the most recently
         # calculated Boltzmann weight
-        self.ensemble.update_conformers(
-            lambda conf: conf.bmws[-1],
-            self.get_settings()["threshold_bmw"],
-            boltzmann=True,
-        )
-
-        # Store the utilized Boltzmann population in order to have it in the resulting json file
-        for conf in self.ensemble.conformers:
-            conf.results.setdefault(self._name, {})["bmw"] = conf.bmws[-1]
+        preselection = False
+        if all(len(conf.bmws) > 0 for conf in self.ensemble.conformers):
+            self.ensemble.update_conformers(
+                lambda conf: conf.bmws[-1],
+                self.get_settings()["threshold_bmw"],
+                boltzmann=True,
+            )
+            preselection = True
 
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo()
@@ -117,13 +118,59 @@ class NMR(CensoPart):
             conf.results.setdefault(self._name, {}).update(
                 results[conf.geom.id])
 
+        # If RRHO contribution should be included and there was no previous ensemble optimization, calculate RRHO
+        if not (
+                any(
+                    part in conf.results.keys() for conf in self.ensemble.conformers
+                    for part in ["screening", "optimization", "refinement"]
+                ) and self.get_general_settings()["evaluate_rrho"]
+        ):
+            jobtype = ["xtb_rrho"]
+            prepinfo = self.setup_prepinfo_rrho()
+
+            # Run RRHO calculation
+            results, failed = execute(
+                self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
+                prepinfo,
+                jobtype,
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
+
+            # Remove failed conformers
+            self.ensemble.remove_conformers(failed)
+
+            for conf in self.ensemble.conformers:
+                # update results for each conformer
+                conf.results[self._name].update(results[id(conf)])
+
         # Recalculate Boltzmann populations based on new single-point energy
         for conf in self.ensemble.conformers:
             conf.results[self._name]["gtot"] = self.gtot(conf)
+
         self.ensemble.calc_boltzmannweights(
             self.get_general_settings()["temperature"],
             self._name
         )
+
+        # In case there was no ensemble optimization done before for preselection, cut down ensemble here
+        if not preselection:
+            self.ensemble.update_conformers(
+                lambda conf: conf.bmws[-1],
+                self.get_settings()["threshold_bmw"],
+                boltzmann=True,
+            )
+
+            # Recalculate Boltzmann populations to be used by ANMR
+            self.ensemble.calc_boltzmannweights(
+                self.get_general_settings()["temperature"],
+                self._name
+            )
 
         # Generate files for ANMR
         self.__generate_anmr()
@@ -208,11 +255,25 @@ class NMR(CensoPart):
 
         return prepinfo
 
+    def setup_prepinfo_rrho(self) -> dict[str, dict]:
+        prepinfo = {}
+
+        prepinfo["partname"] = self._name
+        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["general"] = self.get_general_settings()
+
+        prepinfo["xtb_rrho"] = {
+            "gfnv": self.get_settings()["gfnv"],
+            "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
+        }
+
+        return prepinfo
+
     def gtot(self, conformer: MoleculeData) -> float:
         """
-        Calculates the free enthalpy of the conformer. If any RRHO energy is found, use it in order of priority:
+        Calculates the free enthalpy of the conformer. If any previous RRHO energy is found, use it in order of priority:
             optimization -> screening
-        Otherwise just returns the single-point energy.
         """
         if self.get_general_settings()["evaluate_rrho"]:
             if "optimization" in conformer.results.keys():
@@ -220,7 +281,7 @@ class NMR(CensoPart):
             elif "screening" in conformer.results.keys():
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["screening"]["xtb_rrho"]["energy"]
             else:
-                return conformer.results[self._name]["nmr"]["energy"]
+                return conformer.results[self._name]["nmr"]["energy"] + conformer.results["nmr"]["xtb_rrho"]["energy"]
 
     def __generate_anmr(self):
         """
@@ -240,16 +301,16 @@ class NMR(CensoPart):
 
         # determines what to print for each conformer in each column
         printmap = {
-            "ONOFF": lambda conf: 1,
-            "NMR": lambda conf: conf.name[4:],
-            "CONF": lambda conf: conf.name[4:],
+            "ONOFF": lambda conf: "1",
+            "NMR": lambda conf: f"{conf.name[4:]}",
+            "CONF": lambda conf: f"{conf.name[4:]}",
             "BW": lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
             "Energy": lambda conf: f"{conf.results[self._name]['nmr']['energy']:.6f}",
             "Gsolv": lambda conf: f"{0.0:.6f}",
             "mRRHO": lambda conf: f"{conf.results['optimization']['xtb_rrho']['energy']:.6f}"
             if "optimization" in conf.results.keys() and self.get_general_settings()["evaluate_rrho"]
             else f"{0.0:.6f}",
-            "gi": lambda conf: conf.degen,
+            "gi": lambda conf: f"{conf.degen}",
         }
 
         rows = [

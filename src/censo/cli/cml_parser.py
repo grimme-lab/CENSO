@@ -96,7 +96,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "-cleanup_all",
         dest="cleanup_all",
         action="store_true",
-        help="Delete all unneeded files from current working directory. "
+        help="Delete all CENSO files from previous runs from current working directory. "
         "Stronger than -cleanup !",
     )
     groups[0].add_argument(

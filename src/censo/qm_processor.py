@@ -353,8 +353,7 @@ class QmProc:
                 # TODO - important - what to do if calculation not converged?
 
         # FIXME - right now the case meta["success"] = None might appear if "TOTAL ENERGY" is not found in outputfile
-        job.meta["xtb_sp"].update(meta)
-        return result
+        return result, meta
 
     def _xtb_gsolv(self, job: ParallelJob, jobdir: str) -> tuple[dict[str, float | None], dict[str, any]]:
         """
