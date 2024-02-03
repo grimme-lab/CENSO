@@ -12,6 +12,7 @@ from ..params import (
     BASIS_SETS,
     GRIDOPTIONS,
     SOLVENTS_DB,
+    GFNOPTIONS,
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
@@ -35,6 +36,7 @@ class NMR(CensoPart):
         "func_s": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_s")},
         "basis_s": {"default": "def2-TZVP", "options": BASIS_SETS},
         "sm_s": {"default": "smd", "options": __solv_mods},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "h_ref": {"default": "TMS", "options": ["TMS"]},
         "c_ref": {"default": "TMS", "options": ["TMS"]},
         "f_ref": {"default": "CFCl3", "options": ["CFCl3"]},
