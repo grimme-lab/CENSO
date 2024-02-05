@@ -5,9 +5,7 @@ printout routines.
 import functools
 import hashlib
 import json
-import logging
 import os
-import sys
 import time
 import re
 from builtins import print as print_orig
@@ -15,12 +13,9 @@ from collections import OrderedDict
 from collections.abc import Callable
 
 from .params import CODING, BOHR2ANG
+from .logging import setup_logger
 
-__logpath: str = os.path.join(os.getcwd(), "censo.log")
-__loglevel = logging.DEBUG
-
-
-# __loglevel = logging.DEBUG
+logger = setup_logger(__name__)
 
 
 class DfaHelper:
@@ -57,7 +52,8 @@ class DfaHelper:
     @classmethod
     def get_name(cls, func: str, prog: str):
         """
-        Returns the name of a certain functional in the given qm program.
+        Returns the name of a certain functional in the given qm program. If name could not
+        be found, the string passed as func will be returned instead.
 
         Args:
             func (str): The functional.
@@ -66,12 +62,19 @@ class DfaHelper:
         Returns:
             str: The name of the functional.
         """
-        return cls._dfa_dict["functionals"][func][prog]
+        if func in cls._dfa_dict["functionals"].keys():
+            name = cls._dfa_dict["functionals"][func][prog]
+        else:
+            logger.warning(
+                f"Functional {func} not found for program {prog}. Applying name literally.")
+            name = func
+        return name
 
     @classmethod
     def get_disp(cls, func: str):
         """
-        Returns the dispersion correction of a given functional.
+        Returns the dispersion correction of a given functional. If dispersion correction 
+        cannot be determined, apply none.
 
         Args:
             func (str): The functional.
@@ -79,12 +82,19 @@ class DfaHelper:
         Returns:
             str: The dispersion correction name.
         """
-        return cls._dfa_dict["functionals"][func]["disp"]
+        if func in cls._dfa_dict["functionals"].keys():
+            disp = cls._dfa_dict["functionals"][func]["disp"]
+        else:
+            logger.warning(
+                f"Could not determine dispersion correction for {func}. Applying none.")
+            disp = "novdw"
+        return disp
 
     @classmethod
     def get_type(cls, func: str):
         """
-        Returns the type of a certain functional.
+        Returns the type of a certain functional. If the type cannot be determined, it 
+        is assumed to be a GGA.
 
         Args:
             func (str): The functional.
@@ -92,7 +102,13 @@ class DfaHelper:
         Returns:
             str: The type of the functional.
         """
-        return cls._dfa_dict["functionals"][func]["type"]
+        if func in cls._dfa_dict["functionals"].keys():
+            rettype = cls._dfa_dict["functionals"][func]["type"]
+        else:
+            logger.warning(
+                f"Could not determine functional type for {func}. Assuming GGA.")
+            rettype = "GGA"
+        return rettype
 
     @classmethod
     def functionals(cls) -> dict[str, dict]:
@@ -339,47 +355,6 @@ def od_insert(
     items: list[tuple[str, any]] = list(od.items())
     items.insert(index, (key, value))
     return OrderedDict(items)
-
-
-def setup_logger(name: str, silent: bool = True) -> logging.Logger:
-    """
-    Initializes and configures a logger with the specified name.
-
-    Args:
-        name (str): The name of the logger.
-        silent (bool, optional): Whether to print logpath or not. Defaults to True.
-
-    Returns:
-        logging.Logger: The configured logger instance.
-    """
-    global __logpath, __loglevel
-
-    if not silent:
-        print(f"LOGFILE CAN BE FOUND AT: {__logpath}")
-
-    # Create a logger instance with the specified name
-    logger = logging.getLogger(name)
-    logger.setLevel(__loglevel)
-
-    # Create a FileHandler to log messages to the logpath file
-    handler = logging.FileHandler(__logpath)
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.WARNING)
-
-    # Define the log message format
-    formatter = logging.Formatter(
-        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
-    )
-    stream_formatter = logging.Formatter(
-        "{levelname:^10s}- {message}", style="{")
-    handler.setFormatter(formatter)
-    stream_handler.setFormatter(stream_formatter)
-
-    # Add the FileHandler and StreamHandler to the logger
-    logger.addHandler(handler)
-    logger.addHandler(stream_handler)
-
-    return logger
 
 
 def mad(trajectory1: list[float], trajectory2: list[float]) -> float:

@@ -28,8 +28,8 @@ class Prescreening(EnsembleOptimizer):
 
     _options = {
         "threshold": {"default": 4.0, "range": [1.0, 10.0]},
-        "func": {"default": "pbe-d4", "options": DfaHelper.find_func("prescreening")},
-        "basis": {"default": "def2-SV(P)", "options": BASIS_SETS},
+        "func": {"default": "pbe-d4", "options": []},
+        "basis": {"default": "def2-SV(P)", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "grid": {"default": "low", "options": GRIDOPTIONS},

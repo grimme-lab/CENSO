@@ -43,11 +43,8 @@ class Optimization(EnsembleOptimizer):
         "threshold": {"default": 1.5, "range": [0.5, 5.0]},
         "hlow": {"default": 0.01, "range": [0.001, 0.1]},
         "gradthr": {"default": 0.01, "range": [0.01, 1.0]},
-        "func": {
-            "default": "r2scan-3c",
-            "options": DfaHelper.find_func("optimization"),
-        },
-        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func": {"default": "r2scan-3c", "options": []},
+        "basis": {"default": "def2-TZVP", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},

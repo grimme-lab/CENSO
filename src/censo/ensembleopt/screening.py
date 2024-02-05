@@ -32,8 +32,8 @@ class Screening(Prescreening):
 
     _options = {
         "threshold": {"default": 3.5, "range": [0.75, 7.5]},
-        "func": {"default": "r2scan-3c", "options": DfaHelper.find_func("screening")},
-        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func": {"default": "r2scan-3c", "options": []},
+        "basis": {"default": "def2-TZVP", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
