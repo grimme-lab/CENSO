@@ -2,20 +2,18 @@
 Calculates the ensemble UV/Vis spectrum.
 """
 from functools import reduce
-import os
 
 from ..ensembledata import EnsembleData
 from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
-    SOLVENTS_DB,
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, setup_logger, format_data
+from ..utilities import timeit
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

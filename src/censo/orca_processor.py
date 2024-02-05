@@ -1,12 +1,13 @@
 """
 Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
-from .utilities import od_insert, setup_logger
 import os
 import shutil
 from collections import OrderedDict
 from functools import reduce
 
+from .utilities import od_insert
+from .logging import setup_logger
 from .datastructure import GeometryData, ParallelJob
 from .params import (
     CODING,

@@ -12,8 +12,9 @@ from ..params import (
     GFNOPTIONS,
     AU2KCAL,
 )
-from ..utilities import DfaHelper, setup_logger
+from ..utilities import DfaHelper
 from ..utilities import print, timeit, format_data
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

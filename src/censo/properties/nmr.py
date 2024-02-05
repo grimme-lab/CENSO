@@ -16,7 +16,8 @@ from ..params import (
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, setup_logger, format_data
+from ..utilities import print, timeit, DfaHelper, format_data
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

@@ -7,18 +7,15 @@ from ..parallel import execute
 from ..params import PLENGTH, AU2KCAL
 from ..params import (
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     SOLVENTS_DB,
 )
-from ..part import CensoPart
 from ..utilities import (
-    timeit,
     format_data,
     DfaHelper,
-    setup_logger,
 )
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

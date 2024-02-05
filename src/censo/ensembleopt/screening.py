@@ -4,7 +4,7 @@ Additionally to part0 it is also possible to calculate gsolv implicitly and incl
 """
 import os
 from functools import reduce
-from math import isclose, exp
+from math import exp
 from statistics import stdev
 
 from ..datastructure import MoleculeData
@@ -14,12 +14,11 @@ from ..params import (
     AU2KCAL,
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
 )
-from ..utilities import DfaHelper, setup_logger
-from ..utilities import print, timeit, format_data
+from ..utilities import print, format_data
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

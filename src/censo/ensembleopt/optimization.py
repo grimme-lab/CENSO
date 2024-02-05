@@ -4,7 +4,6 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
 from functools import reduce
-from math import exp
 
 from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
@@ -13,21 +12,17 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
     SOLVENTS_DB,
 )
-from ..part import CensoPart
 from ..utilities import (
     print,
-    timeit,
     DfaHelper,
     format_data,
-    setup_logger,
-    mean_similarity,
 )
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

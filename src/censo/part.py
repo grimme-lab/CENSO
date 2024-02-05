@@ -12,8 +12,7 @@ from .params import (
     OMPMAX,
     SOLVENTS_DB,
 )
-from .datastructure import ParallelJob
-from .utilities import setup_logger, DfaHelper
+from .logging import setup_logger
 
 logger = setup_logger(__name__)
 

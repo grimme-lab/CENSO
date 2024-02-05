@@ -11,7 +11,8 @@ from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
 from ..properties import NMR
 from ..params import DESCR, __version__
-from ..utilities import print, setup_logger
+from ..utilities import print
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 

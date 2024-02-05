@@ -19,7 +19,8 @@ from .params import (
     DIGILEN,
     WARNLEN,
 )
-from .utilities import print, frange, setup_logger
+from .utilities import print, frange
+from .logging import setup_logger
 
 logger = setup_logger(__name__)
 

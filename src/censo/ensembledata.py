@@ -14,8 +14,8 @@ from .utilities import (
     check_for_float,
     do_md5,
     t2x,
-    setup_logger,
 )
+from .logging import setup_logger
 
 logger = setup_logger(__name__)
 
