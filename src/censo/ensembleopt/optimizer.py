@@ -105,7 +105,7 @@ class EnsembleOptimizer(CensoPart):
             # Only look up solvent if solvation is used
             if not self.get_general_settings()["gas-phase"]:
                 prepinfo["xtb_rrho"]["solvent_key_xtb"] = SolventHelper.get_solvent(
-                    self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"]),
+                    self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
                 assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         if "xtb_opt" in jobtype:
@@ -132,7 +132,7 @@ class EnsembleOptimizer(CensoPart):
             if not self.get_general_settings()["gas-phase"]:
                 prepinfo["xtb_opt"]["sm"] = self.get_settings()["sm"]
                 prepinfo["xtb_opt"]["solvent_key_xtb"] = SolventHelper.get_solvent(
-                    self.get_settings()["sm"], self.get_general_settings()["solvent"]),
+                    self.get_settings()["sm"], self.get_general_settings()["solvent"])
                 assert prepinfo["xtb_opt"]["solvent_key_xtb"] is not None
 
         return prepinfo
