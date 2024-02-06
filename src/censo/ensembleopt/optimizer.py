@@ -173,10 +173,10 @@ class EnsembleOptimizer(CensoPart):
         printmap = {
             "CONF#": lambda conf: conf.name,
         }
-        printmap.update({
-            header: lambda conf: f"{(conf.results[part]['gtot'] - gtotmin[part]) * AU2KCAL:.2f}"
-            for header, part in zip(headers[1:], parts)
-        })
+        for header, part in zip(headers[1:], parts):
+            # Same lambda bullshittery as in parallel.py/dqp, python needs the lambda kwargs or it will
+            # use the same values for every lambda call
+            printmap[header] = lambda conf, partl=part, headerl=header: f"{(conf.results[partl]['gtot'] - gtotmin[partl]) * AU2KCAL:.2f}"
 
         rows = [
             [printmap[header](conf) for header in headers]
