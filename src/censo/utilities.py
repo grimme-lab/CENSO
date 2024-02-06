@@ -115,6 +115,39 @@ class DfaHelper:
         return cls._dfa_dict["functionals"]
 
 
+class SolventHelper:
+    """
+    Helper class to manage solvent lookup.
+    """
+    @classmethod
+    def set_solvent_dict(cls, solvent_dict_path: str) -> None:
+        """
+        Load the solvents lookup dict.
+
+        Args:
+            solvent_dict_path (str): The path to the solvents lookup dict.
+        """
+        with open(solvent_dict_path, "r") as f:
+            cls._solv_dict = json.load(f)
+
+    @classmethod
+    def get_solvent(cls, sm: str, name: str) -> str | None:
+        """
+        Try to lookup the solvent model keyword for the given solvent name. If it is not found, return None.
+
+        Args:
+            sm (str): The solvent model.
+            name (str): The solvent name.
+
+        Returns:
+            str | None: The solvent model keyword or None if not found.
+        """
+        for keyword, names in cls._solv_dict[sm].items():
+            if name in names:
+                return keyword
+        return None
+
+
 def print(*args, **kwargs):
     """
     patch print to always flush

@@ -9,11 +9,9 @@ from ..params import (
     PROGS,
     GRIDOPTIONS,
     GFNOPTIONS,
-    SOLVENTS_DB,
 )
 from ..utilities import (
     format_data,
-    DfaHelper,
 )
 from ..logging import setup_logger
 
@@ -108,51 +106,6 @@ class Prescreening(EnsembleOptimizer):
             # update the conformer list in ensemble (remove confs if below threshold)
             for confname in self.ensemble.update_conformers(self.gsolv, threshold):
                 print(f"No longer considering {confname}.")
-
-    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
-        prepinfo = {jt: {} for jt in jobtype}
-
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
-        prepinfo["general"] = self.get_general_settings()
-
-        prepinfo["sp"] = {
-            "func_name": DfaHelper.get_name(
-                self.get_settings()["func"], self.get_settings()["prog"]
-            ),
-            "func_type": DfaHelper.get_type(
-                self.get_settings()["func"]),
-            "disp": DfaHelper.get_disp(
-                self.get_settings()["func"]),
-            "basis": self.get_settings()["basis"],
-            "grid": self.get_settings()["grid"],
-            "template": self.get_settings()["template"],
-            "gcp": self.get_settings()["gcp"],
-        }
-
-        # Add the solvent key if a solvent model exists in the part settings (this method is also used for Screening)
-        # NOTE: 'sm' in key catches also cases like NMR (sm_s and sm_j)
-        if any("sm" in key for key in self.get_settings().keys()):
-            prepinfo["sp"]["sm"] = self.get_settings()["sm"]
-            prepinfo["sp"]["solvent_key_prog"] = SOLVENTS_DB.get(
-                self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1]
-
-        # TODO - this doesn't look very nice
-        if "xtb_gsolv" in jobtype:
-            # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-            prepinfo["xtb_sp"] = {
-                "gfnv": self.get_settings()["gfnv"],
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
-            }
-
-        if "xtb_rrho" in jobtype:
-            prepinfo["xtb_rrho"] = {
-                "gfnv": self.get_settings()["gfnv"],
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
-            }
-
-        return prepinfo
 
     def gsolv(self, conf: MoleculeData) -> float:
         """

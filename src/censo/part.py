@@ -10,7 +10,6 @@ from .params import (
     DIGILEN,
     OMPMIN,
     OMPMAX,
-    SOLVENTS_DB,
 )
 from .logging import setup_logger
 
@@ -41,7 +40,7 @@ class CensoPart:
         "sthr": {"default": 0.0, "range": [0.0, 100.0]},
         "scale": {"default": 1.0, "range": [0.0, 1.0]},
         "temperature": {"default": 298.15, "range": [1e-05, 2000.0]},
-        "solvent": {"default": "h2o", "options": [k for k in SOLVENTS_DB.keys()]},
+        "solvent": {"default": "h2o", "options": []},
         "sm_rrho": {"default": "alpb", "options": ["alpb", "gbsa"]},
         "multitemp": {"default": True},
         "evaluate_rrho": {"default": True},

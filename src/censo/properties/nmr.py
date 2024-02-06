@@ -9,14 +9,12 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
-    SOLVENTS_DB,
     GFNOPTIONS,
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, format_data
+from ..utilities import print, timeit, DfaHelper, format_data, SolventHelper
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -31,11 +29,11 @@ class NMR(CensoPart):
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
         "prog": {"default": "orca", "options": PROGS},  # required
-        "func_j": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_j")},
-        "basis_j": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func_j": {"default": "pbe0-d4", "options": []},
+        "basis_j": {"default": "def2-TZVP", "options": []},
         "sm_j": {"default": "smd", "options": __solv_mods},
-        "func_s": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_s")},
-        "basis_s": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func_s": {"default": "pbe0-d4", "options": []},
+        "basis_s": {"default": "def2-TZVP", "options": []},
         "sm_s": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "h_ref": {"default": "TMS", "options": ["TMS"]},
@@ -216,15 +214,17 @@ class NMR(CensoPart):
                 # while the other functional isn't
                 "gcp": self.get_settings()["gcp"],
                 "sm": self.get_settings()["sm_s"],
-                "solvent_key_prog": SOLVENTS_DB.get(
-                    self.get_general_settings()["solvent"]
-                )[self.get_settings()["sm_s"]][1],
                 "h_active": self.get_settings()["h_active"],
                 "c_active": self.get_settings()["c_active"],
                 "f_active": self.get_settings()["f_active"],
                 "si_active": self.get_settings()["si_active"],
                 "p_active": self.get_settings()["p_active"],
             }
+            # Only look up solvent if solvation is used
+            if not self.get_general_settings()["gas-phase"]:
+                prepinfo["nmr"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                    self.get_settings()["sm_s"], self.get_general_settings()["solvent"])
+                assert prepinfo["nmr"]["solvent_key_prog"] is not None
         else:
             todo = {
                 "_s": self.get_settings()["shieldings"],
@@ -244,15 +244,17 @@ class NMR(CensoPart):
                     "template": self.get_settings()["template"],
                     "gcp": self.get_settings()["gcp"],
                     "sm": self.get_settings()[f"sm{ending}"],
-                    "solvent_key_prog": SOLVENTS_DB.get(
-                        self.get_general_settings()["solvent"]
-                    )[self.get_settings()[f"sm{ending}"]][1],
                     "h_active": self.get_settings()["h_active"],
                     "c_active": self.get_settings()["c_active"],
                     "f_active": self.get_settings()["f_active"],
                     "si_active": self.get_settings()["si_active"],
                     "p_active": self.get_settings()["p_active"],
                 }
+            # Only look up solvent if solvation is used
+            if not self.get_general_settings()["gas-phase"]:
+                prepinfo[f"nmr{ending}"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                    self.get_settings()[f"sm{ending}"], self.get_general_settings()["solvent"])
+                assert prepinfo[f"nmr{ending}"]["solvent_key_prog"] is not None
 
         return prepinfo
 
@@ -266,8 +268,12 @@ class NMR(CensoPart):
 
         prepinfo["xtb_rrho"] = {
             "gfnv": self.get_settings()["gfnv"],
-            "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
         }
+        # Only lookup solvent if solvation should be used
+        if not self.get_general_settings()["gas-phase"]:
+            prepinfo["xtb_rrho"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
+            assert prepinfo["xtb_rrho"]["solvent_key_prog"] is not None
 
         return prepinfo
 

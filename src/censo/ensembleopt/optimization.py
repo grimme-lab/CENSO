@@ -15,11 +15,9 @@ from ..params import (
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
-    SOLVENTS_DB,
 )
 from ..utilities import (
     print,
-    DfaHelper,
     format_data,
 )
 from ..logging import setup_logger
@@ -224,45 +222,6 @@ class Optimization(EnsembleOptimizer):
             )
         except KeyError:
             return conf.results[self._name]["xtb_opt"]["energy"]
-
-    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, any]:
-        prepinfo = {jt: {} for jt in jobtype}
-
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
-        prepinfo["general"] = self.get_general_settings()
-
-        if "xtb_opt" in jobtype:
-            prepinfo["xtb_opt"] = {
-                "func_name": DfaHelper.get_name(
-                    self.get_settings()["func"], self.get_settings()["prog"]
-                ),
-                "func_type": DfaHelper.get_type(
-                    self.get_settings()["func"]),
-                "disp": DfaHelper.get_disp(
-                    self.get_settings()["func"]),
-                "basis": self.get_settings()["basis"],
-                "grid": self.get_settings()["grid"],
-                "template": self.get_settings()["template"],
-                "gcp": self.get_settings()["gcp"],
-                "sm": self.get_settings()["sm"],
-                "solvent_key_prog": SOLVENTS_DB.get(self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1],
-                "optcycles": self.get_settings()["optcycles"],
-                "hlow": self.get_settings()["hlow"],
-                "optlevel": self.get_settings()["optlevel"],
-                "macrocycles": self.get_settings()["macrocycles"],
-                "constraints": self.constraints,
-                # this is set to a path if constraints should be used, otherwise None
-            }
-
-        if "xtb_rrho" in jobtype:
-            prepinfo["xtb_rrho"] = {
-                "gfnv": self.get_settings()["gfnv"],
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
-            }
-
-        return prepinfo
 
     def __macrocycle_opt(self, cut: bool):
         """

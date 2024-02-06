@@ -567,6 +567,7 @@ class OrcaProc(QmProc):
 
         if "composite" not in functype:
             # try to apply gcp if basis set available
+            # TODO - extend this
             gcp_keywords = {
                 "minis": "MINIS",
                 "sv": "SV",

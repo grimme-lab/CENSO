@@ -7,13 +7,11 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
 )
-from ..utilities import DfaHelper
-from ..utilities import print, timeit, format_data
+from ..utilities import print, format_data
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
