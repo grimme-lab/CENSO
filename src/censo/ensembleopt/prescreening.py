@@ -53,7 +53,36 @@ class Prescreening(EnsembleOptimizer):
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
         elif not self.get_settings().get("implicit", False):
-            jobtype = ["xtb_gsolv", "sp"]
+            jobtype = ["xtb_gsolv"]
+
+            # Compile all information required for the preparation of input files in parallel execution step
+            prepinfo = self.setup_prepinfo(jobtype)
+
+            # compute results
+            # for structure of results from handler.execute look there
+            results, failed = execute(
+                self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
+                prepinfo,
+                jobtype,
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
+
+            # Remove failed conformers
+            self.ensemble.remove_conformers(failed)
+
+            # update results for each conformer
+            for conf in self.ensemble.conformers:
+                # store results of single jobs for each conformer
+                conf.results.setdefault(
+                    self._name, {}).update(results[id(conf)])
+
+            jobtype = ["sp"]
         else:
             jobtype = ["gsolv"]
 
