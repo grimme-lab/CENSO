@@ -138,14 +138,10 @@ class EnsembleOptimizer(CensoPart):
         return prepinfo
 
     def print_update(self) -> None:
-        print("\n\n")
-
         print("Number of conformers:".ljust(DIGILEN // 2, " ") +
-              f"{len(self.ensemble.conformers)}")
+              f"{len(self.ensemble.conformers)}\n")
         print("Highest ranked conformer:".ljust(DIGILEN // 2, " ") +
-              f"{self.ensemble.conformers[0].name}")
-
-        print("\n\n")
+              f"{self.ensemble.conformers[0].name}\n")
 
     def print_comparison(self) -> None:
         headers = [

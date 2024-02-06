@@ -254,10 +254,6 @@ class CensoPart:
         for line in lines:
             print(line)
 
-        # Print size of ensemble
-        print(f"Number of conformers:".ljust(DIGILEN // 2, " ") +
-              f"{len(self.ensemble.conformers)}\n")
-
     def write_json(self) -> None:
         """
         Writes the part's results to a json file.

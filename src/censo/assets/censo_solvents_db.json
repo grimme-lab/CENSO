@@ -561,7 +561,92 @@
             "thf"
         ]
     },
-    "xtb": {
+    "gbsa": {
+        "acetone": [
+            "propanone",
+            "acetone"
+        ],
+        "acetonitrile": [
+            "cyanomethane",
+            "acetonitrile"
+        ],
+        "aniline": [
+            "aniline"
+        ],
+        "benzaldehyde": [
+            "benzaldehyde"
+        ],
+        "benzene": [
+            "benzene"
+        ],
+        "chcl3": [
+            "chcl3"
+        ],
+        "ch2cl2": [
+            "ch2cl2"
+        ],
+        "ccl4": [
+            "ccl4"
+        ],
+        "cs2": [
+            "cs2"
+        ],
+        "dioxane": [
+            "dioxane"
+        ],
+        "dmf": [
+            "dmf"
+        ],
+        "dmso": [
+            "dmso"
+        ],
+        "ether": [
+            "ether"
+        ],
+        "ethanol": [
+            "ethanol"
+        ],
+        "ethylacetate": [
+            "ethylacetate"
+        ],
+        "furane": [
+            "furane"
+        ],
+        "hexadecane": [
+            "hexadecane"
+        ],
+        "hexane": [
+            "hexane"
+        ],
+        "h2o": [
+            "h2o"
+        ],
+        "water": [
+            "water"
+        ],
+        "methanol": [
+            "methanol"
+        ],
+        "nitromethane": [
+            "nitromethane"
+        ],
+        "thf": [
+            "thf"
+        ],
+        "toluene": [
+            "toluene"
+        ],
+        "octanol": [
+            "octanol"
+        ],
+        "woctanol": [
+            "woctanol"
+        ],
+        "phenol": [
+            "phenol"
+        ]
+    },
+    "alpb": {
         "acetone": [
             "propanone",
             "acetone"
