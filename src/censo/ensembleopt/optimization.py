@@ -366,7 +366,7 @@ class Optimization(EnsembleOptimizer):
                     )
                     # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
                 ):
-                    print(f"No longer considering {conf.name}.")
+                    print(f"No longer considering {conf}.")
 
                 # make sure that all the conformers, that are not converged but filtered out, are also removed
                 # from self.confs_nc
