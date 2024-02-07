@@ -36,11 +36,6 @@ class NMR(CensoPart):
         "basis_s": {"default": "def2-TZVP", "options": []},
         "sm_s": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "h_ref": {"default": "TMS", "options": ["TMS"]},
-        "c_ref": {"default": "TMS", "options": ["TMS"]},
-        "f_ref": {"default": "CFCl3", "options": ["CFCl3"]},
-        "si_ref": {"default": "TMS", "options": ["TMS"]},
-        "p_ref": {"default": "TMP", "options": ["TMP", "PH3"]},
         "grid": {"default": "high+", "options": GRIDOPTIONS},  # required
         "run": {"default": False},  # required
         "template": {"default": False},  # required
@@ -402,6 +397,12 @@ class NMR(CensoPart):
                 f.writelines(lines)
 
         print("\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file.")
+
+    def shieldings_weighting(self):
+        """
+        Calculate the population weighted shielding constants for the ensemble NMR spectrum.
+        """
+        pass
 
     def write_results(self) -> None:
         """

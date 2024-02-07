@@ -169,7 +169,7 @@ def print(*args, **kwargs):
 
 
 def format_data(
-    headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0
+        headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0, padding: int = 6
 ) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
@@ -207,14 +207,14 @@ def format_data(
 
     # add table header
     lines.append(
-        " ".join(f"{header:^{collen + 6}}" for header,
+        " ".join(f"{header:^{collen + padding}}" for header,
                  collen in collens.items())
     )
     lines[0] += "\n"
     if units is not None:
         lines.append(
             " ".join(
-                f"{unit:^{collen + 6}}" for unit, collen in zip(units, collens.values())
+                f"{unit:^{collen + padding}}" for unit, collen in zip(units, collens.values())
             )
         )
         lines[1] += "\n"
@@ -233,7 +233,7 @@ def format_data(
     for row in rows:
         lines.append(
             " ".join(
-                f"{row:^{collen + 6}}" for row, collen in zip(row, collens.values())
+                f"{row:^{collen + padding}}" for row, collen in zip(row, collens.values())
             )
         )
         lines[-1] += "\n"
