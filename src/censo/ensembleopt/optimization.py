@@ -117,11 +117,11 @@ class Optimization(EnsembleOptimizer):
 
             if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
+                    f"\nOnly one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
-            print("Macrocycle optimization turned off.")
+            print("\nMacrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
 
             # run optimizations using xtb as driver
@@ -239,12 +239,13 @@ class Optimization(EnsembleOptimizer):
         ncyc = 0
         rrho_done = False
         print(
-            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
+            f"\nOptimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         print(f"NCYC: {ncyc}")
         nconv = 0
         ninit = len(self.confs_nc)
         while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
+            print("\n")
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
@@ -340,6 +341,7 @@ class Optimization(EnsembleOptimizer):
                 nconv += 1
 
             if cut:
+                print("\n")
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
                 # threshold increase based on number of converged conformers
@@ -391,6 +393,7 @@ class Optimization(EnsembleOptimizer):
         """
         formatted write of part results (optional)
         """
+        print("\n")
         # column headers
         headers = [
             "CONF#",

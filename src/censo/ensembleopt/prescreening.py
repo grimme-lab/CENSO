@@ -129,6 +129,7 @@ class Prescreening(EnsembleOptimizer):
         self.write_results()
 
         if cut:
+            print("\n")
             # update conformers with threshold
             threshold = self.get_settings()["threshold"] / AU2KCAL
 

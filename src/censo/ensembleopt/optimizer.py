@@ -144,6 +144,8 @@ class EnsembleOptimizer(CensoPart):
               f"{self.ensemble.conformers[0].name}\n")
 
     def print_comparison(self) -> None:
+        print("\n")
+
         headers = [
             "CONF#"
         ]
