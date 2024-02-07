@@ -12,6 +12,7 @@ from ..params import (
 )
 from ..utilities import (
     format_data,
+    print
 )
 from ..logging import setup_logger
 

@@ -12,6 +12,7 @@ from .params import (
     OMPMAX,
 )
 from .logging import setup_logger
+from .utilities import print
 
 logger = setup_logger(__name__)
 

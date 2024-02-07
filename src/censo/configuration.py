@@ -5,7 +5,7 @@ from argparse import Namespace
 
 from .params import CENSORCNAME, ASSETS_PATH, USER_ASSETS_PATH
 from .qm_processor import QmProc
-from .utilities import DfaHelper, SolventHelper
+from .utilities import DfaHelper, SolventHelper, print
 
 parts = {}
 

@@ -245,7 +245,6 @@ class Optimization(EnsembleOptimizer):
         nconv = 0
         ninit = len(self.confs_nc)
         while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
-            print("\n")
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
@@ -387,7 +386,7 @@ class Optimization(EnsembleOptimizer):
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
-            print(f"NCYC: {ncyc}")
+            print(f"\nNCYC: {ncyc}")
 
     def write_results(self) -> None:
         """
@@ -467,6 +466,7 @@ class Optimization(EnsembleOptimizer):
         """
         writes information about the current state of the ensemble in form of a table
         """
+        print("\n")
         # Define headers for the table
         headers = [
             "CONF#",

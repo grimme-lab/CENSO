@@ -162,6 +162,7 @@ class Screening(Prescreening):
 
         Generates NO csv file. All info is included in the file written in write_results2.
         """
+        print("\n")
         # PART (1) of writing
         # column headers
         headers = [

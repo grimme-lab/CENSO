@@ -5,7 +5,8 @@ from ..utilities import (
     timeit,
     format_data,
     DfaHelper,
-    SolventHelper
+    SolventHelper,
+    print
 )
 from ..logging import setup_logger
 
