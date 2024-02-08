@@ -154,7 +154,7 @@ class EnsembleOptimizer(CensoPart):
         parts = list(self.ensemble.conformers[0].results.keys())
 
         headers.extend(
-            [f"ΔGtot ({part})" for part in parts]
+            [f"ΔGtot {part}" for part in parts]
         )
 
         # column units

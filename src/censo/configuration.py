@@ -102,8 +102,15 @@ def read_rcfile(path: str) -> dict[str, dict[str, any]]:
 
 def write_rcfile(path: str) -> None:
     """
-    write new configuration file with default settings into file at 'path'
-    also reads program paths from preexisting configuration file or tries to determine the paths automatically
+    Write new configuration file with default settings into file at 'path'.
+    Also reads program paths from preexisting configuration file or tries to 
+    determine the paths automatically.
+
+    Args:
+        path (str): Path to the new configuration file.
+
+    Returns:
+        None
     """
     # what to do if there is an existing configuration file
     external_paths = None

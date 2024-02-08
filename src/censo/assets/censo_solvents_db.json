@@ -181,7 +181,9 @@
             "acetone"
         ],
         "acetonitrile": [
-            "acetonitrile"
+            "mecn",
+            "acetonitrile",
+            "cyanomethane"
         ],
         "acetophenone": [
             "acetophenone"
@@ -250,7 +252,8 @@
             "chlorobenzene"
         ],
         "chloroform": [
-            "chloroform"
+            "chloroform",
+            "chcl3"
         ],
         "a-chlorotoluene": [
             "a-chlorotoluene"
@@ -271,7 +274,9 @@
             "cyclohexanone"
         ],
         "mecn": [
-            "mecn"
+            "mecn",
+            "acetonitrile",
+            "cyanomethane"
         ],
         "ccl4": [
             "ccl4"
@@ -355,7 +360,6 @@
             "ethanethiol"
         ],
         "ethanol": [
-            "c2h5oh",
             "ethanol"
         ],
         "ethyl ethanoate": [
@@ -479,7 +483,7 @@
             "propanal"
         ],
         "propanoic acid": [
-            "propanoic acid"
+            "propanoic_acid"
         ],
         "propanonitrile": [
             "propanonitrile"
@@ -534,7 +538,7 @@
             "water"
         ],
         "xylene (mixture)": [
-            "xylene (mixture)"
+            "xylene_mix"
         ],
         "m-xylene": [
             "m-xylene"
@@ -567,8 +571,9 @@
             "acetone"
         ],
         "acetonitrile": [
-            "cyanomethane",
-            "acetonitrile"
+            "mecn",
+            "acetonitrile",
+            "cyanomethane"
         ],
         "aniline": [
             "aniline"
@@ -580,6 +585,7 @@
             "benzene"
         ],
         "chcl3": [
+            "chloroform",
             "chcl3"
         ],
         "ch2cl2": [
@@ -640,7 +646,8 @@
             "octanol"
         ],
         "woctanol": [
-            "woctanol"
+            "woctanol",
+            "wet_octanol"
         ],
         "phenol": [
             "phenol"
@@ -665,10 +672,12 @@
             "benzene"
         ],
         "chcl3": [
+            "chloroform",
             "chcl3"
         ],
         "ch2cl2": [
-            "ch2cl2"
+            "ch2cl2",
+            "dcm"
         ],
         "ccl4": [
             "ccl4"
@@ -703,11 +712,9 @@
         "hexane": [
             "hexane"
         ],
-        "h2o": [
-            "h2o"
-        ],
         "water": [
-            "water"
+            "water",
+            "h2o"
         ],
         "methanol": [
             "methanol"
@@ -725,7 +732,8 @@
             "octanol"
         ],
         "woctanol": [
-            "woctanol"
+            "woctanol",
+            "wet_octanol"
         ],
         "phenol": [
             "phenol"
@@ -741,6 +749,7 @@
             "acetone"
         ],
         "acetonitrile": [
+            "cyanomethane",
             "acetonitrile"
         ],
         "ammonia": [
@@ -753,7 +762,8 @@
             "chloroform"
         ],
         "ch2cl2": [
-            "ch2cl2"
+            "ch2cl2",
+            "dcm"
         ],
         "ccl4": [
             "ccl4"
@@ -792,97 +802,128 @@
     "cosmors": {
         "propanone_c0": [
             "acetone",
+            "propanone",
             "propanone_c0"
         ],
         "chcl3_c0": [
             "chloroform",
             "trichloromethane",
+            "chcl3",
             "chcl3_c0"
         ],
         "acetonitrile_c0": [
+            "acetonitrile",
+            "mecn",
+            "cyanomethane",
             "acetonitrile_c0"
         ],
         "ch2cl2_c0": [
+            "ch2cl2",
             "ch2cl2_c0"
         ],
         "dimethylsulfoxide_c0": [
+            "dimethylsulfoxide",
             "dimethylsulfoxide_c0"
         ],
         "h2o_c0": [
+            "h2o",
             "h2o_c0"
         ],
         "methanol_c0": [
+            "methanol",
             "methanol_c0"
         ],
         "thf_c0": [
+            "thf",
             "thf_c0"
         ],
         "toluene_c0": [
-            "toluene_c0"
+            "toluene_c0",
+            "toluene"
         ],
         "1-octanol_c0": [
-            "1-octanol_c0"
+            "1-octanol_c0",
+            "1-octanol"
         ],
         "woctanol": [
-            "woctanol"
+            "woctanol",
+            "wet_octanol"
         ],
         "n-hexadecane_c0": [
-            "n-hexadecane_c0"
+            "n-hexadecane_c0",
+            "n-hexadecane"
         ],
         "dimethylformamide_c0": [
-            "dimethylformamide_c0"
+            "dimethylformamide_c0",
+            "dimethylformamide"
         ],
         "aniline_c0": [
-            "aniline_c0"
+            "aniline_c0",
+            "aniline"
         ],
         "cyclohexane_c0": [
-            "cyclohexane_c0"
+            "cyclohexane_c0",
+            "cyclohexane"
         ],
         "ccl4_c0": [
-            "ccl4_c0"
+            "ccl4_c0",
+            "ccl4"
         ],
         "diethylether_c0": [
-            "diethylether_c0"
+            "diethylether_c0",
+            "diethylether"
         ],
         "ethanol_c0": [
-            "ethanol_c0"
+            "ethanol_c0",
+            "ethanol"
         ],
         "hexane_c0": [
-            "hexane_c0"
+            "hexane_c0",
+            "hexane"
         ],
         "nitromethane_c0": [
-            "nitromethane_c0"
+            "nitromethane_c0",
+            "nitromethane"
         ],
         "benzaldehyde_c0": [
+            "benzaldehyde",
             "benzaldehyde_c0"
         ],
         "benzene_c0": [
+            "benzene",
             "benzene_c0"
         ],
         "cs2_c0": [
+            "cs2",
             "cs2_c0"
         ],
         "dioxane_c0": [
+            "dioxane",
+            "1,4-dioxane",
             "dioxane_c0"
         ],
         "ethylacetate_c0": [
-            "ethylacetate_c0"
+            "ethylacetate_c0",
+            "ethylacetate"
         ],
         "furane_c0": [
+            "furane",
             "furane_c0"
         ],
         "phenol_c0": [
-            "phenol_c0"
+            "phenol_c0",
+            "phenol"
         ],
         "1,2-dichloroethane_c0": [
-            "1,2-dichloroethane_c0"
+            "1,2-dichloroethane_c0",
+            "1,2-dichloroethane"
         ]
     },
     "dcosmors": {
         "acetonitrile": [
-            "methyl cyanide",
             "cyanomethane",
-            "acetonitrile"
+            "acetonitrile",
+            "mecn"
         ],
         "aniline": [
             "aminobenzene",
@@ -896,6 +937,7 @@
             "ccl4"
         ],
         "chcl3": [
+            "chloroform",
             "chcl3"
         ],
         "cyclohexane": [
@@ -911,7 +953,8 @@
             "ethanol"
         ],
         "h2o": [
-            "h2o"
+            "h2o",
+            "water"
         ],
         "hexadecane": [
             "hexadecane"
@@ -938,7 +981,8 @@
             "toluene"
         ],
         "wet-octanol": [
-            "wet-octanol"
+            "wet_octanol",
+            "woctanol"
         ]
     }
 }
