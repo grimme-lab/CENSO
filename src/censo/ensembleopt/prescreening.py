@@ -22,6 +22,8 @@ logger = setup_logger(__name__)
 class Prescreening(EnsembleOptimizer):
     alt_name = "part0"
 
+    _grid = "low"
+
     _options = {
         "threshold": {"default": 4.0, "range": [1.0, 10.0]},
         "func": {"default": "pbe-d4", "options": []},

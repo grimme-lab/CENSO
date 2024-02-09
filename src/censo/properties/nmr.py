@@ -23,6 +23,8 @@ logger = setup_logger(__name__)
 class NMR(CensoPart):
     alt_name = "part4"
 
+    _grid = "high+"
+
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
     _options = {
@@ -36,10 +38,8 @@ class NMR(CensoPart):
         "basis_s": {"default": "def2-TZVP", "options": []},
         "sm_s": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "grid": {"default": "high+", "options": GRIDOPTIONS},  # required
         "run": {"default": False},  # required
         "template": {"default": False},  # required
-        "gcp": {"default": True},  # required
         "couplings": {"default": True},
         "shieldings": {"default": True},
         "h_active": {"default": True},
@@ -203,11 +203,11 @@ class NMR(CensoPart):
                 "func_type": DfaHelper.get_type(self.get_settings()["func_s"]),
                 "disp": DfaHelper.get_disp(self.get_settings()["func_s"]),
                 "basis": self.get_settings()["basis_s"],
-                "grid": self.get_settings()["grid"],
+                "grid": "high+",  # hardcoded grid settings
                 "template": self.get_settings()["template"],
                 # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
                 # while the other functional isn't
-                "gcp": self.get_settings()["gcp"],
+                "gcp": True,  # by default GCP should always be used if possible
                 "sm": self.get_settings()["sm_s"],
                 "h_active": self.get_settings()["h_active"],
                 "c_active": self.get_settings()["c_active"],
@@ -235,9 +235,9 @@ class NMR(CensoPart):
                     "func_type": DfaHelper.get_type(self.get_settings()[f"func{ending}"]),
                     "disp": DfaHelper.get_disp(self.get_settings()[f"func{ending}"]),
                     "basis": self.get_settings()[f"basis{ending}"],
-                    "grid": self.get_settings()["grid"],
+                    "grid": "high+",
                     "template": self.get_settings()["template"],
-                    "gcp": self.get_settings()["gcp"],
+                    "gcp": True,
                     "sm": self.get_settings()[f"sm{ending}"],
                     "h_active": self.get_settings()["h_active"],
                     "c_active": self.get_settings()["c_active"],

@@ -314,6 +314,7 @@ class OrcaProc(QmProc):
         },
     }
 
+    # NOTE: this is currently not functionally used but could be used as a guideline
     __req_settings = {
         **{
             "sp": [
@@ -589,10 +590,10 @@ class OrcaProc(QmProc):
         # add job keyword for geometry optimizations
         # with ANCOPT
         if jobtype == "xtb_opt":
-            indict["main"].append("ENGRAD")
+            indict["main"].extend(["ENGRAD", "tightSCF"])
         # for standard geometry optimization
         elif jobtype == "opt":
-            indict["main"].append("OPT")
+            indict["main"].extend(["OPT", "tightSCF"])
 
         return indict
 

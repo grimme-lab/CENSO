@@ -26,6 +26,8 @@ logger = setup_logger(__name__)
 class Screening(Prescreening):
     alt_name = "part1"
 
+    _grid = "low+"
+
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 

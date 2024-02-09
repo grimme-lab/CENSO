@@ -20,6 +20,8 @@ logger = setup_logger(__name__)
 class Refinement(Screening):
     alt_name = "part3"
 
+    _grid = "high+"
+
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
@@ -30,9 +32,7 @@ class Refinement(Screening):
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "grid": {"default": "high+", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "implicit": {"default": True},
         "template": {"default": False},
     }

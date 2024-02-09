@@ -142,8 +142,8 @@ class SolventHelper:
         Returns:
             str | None: The solvent model keyword or None if not found.
         """
-        for keyword, names in cls._solv_dict[sm].items():
-            if name in names:
+        for keyword, names in cls._solv_dict[sm.lower()].items():
+            if name.lower() in names:
                 return keyword
         return None
 

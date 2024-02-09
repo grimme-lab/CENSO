@@ -17,6 +17,7 @@ class EnsembleOptimizer(CensoPart):
     """
     Boilerplate class for all ensemble optimization steps.
     """
+    _grid = ""
 
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
@@ -76,9 +77,9 @@ class EnsembleOptimizer(CensoPart):
                 "disp": DfaHelper.get_disp(
                     self.get_settings()["func"]),
                 "basis": self.get_settings()["basis"],
-                "grid": self.get_settings()["grid"],
+                "grid": self._grid,
                 "template": self.get_settings()["template"],
-                "gcp": self.get_settings()["gcp"],
+                "gcp": True,
             }
 
             # Add the solvent key if a solvent model exists in the part settings
@@ -119,9 +120,9 @@ class EnsembleOptimizer(CensoPart):
                 "disp": DfaHelper.get_disp(
                     self.get_settings()["func"]),
                 "basis": self.get_settings()["basis"],
-                "grid": self.get_settings()["grid"],
+                "grid": self._grid,
                 "template": self.get_settings()["template"],
-                "gcp": self.get_settings()["gcp"],
+                "gcp": True,
                 "optcycles": self.get_settings()["optcycles"],
                 "hlow": self.get_settings()["hlow"],
                 "optlevel": self.get_settings()["optlevel"],

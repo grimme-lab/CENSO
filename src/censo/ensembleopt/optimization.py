@@ -30,6 +30,8 @@ class Optimization(EnsembleOptimizer):
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
+    _grid = "high"
+
     _options = {
         "optcycles": {"default": 8, "range": [1, 10]},
         "maxcyc": {"default": 200, "range": [10, 1000]},
@@ -54,9 +56,7 @@ class Optimization(EnsembleOptimizer):
                 "extreme",
             ],
         },
-        "grid": {"default": "high", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "macrocycles": {"default": True},
         "crestcheck": {"default": False},
         "template": {"default": False},
