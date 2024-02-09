@@ -307,7 +307,7 @@ class OrcaProc(QmProc):
             "high+": ["grid5", "nofinalgrid", "scfconv7"],
         },
         True: {
-            "low": ["DEFGRID2", "loosescf"],
+            "low": ["DEFGRID1", "loosescf"],
             "low+": ["DEFGRID2", "scfconv6"],
             "high": ["DEFGRID2", "scfconv7"],
             "high+": ["DEFGRID2", "scfconv7"],
