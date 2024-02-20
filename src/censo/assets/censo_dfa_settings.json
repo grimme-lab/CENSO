@@ -26,560 +26,222 @@
             "tm": "pbeh-3c",
             "orca": "pbeh-3c",
             "disp": "composite",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "composite_hybrid"
         },
         "b97-3c": {
             "tm": "b97-3c",
             "orca": "b97-3c",
             "disp": "composite",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "composite_gga"
         },
         "r2scan-3c": {
             "tm": "r2scan-3c",
             "orca": "r2scan-3c",
             "disp": "composite",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "composite_mgga"
         },
         "pbe-novdw": {
             "tm": "pbe",
             "orca": "pbe",
             "disp": "novdw",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "pbe-d3": {
             "tm": "pbe",
             "orca": "pbe",
             "disp": "d3bj",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "pbe-d3(0)": {
             "tm": "pbe",
             "orca": "pbe",
             "disp": "d3(0)",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "pbe-d4": {
             "tm": "pbe",
             "orca": "pbe",
             "disp": "d4",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "pbe-nl": {
             "tm": "pbe",
             "orca": "",
             "disp": "nl",
-            "part": [
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "tpss-novdw": {
             "tm": "tpss",
             "orca": "tpss",
             "disp": "novdw",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "mgga"
         },
         "tpss-d3": {
             "tm": "tpss",
             "orca": "tpss",
             "disp": "d3bj",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "mgga"
         },
         "tpss-d3(0)": {
             "tm": "tpss",
             "orca": "tpss",
             "disp": "d3(0)",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "mgga"
         },
         "tpss-d4": {
             "tm": "tpss",
             "orca": "tpss",
             "disp": "d4",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "mgga"
         },
         "tpss-nl": {
             "tm": "tpss",
             "orca": "",
             "disp": "nl",
-            "part": [
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "mgga"
         },
         "revtpss-novdw": {
             "tm": "revtpss",
             "orca": "revTPSS",
             "disp": "novdw",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "mgga"
         },
         "b97-d3": {
             "tm": "b97-d",
             "orca": "b97-d3",
             "disp": "d3bj",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "b97-d3(0)": {
             "tm": "b97-d",
             "orca": "",
             "disp": "d3(0)",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "gga"
         },
         "kt1-novdw": {
             "tm": "kt1",
             "orca": "",
             "disp": "novdw",
-            "part": [
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "gga"
         },
         "kt2-novdw": {
             "tm": "kt2",
             "orca": "kt2",
             "disp": "novdw",
-            "part": [
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "gga"
         },
         "pbe0-novdw": {
             "tm": "pbe0",
             "orca": "pbe0",
             "disp": "novdw",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pbe0-d3": {
             "tm": "pbe0",
             "orca": "pbe0",
             "disp": "d3bj",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pbe0-d3(0)": {
             "tm": "pbe0",
             "orca": "pbe0",
             "disp": "d3(0)",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pbe0-d4": {
             "tm": "pbe0",
             "orca": "pbe0",
             "disp": "d4",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pbe0-nl": {
             "tm": "pbe0",
             "orca": "",
             "disp": "nl",
-            "part": [
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pw6b95-novdw": {
             "tm": "pw6b95",
             "orca": "pw6b95",
             "disp": "novdw",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pw6b95-d3": {
             "tm": "pw6b95",
             "orca": "pw6b95",
             "disp": "d3bj",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pw6b95-d3(0)": {
             "tm": "pw6b95",
             "orca": "pw6b95",
             "disp": "d3(0)",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "pw6b95-d4": {
             "tm": "pw6b95",
             "orca": "pw6b95",
             "disp": "d4",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "b3lyp-novdw": {
             "tm": "b3-lyp",
             "orca": "b3lyp",
             "disp": "novdw",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "b3lyp-d3": {
             "tm": "b3-lyp",
             "orca": "b3lyp",
             "disp": "d3bj",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "b3lyp-d3(0)": {
             "tm": "b3-lyp",
             "orca": "b3lyp",
             "disp": "d3(0)",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "b3lyp-d4": {
             "tm": "b3-lyp",
             "orca": "b3lyp",
             "disp": "d4",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "b3lyp-nl": {
             "tm": "b3-lyp",
             "orca": "b3lyp",
             "disp": "nl",
-            "part": [
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s",
-                "func_or",
-                "func_or_scf"
-            ],
             "type": "global_hybrid"
         },
         "wb97x-v": {
             "tm": "wb97x-v",
             "orca": "wb97x-v",
             "disp": "included",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "rs_hybrid"
         },
         "wb97x-d3": {
             "tm": "",
             "orca": "wb97x-d3",
             "disp": "included",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "rs_hybrid"
         },
         "wb97x-d3bj": {
             "tm": "",
             "orca": "wb97x-d3bj",
             "disp": "included",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "rs_hybrid"
         },
         "wb97x-d4": {
             "tm": "",
             "orca": "wb97x-d4",
             "disp": "included",
-            "part": [
-                "prescreening",
-                "screening",
-                "optimization",
-                "refinement",
-                "nmr_j",
-                "nmr_s"
-            ],
             "type": "rs_hybrid"
         },
         "dsd-blyp-d3": {
             "tm": "",
             "orca": "ri-dsd-blyp",
             "disp": "d3bj",
-            "part": [
-                "refinement",
-                "nmr_s"
-            ],
             "type": "double"
         }
     }

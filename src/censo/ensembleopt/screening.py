@@ -16,6 +16,7 @@ from ..params import (
     PROGS,
     GRIDOPTIONS,
     GFNOPTIONS,
+    PLENGTH
 )
 from ..utilities import print, format_data
 from ..logging import setup_logger
@@ -360,6 +361,39 @@ class Screening(Prescreening):
         ]
 
         lines = format_data(headers, rows, units=units)
+
+        # list the averaged free enthalpy of the ensemble
+        lines.append(
+            "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
+        )
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+        )
+        print("".ljust(int(PLENGTH), "-") + "\n")
+
+        # calculate averaged free enthalpy
+        avG = sum(
+            [
+                conf.results[self._name]["bmw"] *
+                conf.results[self._name]["gtot"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # calculate averaged free energy
+        avE = sum(
+            [
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["sp"]["energy"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1==\n"
+        )
+        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # Print everything
         for line in lines:
