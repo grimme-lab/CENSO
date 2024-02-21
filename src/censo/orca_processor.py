@@ -477,7 +477,8 @@ class OrcaProc(QmProc):
         indict = self.__prep_geom(
             indict, job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"])
 
-        indict = self.__prep_postgeom(job.prepinfo, indict, jobtype, orca5)
+        indict = self.__prep_postgeom(
+            job.prepinfo, indict, job.conf, jobtype, orca5)
 
         return indict
 
@@ -667,7 +668,7 @@ class OrcaProc(QmProc):
         return indict
 
     def __prep_postgeom(
-            self, prepinfo: dict[str, any], indict: OrderedDict, jobtype: str, orca5: bool
+            self, prepinfo: dict[str, any], indict: OrderedDict, conf: GeometryData, jobtype: str, orca5: bool
     ) -> OrderedDict:
         # Set NMR parameters
         if "nmr" in jobtype:
@@ -694,17 +695,12 @@ class OrcaProc(QmProc):
                 todo2.append("ssfc")
                 todo3["SpinSpinRThresh"] = ["8.0"]
 
+            nuclei = {
+                "Nuclei": ["="] + [",".join(i + 1 for i, atom in enumerate(conf.xyz) if atom["element"] in todo)] + ["{", ",".join(x for x in todo2), "}"]
+            }
+
             compiled = {
-                **{
-                    "Nuclei": [
-                        "=",
-                        "all",
-                        ",".join(element for element in todo),
-                        "{",
-                        ",".join(x for x in todo2),
-                        "}",
-                    ],
-                },
+                **nuclei,
                 **todo3
             }
 

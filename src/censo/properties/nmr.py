@@ -394,7 +394,7 @@ class NMR(CensoPart):
 
             # then: atom no.1 | atom no.2 | J12
             for (i, j), coupling in conf.results[self._name]["nmr"]["couplings"]:
-                lines.append(f"{i:4} {j:4} {coupling:.3f}\n")
+                lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
