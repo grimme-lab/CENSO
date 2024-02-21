@@ -372,7 +372,7 @@ class NMR(CensoPart):
                 f"{basis_geomopt}\n"
                 )
         """
-        # Write 'nmrprop.dat's
+        # Write 'nmrprop.dat's and coord files
         for conf in self.ensemble.conformers:
             confdir = os.path.join(self.ensemble.workdir,
                                    self._name, conf.name)
@@ -394,6 +394,11 @@ class NMR(CensoPart):
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
+                f.writelines(lines)
+
+            lines = conf.geom.tocoord()
+            logger.debug(f"Writing to {os.path.join(confdir, 'coord')}.")
+            with open(os.path.join(confdir, "coord"), "w") as f:
                 f.writelines(lines)
 
         print("\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file.")
