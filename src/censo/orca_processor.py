@@ -696,7 +696,7 @@ class OrcaProc(QmProc):
                 todo3["SpinSpinRThresh"] = ["8.0"]
 
             nuclei = {
-                "Nuclei": ["="] + [",".join(i + 1 for i, atom in enumerate(conf.xyz) if atom["element"] in todo)] + ["{", ",".join(x for x in todo2), "}"]
+                "Nuclei": ["="] + [",".join(f"{i + 1}" for i, atom in enumerate(conf.xyz) if atom["element"] in todo)] + ["{", ",".join(x for x in todo2), "}"]
             }
 
             compiled = {
