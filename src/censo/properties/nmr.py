@@ -275,10 +275,12 @@ class NMR(CensoPart):
     def gtot(self, conformer: MoleculeData) -> float:
         """
         Calculates the free enthalpy of the conformer. If any previous RRHO energy is found, use it in order of priority:
-            optimization -> screening
+            refinement -> optimization -> screening
         """
         if self.get_general_settings()["evaluate_rrho"]:
-            if "optimization" in conformer.results.keys():
+            if "refinement" in conformer.results.keys():
+                return conformer.results[self._name]["nmr"]["energy"] + conformer.results["refinement"]["xtb_rrho"]["energy"]
+            elif "optimization" in conformer.results.keys():
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["optimization"]["xtb_rrho"]["energy"]
             elif "screening" in conformer.results.keys():
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["screening"]["xtb_rrho"]["energy"]
@@ -396,6 +398,7 @@ class NMR(CensoPart):
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
                 f.writelines(lines)
 
+            # Write coord files
             lines = conf.geom.tocoord()
             logger.debug(f"Writing to {os.path.join(confdir, 'coord')}.")
             with open(os.path.join(confdir, "coord"), "w") as f:
