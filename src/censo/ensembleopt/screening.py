@@ -4,7 +4,7 @@ Additionally to part0 it is also possible to calculate gsolv implicitly and incl
 """
 import os
 from functools import reduce
-from math import isclose, exp
+from math import exp
 from statistics import stdev
 
 from ..datastructure import MoleculeData
@@ -14,12 +14,12 @@ from ..params import (
     AU2KCAL,
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
+    PLENGTH
 )
-from ..utilities import DfaHelper, setup_logger
-from ..utilities import print, timeit, format_data
+from ..utilities import print, format_data
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -27,13 +27,15 @@ logger = setup_logger(__name__)
 class Screening(Prescreening):
     alt_name = "part1"
 
+    _grid = "low+"
+
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 3.5, "range": [0.75, 7.5]},
-        "func": {"default": "r2scan-3c", "options": DfaHelper.find_func("screening")},
-        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func": {"default": "r2scan-3c", "options": []},
+        "basis": {"default": "def2-TZVP", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
@@ -46,9 +48,7 @@ class Screening(Prescreening):
 
     _settings = {}
 
-    @timeit
-    # @CensoPart._create_dir - not required here because super().run() already does this
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -57,7 +57,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().run(cut=cut)
+        super().optimize(cut=cut)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -106,7 +106,7 @@ class Screening(Prescreening):
                 print(
                     f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
-                # update the conformer list in ensemble (remove conf if below threshold)
+                # update the conformer list in ensemble (remove confs if below threshold)
                 for confname in self.ensemble.update_conformers(self.grrho, threshold):
                     print(f"No longer considering {confname}.")
 
@@ -120,11 +120,6 @@ class Screening(Prescreening):
 
             # second 'write_results' for the updated sorting with RRHO contributions
             self.write_results2()
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
-        # DONE
 
     def gsolv(self, conf: MoleculeData) -> float:
         """
@@ -170,6 +165,7 @@ class Screening(Prescreening):
 
         Generates NO csv file. All info is included in the file written in write_results2.
         """
+        print("\n")
         # PART (1) of writing
         # column headers
         headers = [
@@ -365,6 +361,39 @@ class Screening(Prescreening):
         ]
 
         lines = format_data(headers, rows, units=units)
+
+        # list the averaged free enthalpy of the ensemble
+        lines.append(
+            "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
+        )
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+        )
+        print("".ljust(int(PLENGTH), "-") + "\n")
+
+        # calculate averaged free enthalpy
+        avG = sum(
+            [
+                conf.results[self._name]["bmw"] *
+                conf.results[self._name]["gtot"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # calculate averaged free energy
+        avE = sum(
+            [
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["sp"]["energy"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1==\n"
+        )
+        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # Print everything
         for line in lines:

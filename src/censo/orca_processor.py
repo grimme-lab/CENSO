@@ -1,12 +1,13 @@
 """
 Contains OrcaProc class for calculating ORCA related properties of conformers.
 """
-from .utilities import od_insert, setup_logger
 import os
 import shutil
 from collections import OrderedDict
 from functools import reduce
 
+from .utilities import od_insert
+from .logging import setup_logger
 from .datastructure import GeometryData, ParallelJob
 from .params import (
     CODING,
@@ -306,13 +307,14 @@ class OrcaProc(QmProc):
             "high+": ["grid5", "nofinalgrid", "scfconv7"],
         },
         True: {
-            "low": ["DEFGRID2", "loosescf"],
+            "low": ["DEFGRID1", "loosescf"],
             "low+": ["DEFGRID2", "scfconv6"],
             "high": ["DEFGRID2", "scfconv7"],
             "high+": ["DEFGRID2", "scfconv7"],
         },
     }
 
+    # NOTE: this is currently not functionally used but could be used as a guideline
     __req_settings = {
         **{
             "sp": [
@@ -475,7 +477,8 @@ class OrcaProc(QmProc):
         indict = self.__prep_geom(
             indict, job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"])
 
-        indict = self.__prep_postgeom(job.prepinfo, indict, jobtype, orca5)
+        indict = self.__prep_postgeom(
+            job.prepinfo, indict, job.conf, jobtype, orca5)
 
         return indict
 
@@ -566,6 +569,7 @@ class OrcaProc(QmProc):
 
         if "composite" not in functype:
             # try to apply gcp if basis set available
+            # TODO - extend this
             gcp_keywords = {
                 "minis": "MINIS",
                 "sv": "SV",
@@ -587,10 +591,10 @@ class OrcaProc(QmProc):
         # add job keyword for geometry optimizations
         # with ANCOPT
         if jobtype == "xtb_opt":
-            indict["main"].append("ENGRAD")
+            indict["main"].extend(["ENGRAD", "tightSCF"])
         # for standard geometry optimization
         elif jobtype == "opt":
-            indict["main"].append("OPT")
+            indict["main"].extend(["OPT", "tightSCF"])
 
         return indict
 
@@ -664,7 +668,7 @@ class OrcaProc(QmProc):
         return indict
 
     def __prep_postgeom(
-            self, prepinfo: dict[str, any], indict: OrderedDict, jobtype: str, orca5: bool
+            self, prepinfo: dict[str, any], indict: OrderedDict, conf: GeometryData, jobtype: str, orca5: bool
     ) -> OrderedDict:
         # Set NMR parameters
         if "nmr" in jobtype:
@@ -691,17 +695,12 @@ class OrcaProc(QmProc):
                 todo2.append("ssfc")
                 todo3["SpinSpinRThresh"] = ["8.0"]
 
+            nuclei = {
+                "Nuclei": ["="] + [",".join(f"{i + 1}" for i, atom in enumerate(conf.xyz) if atom["element"] in todo)] + ["{", ",".join(x for x in todo2), "}"]
+            }
+
             compiled = {
-                **{
-                    "Nuclei": [
-                        "=",
-                        "all",
-                        ",".join(element for element in todo),
-                        "{",
-                        ",".join(x for x in todo2),
-                        "}",
-                    ],
-                },
+                **nuclei,
                 **todo3
             }
 

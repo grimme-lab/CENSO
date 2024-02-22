@@ -10,7 +10,7 @@ from .datastructure import MoleculeData, ParallelJob
 from .params import OMPMIN, OMPMAX
 from .procfact import ProcessorFactory
 from .qm_processor import QmProc
-from .utilities import setup_logger
+from .logging import setup_logger
 
 logger = setup_logger(__name__)
 

@@ -7,13 +7,13 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
+    PLENGTH
 )
-from ..utilities import DfaHelper, setup_logger
-from ..utilities import print, timeit, format_data
+from ..utilities import print, format_data
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -21,31 +21,29 @@ logger = setup_logger(__name__)
 class Refinement(Screening):
     alt_name = "part3"
 
+    _grid = "high+"
+
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 0.95, "range": [0.01, 0.99]},
-        "func": {"default": "wb97x-d3", "options": DfaHelper.find_func("refinement")},
-        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func": {"default": "wb97x-d3", "options": []},
+        "basis": {"default": "def2-TZVP", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "grid": {"default": "high+", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "implicit": {"default": True},
         "template": {"default": False},
     }
 
     _settings = {}
 
-    @timeit
-    # @CensoPart._create_dir - not required here because Prescreening.run(self) already does this
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         """
-        Prescreening.run(self, cut=False)
+        Prescreening.optimize(self, cut=False)
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
@@ -80,7 +78,7 @@ class Refinement(Screening):
                 # Use values from optimization rrho
                 for conf in self.ensemble.conformers:
                     conf.results[self._name]["xtb_rrho"] = conf.results["optimization"]["xtb_rrho"]
-                    conf.results[self._name]["gtot"] = conf.results["optimization"]["gtot"]
+                    conf.results[self._name]["gtot"] = self.grrho(conf)
 
         # sort conformers list
         self.ensemble.conformers.sort(
@@ -102,11 +100,6 @@ class Refinement(Screening):
 
         # second 'write_results' for the updated sorting with RRHO contributions
         self.write_results2()
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
-        # DONE
 
     def write_results2(self) -> None:
         """
@@ -185,6 +178,39 @@ class Refinement(Screening):
         ]
 
         lines = format_data(headers, rows, units=units)
+
+        # list the averaged free enthalpy of the ensemble
+        lines.append(
+            "\nBoltzmann averaged free energy/enthalpy of ensemble (high level single-points):\n"
+        )
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+        )
+        print("".ljust(int(PLENGTH), "-") + "\n")
+
+        # calculate averaged free enthalpy
+        avG = sum(
+            [
+                conf.results[self._name]["bmw"] *
+                conf.results[self._name]["gtot"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # calculate averaged free energy
+        avE = sum(
+            [
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["sp"]["energy"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part3==\n"
+        )
+        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # Print everything
         for line in lines:

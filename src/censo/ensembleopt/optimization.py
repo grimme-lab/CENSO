@@ -4,37 +4,34 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 import os
 from functools import reduce
-from math import exp
 
+from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
-    SOLVENTS_DB,
+    PLENGTH
 )
-from ..part import CensoPart
 from ..utilities import (
     print,
-    timeit,
-    DfaHelper,
     format_data,
-    setup_logger,
-    mean_similarity,
 )
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class Optimization(CensoPart):
+class Optimization(EnsembleOptimizer):
     alt_name = "part2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+
+    _grid = "high"
 
     _options = {
         "optcycles": {"default": 8, "range": [1, 10]},
@@ -42,11 +39,8 @@ class Optimization(CensoPart):
         "threshold": {"default": 1.5, "range": [0.5, 5.0]},
         "hlow": {"default": 0.01, "range": [0.001, 0.1]},
         "gradthr": {"default": 0.01, "range": [0.01, 1.0]},
-        "func": {
-            "default": "r2scan-3c",
-            "options": DfaHelper.find_func("optimization"),
-        },
-        "basis": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func": {"default": "r2scan-3c", "options": []},
+        "basis": {"default": "def2-TZVP", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
@@ -63,9 +57,7 @@ class Optimization(CensoPart):
                 "extreme",
             ],
         },
-        "grid": {"default": "high", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "macrocycles": {"default": True},
         "crestcheck": {"default": False},
         "template": {"default": False},
@@ -84,9 +76,7 @@ class Optimization(CensoPart):
         # Attribute to store path to constraints file if used
         self.constraints = None
 
-    @timeit
-    @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -105,10 +95,6 @@ class Optimization(CensoPart):
             stopcycle = 200
         """
         # NOTE: (IMPORTANT) the following only uses xtb as driver (no native geometry optimizations)
-
-        # print instructions
-        self.print_info()
-
         # Check for constraint file
         if self.get_settings()["constrain"]:
             assert os.path.isfile(os.path.join(
@@ -132,11 +118,11 @@ class Optimization(CensoPart):
 
             if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
+                    f"\nOnly one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
-            print("Macrocycle optimization turned off.")
+            print("\nMacrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
 
             # run optimizations using xtb as driver
@@ -219,9 +205,6 @@ class Optimization(CensoPart):
         # write final results
         self.write_results()
 
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
     def grrho(self, conf: MoleculeData) -> float:
         """
         Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
@@ -241,45 +224,6 @@ class Optimization(CensoPart):
         except KeyError:
             return conf.results[self._name]["xtb_opt"]["energy"]
 
-    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, any]:
-        prepinfo = {jt: {} for jt in jobtype}
-
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
-        prepinfo["general"] = self.get_general_settings()
-
-        if "xtb_opt" in jobtype:
-            prepinfo["xtb_opt"] = {
-                "func_name": DfaHelper.get_name(
-                    self.get_settings()["func"], self.get_settings()["prog"]
-                ),
-                "func_type": DfaHelper.get_type(
-                    self.get_settings()["func"]),
-                "disp": DfaHelper.get_disp(
-                    self.get_settings()["func"]),
-                "basis": self.get_settings()["basis"],
-                "grid": self.get_settings()["grid"],
-                "template": self.get_settings()["template"],
-                "gcp": self.get_settings()["gcp"],
-                "sm": self.get_settings()["sm"],
-                "solvent_key_prog": SOLVENTS_DB.get(self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1],
-                "optcycles": self.get_settings()["optcycles"],
-                "hlow": self.get_settings()["hlow"],
-                "optlevel": self.get_settings()["optlevel"],
-                "macrocycles": self.get_settings()["macrocycles"],
-                "constraints": self.constraints,
-                # this is set to a path if constraints should be used, otherwise None
-            }
-
-        if "xtb_rrho" in jobtype:
-            prepinfo["xtb_rrho"] = {
-                "gfnv": self.get_settings()["gfnv"],
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
-            }
-
-        return prepinfo
-
     def __macrocycle_opt(self, cut: bool):
         """
         Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
@@ -296,7 +240,7 @@ class Optimization(CensoPart):
         ncyc = 0
         rrho_done = False
         print(
-            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
+            f"\nOptimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         print(f"NCYC: {ncyc}")
         nconv = 0
@@ -397,6 +341,7 @@ class Optimization(CensoPart):
                 nconv += 1
 
             if cut:
+                print("\n")
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
                 # threshold increase based on number of converged conformers
@@ -414,7 +359,7 @@ class Optimization(CensoPart):
                 # TODO - count removed conformers as converged?
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
-                self.ensemble.update_conformers(
+                for conf in self.ensemble.update_conformers(
                     self.grrho,
                     threshold,
                     additional_filter=lambda x: all(
@@ -422,7 +367,8 @@ class Optimization(CensoPart):
                         for gn in x.results[self._name]["xtb_opt"]["gncyc"]
                     )
                     # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
-                )
+                ):
+                    print(f"No longer considering {conf}.")
 
                 # make sure that all the conformers, that are not converged but filtered out, are also removed
                 # from self.confs_nc
@@ -437,16 +383,17 @@ class Optimization(CensoPart):
                         self.confs_nc.remove(conf)
 
             # Print out information about current state of the ensemble
-            self.print_update()
+            self.print_opt_update()
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
-            print(f"NCYC: {ncyc}")
+            print(f"\nNCYC: {ncyc}")
 
     def write_results(self) -> None:
         """
         formatted write of part results (optional)
         """
+        print("\n")
         # column headers
         headers = [
             "CONF#",
@@ -500,6 +447,39 @@ class Optimization(CensoPart):
         # Format everything into a table
         lines = format_data(headers, rows, units=units)
 
+        # list the averaged free enthalpy of the ensemble
+        lines.append(
+            "\nBoltzmann averaged free energy/enthalpy of ensemble on optimized geometries:\n"
+        )
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+        )
+        print("".ljust(int(PLENGTH), "-") + "\n")
+
+        # calculate averaged free enthalpy
+        avG = sum(
+            [
+                conf.results[self._name]["bmw"] *
+                conf.results[self._name]["gtot"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # calculate averaged free energy
+        avE = sum(
+            [
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["xtb_opt"]["energy"]
+                for conf in self.ensemble.conformers
+            ]
+        )
+
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2==\n"
+        )
+        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
+
         # Print everything
         for line in lines:
             print(line, flush=True, end="")
@@ -516,10 +496,11 @@ class Optimization(CensoPart):
         # Additionally, write the results of this part to a json file
         self.write_json()
 
-    def print_update(self) -> None:
+    def print_opt_update(self) -> None:
         """
         writes information about the current state of the ensemble in form of a table
         """
+        print("\n")
         # Define headers for the table
         headers = [
             "CONF#",

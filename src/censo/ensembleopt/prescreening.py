@@ -1,34 +1,33 @@
 import os
 
+from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import PLENGTH, AU2KCAL
 from ..params import (
     PROGS,
-    BASIS_SETS,
     GRIDOPTIONS,
     GFNOPTIONS,
-    SOLVENTS_DB,
 )
-from ..part import CensoPart
 from ..utilities import (
-    timeit,
     format_data,
-    DfaHelper,
-    setup_logger,
+    print
 )
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class Prescreening(CensoPart):
+class Prescreening(EnsembleOptimizer):
     alt_name = "part0"
+
+    _grid = "low"
 
     _options = {
         "threshold": {"default": 4.0, "range": [1.0, 10.0]},
-        "func": {"default": "pbe-d4", "options": DfaHelper.find_func("prescreening")},
-        "basis": {"default": "def2-SV(P)", "options": BASIS_SETS},
+        "func": {"default": "pbe-d4", "options": []},
+        "basis": {"default": "def2-SV(P)", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "grid": {"default": "low", "options": GRIDOPTIONS},
@@ -42,9 +41,7 @@ class Prescreening(CensoPart):
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
 
-    @timeit
-    @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def optimize(self, cut: bool = True) -> None:
         """
         first screening of the ensemble by doing single-point calculation on the input geometries,
         using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
@@ -52,9 +49,6 @@ class Prescreening(CensoPart):
 
         The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
         """
-        # print instructions
-        self.print_info()
-
         # set jobtype to pass to handler
         # TODO - it is not very nice to partially handle 'Screening' settings here
         if self.get_general_settings()["gas-phase"] or self.get_settings().get("implicit", False):
@@ -62,7 +56,36 @@ class Prescreening(CensoPart):
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
         elif not self.get_settings().get("implicit", False):
-            jobtype = ["xtb_gsolv", "sp"]
+            jobtype = ["xtb_gsolv"]
+
+            # Compile all information required for the preparation of input files in parallel execution step
+            prepinfo = self.setup_prepinfo(jobtype)
+
+            # compute results
+            # for structure of results from handler.execute look there
+            results, failed = execute(
+                self.ensemble.conformers,
+                self.dir,
+                self.get_settings()["prog"],
+                prepinfo,
+                jobtype,
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                omp=self.get_general_settings()["omp"],
+                maxcores=self.get_general_settings()["maxcores"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
+
+            # Remove failed conformers
+            self.ensemble.remove_conformers(failed)
+
+            # update results for each conformer
+            for conf in self.ensemble.conformers:
+                # store results of single jobs for each conformer
+                conf.results.setdefault(
+                    self._name, {}).update(results[id(conf)])
+
+            jobtype = ["sp"]
         else:
             jobtype = ["gsolv"]
 
@@ -106,66 +129,16 @@ class Prescreening(CensoPart):
             self.get_general_settings().get("temperature", 298.15), self._name
         )
 
-        # write results (analogous to deprecated print)
         self.write_results()
 
         if cut:
+            print("\n")
             # update conformers with threshold
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             # update the conformer list in ensemble (remove confs if below threshold)
             for confname in self.ensemble.update_conformers(self.gsolv, threshold):
                 print(f"No longer considering {confname}.")
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
-
-        # DONE
-
-    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
-        prepinfo = {jt: {} for jt in jobtype}
-
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
-        prepinfo["general"] = self.get_general_settings()
-
-        prepinfo["sp"] = {
-            "func_name": DfaHelper.get_name(
-                self.get_settings()["func"], self.get_settings()["prog"]
-            ),
-            "func_type": DfaHelper.get_type(
-                self.get_settings()["func"]),
-            "disp": DfaHelper.get_disp(
-                self.get_settings()["func"]),
-            "basis": self.get_settings()["basis"],
-            "grid": self.get_settings()["grid"],
-            "template": self.get_settings()["template"],
-            "gcp": self.get_settings()["gcp"],
-        }
-
-        # Add the solvent key if a solvent model exists in the part settings (this method is also used for Screening)
-        # NOTE: 'sm' in key catches also cases like NMR (sm_s and sm_j)
-        if any("sm" in key for key in self.get_settings().keys()):
-            prepinfo["sp"]["sm"] = self.get_settings()["sm"]
-            prepinfo["sp"]["solvent_key_prog"] = SOLVENTS_DB.get(
-                self.get_general_settings()["solvent"])[self.get_settings()["sm"]][1]
-
-        # TODO - this doesn't look very nice
-        if "xtb_gsolv" in jobtype:
-            # NOTE: [1] auto-selects replacement solvent (TODO - print warning!)
-            prepinfo["xtb_sp"] = {
-                "gfnv": self.get_settings()["gfnv"],
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
-            }
-
-        if "xtb_rrho" in jobtype:
-            prepinfo["xtb_rrho"] = {
-                "gfnv": self.get_settings()["gfnv"],
-                "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
-            }
-
-        return prepinfo
 
     def gsolv(self, conf: MoleculeData) -> float:
         """

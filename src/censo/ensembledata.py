@@ -8,14 +8,15 @@ import os
 from math import exp
 from collections.abc import Callable
 
-from .params import AU2J, KB, AU2KCAL, DESCR
+from .params import AU2J, KB, DESCR
 from .datastructure import MoleculeData
 from .utilities import (
     check_for_float,
     do_md5,
     t2x,
-    setup_logger,
+    print
 )
+from .logging import setup_logger
 
 logger = setup_logger(__name__)
 

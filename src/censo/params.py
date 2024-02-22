@@ -92,10 +92,6 @@ OMPMIN = 4
 
 OMPMAX = 32
 
-BASIS_SETS = {}
-
-SOLVENTS_DB = {}
-
 COSMORS_PARAM = {
     "12-normal": "BP_TZVP_C30_1201.ctd",
     "13-normal": "BP_TZVP_C30_1301.ctd",
@@ -130,73 +126,6 @@ qm_prepinfo = {
         "high+": ["-grid", "m5", "-scfconv", "7"],
     },
 }
-
-
-def load_dbs():
-    """
-    Load the basis sets and solvents lookup tables from JSON files.
-    """
-    global BASIS_SETS
-    global SOLVENTS_DB
-
-    with open(os.path.join(ASSETS_PATH, "basis_sets.json"), "r") as f:
-        BASIS_SETS = json.load(f)
-
-    with open(os.path.join(ASSETS_PATH, "censo_solvents_db.json"), "r") as f:
-        SOLVENTS_DB = json.load(f)
-
-
-def NMRRef_to_dict(self):
-    """Convert NMRRef data to a dict object"""
-    dict_ret = dict(
-        h_tm_shieldings=self.h_tm_shieldings,
-        c_tm_shieldings=self.c_tm_shieldings,
-        f_tm_shieldings=self.f_tm_shieldings,
-        si_tm_shieldings=self.si_tm_shieldings,
-        p_tm_shieldings=self.p_tm_shieldings,
-        h_orca_shieldings=self.h_orca_shieldings,
-        c_orca_shieldings=self.c_orca_shieldings,
-        f_orca_shieldings=self.f_orca_shieldings,
-        si_orca_shieldings=self.si_orca_shieldings,
-        p_orca_shieldings=self.p_orca_shieldings,
-    )
-    return dict_ret
-
-
-def dict_to_NMRRef(self, dictionary):
-    """Convert dict object to NMRRef data"""
-    NmrRef_object = NmrRef()
-    NmrRef_object.h_tm_shieldings = dictionary.get(
-        "h_tm_shieldings", NmrRef_object.h_tm_shieldings
-    )
-    NmrRef_object.c_tm_shieldings = dictionary.get(
-        "c_tm_shieldings", NmrRef_object.c_tm_shieldings
-    )
-    NmrRef_object.f_tm_shieldings = dictionary.get(
-        "f_tm_shieldings", NmrRef_object.f_tm_shieldings
-    )
-    NmrRef_object.si_tm_shieldings = dictionary.get(
-        "si_tm_shieldings", NmrRef_object.si_tm_shieldings
-    )
-    NmrRef_object.p_tm_shieldings = dictionary.get(
-        "p_tm_shieldings", NmrRef_object.p_tm_shieldings
-    )
-    NmrRef_object.h_orca_shieldings = dictionary.get(
-        "h_orca_shieldings", NmrRef_object.h_orca_shieldings
-    )
-    NmrRef_object.c_orca_shieldings = dictionary.get(
-        "c_orca_shieldings", NmrRef_object.c_orca_shieldings
-    )
-    NmrRef_object.f_orca_shieldings = dictionary.get(
-        "f_orca_shieldings", NmrRef_object.f_orca_shieldings
-    )
-    NmrRef_object.si_orca_shieldings = dictionary.get(
-        "si_orca_shieldings", NmrRef_object.si_orca_shieldings
-    )
-    NmrRef_object.p_orca_shieldings = dictionary.get(
-        "p_orca_shieldings", NmrRef_object.p_orca_shieldings
-    )
-    return NmrRef_object
 
 
 # rotational entropy from symmetry

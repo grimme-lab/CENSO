@@ -3,9 +3,9 @@ import shutil
 import configparser
 from argparse import Namespace
 
-from .params import CENSORCNAME, load_dbs, ASSETS_PATH, USER_ASSETS_PATH
+from .params import CENSORCNAME, ASSETS_PATH, USER_ASSETS_PATH
 from .qm_processor import QmProc
-from .utilities import DfaHelper
+from .utilities import DfaHelper, SolventHelper, print
 
 parts = {}
 
@@ -30,14 +30,13 @@ def configure(rcpath: str = None, create_new: bool = False):
         else:
             censorc_path = rcpath
 
-    # TODO - Set up the logger
-
     # Set up the DFAHelper
     DfaHelper.set_dfa_dict(os.path.join(
         ASSETS_PATH, "censo_dfa_settings.json"))
 
-    # Load the lookup tables from the assets directory
-    load_dbs()
+    # Set up the SolventHelper
+    SolventHelper.set_solvent_dict(os.path.join(
+        ASSETS_PATH, "censo_solvents_db.json"))
 
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
@@ -103,8 +102,15 @@ def read_rcfile(path: str) -> dict[str, dict[str, any]]:
 
 def write_rcfile(path: str) -> None:
     """
-    write new configuration file with default settings into file at 'path'
-    also reads program paths from preexisting configuration file or tries to determine the paths automatically
+    Write new configuration file with default settings into file at 'path'.
+    Also reads program paths from preexisting configuration file or tries to 
+    determine the paths automatically.
+
+    Args:
+        path (str): Path to the new configuration file.
+
+    Returns:
+        None
     """
     # what to do if there is an existing configuration file
     external_paths = None

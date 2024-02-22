@@ -9,14 +9,12 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    BASIS_SETS,
-    GRIDOPTIONS,
-    SOLVENTS_DB,
     GFNOPTIONS,
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, setup_logger, format_data
+from ..utilities import print, timeit, DfaHelper, format_data, SolventHelper
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -24,28 +22,23 @@ logger = setup_logger(__name__)
 class NMR(CensoPart):
     alt_name = "part4"
 
+    _grid = "high+"
+
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
     _options = {
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
         "prog": {"default": "orca", "options": PROGS},  # required
-        "func_j": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_j")},
-        "basis_j": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func_j": {"default": "pbe0-d4", "options": []},
+        "basis_j": {"default": "def2-TZVP", "options": []},
         "sm_j": {"default": "smd", "options": __solv_mods},
-        "func_s": {"default": "pbe0-d4", "options": DfaHelper.find_func("nmr_s")},
-        "basis_s": {"default": "def2-TZVP", "options": BASIS_SETS},
+        "func_s": {"default": "pbe0-d4", "options": []},
+        "basis_s": {"default": "def2-TZVP", "options": []},
         "sm_s": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "h_ref": {"default": "TMS", "options": ["TMS"]},
-        "c_ref": {"default": "TMS", "options": ["TMS"]},
-        "f_ref": {"default": "CFCl3", "options": ["CFCl3"]},
-        "si_ref": {"default": "TMS", "options": ["TMS"]},
-        "p_ref": {"default": "TMP", "options": ["TMP", "PH3"]},
-        "grid": {"default": "high+", "options": GRIDOPTIONS},  # required
         "run": {"default": False},  # required
         "template": {"default": False},  # required
-        "gcp": {"default": True},  # required
         "couplings": {"default": True},
         "shieldings": {"default": True},
         "h_active": {"default": True},
@@ -62,7 +55,7 @@ class NMR(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
         """
@@ -82,14 +75,15 @@ class NMR(CensoPart):
 
         # Preselect conformers based on Boltzmann weight threshold, index -1 indicates to always use the most recently
         # calculated Boltzmann weight
-        preselection = False
-        if all(len(conf.bmws) > 0 for conf in self.ensemble.conformers):
-            self.ensemble.update_conformers(
-                lambda conf: conf.bmws[-1],
-                self.get_settings()["threshold_bmw"],
-                boltzmann=True,
-            )
-            preselection = True
+        if cut:
+            preselection = False
+            if all(len(conf.bmws) > 0 for conf in self.ensemble.conformers):
+                self.ensemble.update_conformers(
+                    lambda conf: conf.bmws[-1],
+                    self.get_settings()["threshold_bmw"],
+                    boltzmann=True,
+                )
+                preselection = True
 
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo()
@@ -159,18 +153,19 @@ class NMR(CensoPart):
         )
 
         # In case there was no ensemble optimization done before for preselection, cut down ensemble here
-        if not preselection:
-            self.ensemble.update_conformers(
-                lambda conf: conf.bmws[-1],
-                self.get_settings()["threshold_bmw"],
-                boltzmann=True,
-            )
+        if cut:
+            if not preselection:
+                self.ensemble.update_conformers(
+                    lambda conf: conf.bmws[-1],
+                    self.get_settings()["threshold_bmw"],
+                    boltzmann=True,
+                )
 
-            # Recalculate Boltzmann populations to be used by ANMR
-            self.ensemble.calc_boltzmannweights(
-                self.get_general_settings()["temperature"],
-                self._name
-            )
+                # Recalculate Boltzmann populations to be used by ANMR
+                self.ensemble.calc_boltzmannweights(
+                    self.get_general_settings()["temperature"],
+                    self._name
+                )
 
         # Generate files for ANMR
         self.__generate_anmr()
@@ -209,21 +204,23 @@ class NMR(CensoPart):
                 "func_type": DfaHelper.get_type(self.get_settings()["func_s"]),
                 "disp": DfaHelper.get_disp(self.get_settings()["func_s"]),
                 "basis": self.get_settings()["basis_s"],
-                "grid": self.get_settings()["grid"],
+                "grid": "high+",  # hardcoded grid settings
                 "template": self.get_settings()["template"],
                 # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
                 # while the other functional isn't
-                "gcp": self.get_settings()["gcp"],
+                "gcp": True,  # by default GCP should always be used if possible
                 "sm": self.get_settings()["sm_s"],
-                "solvent_key_prog": SOLVENTS_DB.get(
-                    self.get_general_settings()["solvent"]
-                )[self.get_settings()["sm_s"]][1],
                 "h_active": self.get_settings()["h_active"],
                 "c_active": self.get_settings()["c_active"],
                 "f_active": self.get_settings()["f_active"],
                 "si_active": self.get_settings()["si_active"],
                 "p_active": self.get_settings()["p_active"],
             }
+            # Only look up solvent if solvation is used
+            if not self.get_general_settings()["gas-phase"]:
+                prepinfo["nmr"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                    self.get_settings()["sm_s"], self.get_general_settings()["solvent"])
+                assert prepinfo["nmr"]["solvent_key_prog"] is not None
         else:
             todo = {
                 "_s": self.get_settings()["shieldings"],
@@ -239,19 +236,21 @@ class NMR(CensoPart):
                     "func_type": DfaHelper.get_type(self.get_settings()[f"func{ending}"]),
                     "disp": DfaHelper.get_disp(self.get_settings()[f"func{ending}"]),
                     "basis": self.get_settings()[f"basis{ending}"],
-                    "grid": self.get_settings()["grid"],
+                    "grid": "high+",
                     "template": self.get_settings()["template"],
-                    "gcp": self.get_settings()["gcp"],
+                    "gcp": True,
                     "sm": self.get_settings()[f"sm{ending}"],
-                    "solvent_key_prog": SOLVENTS_DB.get(
-                        self.get_general_settings()["solvent"]
-                    )[self.get_settings()[f"sm{ending}"]][1],
                     "h_active": self.get_settings()["h_active"],
                     "c_active": self.get_settings()["c_active"],
                     "f_active": self.get_settings()["f_active"],
                     "si_active": self.get_settings()["si_active"],
                     "p_active": self.get_settings()["p_active"],
                 }
+            # Only look up solvent if solvation is used
+            if not self.get_general_settings()["gas-phase"]:
+                prepinfo[f"nmr{ending}"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                    self.get_settings()[f"sm{ending}"], self.get_general_settings()["solvent"])
+                assert prepinfo[f"nmr{ending}"]["solvent_key_prog"] is not None
 
         return prepinfo
 
@@ -265,18 +264,24 @@ class NMR(CensoPart):
 
         prepinfo["xtb_rrho"] = {
             "gfnv": self.get_settings()["gfnv"],
-            "solvent_key_xtb": SOLVENTS_DB.get(self.get_general_settings()["solvent"])["xtb"][1],
         }
+        # Only lookup solvent if solvation should be used
+        if not self.get_general_settings()["gas-phase"]:
+            prepinfo["xtb_rrho"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
+            assert prepinfo["xtb_rrho"]["solvent_key_prog"] is not None
 
         return prepinfo
 
     def gtot(self, conformer: MoleculeData) -> float:
         """
         Calculates the free enthalpy of the conformer. If any previous RRHO energy is found, use it in order of priority:
-            optimization -> screening
+            refinement -> optimization -> screening
         """
         if self.get_general_settings()["evaluate_rrho"]:
-            if "optimization" in conformer.results.keys():
+            if "refinement" in conformer.results.keys():
+                return conformer.results[self._name]["nmr"]["energy"] + conformer.results["refinement"]["xtb_rrho"]["energy"]
+            elif "optimization" in conformer.results.keys():
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["optimization"]["xtb_rrho"]["energy"]
             elif "screening" in conformer.results.keys():
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["screening"]["xtb_rrho"]["energy"]
@@ -370,7 +375,7 @@ class NMR(CensoPart):
                 f"{basis_geomopt}\n"
                 )
         """
-        # Write 'nmrprop.dat's
+        # Write 'nmrprop.dat's and coord files
         for conf in self.ensemble.conformers:
             confdir = os.path.join(self.ensemble.workdir,
                                    self._name, conf.name)
@@ -388,13 +393,25 @@ class NMR(CensoPart):
 
             # then: atom no.1 | atom no.2 | J12
             for (i, j), coupling in conf.results[self._name]["nmr"]["couplings"]:
-                lines.append(f"{i:4} {j:4} {coupling:.3f}\n")
+                lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
                 f.writelines(lines)
 
+            # Write coord files
+            lines = conf.geom.tocoord()
+            logger.debug(f"Writing to {os.path.join(confdir, 'coord')}.")
+            with open(os.path.join(confdir, "coord"), "w") as f:
+                f.writelines(lines)
+
         print("\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file.")
+
+    def shieldings_averaging(self):
+        """
+        Calculate the population weighted shielding constants for the ensemble NMR spectrum.
+        """
+        pass
 
     def write_results(self) -> None:
         """
