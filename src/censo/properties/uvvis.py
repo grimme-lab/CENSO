@@ -2,6 +2,8 @@
 Calculates the ensemble UV/Vis spectrum.
 """
 from functools import reduce
+import json
+import os
 
 from ..ensembledata import EnsembleData
 from ..parallel import execute
@@ -12,7 +14,7 @@ from ..params import (
 )
 from ..datastructure import MoleculeData
 from ..part import CensoPart
-from ..utilities import timeit, SolventHelper, DfaHelper
+from ..utilities import timeit, SolventHelper, DfaHelper, format_data
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -31,6 +33,7 @@ class UVVis(CensoPart):
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "nroots": {"default": 20, "range": [1, 100]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
+        "linewidth": {"default": 1.0, "range": [0.01, 5.0]},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "gcp": {"default": True},  # required
@@ -145,6 +148,9 @@ class UVVis(CensoPart):
                 self._name
             )
 
+        # Ensemble averaging of excitations
+        self.excitation_averaging()
+
         # TODO - Generate files to plot UV/Vis spectrum
 
         # Write data
@@ -211,6 +217,56 @@ class UVVis(CensoPart):
                 return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["screening"]["xtb_rrho"]["energy"]
             else:
                 return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["uvvis"]["xtb_rrho"]["energy"]
+
+    def excitation_averaging(self):
+        """
+        Calculates population weighted excitation parameters.
+        """
+        # Calculate epsilon_max (maximum extinctions) for each excitation, weighted by population
+        # eps is a list of tuples that contain each excitation wavelength with the respective epsilon_max
+        eps = []
+        for conf in self.ensemble.conformers:
+            for excitation in conf.results[self._name]["uvvis"]["excitations"]:
+                epsilon_max = 1.3062974e8 * \
+                    excitation["osc_str"] / \
+                    self.get_settings()["linewidth"] * conf.bmws[-1]
+                eps.append((excitation["wavelength"], epsilon_max))
+
+        # Print table
+        headers = [
+            "λ",
+            "Osc. strength"
+        ]
+
+        units = [
+            "[nm]",
+            ""
+        ]
+
+        printmap = {
+            "λ": lambda exc: f"{exc[0]:.2f}",
+            "Osc. strength": lambda exc: f"{exc[1]:.6f}"
+        }
+
+        rows = [
+            [printmap[header](exc) for header in headers]
+            for exc in eps
+        ]
+
+        lines = format_data(headers, rows, units=units)
+
+        # write lines to file
+        logger.debug(
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+        )
+        with open(
+            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+        ) as outfile:
+            outfile.writelines(lines)
+
+        # Dump data into json
+        with open(os.path.join(self.ensemble.workdir, "excitations.json"), "w") as f:
+            json.dump(eps, f, indent=4)
 
     def write_results(self) -> None:
         """

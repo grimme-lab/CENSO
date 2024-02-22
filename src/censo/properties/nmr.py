@@ -9,7 +9,6 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    GRIDOPTIONS,
     GFNOPTIONS,
 )
 from ..datastructure import MoleculeData
@@ -408,7 +407,7 @@ class NMR(CensoPart):
 
         print("\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file.")
 
-    def shieldings_weighting(self):
+    def shieldings_averaging(self):
         """
         Calculate the population weighted shielding constants for the ensemble NMR spectrum.
         """
