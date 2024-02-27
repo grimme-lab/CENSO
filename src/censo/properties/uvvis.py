@@ -33,7 +33,7 @@ class UVVis(CensoPart):
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "nroots": {"default": 20, "range": [1, 100]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
-        "linewidth": {"default": 1.0, "range": [0.01, 5.0]},
+        "linewidth": {"default": 1.0, "range": [0.01, 50.0]},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "gcp": {"default": True},  # required
