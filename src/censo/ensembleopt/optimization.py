@@ -196,6 +196,7 @@ class Optimization(EnsembleOptimizer):
 
         for conf in self.ensemble.conformers:
             conf.results[self._name].update(results_rrho[id(conf)])
+            conf.results[self._name]["gtot"] = self.grrho(conf)
 
         # calculate boltzmann weights from gtot values calculated here
         self.ensemble.calc_boltzmannweights(

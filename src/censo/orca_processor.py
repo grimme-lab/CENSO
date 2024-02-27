@@ -1191,7 +1191,7 @@ class OrcaProc(QmProc):
             if not spmeta["success"]:
                 meta["success"] = False
                 meta["error"] = f"sp for nmr{ending} failed"
-                return result
+                return result, meta
 
             # Grab shieldings and energy from the output
             with open(outputpath, "r") as f:

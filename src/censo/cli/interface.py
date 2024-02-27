@@ -34,14 +34,15 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 1
 
     # Print program call
-    print("CALL: " + " ".join(arg for arg in argv))
+    # FIXME - what is going on with argv, why is it None but also parsed?
+    # print("CALL: " + " ".join(arg for arg in argv))
 
     ensemble = startup(args)
     if ensemble is None:
         return 0
 
     # Print general settings once
-    CensoPart.print_info()
+    CensoPart(ensemble).print_info()
 
     run = filter(
         lambda x: x.get_settings()["run"],
