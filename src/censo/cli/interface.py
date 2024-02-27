@@ -34,8 +34,8 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 1
 
     # Print program call
-    # FIXME - what is going on with argv, why is it None but also parsed?
-    # print("CALL: " + " ".join(arg for arg in argv))
+    # FIXME - what happens here? argv is always none, yet it is parsed above without problems?
+    print("CALL: " + " ".join(arg for arg in sys.argv))
 
     ensemble = startup(args)
     if ensemble is None:
