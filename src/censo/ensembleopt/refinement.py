@@ -28,8 +28,8 @@ class Refinement(Screening):
 
     _options = {
         "threshold": {"default": 0.95, "range": [0.01, 0.99]},
-        "func": {"default": "wb97x-d3", "options": []},
-        "basis": {"default": "def2-TZVP", "options": []},
+        "func": {"default": "wb97x-v", "options": []},
+        "basis": {"default": "def2-TZVPP", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
