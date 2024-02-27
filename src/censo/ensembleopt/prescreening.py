@@ -196,10 +196,10 @@ class Prescreening(EnsembleOptimizer):
             "[Eh]",
             "[kcal/mol]",
             "[Eh]",
-            "[Eh]",
-            "[Eh]",
             "[kcal/mol]",
             "[kcal/mol]",
+            "[Eh]",
+            # "[kcal/mol]",
             "[kcal/mol]",
             f"% at {self.get_general_settings().get('temperature', 298.15)} K",
         ]
@@ -261,7 +261,7 @@ class Prescreening(EnsembleOptimizer):
                 )
 
         # minimal total free enthalpy
-        gsolvmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
 
         # determines what to print for each conformer in each column
         printmap = {
@@ -273,15 +273,15 @@ class Prescreening(EnsembleOptimizer):
             if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
-            "ΔGsolv (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['gsolv']:.6f}"
+            "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
+            "ΔGsolv (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
             if "xtb_gsolv" in conf.results[self._name].keys()
             else "---",
             "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
-            "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
-            "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
-            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
+            # "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
+            # if "xtb_gsolv" in conf.results[self._name].keys()
+            # else "---",
+            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 

@@ -169,7 +169,7 @@ def print(*args, **kwargs):
 
 
 def format_data(
-        headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0, padding: int = 6
+        headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0, padding: int = 3
 ) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
@@ -206,17 +206,15 @@ def format_data(
     }
 
     # add table header
-    lines.append(
-        " ".join(f"{header:^{collen + padding}}" for header,
-                 collen in collens.items())
-    )
+    line = " ".join(f"{header:^{collen + padding}}" for header,
+                    collen in collens.items()).lstrip()
+    lines.append(line)
     lines[0] += "\n"
     if units is not None:
-        lines.append(
-            " ".join(
-                f"{unit:^{collen + padding}}" for unit, collen in zip(units, collens.values())
-            )
-        )
+        line = " ".join(
+            f"{unit:^{collen + padding}}" for unit, collen in zip(units, collens.values())
+        ).lstrip()
+        lines.append(line)
         lines[1] += "\n"
 
     # TODO - draw an arrow if conformer is the best in current ranking
@@ -231,11 +229,10 @@ def format_data(
 
     # add a line for every row
     for row in rows:
-        lines.append(
-            " ".join(
-                f"{row:^{collen + padding}}" for row, collen in zip(row, collens.values())
-            )
-        )
+        line = " ".join(
+            f"{row:^{collen + padding}}" for row, collen in zip(row, collens.values())
+        ).lstrip()
+        lines.append(line)
         lines[-1] += "\n"
 
     return lines

@@ -77,6 +77,11 @@ def configure(rcpath: str = None, create_new: bool = False):
                 parts[section].set_settings(settings)
             # NOTE: if section is not in the parts names, it will be ignored
 
+        # Make sure that settings are initialized even if there is not section for this part in the rcfile
+        for partname, part in parts.items():
+            if partname not in settings_dict.keys():
+                part.set_settings({})
+
     # Update the paths for the processors
     paths = read_rcfile(censorc_path)["paths"]
     QmProc._paths.update(paths)

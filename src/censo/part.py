@@ -249,7 +249,7 @@ class CensoPart:
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
-            lines.append(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}\n")
+            lines.append(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
 
         # print everything to console
         for line in lines:
