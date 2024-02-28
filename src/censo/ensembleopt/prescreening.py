@@ -332,11 +332,12 @@ class Prescreening(EnsembleOptimizer):
             print(line, flush=True, end="")
 
         # write everything to a file
+        filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, filename), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 

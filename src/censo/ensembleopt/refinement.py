@@ -217,11 +217,12 @@ class Refinement(Screening):
             print(line, flush=True, end="")
 
         # append lines to already existing file
+        filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "a", newline=None
+            os.path.join(self.ensemble.workdir, filename), "a", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
