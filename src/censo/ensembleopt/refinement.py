@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 
 
 class Refinement(Screening):
-    alt_name = "part3"
+    _part_no = "3"
 
     _grid = "high+"
 

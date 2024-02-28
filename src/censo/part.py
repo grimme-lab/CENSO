@@ -57,6 +57,10 @@ class CensoPart:
 
     _settings = {}
 
+    # this should contain the part number as a string
+    # in this case it's just a placeholder, for e.g. prescreening it would be "0"
+    _part_no = "PART"
+
     @staticmethod
     def set_general_settings(settings: dict[str, any]) -> None:
         CensoPart._validate(settings)
@@ -190,7 +194,8 @@ class CensoPart:
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(self.ensemble.workdir, self._name)
+            self.dir = os.path.join(
+                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}")
             if os.path.isdir(self.dir):
                 global logger
                 logger.warning(

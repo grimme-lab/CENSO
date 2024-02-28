@@ -27,7 +27,7 @@ logger = setup_logger(__name__)
 
 
 class Optimization(EnsembleOptimizer):
-    alt_name = "part2"
+    _part_no = "2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 

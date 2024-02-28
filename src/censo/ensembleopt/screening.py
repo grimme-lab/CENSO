@@ -25,7 +25,7 @@ logger = setup_logger(__name__)
 
 
 class Screening(Prescreening):
-    alt_name = "part1"
+    _part_no = "1"
 
     _grid = "low+"
 

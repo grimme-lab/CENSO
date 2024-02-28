@@ -20,7 +20,7 @@ logger = setup_logger(__name__)
 
 
 class NMR(CensoPart):
-    alt_name = "part4"
+    _part_no = "4"
 
     _grid = "high+"
 

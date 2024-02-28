@@ -21,7 +21,7 @@ logger = setup_logger(__name__)
 
 
 class UVVis(CensoPart):
-    alt_name = "part6"
+    _part_no = "6"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 

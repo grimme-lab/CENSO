@@ -20,7 +20,7 @@ logger = setup_logger(__name__)
 
 
 class Prescreening(EnsembleOptimizer):
-    alt_name = "part0"
+    _part_no = "0"
 
     _grid = "low"
 
