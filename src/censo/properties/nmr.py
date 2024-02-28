@@ -288,7 +288,7 @@ class NMR(CensoPart):
             else:
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["nmr"]["xtb_rrho"]["energy"]
 
-    def __generate_anmr(self):
+    def __generate_anmr(self, confdir):
         """
         Generate all necessary files for an ANMR run.
         """
@@ -377,8 +377,7 @@ class NMR(CensoPart):
         """
         # Write 'nmrprop.dat's and coord files
         for conf in self.ensemble.conformers:
-            confdir = os.path.join(self.ensemble.workdir,
-                                   self._name, conf.name)
+            confdir = os.path.join(self.dir, conf.name)
             lines = []
 
             # first: atom no. | sigma(iso)
