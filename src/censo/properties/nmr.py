@@ -288,7 +288,7 @@ class NMR(CensoPart):
             else:
                 return conformer.results[self._name]["nmr"]["energy"] + conformer.results["nmr"]["xtb_rrho"]["energy"]
 
-    def __generate_anmr(self, confdir):
+    def __generate_anmr(self):
         """
         Generate all necessary files for an ANMR run.
         """
