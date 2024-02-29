@@ -116,6 +116,8 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
+        print(f"{self._name.upper()} RRHO RESULTS\n")
+
         # column headers
         headers = [
             "CONF#",

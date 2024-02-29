@@ -394,7 +394,7 @@ class Optimization(EnsembleOptimizer):
         """
         formatted write of part results (optional)
         """
-        print("\n")
+        print(f"{self._name.upper()} RESULTS\n")
         # column headers
         headers = [
             "CONF#",
@@ -502,7 +502,7 @@ class Optimization(EnsembleOptimizer):
         """
         writes information about the current state of the ensemble in form of a table
         """
-        print("\n")
+        print(f"{self._name.upper()} CYCLE UPDATE\n")
         # Define headers for the table
         headers = [
             "CONF#",

@@ -165,7 +165,8 @@ class Screening(Prescreening):
 
         Generates NO csv file. All info is included in the file written in write_results2.
         """
-        print("\n")
+        print(f"{self._name.upper()} SINGLE-POINT RESULTS\n")
+
         # PART (1) of writing
         # column headers
         headers = [
@@ -273,6 +274,8 @@ class Screening(Prescreening):
 
         Also writes them into an easily digestible format.
         """
+        print(f"{self._name.upper()} RRHO RESULTS\n")
+
         # column headers
         headers = [
             "CONF#",

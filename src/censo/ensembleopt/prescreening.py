@@ -175,6 +175,7 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
+        print(f"{self._name.upper()} SINGLE-POINT RESULTS\n")
 
         # column headers
         headers = [
