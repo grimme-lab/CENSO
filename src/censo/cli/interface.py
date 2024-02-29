@@ -3,6 +3,7 @@ import shutil
 import sys
 from os import getcwd
 from argparse import ArgumentError
+from datetime import timedelta
 
 from .cml_parser import parse
 from ..configuration import configure, override_rc, homerc
@@ -53,10 +54,16 @@ def entry_point(argv: list[str] | None = None) -> int:
     for part in run:
         p = part(ensemble)
         runtime = p.run()
-        print(f"Ran {p._name} in {runtime} seconds!")
+        print(f"Ran {p._name} in {runtime:.2f} seconds!")
         time += runtime
 
-    print(f"\nTotal timing: {time} seconds")
+    runtime = timedelta(seconds=int(runtime))
+    hours, r = divmod(runtime.seconds, 3600)
+    minutes, seconds = divmod(r, 60)
+    if runtime.days:
+        hours += runtime.days * 24
+
+    print(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     print("\nCENSO all done!")
     return 0
