@@ -260,6 +260,8 @@ class CensoPart:
         for line in lines:
             print(line)
 
+        print("\n")
+
     def write_json(self) -> None:
         """
         Writes the part's results to a json file.

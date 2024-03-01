@@ -175,7 +175,9 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
-        print(f"{self._name.upper()} SINGLE-POINT RESULTS\n")
+        print("".ljust(int(PLENGTH), "-") + "\n\n")
+        print(f"\n{self._name.upper()} SINGLE-POINT RESULTS\n".center(PLENGTH, " "))
+        print("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # column headers
         headers = [
@@ -300,7 +302,6 @@ class Prescreening(EnsembleOptimizer):
         lines.append(
             f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
-        print("".ljust(int(PLENGTH), "-") + "\n")
 
         # calculate averaged free enthalpy
         avG = sum(

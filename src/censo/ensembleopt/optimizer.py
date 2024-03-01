@@ -144,6 +144,7 @@ class EnsembleOptimizer(CensoPart):
               f"{len(self.ensemble.conformers)}")
         print("Highest ranked conformer:".ljust(DIGILEN // 2, " ") +
               f"{self.ensemble.conformers[0].name}")
+        print("\n")
 
     def print_comparison(self) -> None:
         print(f"{self._name.upper()} COMPARISON\n")
