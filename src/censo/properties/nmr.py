@@ -20,7 +20,7 @@ logger = setup_logger(__name__)
 
 
 class NMR(CensoPart):
-    alt_name = "part4"
+    _part_no = "4"
 
     _grid = "high+"
 
@@ -377,8 +377,7 @@ class NMR(CensoPart):
         """
         # Write 'nmrprop.dat's and coord files
         for conf in self.ensemble.conformers:
-            confdir = os.path.join(self.ensemble.workdir,
-                                   self._name, conf.name)
+            confdir = os.path.join(self.dir, conf.name)
             lines = []
 
             # first: atom no. | sigma(iso)

@@ -20,7 +20,7 @@ logger = setup_logger(__name__)
 
 
 class Prescreening(EnsembleOptimizer):
-    alt_name = "part0"
+    _part_no = "0"
 
     _grid = "low"
 
@@ -175,6 +175,9 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
+        print("".ljust(int(PLENGTH), "-") + "\n\n")
+        print(f"\n{self._name.upper()} SINGLE-POINT RESULTS\n".center(PLENGTH, " "))
+        print("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # column headers
         headers = [
@@ -182,10 +185,10 @@ class Prescreening(EnsembleOptimizer):
             "E (xTB)",
             "ΔE (xTB)",
             "E (DFT)",
-            "ΔGsolv (xTB)",
-            "Gtot",
             "ΔE (DFT)",
-            "δΔGsolv",
+            "ΔGsolv (xTB)",
+            # "δΔGsolv",
+            "Gtot",
             "ΔGtot",
             "Boltzmann weight",
         ]
@@ -198,8 +201,8 @@ class Prescreening(EnsembleOptimizer):
             "[Eh]",
             "[kcal/mol]",
             "[kcal/mol]",
-            "[Eh]",
             # "[kcal/mol]",
+            "[Eh]",
             "[kcal/mol]",
             f"% at {self.get_general_settings().get('temperature', 298.15)} K",
         ]
@@ -299,7 +302,6 @@ class Prescreening(EnsembleOptimizer):
         lines.append(
             f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
-        print("".ljust(int(PLENGTH), "-") + "\n")
 
         # calculate averaged free enthalpy
         avG = sum(
@@ -332,11 +334,12 @@ class Prescreening(EnsembleOptimizer):
             print(line, flush=True, end="")
 
         # write everything to a file
+        filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, filename), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 

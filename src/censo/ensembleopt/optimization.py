@@ -27,7 +27,7 @@ logger = setup_logger(__name__)
 
 
 class Optimization(EnsembleOptimizer):
-    alt_name = "part2"
+    _part_no = "2"
 
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
@@ -394,7 +394,7 @@ class Optimization(EnsembleOptimizer):
         """
         formatted write of part results (optional)
         """
-        print("\n")
+        print(f"{self._name.upper()} RESULTS\n")
         # column headers
         headers = [
             "CONF#",
@@ -486,11 +486,12 @@ class Optimization(EnsembleOptimizer):
             print(line, flush=True, end="")
 
         # write lines to file
+        filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, filename), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
@@ -501,7 +502,7 @@ class Optimization(EnsembleOptimizer):
         """
         writes information about the current state of the ensemble in form of a table
         """
-        print("\n")
+        print(f"{self._name.upper()} CYCLE UPDATE\n")
         # Define headers for the table
         headers = [
             "CONF#",

@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 
 
 class Refinement(Screening):
-    alt_name = "part3"
+    _part_no = "3"
 
     _grid = "high+"
 
@@ -116,6 +116,8 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
+        print(f"{self._name.upper()} RRHO RESULTS\n")
+
         # column headers
         headers = [
             "CONF#",
@@ -217,11 +219,12 @@ class Refinement(Screening):
             print(line, flush=True, end="")
 
         # append lines to already existing file
+        filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "a", newline=None
+            os.path.join(self.ensemble.workdir, filename), "a", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
