@@ -210,14 +210,14 @@ def format_data(
         " ".join(f"{header:^{collen + padding}}" for header,
                  collen in collens.items())
     )
-    lines[0] += "\n"
+    lines[-1] += "\n"
     if units is not None:
         lines.append(
             " ".join(
                 f"{unit:^{collen + padding}}" for unit, collen in zip(units, collens.values())
             )
         )
-        lines[1] += "\n"
+        lines[-1] += "\n"
 
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
@@ -239,9 +239,9 @@ def format_data(
         lines[-1] += "\n"
 
     # Remove as much leading whitespace as possible
-    maxrowlen = max(len(row.lstrip()) for row in rows)
-    for i in range(len(rows)):
-        rows[i] = rows[i][len(row) - maxrowlen:]
+    maxlinelen = max(len(line.lstrip()) for line in lines)
+    for i in range(len(lines)):
+        lines[i] = lines[i][len(lines[i]) - maxlinelen:]
 
     return lines
 
