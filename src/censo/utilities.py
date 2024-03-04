@@ -173,17 +173,6 @@ def format_data(
 ) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
-
-    Args:
-        headers (list[str]): The list of column headers.
-        rows (list[list[any]]): The list of rows, where each row is a list of values.
-        units (list[str], optional): The list of units for each column. Defaults to None.
-        sortby (int, optional): The index of the column to sort by. Defaults to 0. In case of a string column,
-                                use natural sorting.
-
-    Returns:
-        list[str]: The list of formatted lines representing the table.
-
     """
     def natural_sort_key(s):
         """
@@ -191,52 +180,42 @@ def format_data(
         """
         return [int(text) if text.isdigit() else text for text in re.split("(\d+)", s)]
 
-    lines = []
+    # Determine the maximum content length for each column after stripping
+    # leading whitespace, to keep all rows equal length.
+    max_content_lengths = [
+        max(len(str(row[idx]).lstrip()) for row in rows) for idx in range(len(headers))
+    ]
 
-    # determine column width 'collen' of column with header 'header'
-    # by finding the length of the maximum width entry
-    # for each column (header)
+    # Adjust column widths based on maximum content length and padding
     collens = {
-        header: collen
-        for header, collen in zip(
-            headers,
-            (max(len(header), max(len(row) for row in rows))
-             for header in headers),
-        )
+        header: max(len(header), max_content_length) + padding
+        for header, max_content_length in zip(headers, max_content_lengths)
     }
 
-    # add table header
-    lines.append(
-        " ".join(f"{header:^{collen + padding}}" for header,
-                 collen in collens.items())
-    )
-    lines[0] += "\n"
+    lines = []
+
+    # Add table header
+    header_line = " ".join(
+        f"{header:^{collens[header]}}" for header in headers)
+    lines.append(header_line)
+
     if units is not None:
-        lines.append(
-            " ".join(
-                f"{unit:^{collen + padding}}" for unit, collen in zip(units, collens.values())
-            )
-        )
-        lines[1] += "\n"
+        unit_line = " ".join(
+            f"{unit:^{collens[headers[idx]]}}" for idx, unit in enumerate(units))
+        lines.append(unit_line)
 
-    # TODO - draw an arrow if conformer is the best in current ranking
-    # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
-
-    # Sort rows lexicographically if column sorted by is a number
-    if rows[0][sortby].replace(".", "", 1).isdigit():
-        rows = sorted(rows, key=lambda x: x[sortby])
-    # Otherwise use natural sorting
+    # Sort rows based on the specified column
+    if isinstance(rows[0][sortby], str) and rows[0][sortby].replace(".", "", 1).isdigit():
+        rows.sort(key=lambda x: float(x[sortby]))
     else:
-        rows = sorted(rows, key=lambda x: natural_sort_key(x[sortby]))
+        rows.sort(key=lambda x: natural_sort_key(x[sortby]))
 
-    # add a line for every row
+    # Add rows, stripping leading whitespace and aligning each cell
     for row in rows:
-        lines.append(
-            " ".join(
-                f"{row:^{collen + padding}}" for row, collen in zip(row, collens.values())
-            )
+        row_line = " ".join(
+            f"{str(value).lstrip():^{collens[headers[idx]]}}" for idx, value in enumerate(row)
         )
-        lines[-1] += "\n"
+        lines.append(row_line)
 
     return lines
 
