@@ -125,7 +125,7 @@ class Optimization(EnsembleOptimizer):
             self.set_setting("macrocycles", False)
 
             # run optimizations using xtb as driver
-            results_opt, failed = execute(
+            success, results_opt, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -172,7 +172,7 @@ class Optimization(EnsembleOptimizer):
         # do rrho on converged geometries (overwrites previous rrho calculations)
         jobtype = ["xtb_rrho"]
         prepinfo = self.setup_prepinfo(jobtype)
-        results_rrho, failed = execute(
+        success, _, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
