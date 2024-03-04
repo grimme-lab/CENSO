@@ -214,7 +214,7 @@ def format_data(
     for row in rows:
         row_line = " ".join(
             f"{str(value).lstrip():^{collens[headers[idx]]}}" for idx, value in enumerate(row)
-        )
+        ) + "\n"
         lines.append(row_line)
 
     return lines
