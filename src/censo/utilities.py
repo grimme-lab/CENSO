@@ -196,7 +196,7 @@ def format_data(
 
     # Add table header
     header_line = " ".join(
-        f"{header:^{collens[header]}}" for header in headers)
+        f"{header:^{collens[header]}}" for header in headers) + "\n"
     lines.append(header_line)
 
     if units is not None:
