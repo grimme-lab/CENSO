@@ -12,7 +12,6 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
     PLENGTH
@@ -147,11 +146,6 @@ class Optimization(EnsembleOptimizer):
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[id(conf)]["xtb_opt"]["geom"]
 
-                # store results
-                conf.results.setdefault(self._name, {}).update(
-                    results_opt[conf.geom.id]
-                )
-
         # Handle unconverged conformers (TODO)
         unconverged = self.confs_nc or [
             conf for conf in self.ensemble.conformers
@@ -195,7 +189,6 @@ class Optimization(EnsembleOptimizer):
         self.ensemble.remove_conformers(failed)
 
         for conf in self.ensemble.conformers:
-            conf.results[self._name].update(results_rrho[id(conf)])
             conf.results[self._name]["gtot"] = self.grrho(conf)
 
         # calculate boltzmann weights from gtot values calculated here
@@ -250,7 +243,7 @@ class Optimization(EnsembleOptimizer):
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
-            results_opt, failed = execute(
+            success, results_opt, failed = execute(
                 self.confs_nc,
                 self.dir,
                 self.get_settings()["prog"],
@@ -261,6 +254,7 @@ class Optimization(EnsembleOptimizer):
                 omp=self.get_general_settings()["omp"],
                 maxcores=self.get_general_settings()["maxcores"],
                 retry_failed=self.get_general_settings()["retry_failed"],
+                update=False
             )
 
             # Remove failed conformers
@@ -296,7 +290,7 @@ class Optimization(EnsembleOptimizer):
                 tmp = self.get_general_settings()["bhess"]
                 self.set_general_setting("bhess", True)
                 jobtype = ["xtb_rrho"]
-                results_rrho, failed = execute(
+                success, _, failed = execute(
                     self.confs_nc,
                     self.dir,
                     self.get_settings()["prog"],
@@ -317,7 +311,6 @@ class Optimization(EnsembleOptimizer):
 
                 # put results into conformer objects
                 for conf in self.confs_nc:
-                    conf.results[self._name].update(results_rrho[conf.geom.id])
                     conf.results[self._name]["gtot"] = self.grrho(conf)
 
                 # flag to make sure that rrho is only calculated once

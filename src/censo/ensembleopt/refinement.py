@@ -52,7 +52,7 @@ class Refinement(Screening):
                 prepinfo = self.setup_prepinfo(jobtype)
 
                 # append results to previous results
-                results, failed = execute(
+                success, _, failed = execute(
                     self.ensemble.conformers,
                     self.dir,
                     self.get_settings()["prog"],
@@ -69,9 +69,6 @@ class Refinement(Screening):
                 self.ensemble.remove_conformers(failed)
 
                 for conf in self.ensemble.conformers:
-                    # update results for each conformer
-                    conf.results[self._name].update(results[id(conf)])
-
                     # calculate new gtot including RRHO contribution
                     conf.results[self._name]["gtot"] = self.grrho(conf)
             else:

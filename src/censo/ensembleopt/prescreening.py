@@ -63,7 +63,7 @@ class Prescreening(EnsembleOptimizer):
 
             # compute results
             # for structure of results from handler.execute look there
-            results, failed = execute(
+            success, _, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -79,12 +79,6 @@ class Prescreening(EnsembleOptimizer):
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
 
-            # update results for each conformer
-            for conf in self.ensemble.conformers:
-                # store results of single jobs for each conformer
-                conf.results.setdefault(
-                    self._name, {}).update(results[id(conf)])
-
             jobtype = ["sp"]
         else:
             jobtype = ["gsolv"]
@@ -94,7 +88,7 @@ class Prescreening(EnsembleOptimizer):
 
         # compute results
         # for structure of results from handler.execute look there
-        results, failed = execute(
+        success, _, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -112,9 +106,6 @@ class Prescreening(EnsembleOptimizer):
 
         # update results for each conformer
         for conf in self.ensemble.conformers:
-            # store results of single jobs for each conformer
-            conf.results.setdefault(self._name, {}).update(results[id(conf)])
-
             # calculate free enthalpy values for every conformer
             conf.results[self._name]["gtot"] = self.gsolv(conf)
 
