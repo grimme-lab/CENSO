@@ -249,6 +249,10 @@ class UVVis(CensoPart):
 
         lines = format_data(headers, rows, units=units)
 
+        # Print everything
+        for line in lines:
+            print(line, flush=True, end="")
+
         # write lines to file
         logger.debug(
             f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
