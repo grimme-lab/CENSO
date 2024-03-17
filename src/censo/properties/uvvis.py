@@ -139,7 +139,7 @@ class UVVis(CensoPart):
             )
 
         # Ensemble averaging of excitations
-        self.excitation_averaging()
+        self.__excitation_averaging()
 
         # TODO - Generate files to plot UV/Vis spectrum
 
@@ -208,7 +208,7 @@ class UVVis(CensoPart):
             else:
                 return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["uvvis"]["xtb_rrho"]["energy"]
 
-    def excitation_averaging(self):
+    def __excitation_averaging(self):
         """
         Calculates population weighted excitation parameters.
         """
@@ -220,22 +220,25 @@ class UVVis(CensoPart):
                 epsilon_max = 1.3062974e8 * \
                     excitation["osc_str"] / \
                     self.get_settings()["linewidth"] * conf.bmws[-1]
-                eps.append((excitation["wavelength"], epsilon_max))
+                eps.append((excitation["wavelength"], epsilon_max, conf.name))
 
         # Print table
         headers = [
             "λ",
-            "Osc. strength"
+            "Osc. strength",
+            "Origin. CONF#"
         ]
 
         units = [
             "[nm]",
+            "",
             ""
         ]
 
         printmap = {
             "λ": lambda exc: f"{exc[0]:.2f}",
-            "Osc. strength": lambda exc: f"{exc[1]:.6f}"
+            "Osc. strength": lambda exc: f"{exc[1]:.6f}",
+            "Origin. CONF#": lambda exc: f"{exc[2]}",
         }
 
         rows = [
