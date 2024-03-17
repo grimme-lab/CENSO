@@ -251,10 +251,10 @@ class UVVis(CensoPart):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}.out"), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
