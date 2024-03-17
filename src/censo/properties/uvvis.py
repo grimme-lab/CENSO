@@ -167,6 +167,7 @@ class UVVis(CensoPart):
             # while the other functional isn't
             "gcp": True,  # by default GCP should always be used if possible
             "sm": self.get_settings()["sm"],
+            "nroots": self.get_settings()["nroots"],
         }
         # Only look up solvent if solvation is used
         if not self.get_general_settings()["gas-phase"]:

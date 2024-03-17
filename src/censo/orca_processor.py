@@ -645,6 +645,16 @@ class OrcaProc(QmProc):
                 indict["main"].append(
                     f"CPCM({solv_key})")
 
+        if jobtype == "uvvis":
+            indict = od_insert(
+                indict,
+                "tddft",
+                {
+                    "nroots": [f"{self.get_settings()['nroots']}"]
+                },
+                list(indict.keys()).index("main") + 1
+            )
+
         return indict
 
     def __prep_geom(
