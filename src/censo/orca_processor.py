@@ -650,7 +650,7 @@ class OrcaProc(QmProc):
                 indict,
                 "tddft",
                 {
-                    "nroots": [f"{self.get_settings()['nroots']}"]
+                    "nroots": [f"{prepinfo['uvvis']['nroots']}"]
                 },
                 list(indict.keys()).index("main") + 1
             )
