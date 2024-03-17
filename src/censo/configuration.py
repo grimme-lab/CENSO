@@ -43,7 +43,7 @@ def configure(rcpath: str = None, create_new: bool = False):
     # otherwise there will be errors in the CensoPart._options
     from .part import CensoPart
     from .ensembleopt import Prescreening, Screening, Optimization, Refinement
-    from .properties import NMR
+    from .properties import NMR, UVVis
 
     global parts
     parts = {
@@ -52,6 +52,7 @@ def configure(rcpath: str = None, create_new: bool = False):
         "optimization": Optimization,
         "refinement": Refinement,
         "nmr": NMR,
+        "uvvis": UVVis,
     }
 
     # If no configuration file was found above, set the rcflag to False
