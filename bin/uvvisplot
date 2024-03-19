@@ -26,7 +26,7 @@ import os
 import argparse
 import json
 import numpy as np
-import csv
+import pandas as pd
 
 PLANCK = 6.62607015e-34
 C = 2.998e8
@@ -181,10 +181,8 @@ def plot(data, args):
         exc_number[exc[2]] += 1
 
     cwd = os.getcwd()
-    with open(os.path.join(cwd, "contributions.csv"), "w") as f:
-        writer = csv.writer(f)
-        writer.writerow(contributions.keys())
-        writer.writerows(contributions.values())
+    contributions = pd.DataFrame.from_dict(contributions)
+    contributions.to_csv(os.path.join(cwd, "contributions.csv"))
     print("All contributions written to contributions.csv.")
 
     # Plot the whole spectrum
