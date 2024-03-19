@@ -143,7 +143,7 @@ def plot(data, args):
     mode = args.mode
 
     # Select start value
-    if args.start:
+    if args.start is not None:
         start = args.start
     else:
         defaults = {
@@ -154,7 +154,7 @@ def plot(data, args):
         start = defaults[mode]
 
     # Select end value
-    if args.end:
+    if args.end is not None:
         end = args.end
     else:
         defaults = {
