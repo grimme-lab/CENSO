@@ -165,7 +165,7 @@ def plot(data, args):
         end = defaults[mode]
 
     assert end > start
-    xrange = np.linspace(args.start, args.end, 10000)
+    xrange = np.linspace(start, end, 10000)
 
     yrange = np.zeros(10000)
 
@@ -182,9 +182,9 @@ def plot(data, args):
 
     cwd = os.getcwd()
     with open(os.path.join(cwd, args.out), "w") as f:
-        writer = csv.DictWriter(f, fieldnames=list(contributions.keys()))
-        writer.writeheader()
-        writer.writerows(contributions)
+        writer = csv.writer(f)
+        writer.writerow(contributions.keys())
+        writer.writerows(contributions.values())
 
     # Plot the whole spectrum
     fig, ax = plt.subplots()
