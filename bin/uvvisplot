@@ -37,7 +37,7 @@ descr = """
      __________________________________________________
     |                                                  |
     |                    UVVISPLOT                     |
-    |          Plotting of UVVIS spectral data         |
+    |        Plotting of ensemble UV/Vis spectra       |
     |             University of Bonn, MCTC             |
     |                   March 2024                     |
     |                     v 1.0.0                      |
@@ -167,8 +167,6 @@ def plot(data, args):
     assert end > start
     xrange = np.linspace(start, end, 10000)
 
-    yrange = np.zeros(10000)
-
     # Dump single contributions to csv file
     confs = set([d[2] for d in data])
     exc_number = {conf: 0 for conf in confs}
@@ -187,12 +185,13 @@ def plot(data, args):
 
     # Plot the whole spectrum
     fig, ax = plt.subplots()
-    yrange = sum(c for c in contributions.values)
+    yrange = contributions.sum(axis=1)
+    ax.plot(xrange, yrange)
     ax.set_title(args.title)
     labels = {
         "wavelength": "$\mathrm{nm}$",
         "wavenumber": "$\mathrm{cm-1}$",
-        "enegry": "$\mathrm{eV}$",
+        "energy": "$\mathrm{eV}$",
     }
     ax.set_xlabel(f"{args.mode} [{labels[args.mode]}]")
     ax.set_ylabel("$\epsilon$ [L mol-1 cm-1]")
@@ -219,6 +218,8 @@ def save_plot(fig, out):
 
 
 def main():
+    print(descr)
+
     # Parse cml args
     args = get_args()
 
