@@ -124,7 +124,7 @@ def get_args():
         action="store",
         required=False,
         default="nmrplot",
-        help="Provide name of the output file without fileending.",
+        help="Provide name of the output file (including ending).",
     )
     args = parser.parse_args()
     return args
@@ -181,10 +181,11 @@ def plot(data, args):
         exc_number[exc[2]] += 1
 
     cwd = os.getcwd()
-    with open(os.path.join(cwd, args.out), "w") as f:
+    with open(os.path.join(cwd, "contributions.csv"), "w") as f:
         writer = csv.writer(f)
         writer.writerow(contributions.keys())
         writer.writerows(contributions.values())
+    print("All contributions written to contributions.csv.")
 
     # Plot the whole spectrum
     fig, ax = plt.subplots()
