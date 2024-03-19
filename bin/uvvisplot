@@ -95,7 +95,7 @@ def get_args():
         dest="lw",
         action="store",
         required=False,
-        default=6.2e4,
+        default=1.6131e3,
         type=float,
         help="Set linewidth in cm-1.",
     )
@@ -206,11 +206,11 @@ def gaussian_signal(xrange, center_wl, eps_max, lw, mode="wavelength"):
     # 1 nm = 1e-7 cm
     # 1 cm-1 = 1e7 nm-1
     if mode == "wavelength":
-        return eps_max * np.exp(- (1 / xrange - 1 / center_wl)**2 / (lw * 1e7))
+        return eps_max * np.exp(- ((1 / xrange - 1 / center_wl) / (lw * 1e7))**2)
     elif mode == "wavenumber":
-        return eps_max * np.exp(- (xrange - 1 / center_wl * 1e7)**2 / lw)
+        return eps_max * np.exp(- ((xrange - 1 / center_wl * 1e7) / lw)**2)
     elif mode == "energy":
-        return eps_max * np.exp(- (xrange * COULOMB / (PLANCK * C) - 1 / center_wl * 1e9)**2 / (lw * 1e2))
+        return eps_max * np.exp(- ((xrange * COULOMB / (PLANCK * C) - 1 / center_wl * 1e9) / (lw * 1e2))**2)
 
 
 def save_plot(fig, out):
