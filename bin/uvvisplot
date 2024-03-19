@@ -21,6 +21,17 @@ Created on Mar 17, 2024
 last updated on 17-March-2024
 @author: lmseidler
 """
+import matplotlib.pyplot as plt
+import os
+import argparse
+import json
+import numpy as np
+import csv
+
+PLANCK = 6.62607015e-34
+C = 2.998e8
+COULOMB = 1.602e-19
+
 
 descr = """
      __________________________________________________
@@ -36,19 +47,176 @@ descr = """
 
 
 def get_args():
-    pass
+    parser = argparse.ArgumentParser(
+        description="",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        usage=argparse.SUPPRESS,
+    )  # argparse.RawDescriptionHelpFormatter) #,
+    parser.add_argument(
+        "-mode",
+        dest="mode",
+        action="store",
+        required=False,
+        default="wavenumber",
+        type=str,
+        choices=["wavenumber", "energy", "wavelength"],
+        help="Set the unit of the x-axis. Can be wavenumber [cm-1], energy [eV] or wavelength [nm]."
+    )
+    parser.add_argument(
+        "-start",
+        dest="start",
+        action="store",
+        required=False,
+        type=float,
+        help="Start plotting from '<start>'. Default values: 300nm/1.8eV/14000cm-1.",
+    )
+    parser.add_argument(
+        "-end",
+        dest="end",
+        action="store",
+        required=False,
+        type=float,
+        help="End plotting at '<end>'. '<end>' must be larger than '<start>'. Default values: 700nm/4.2eV/33000cm-1.",
+    )
+    parser.add_argument(
+        "-title",
+        "--title",
+        dest="title",
+        action="store",
+        required=False,
+        default="UVVis-PLOT",
+        type=str,
+        help="Set title of entire plot. If no title is required use "
+             "'<--title ''>'.",
+    )
+    parser.add_argument(
+        "-lw",
+        "--linewidth",
+        dest="lw",
+        action="store",
+        required=False,
+        default=1.0,
+        type=float,
+        help="Set linewidth in cm-1.",
+    )
+    parser.add_argument(
+        "-i",
+        "--inp",
+        dest="inp",
+        action="store",
+        required=True,
+        help="Provide input file.",
+    )
+    parser.add_argument(
+        "-fontsize",
+        "--fontsize",
+        dest="fontsize",
+        action="store",
+        required=False,
+        default=15,
+        type=float,
+        help="Set fontsize for entire plot.",
+    )
+    parser.add_argument(
+        "-o",
+        "--out",
+        dest="out",
+        action="store",
+        required=False,
+        default="nmrplot",
+        help="Provide name of the output file without fileending.",
+    )
+    args = parser.parse_args()
+    return args
 
 
 def read_data(inp):
-    pass
+    cwd = os.getcwd()
+    with open(os.path.join(cwd, inp), "r") as f:
+        data = json.load(f)
+
+    return data
 
 
 def plot(data, args):
-    pass
+    # Get plotting mode
+    mode = args.mode
+
+    # Select start value
+    if args.start:
+        start = args.start
+    else:
+        defaults = {
+            "wavelength": 300,
+            "wavenumber": 14000,
+            "energy": 1.8
+        }
+        start = defaults[mode]
+
+    # Select end value
+    if args.end:
+        end = args.end
+    else:
+        defaults = {
+            "wavelength": 700,
+            "wavenumber": 33000,
+            "energy": 4.2
+        }
+        end = defaults[mode]
+
+    assert end > start
+    xrange = np.linspace(args.start, args.end, 10000)
+
+    yrange = np.zeros(10000)
+
+    # Dump single contributions to csv file
+    confs = set([d[2] for d in data])
+    exc_number = {conf: 0 for conf in confs}
+    contributions = {}
+
+    for exc in data:
+        yrange = gaussian_signal(xrange, exc[0], exc[1], args.lw, mode=mode)
+        contributions[f"{exc[2]}_S{exc_number[exc[2]]}"] = yrange
+
+        exc_number[exc[2]] += 1
+
+    cwd = os.getcwd()
+    with open(os.path.join(cwd, args.out), "w") as f:
+        writer = csv.DictWriter(f, fieldnames=list(contributions.keys()))
+        writer.writeheader()
+        writer.writerows(contributions)
+
+    # Plot the whole spectrum
+    fig, ax = plt.subplots()
+    yrange = sum(c for c in contributions.values())
+    ax.set_title(args.title)
+    labels = {
+        "wavelength": "$\mathrm{nm}$",
+        "wavenumber": "$\mathrm{cm-1}$",
+        "enegry": "$\mathrm{eV}$",
+    }
+    ax.set_xlabel(f"{args.mode} [{labels[args.mode]}]")
+    ax.set_ylabel("$\epsilon$ [L mol-1 cm-1]")
+
+    return fig
 
 
-def save_plot(out):
-    pass
+def gaussian_signal(xrange, center_wl, eps_max, lw, mode="wavelength"):
+    # E = h ν = h c/λ
+    # <=> 1/λ = E / (h c)
+    # 1 nm = 1e-7 cm
+    # 1 cm-1 = 1e7 nm-1
+    if mode == "wavelength":
+        return eps_max * np.exp(- (1 / xrange - 1 / center_wl)**2 / (lw * 1e7))
+    elif mode == "wavenumber":
+        return eps_max * np.exp(- (xrange - 1 / center_wl * 1e7)**2 / lw)
+    elif mode == "energy":
+        return eps_max * np.exp(- (xrange * COULOMB / (PLANCK * C) - 1 / center_wl * 1e9)**2 / (lw * 1e2))
+
+
+def save_plot(fig, out):
+    cwd = os.getcwd()
+    fig.savefig(os.path.join(cwd, out), format="pdf")
 
 
 def main():
@@ -62,7 +230,7 @@ def main():
     figure = plot(data, args)
 
     # Save plot
-    save_plot(plot, args.out)
+    save_plot(figure, args.out)
 
 
 if __name__ == "__main__":

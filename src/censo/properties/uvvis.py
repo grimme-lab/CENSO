@@ -226,7 +226,7 @@ class UVVis(CensoPart):
         # Print table
         headers = [
             "λ",
-            "Osc. strength",
+            "epsilon_max",
             "Origin. CONF#"
         ]
 
