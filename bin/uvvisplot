@@ -194,7 +194,7 @@ def plot(data, args):
         "energy": "$\mathrm{eV}$",
     }
     ax.set_xlabel(f"{args.mode} [{labels[args.mode]}]")
-    ax.set_ylabel("$\epsilon$ [L mol-1 cm-1]")
+    ax.set_ylabel("$\epsilon$ [a. u.]")
 
     return fig
 

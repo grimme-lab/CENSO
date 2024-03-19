@@ -33,7 +33,6 @@ class UVVis(CensoPart):
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "nroots": {"default": 20, "range": [1, 100]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
-        "linewidth": {"default": 1.6131e3, "range": [100, 10000]},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "gcp": {"default": True},  # required
@@ -218,9 +217,7 @@ class UVVis(CensoPart):
         eps = []
         for conf in self.ensemble.conformers:
             for excitation in conf.results[self._name]["uvvis"]["excitations"]:
-                # 2.31535 // 4.63070 e12 L / mol cm
-                epsilon_max = conf.bmws[-1] * 4.63070e12 * \
-                    excitation["osc_str"] / self.get_settings()["linewidth"]
+                epsilon_max = conf.bmws[-1] * excitation["osc_str"]
                 eps.append((excitation["wavelength"], epsilon_max, conf.name))
 
         # Print table
