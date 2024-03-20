@@ -90,7 +90,7 @@ class NMR(CensoPart):
 
         # compute results
         # for structure of results from handler.execute look there
-        results, failed = execute(
+        success, _, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -106,12 +106,6 @@ class NMR(CensoPart):
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
-        # Put results into conformers
-        for conf in self.ensemble.conformers:
-            # store results
-            conf.results.setdefault(self._name, {}).update(
-                results[conf.geom.id])
-
         # If RRHO contribution should be included and there was no previous ensemble optimization, calculate RRHO
         if not (
                 any(
@@ -123,7 +117,7 @@ class NMR(CensoPart):
             prepinfo = self.setup_prepinfo_rrho()
 
             # Run RRHO calculation
-            results, failed = execute(
+            success, _, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -138,10 +132,6 @@ class NMR(CensoPart):
 
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
-
-            for conf in self.ensemble.conformers:
-                # update results for each conformer
-                conf.results[self._name].update(results[id(conf)])
 
         # Recalculate Boltzmann populations based on new single-point energy
         for conf in self.ensemble.conformers:

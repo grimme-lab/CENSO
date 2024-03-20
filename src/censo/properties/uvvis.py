@@ -33,7 +33,6 @@ class UVVis(CensoPart):
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "nroots": {"default": 20, "range": [1, 100]},
         "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
-        "linewidth": {"default": 1.0, "range": [0.01, 50.0]},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "gcp": {"default": True},  # required
@@ -72,7 +71,7 @@ class UVVis(CensoPart):
 
         # compute results
         # for structure of results from handler.execute look there
-        results, failed = execute(
+        success, _, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -88,12 +87,6 @@ class UVVis(CensoPart):
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
-        # Put results into conformers
-        for conf in self.ensemble.conformers:
-            # store results
-            conf.results.setdefault(self._name, {}).update(
-                results[conf.geom.id])
-
         # If RRHO contribution should be included and there was no previous ensemble optimization, calculate RRHO
         if not (
                 any(
@@ -105,7 +98,7 @@ class UVVis(CensoPart):
             prepinfo = self.setup_prepinfo_rrho()
 
             # Run RRHO calculation
-            results, failed = execute(
+            success, _, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -120,10 +113,6 @@ class UVVis(CensoPart):
 
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
-
-            for conf in self.ensemble.conformers:
-                # update results for each conformer
-                conf.results[self._name].update(results[id(conf)])
 
         # Recalculate Boltzmann populations based on new single-point energy
         for conf in self.ensemble.conformers:
@@ -149,7 +138,7 @@ class UVVis(CensoPart):
             )
 
         # Ensemble averaging of excitations
-        self.excitation_averaging()
+        self.__excitation_averaging()
 
         # TODO - Generate files to plot UV/Vis spectrum
 
@@ -177,6 +166,7 @@ class UVVis(CensoPart):
             # while the other functional isn't
             "gcp": True,  # by default GCP should always be used if possible
             "sm": self.get_settings()["sm"],
+            "nroots": self.get_settings()["nroots"],
         }
         # Only look up solvent if solvation is used
         if not self.get_general_settings()["gas-phase"]:
@@ -218,7 +208,7 @@ class UVVis(CensoPart):
             else:
                 return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["uvvis"]["xtb_rrho"]["energy"]
 
-    def excitation_averaging(self):
+    def __excitation_averaging(self):
         """
         Calculates population weighted excitation parameters.
         """
@@ -227,25 +217,26 @@ class UVVis(CensoPart):
         eps = []
         for conf in self.ensemble.conformers:
             for excitation in conf.results[self._name]["uvvis"]["excitations"]:
-                epsilon_max = 1.3062974e8 * \
-                    excitation["osc_str"] / \
-                    self.get_settings()["linewidth"] * conf.bmws[-1]
-                eps.append((excitation["wavelength"], epsilon_max))
+                epsilon_max = conf.bmws[-1] * excitation["osc_str"]
+                eps.append((excitation["wavelength"], epsilon_max, conf.name))
 
         # Print table
         headers = [
             "λ",
-            "Osc. strength"
+            "ε_max",
+            "Origin. CONF#"
         ]
 
         units = [
             "[nm]",
+            "",
             ""
         ]
 
         printmap = {
             "λ": lambda exc: f"{exc[0]:.2f}",
-            "Osc. strength": lambda exc: f"{exc[1]:.6f}"
+            "ε_max": lambda exc: f"{exc[1]:.6f}",
+            "Origin. CONF#": lambda exc: f"{exc[2]}",
         }
 
         rows = [
@@ -255,12 +246,16 @@ class UVVis(CensoPart):
 
         lines = format_data(headers, rows, units=units)
 
+        # Print everything
+        for line in lines:
+            print(line, flush=True, end="")
+
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
         )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}.out"), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 

@@ -22,7 +22,8 @@ def execute(
         conformers: list[MoleculeData], workdir: str, prog: str, prepinfo: dict[str, dict], jobtype: list[str],
         copy_mo: bool = False, retry_failed: bool = False, balance: bool = True, maxcores: int = OMPMIN,
         omp: int = OMPMIN,
-) -> dict[int, any]:
+        update: bool = True,
+) -> tuple[bool, dict, list]:
     """
     Manages parallel execution of external program calls. Sets cores used per job, checks requirements,
     can copy MO-files, and retry failed jobs.
@@ -36,9 +37,11 @@ def execute(
         balance (bool, optional): Whether to balance the number of cores used per job.
         maxcores (int, optional): Maximum number of cores to be used.
         omp (int, optional): Number of cores to be used per job.
+        update (bool, optional): Wether to update the results dict for each conformer.
 
     Returns:
-        dict[int, any]: Dictionary of results. Key: the id of the conformer.
+        tuple[bool, dict, list]: Whether the execution was successful, a dictionary containing the results, and a list
+            of conformers that could not be recovered.
     """
 
     # Check first if there are any conformers at all
@@ -104,8 +107,17 @@ def execute(
             if mo_paths.get(conf.geom.id, None) is not None:
                 conf.mo_paths.append(mo_paths[conf.geom.id])
 
-    # collect all results from the job objects
-    return {job.conf.id: job.results for job in jobs}, failed_confs
+    # update results for all conformers (if enabled)
+    if update:
+        for conf, job in zip(conformers, jobs):
+            conf.results.setdefault(
+                job.prepinfo["partname"], {}).update(job.results)
+
+    # TODO - For each failed job print the error
+    for failed in filter(lambda job: job.conf.id in failed_confs, jobs):
+        continue
+
+    return len(conformers) != len(failed_confs), {job.conf.id: job.results for job in jobs}, failed_confs
 
 
 def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict], jobtype: list[str]) -> list[ParallelJob]:

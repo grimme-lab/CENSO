@@ -69,7 +69,7 @@ class Screening(Prescreening):
             prepinfo = self.setup_prepinfo(jobtype)
 
             # append results to previous results
-            results, failed = execute(
+            success, _, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -86,9 +86,6 @@ class Screening(Prescreening):
             self.ensemble.remove_conformers(failed)
 
             for conf in self.ensemble.conformers:
-                # update results for each conformer
-                conf.results[self._name].update(results[id(conf)])
-
                 # calculate new gtot including RRHO contribution
                 conf.results[self._name]["gtot"] = self.grrho(conf)
 
@@ -96,7 +93,7 @@ class Screening(Prescreening):
             self.ensemble.conformers.sort(
                 key=lambda conf: conf.results[self._name]["gtot"])
 
-            if cut:
+            if cut and len(self.ensemble.conformers) > 1:
                 # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
                 fuzzy = (1 / AU2KCAL) * (1 - exp(-AU2KCAL * stdev(
                     [conf.results[self._name]["xtb_rrho"]["energy"]

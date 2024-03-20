@@ -10,7 +10,7 @@ from ..configuration import configure, override_rc, homerc
 from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
-from ..properties import NMR
+from ..properties import NMR, UVVis
 from ..params import DESCR, __version__
 from ..utilities import print
 from ..logging import setup_logger
@@ -47,7 +47,7 @@ def entry_point(argv: list[str] | None = None) -> int:
 
     run = filter(
         lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization, Refinement, NMR],
+        [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
     )
 
     time = 0.0

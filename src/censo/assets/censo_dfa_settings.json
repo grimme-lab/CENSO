@@ -22,6 +22,12 @@
         "dsd-blyp": "dsd-blyp-d3"
     },
     "functionals": {
+        "dummy": {
+            "tm": "",
+            "orca": "",
+            "disp": "",
+            "type": "dummy"
+        },
         "pbeh-3c": {
             "tm": "pbeh-3c",
             "orca": "pbeh-3c",
@@ -238,9 +244,21 @@
             "disp": "included",
             "type": "rs_hybrid"
         },
+        "wb97m-v": {
+            "tm": "",
+            "orca": "wb97m-v",
+            "disp": "included",
+            "type": "rs_hybrid"
+        },
         "dsd-blyp-d3": {
             "tm": "",
             "orca": "ri-dsd-blyp",
+            "disp": "d3bj",
+            "type": "double"
+        },
+        "dsd-pbep86-d3": {
+            "tm": "",
+            "orca": "dsd-pbep86",
             "disp": "d3bj",
             "type": "double"
         }

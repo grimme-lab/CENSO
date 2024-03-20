@@ -284,9 +284,15 @@ class OrcaParser:
         for key in allkeys[allkeys.index("geom") + 1:]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
-                lines.append(
-                    f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
-                )
+                if "Nuclei" in option:
+                    # Special treatment for the "Nuclei" option in %eprnmr
+                    lines.append(
+                        f"    {option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                    )
+                else:
+                    lines.append(
+                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                    )
             lines.append("end\n")
 
         return lines
@@ -639,6 +645,16 @@ class OrcaProc(QmProc):
                 indict["main"].append(
                     f"CPCM({solv_key})")
 
+        if jobtype == "uvvis":
+            indict = od_insert(
+                indict,
+                "tddft",
+                {
+                    "nroots": [f"{prepinfo['uvvis']['nroots']}"]
+                },
+                list(indict.keys()).index("main") + 1
+            )
+
         return indict
 
     def __prep_geom(
@@ -695,9 +711,15 @@ class OrcaProc(QmProc):
                 todo2.append("ssfc")
                 todo3["SpinSpinRThresh"] = ["8.0"]
 
-            nuclei = {
-                "Nuclei": ["="] + [",".join(f"{i + 1}" for i, atom in enumerate(conf.xyz) if atom["element"] in todo)] + ["{", ",".join(x for x in todo2), "}"]
-            }
+            # Workaround for weird orca quirk:
+            # Creates a "Nuclei" entry for every active nucleus, which is then parsed
+            # into multiple lines with the "Nuclei" keyword by the parser
+            # The numbers (Nuclei{i}) are stripped by the parser and necessary because
+            # in a dict all keys are unique so we cannot have multiple "Nuclei"
+            nuclei = {}
+            for i, element in enumerate(todo):
+                nuclei[f"Nuclei{i}"] = [
+                    "="] + ["all", element] + ["{", ",".join(x for x in todo2), "}"]
 
             compiled = {
                 **nuclei,
@@ -1332,7 +1354,7 @@ class OrcaProc(QmProc):
         for row in uvvis_table:
             spl = row.split()
             result["excitations"].append(
-                {"wavelength": spl[2], "osc_str": spl[3]})
+                {"wavelength": float(spl[2]), "osc_str": float(spl[3])})
 
         meta["success"] = True
 
