@@ -223,7 +223,7 @@ class UVVis(CensoPart):
         # Print table
         headers = [
             "λ",
-            "epsilon_max",
+            "ε_max",
             "Origin. CONF#"
         ]
 
@@ -235,7 +235,7 @@ class UVVis(CensoPart):
 
         printmap = {
             "λ": lambda exc: f"{exc[0]:.2f}",
-            "Osc. strength": lambda exc: f"{exc[1]:.6f}",
+            "ε_max": lambda exc: f"{exc[1]:.6f}",
             "Origin. CONF#": lambda exc: f"{exc[2]}",
         }
 
