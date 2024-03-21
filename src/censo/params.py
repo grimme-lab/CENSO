@@ -88,7 +88,7 @@ GFNOPTIONS = (
 
 CENSORCNAME = ".censo2rc"
 
-OMPMIN = 4
+OMPMIN = 1
 
 OMPMAX = 32
 
