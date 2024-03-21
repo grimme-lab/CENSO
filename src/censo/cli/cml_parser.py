@@ -187,7 +187,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "-gp",
         "--gas-phase",
         dest="gas-phase",
-        action="store_true",
+        action="store_const",
+        const=True,
         help="Run calculation in gas-phase, overriding all solvation settings.",
     )
     groups[1].add_argument(

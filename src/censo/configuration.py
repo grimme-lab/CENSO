@@ -66,6 +66,11 @@ def configure(rcpath: str = None, create_new: bool = False):
         write_rcfile(censorc_path)
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
+        # Initialize default settings
+        # Make sure that settings are initialized even if there is no section for this part in the rcfile
+        for part in parts.values():
+            part.set_settings({})
+
         homerc = True
         settings_dict = read_rcfile(censorc_path)
 
@@ -77,11 +82,6 @@ def configure(rcpath: str = None, create_new: bool = False):
             if section in parts.keys():
                 parts[section].set_settings(settings)
             # NOTE: if section is not in the parts names, it will be ignored
-
-        # Make sure that settings are initialized even if there is not section for this part in the rcfile
-        for partname, part in parts.items():
-            if partname not in settings_dict.keys():
-                part.set_settings({})
 
     # Update the paths for the processors
     paths = read_rcfile(censorc_path)["paths"]
