@@ -162,8 +162,8 @@ class Screening(Prescreening):
 
         Generates NO csv file. All info is included in the file written in write_results2.
         """
-        print(f"{self._name.upper()} SINGLE-POINT RESULTS\n")
-
+        print("".ljust(PLENGTH, "-"))
+        print(f"{self._name.upper()} SINGLE-POINT RESULTS")
         # PART (1) of writing
         # column headers
         headers = [
@@ -249,6 +249,8 @@ class Screening(Prescreening):
         # Print everything
         for line in lines:
             print(line, flush=True, end="")
+
+        print("".ljust(PLENGTH, "-"))
 
         # write everything to a file
         with open(

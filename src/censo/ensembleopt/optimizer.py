@@ -1,4 +1,4 @@
-from ..params import AU2KCAL, DIGILEN
+from ..params import AU2KCAL, DIGILEN, PLENGTH
 from ..ensembledata import EnsembleData
 from ..part import CensoPart
 from ..utilities import (
@@ -140,6 +140,7 @@ class EnsembleOptimizer(CensoPart):
         return prepinfo
 
     def print_update(self) -> None:
+        print("\n")
         print("Number of conformers:".ljust(DIGILEN // 2, " ") +
               f"{len(self.ensemble.conformers)}")
         print("Highest ranked conformer:".ljust(DIGILEN // 2, " ") +
@@ -147,7 +148,15 @@ class EnsembleOptimizer(CensoPart):
         print("\n")
 
     def print_comparison(self) -> None:
-        print(f"{self._name.upper()} COMPARISON\n")
+        lines = [
+            "\n" + "".ljust(PLENGTH, "-"),
+            f"{self._name.upper()} RANKING COMPARISON",
+            "".ljust(PLENGTH, "-"),
+            "\n"
+        ]
+
+        for line in lines:
+            print(line)
 
         headers = [
             "CONF#"

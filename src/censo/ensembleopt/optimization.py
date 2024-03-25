@@ -117,11 +117,11 @@ class Optimization(EnsembleOptimizer):
 
             if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"\nOnly one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
+                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
-            print("\nMacrocycle optimization turned off.")
+            print("Macrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
 
             # run optimizations using xtb as driver
@@ -234,7 +234,7 @@ class Optimization(EnsembleOptimizer):
         ncyc = 0
         rrho_done = False
         print(
-            f"\nOptimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
+            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         print(f"NCYC: {ncyc}")
         nconv = 0
@@ -335,7 +335,6 @@ class Optimization(EnsembleOptimizer):
                 nconv += 1
 
             if cut:
-                print("\n")
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
                 # threshold increase based on number of converged conformers
@@ -381,13 +380,14 @@ class Optimization(EnsembleOptimizer):
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
-            print(f"\nNCYC: {ncyc}")
+            print(f"NCYC: {ncyc}")
 
     def write_results(self) -> None:
         """
         formatted write of part results (optional)
         """
-        print(f"{self._name.upper()} RESULTS\n")
+        print(f"{self._name.upper()} RESULTS")
+        print("".ljust(PLENGTH, "-"))
         # column headers
         headers = [
             "CONF#",
@@ -495,7 +495,8 @@ class Optimization(EnsembleOptimizer):
         """
         writes information about the current state of the ensemble in form of a table
         """
-        print(f"{self._name.upper()} CYCLE UPDATE\n")
+        print("".ljust(PLENGTH, "-"))
+        print(f"{self._name.upper()} CYCLE UPDATE")
         # Define headers for the table
         headers = [
             "CONF#",
@@ -538,3 +539,5 @@ class Optimization(EnsembleOptimizer):
         # Print the lines
         for line in lines:
             print(line, end="")
+
+        print("".ljust(PLENGTH, "-"))

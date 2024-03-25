@@ -198,9 +198,9 @@ class CensoPart:
                 self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}")
             if os.path.isdir(self.dir):
                 global logger
-                logger.warning(
-                    f"Folder {self.dir} already exists. Potentially overwriting files."
-                )
+                # logger.warning(
+                #    f"Folder {self.dir} already exists. Potentially overwriting files."
+                # )
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
                 raise RuntimeError(
                     f"Could not create directory for {self._name}.")
@@ -243,13 +243,12 @@ class CensoPart:
 
         # Print header with part name
         lines = [
-            "\n" + "".ljust(PLENGTH, "-") + "\n",
+            "\n" + "".ljust(PLENGTH, "-"),
             f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(
                 PLENGTH, " "
-            )
-            + "\n",
-            "".ljust(PLENGTH, "-") + "\n",
-            "\n",
+            ),
+            "".ljust(PLENGTH, "-"),
+            "\n"
         ]
 
         # Print all settings with name and value
@@ -259,8 +258,6 @@ class CensoPart:
         # print everything to console
         for line in lines:
             print(line)
-
-        print("\n")
 
     def write_json(self) -> None:
         """

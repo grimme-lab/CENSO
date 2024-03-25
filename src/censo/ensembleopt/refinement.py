@@ -113,8 +113,9 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
-        print(f"{self._name.upper()} RRHO RESULTS\n")
-
+        print("".ljust(PLENGTH, "-"))
+        print(f"{self._name.upper()} RRHO RESULTS")
+        print("".ljust(PLENGTH, "-"))
         # column headers
         headers = [
             "CONF#",
