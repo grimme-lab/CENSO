@@ -12,7 +12,7 @@ from .params import (
     OMPMAX,
 )
 from .logging import setup_logger
-from .utilities import print
+from .utilities import print, h1, h2
 
 logger = setup_logger(__name__)
 
@@ -242,22 +242,11 @@ class CensoPart:
         """
 
         # Print header with part name
-        lines = [
-            "\n" + "".ljust(PLENGTH, "-"),
-            f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(
-                PLENGTH, " "
-            ),
-            "".ljust(PLENGTH, "-"),
-            "\n"
-        ]
+        print(h2(f"{self.__class__.__name__.upper()} - {self._name.upper()}"))
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
-            lines.append(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
-
-        # print everything to console
-        for line in lines:
-            print(line)
+            print(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
 
     def write_json(self) -> None:
         """

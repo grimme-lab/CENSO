@@ -19,6 +19,7 @@ from ..params import (
 from ..utilities import (
     print,
     format_data,
+    h1
 )
 from ..logging import setup_logger
 
@@ -236,7 +237,6 @@ class Optimization(EnsembleOptimizer):
         print(
             f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
-        print(f"NCYC: {ncyc}")
         nconv = 0
         ninit = len(self.confs_nc)
         while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
@@ -375,19 +375,17 @@ class Optimization(EnsembleOptimizer):
                         )
                         self.confs_nc.remove(conf)
 
-            # Print out information about current state of the ensemble
-            self.print_opt_update()
-
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
-            print(f"NCYC: {ncyc}")
+
+            # Print out information about current state of the ensemble
+            self.print_opt_update(ncyc)
 
     def write_results(self) -> None:
         """
         formatted write of part results (optional)
         """
-        print(f"{self._name.upper()} RESULTS")
-        print("".ljust(PLENGTH, "-"))
+        print(h1(f"{self._name.upper()} RESULTS"))
         # column headers
         headers = [
             "CONF#",
@@ -491,12 +489,11 @@ class Optimization(EnsembleOptimizer):
         # Additionally, write the results of this part to a json file
         self.write_json()
 
-    def print_opt_update(self) -> None:
+    def print_opt_update(self, ncyc) -> None:
         """
         writes information about the current state of the ensemble in form of a table
         """
-        print("".ljust(PLENGTH, "-"))
-        print(f"{self._name.upper()} CYCLE UPDATE")
+        print(h1(f"{self._name.upper()} CYCLE {ncyc} UPDATE"))
         # Define headers for the table
         headers = [
             "CONF#",

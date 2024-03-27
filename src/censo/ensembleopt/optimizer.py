@@ -6,7 +6,8 @@ from ..utilities import (
     format_data,
     DfaHelper,
     SolventHelper,
-    print
+    print,
+    h1
 )
 from ..logging import setup_logger
 
@@ -148,15 +149,7 @@ class EnsembleOptimizer(CensoPart):
         print("\n")
 
     def print_comparison(self) -> None:
-        lines = [
-            "\n" + "".ljust(PLENGTH, "-"),
-            f"{self._name.upper()} RANKING COMPARISON",
-            "".ljust(PLENGTH, "-"),
-            "\n"
-        ]
-
-        for line in lines:
-            print(line)
+        print(h1(f"{self._name.upper()} RANKING COMPARISON"))
 
         headers = [
             "CONF#"

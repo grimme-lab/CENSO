@@ -18,7 +18,7 @@ from ..params import (
     GFNOPTIONS,
     PLENGTH
 )
-from ..utilities import print, format_data
+from ..utilities import print, format_data, h1
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -162,8 +162,7 @@ class Screening(Prescreening):
 
         Generates NO csv file. All info is included in the file written in write_results2.
         """
-        print("".ljust(PLENGTH, "-"))
-        print(f"{self._name.upper()} SINGLE-POINT RESULTS")
+        print(h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
         # PART (1) of writing
         # column headers
         headers = [
@@ -273,7 +272,7 @@ class Screening(Prescreening):
 
         Also writes them into an easily digestible format.
         """
-        print(f"{self._name.upper()} RRHO RESULTS\n")
+        print(h1(f"{self._name.upper()} RRHO RESULTS"))
 
         # column headers
         headers = [

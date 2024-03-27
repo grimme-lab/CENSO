@@ -12,7 +12,7 @@ from builtins import print as print_orig
 from collections import OrderedDict
 from collections.abc import Callable
 
-from .params import CODING, BOHR2ANG
+from .params import CODING, BOHR2ANG, PLENGTH
 from .logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -395,41 +395,35 @@ def od_insert(
     return OrderedDict(items)
 
 
-def mad(trajectory1: list[float], trajectory2: list[float]) -> float:
+def h1(text: str) -> str:
     """
-    Calculates the MAD (mean absolute deviation) between two trajectories.
+    Creates a formatted header of type 1:
+        ---- text ----
 
     Args:
-        trajectory1 (list[float]): The first trajectory.
-        trajectory2 (list[float]): The second trajectory.
+        text: The text to be formatted.
 
     Returns:
-        float: The MAD.
+        The formatted header.
     """
-    try:
-        assert len(trajectory1) == len(trajectory2)
-    except AssertionError:
-        raise ValueError("The trajectories must have the same length.")
-
-    return sum(abs(x - y) for x, y in zip(trajectory1, trajectory2)) / len(trajectory1)
+    return f"{'-' * (PLENGTH - len(text + 2)) // 2} {text} {'-' * (PLENGTH - len(text + 2)) // 2}"
 
 
-def mean_similarity(trajectories: list[list[float]]) -> float:
+def h2(text: str) -> str:
     """
-    Calculates the mean similarity of a list of trajectories.
+    Creates a formatted header of type 2:
+        ----------
+           text
+        ----------
 
     Args:
-        trajectories (list[list[float]]): The list of trajectories.
+        text: The text to be formatted.
 
     Returns:
-        float: The mean similarity.
+        The formatted header.
     """
-    # Calculate the MAD of each trajectory to every other trajectory
-    similarities = []
-    for i, trajectory1 in enumerate(trajectories):
-        for _, trajectory2 in enumerate(trajectories[i + 1:]):
-            similarities.append(mad(trajectory1, trajectory2))
-
-    # Return the mean similarity
-    # Unit: energy
-    return sum(similarities) / len(similarities)
+    return f"""
+    {'-' * PLENGTH}
+    {text.center(PLENGTH, " ")}
+    {'-' * PLENGTH}
+    """
