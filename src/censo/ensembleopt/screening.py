@@ -370,7 +370,6 @@ class Screening(Prescreening):
         lines.append(
             f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
-        print("".ljust(int(PLENGTH), "-") + "\n")
 
         # calculate averaged free enthalpy
         avG = sum(

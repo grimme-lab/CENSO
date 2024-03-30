@@ -195,3 +195,5 @@ class EnsembleOptimizer(CensoPart):
         # Print everything
         for line in lines:
             print(line, flush=True, end="")
+
+        print("".ljust(int(PLENGTH), "-") + "\n")
