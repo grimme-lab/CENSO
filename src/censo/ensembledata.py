@@ -132,7 +132,7 @@ class EnsembleData:
         print(
             f"Read {len(self.conformers)} conformers.\n",
             "Number of atoms:".ljust(DIGILEN // 2, " ") +
-            self.runinfo['nat'] + "\n",
+            f"{self.runinfo['nat']}" + "\n",
             "Charge:".ljust(DIGILEN // 2, " ") +
             f"{self.runinfo['charge']}" + "\n",
             "Unpaired electrons:".ljust(
