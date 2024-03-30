@@ -406,7 +406,7 @@ def h1(text: str) -> str:
     Returns:
         The formatted header.
     """
-    return f"{'-' * (PLENGTH - len(text + 2)) // 2} {text} {'-' * (PLENGTH - len(text + 2)) // 2}"
+    return f"{'-' * (PLENGTH - len(text) + 2) // 2} {text} {'-' * (PLENGTH - len(text) + 2) // 2}"
 
 
 def h2(text: str) -> str:
@@ -423,7 +423,7 @@ def h2(text: str) -> str:
         The formatted header.
     """
     return f"""
-    {'-' * PLENGTH}
-    {text.center(PLENGTH, " ")}
-    {'-' * PLENGTH}
+{'-' * PLENGTH}
+{text.center(PLENGTH, " ")}
+{'-' * PLENGTH}
     """
