@@ -12,7 +12,8 @@ from ..params import (
 )
 from ..utilities import (
     format_data,
-    print
+    print,
+    h1
 )
 from ..logging import setup_logger
 
@@ -166,9 +167,8 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
-        print("".ljust(int(PLENGTH), "-") + "\n\n")
-        print(f"\n{self._name.upper()} SINGLE-POINT RESULTS\n".center(PLENGTH, " "))
-        print("".ljust(int(PLENGTH), "-") + "\n\n")
+        print(
+            h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
 
         # column headers
         headers = [
@@ -316,7 +316,7 @@ class Prescreening(EnsembleOptimizer):
         lines.append(
             f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
         )
-        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
+        lines.append("".ljust(int(PLENGTH), "-"))
 
         # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
 

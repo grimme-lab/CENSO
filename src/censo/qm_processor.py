@@ -215,10 +215,11 @@ class QmProc:
             # Create the directory
             os.makedirs(jobdir)
         except FileExistsError:
-            logger.warning(
-                f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
-                " Files will be overwritten."
-            )
+            # logger.warning(
+            #    f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
+            #    " Files will be overwritten."
+            # )
+            pass
 
         return jobdir
 

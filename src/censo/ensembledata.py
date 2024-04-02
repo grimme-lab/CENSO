@@ -8,7 +8,7 @@ import os
 from math import exp
 from collections.abc import Callable
 
-from .params import AU2J, KB, DESCR
+from .params import AU2J, KB, DESCR, DIGILEN
 from .datastructure import MoleculeData
 from .utilities import (
     check_for_float,
@@ -131,9 +131,13 @@ class EnsembleData:
         # Print information about read ensemble
         print(
             f"Read {len(self.conformers)} conformers.\n",
-            f"Number of atoms: {self.runinfo['nat']}\n",
-            f"Charge: {self.runinfo['charge']}\n",
-            f"Unpaired electrons: {self.runinfo['unpaired']}\n"
+            "Number of atoms:".ljust(DIGILEN // 2, " ") +
+            f"{self.runinfo['nat']}" + "\n",
+            "Charge:".ljust(DIGILEN // 2, " ") +
+            f"{self.runinfo['charge']}" + "\n",
+            "Unpaired electrons:".ljust(
+                DIGILEN // 2, " ") + f"{self.runinfo['unpaired']}" + "\n",
+            sep=""
         )
 
     def setup_conformers(self, maxconf: int) -> None:

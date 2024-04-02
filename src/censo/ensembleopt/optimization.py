@@ -19,6 +19,7 @@ from ..params import (
 from ..utilities import (
     print,
     format_data,
+    h1
 )
 from ..logging import setup_logger
 
@@ -117,11 +118,11 @@ class Optimization(EnsembleOptimizer):
 
             if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"\nOnly one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
+                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
-            print("\nMacrocycle optimization turned off.")
+            print("Macrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
 
             # run optimizations using xtb as driver
@@ -234,9 +235,8 @@ class Optimization(EnsembleOptimizer):
         ncyc = 0
         rrho_done = False
         print(
-            f"\nOptimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
+            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
-        print(f"NCYC: {ncyc}")
         nconv = 0
         ninit = len(self.confs_nc)
         while len(self.confs_nc) > 0 and ncyc < self.get_settings()["maxcyc"]:
@@ -335,7 +335,6 @@ class Optimization(EnsembleOptimizer):
                 nconv += 1
 
             if cut:
-                print("\n")
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
                 # threshold increase based on number of converged conformers
@@ -376,18 +375,17 @@ class Optimization(EnsembleOptimizer):
                         )
                         self.confs_nc.remove(conf)
 
-            # Print out information about current state of the ensemble
-            self.print_opt_update()
-
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
-            print(f"\nNCYC: {ncyc}")
+
+            # Print out information about current state of the ensemble
+            self.print_opt_update(ncyc)
 
     def write_results(self) -> None:
         """
         formatted write of part results (optional)
         """
-        print(f"{self._name.upper()} RESULTS\n")
+        print(h1(f"{self._name.upper()} RESULTS"))
         # column headers
         headers = [
             "CONF#",
@@ -448,7 +446,6 @@ class Optimization(EnsembleOptimizer):
         lines.append(
             f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
-        print("".ljust(int(PLENGTH), "-") + "\n")
 
         # calculate averaged free enthalpy
         avG = sum(
@@ -491,11 +488,11 @@ class Optimization(EnsembleOptimizer):
         # Additionally, write the results of this part to a json file
         self.write_json()
 
-    def print_opt_update(self) -> None:
+    def print_opt_update(self, ncyc) -> None:
         """
         writes information about the current state of the ensemble in form of a table
         """
-        print(f"{self._name.upper()} CYCLE UPDATE\n")
+        print(h1(f"{self._name.upper()} CYCLE {ncyc} UPDATE"))
         # Define headers for the table
         headers = [
             "CONF#",
@@ -538,3 +535,5 @@ class Optimization(EnsembleOptimizer):
         # Print the lines
         for line in lines:
             print(line, end="")
+
+        print("".ljust(PLENGTH, "-"))

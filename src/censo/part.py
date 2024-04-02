@@ -12,7 +12,7 @@ from .params import (
     OMPMAX,
 )
 from .logging import setup_logger
-from .utilities import print
+from .utilities import print, h1, h2
 
 logger = setup_logger(__name__)
 
@@ -198,9 +198,9 @@ class CensoPart:
                 self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}")
             if os.path.isdir(self.dir):
                 global logger
-                logger.warning(
-                    f"Folder {self.dir} already exists. Potentially overwriting files."
-                )
+                # logger.warning(
+                #    f"Folder {self.dir} already exists. Potentially overwriting files."
+                # )
             elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
                 raise RuntimeError(
                     f"Could not create directory for {self._name}.")
@@ -242,25 +242,11 @@ class CensoPart:
         """
 
         # Print header with part name
-        lines = [
-            "\n" + "".ljust(PLENGTH, "-") + "\n",
-            f"{self.__class__.__name__.upper()} - {self._name.upper()}".center(
-                PLENGTH, " "
-            )
-            + "\n",
-            "".ljust(PLENGTH, "-") + "\n",
-            "\n",
-        ]
+        print(h2(f"{self.__class__.__name__.upper()} - {self._name.upper()}"))
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
-            lines.append(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
-
-        # print everything to console
-        for line in lines:
-            print(line)
-
-        print("\n")
+            print(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
 
     def write_json(self) -> None:
         """
