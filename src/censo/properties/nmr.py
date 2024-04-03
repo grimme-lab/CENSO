@@ -73,18 +73,6 @@ class NMR(CensoPart):
                 )
             )
 
-        # Preselect conformers based on Boltzmann weight threshold, index -1 indicates to always use the most recently
-        # calculated Boltzmann weight
-        if cut:
-            preselection = False
-            if all(len(conf.bmws) > 0 for conf in self.ensemble.conformers):
-                self.ensemble.update_conformers(
-                    lambda conf: conf.bmws[-1],
-                    self.get_settings()["threshold_bmw"],
-                    boltzmann=True,
-                )
-                preselection = True
-
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo()
 
@@ -142,20 +130,19 @@ class NMR(CensoPart):
             self._name
         )
 
-        # In case there was no ensemble optimization done before for preselection, cut down ensemble here
+        # Cut down ensemble here
         if cut:
-            if not preselection:
-                self.ensemble.update_conformers(
-                    lambda conf: conf.bmws[-1],
-                    self.get_settings()["threshold_bmw"],
-                    boltzmann=True,
-                )
+            self.ensemble.update_conformers(
+                lambda conf: conf.bmws[-1],
+                self.get_settings()["threshold_bmw"],
+                boltzmann=True,
+            )
 
-                # Recalculate Boltzmann populations to be used by ANMR
-                self.ensemble.calc_boltzmannweights(
-                    self.get_general_settings()["temperature"],
-                    self._name
-                )
+            # Recalculate Boltzmann populations to be used by ANMR
+            self.ensemble.calc_boltzmannweights(
+                self.get_general_settings()["temperature"],
+                self._name
+            )
 
         # Generate files for ANMR
         self.__generate_anmr()

@@ -7,12 +7,11 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
     PLENGTH
 )
-from ..utilities import print, format_data
+from ..utilities import print, format_data, h1
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -95,6 +94,11 @@ class Refinement(Screening):
             for confname in self.ensemble.update_conformers(lambda conf: conf.results[self._name]["bmw"], threshold, boltzmann=True):
                 print(f"No longer considering {confname}.")
 
+        # Recalculate boltzmann weights after cutting down the ensemble
+        self.ensemble.calc_boltzmannweights(
+            self.get_general_settings().get("temperature", 298.15), self._name
+        )
+
         # second 'write_results' for the updated sorting with RRHO contributions
         self.write_results2()
 
@@ -113,9 +117,7 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
-        print("".ljust(PLENGTH, "-"))
-        print(f"{self._name.upper()} RRHO RESULTS")
-        print("".ljust(PLENGTH, "-"))
+        print(h1(f"{self._name.upper()} RRHO RESULTS"))
         # column headers
         headers = [
             "CONF#",
@@ -186,7 +188,6 @@ class Refinement(Screening):
         lines.append(
             f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
-        print("".ljust(int(PLENGTH), "-") + "\n")
 
         # calculate averaged free enthalpy
         avG = sum(
