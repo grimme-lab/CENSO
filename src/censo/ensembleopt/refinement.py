@@ -7,12 +7,11 @@ from ..parallel import execute
 from ..params import (
     SOLV_MODS,
     PROGS,
-    GRIDOPTIONS,
     GFNOPTIONS,
     AU2KCAL,
     PLENGTH
 )
-from ..utilities import print, format_data
+from ..utilities import print, format_data, h1
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -113,9 +112,7 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
-        print("".ljust(PLENGTH, "-"))
-        print(f"{self._name.upper()} RRHO RESULTS")
-        print("".ljust(PLENGTH, "-"))
+        print(h1(f"{self._name.upper()} RRHO RESULTS"))
         # column headers
         headers = [
             "CONF#",

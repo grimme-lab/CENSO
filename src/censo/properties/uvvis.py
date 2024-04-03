@@ -45,7 +45,7 @@ class UVVis(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, cut: bool = True) -> None:
         """
         Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
         """
@@ -54,17 +54,6 @@ class UVVis(CensoPart):
         self.print_info()
 
         jobtype = ["uvvis"]
-
-        # Preselect conformers based on Boltzmann weight threshold, index -1 indicates to always use the most recently
-        # calculated Boltzmann weight
-        preselection = False
-        if all(len(conf.bmws) > 0 for conf in self.ensemble.conformers):
-            self.ensemble.update_conformers(
-                lambda conf: conf.bmws[-1],
-                self.get_settings()["threshold_bmw"],
-                boltzmann=True,
-            )
-            preselection = True
 
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo()
@@ -123,15 +112,15 @@ class UVVis(CensoPart):
             self._name
         )
 
-        # In case there was no ensemble optimization done before for preselection, cut down ensemble here
-        if not preselection:
+        # Cut down ensemble here
+        if cut:
             self.ensemble.update_conformers(
                 lambda conf: conf.bmws[-1],
                 self.get_settings()["threshold_bmw"],
                 boltzmann=True,
             )
 
-            # Recalculate Boltzmann populations to be used by ANMR
+            # Recalculate Boltzmann populations
             self.ensemble.calc_boltzmannweights(
                 self.get_general_settings()["temperature"],
                 self._name
@@ -139,8 +128,6 @@ class UVVis(CensoPart):
 
         # Ensemble averaging of excitations
         self.__excitation_averaging()
-
-        # TODO - Generate files to plot UV/Vis spectrum
 
         # Write data
         self.write_results()
