@@ -252,8 +252,12 @@ class Screening(Prescreening):
         print("".ljust(PLENGTH, "-"))
 
         # write everything to a file
+        filename = f"{self._part_no}_{self._name.upper()}.out"
+        logger.debug(
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
+        )
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "w", newline=None
+            os.path.join(self.ensemble.workdir, filename), "w", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
@@ -400,11 +404,9 @@ class Screening(Prescreening):
             print(line, flush=True, end="")
 
         # append lines to already existing file
-        logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._name}.out')}."
-        )
+        filename = f"{self._part_no}_{self._name.upper()}.out"
         with open(
-            os.path.join(self.ensemble.workdir, f"{self._name}.out"), "a", newline=None
+            os.path.join(self.ensemble.workdir, filename), "a", newline=None
         ) as outfile:
             outfile.writelines(lines)
 
