@@ -73,7 +73,7 @@ class DfaHelper:
     @classmethod
     def get_disp(cls, func: str):
         """
-        Returns the dispersion correction of a given functional. If dispersion correction 
+        Returns the dispersion correction of a given functional. If dispersion correction
         cannot be determined, apply none.
 
         Args:
@@ -93,7 +93,7 @@ class DfaHelper:
     @classmethod
     def get_type(cls, func: str):
         """
-        Returns the type of a certain functional. If the type cannot be determined, it 
+        Returns the type of a certain functional. If the type cannot be determined, it
         is assumed to be a GGA.
 
         Args:
@@ -169,14 +169,14 @@ def print(*args, **kwargs):
 
 
 def format_data(
-        headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0, padding: int = 6
+        headers: list[str], rows: list[list[str]], units: list[str] = None, sortby: int = 0, padding: int = 6
 ) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
 
     Args:
         headers (list[str]): The list of column headers.
-        rows (list[list[any]]): The list of rows, where each row is a list of values.
+        rows (list[list[str]]): The list of rows, where each row is a list of values.
         units (list[str], optional): The list of units for each column. Defaults to None.
         sortby (int, optional): The index of the column to sort by. Defaults to 0. In case of a string column,
                                 use natural sorting.
@@ -193,31 +193,36 @@ def format_data(
 
     lines = []
 
-    # determine column width 'collen' of column with header 'header'
-    # by finding the length of the maximum width entry
-    # for each column (header)
-    collens = {
-        header: collen
-        for header, collen in zip(
-            headers,
-            (max(len(header), max(len(row) for row in rows))
-             for header in headers),
-        )
-    }
+    # First, determine the maximium width for each column
+    ncols = len(headers)
+    if units is not None:
+        maxcolw = [
+            max([
+                len(headers[i]),
+                max(len(entry) for entry in rows[i]),
+                len(units[i])
+            ])
+            for i in range(ncols)
+        ]
+    else:
+        maxcolw = [
+            max(len(headers[i]), max(len(entry) for entry in rows[i]))
+            for i in range(ncols)
+        ]
 
     # add table header
     lines.append(
-        " ".join(f"{header:^{collen + padding}}" for header,
-                 collen in collens.items())
+        " ".join(f"{headers[i]:^{width + padding}}"
+                 for i, width in enumerate(maxcolw)) + "\n"
     )
-    lines[-1] += "\n"
+
+    # Add units
     if units is not None:
         lines.append(
             " ".join(
-                f"{unit:^{collen + padding}}" for unit, collen in zip(units, collens.values())
-            )
+                f"{units[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
+            ) + "\n"
         )
-        lines[-1] += "\n"
 
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
@@ -233,15 +238,13 @@ def format_data(
     for row in rows:
         lines.append(
             " ".join(
-                f"{row:^{collen + padding}}" for row, collen in zip(row, collens.values())
-            )
+                f"{rows[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
+            ) + "\n"
         )
-        lines[-1] += "\n"
 
-    # Remove as much leading whitespace as possible
-    maxlinelen = max(len(line.lstrip()) for line in lines)
+    # Remove leading whitespace
     for i in range(len(lines)):
-        lines[i] = lines[i][len(lines[i]) - maxlinelen:]
+        lines[i] = lines[i][padding:]
 
     return lines
 
@@ -268,6 +271,8 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
 
 def t2x(
     path: str, writexyz: bool = False, outfile: str = "original.xyz"
+
+
 ) -> tuple[list, int, str]:
     """
     convert TURBOMOLE coord file to xyz data and/or write *.xyz output
