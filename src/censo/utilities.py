@@ -238,13 +238,14 @@ def format_data(
     for row in rows:
         lines.append(
             " ".join(
-                f"{rows[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
+                f"{row[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
             ) + "\n"
         )
 
     # Remove leading whitespace
+    start = min(len(line) - len(line.lstrip()) for line in lines)
     for i in range(len(lines)):
-        lines[i] = lines[i][padding:]
+        lines[i] = lines[i][start:]
 
     return lines
 
