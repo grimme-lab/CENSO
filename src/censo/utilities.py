@@ -169,11 +169,7 @@ def print(*args, **kwargs):
 
 
 def format_data(
-    << << << < HEAD
-        headers: list[str], rows: list[list[any]], units: list[str] = None, sortby: int = 0, padding: int = 3
-    == == == =
         headers: list[str], rows: list[list[str]], units: list[str] = None, sortby: int = 0, padding: int = 6
-    >> >>>> > origin/testing
 ) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
