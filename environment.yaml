@@ -1,5 +1,6 @@
 name: censo
 channels:
   - defaults
-  - conde-forge
+  - conda-forge
 dependencies:
+  - python=3.11
