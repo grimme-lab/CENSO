@@ -203,14 +203,17 @@ def format_data(
         maxcolw = [
             max([
                 len(headers[i]),
-                max(len(entry) for entry in rows[i]),
+                max(len(rows[j][i]) for j in range(len(rows))),
                 len(units[i])
             ])
             for i in range(ncols)
         ]
     else:
         maxcolw = [
-            max(len(headers[i]), max(len(entry) for entry in rows[i]))
+            max(
+                len(headers[i]),
+                max(len(rows[j][i]) for j in range(len(rows)))
+            )
             for i in range(ncols)
         ]
 
