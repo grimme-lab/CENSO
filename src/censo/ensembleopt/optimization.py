@@ -259,6 +259,8 @@ class Optimization(EnsembleOptimizer):
 
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
+            for conf in filter(lambda x: x.geom.id in failed, self.confs_nc):
+                self.confs_nc.remove(conf)
 
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
