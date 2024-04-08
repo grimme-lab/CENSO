@@ -28,7 +28,6 @@ class NMR(CensoPart):
 
     _options = {
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
-        "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
         "prog": {"default": "orca", "options": PROGS},  # required
         "func_j": {"default": "pbe0-d4", "options": []},
         "basis_j": {"default": "def2-TZVP", "options": []},
@@ -55,9 +54,10 @@ class NMR(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def run(self) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
+        Note, that the ensemble will not be modified anymore.
         """
 
         # print instructions
@@ -129,20 +129,6 @@ class NMR(CensoPart):
             self.get_general_settings()["temperature"],
             self._name
         )
-
-        # Cut down ensemble here
-        if cut:
-            self.ensemble.update_conformers(
-                lambda conf: conf.bmws[-1],
-                self.get_settings()["threshold_bmw"],
-                boltzmann=True,
-            )
-
-            # Recalculate Boltzmann populations to be used by ANMR
-            self.ensemble.calc_boltzmannweights(
-                self.get_general_settings()["temperature"],
-                self._name
-            )
 
         # Generate files for ANMR
         self.__generate_anmr()
