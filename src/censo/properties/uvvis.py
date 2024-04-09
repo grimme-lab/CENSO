@@ -162,9 +162,9 @@ class UVVis(CensoPart):
         }
         # Only lookup solvent if solvation should be used
         if not self.get_general_settings()["gas-phase"]:
-            prepinfo["xtb_rrho"]["solvent_key_prog"] = SolventHelper.get_solvent(
+            prepinfo["xtb_rrho"]["solvent_key_xtb"] = SolventHelper.get_solvent(
                 self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
-            assert prepinfo["xtb_rrho"]["solvent_key_prog"] is not None
+            assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         return prepinfo
 
