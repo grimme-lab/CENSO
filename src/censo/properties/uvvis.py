@@ -32,7 +32,6 @@ class UVVis(CensoPart):
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "nroots": {"default": 20, "range": [1, 100]},
-        "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "gcp": {"default": True},  # required
@@ -45,9 +44,10 @@ class UVVis(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def run(self) -> None:
         """
         Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
+        Note, that the ensemble will not be modified anymore.
         """
 
         # print instructions
@@ -112,20 +112,6 @@ class UVVis(CensoPart):
             self._name
         )
 
-        # Cut down ensemble here
-        if cut:
-            self.ensemble.update_conformers(
-                lambda conf: conf.bmws[-1],
-                self.get_settings()["threshold_bmw"],
-                boltzmann=True,
-            )
-
-            # Recalculate Boltzmann populations
-            self.ensemble.calc_boltzmannweights(
-                self.get_general_settings()["temperature"],
-                self._name
-            )
-
         # Ensemble averaging of excitations
         self.__excitation_averaging()
 
@@ -176,9 +162,9 @@ class UVVis(CensoPart):
         }
         # Only lookup solvent if solvation should be used
         if not self.get_general_settings()["gas-phase"]:
-            prepinfo["xtb_rrho"]["solvent_key_prog"] = SolventHelper.get_solvent(
+            prepinfo["xtb_rrho"]["solvent_key_xtb"] = SolventHelper.get_solvent(
                 self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
-            assert prepinfo["xtb_rrho"]["solvent_key_prog"] is not None
+            assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         return prepinfo
 

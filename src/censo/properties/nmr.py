@@ -28,7 +28,7 @@ class NMR(CensoPart):
 
     _options = {
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
-        "threshold_bmw": {"default": 0.95, "range": [0.01, 0.99]},
+        "ss_cutoff": {"default": 8.0, "range": [0.1, 100.0]},
         "prog": {"default": "orca", "options": PROGS},  # required
         "func_j": {"default": "pbe0-d4", "options": []},
         "basis_j": {"default": "def2-TZVP", "options": []},
@@ -40,6 +40,7 @@ class NMR(CensoPart):
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "couplings": {"default": True},
+        "fc_only": {"default": True},
         "shieldings": {"default": True},
         "h_active": {"default": True},
         "c_active": {"default": True},
@@ -55,9 +56,10 @@ class NMR(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def run(self) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
+        Note, that the ensemble will not be modified anymore.
         """
 
         # print instructions
@@ -130,20 +132,6 @@ class NMR(CensoPart):
             self._name
         )
 
-        # Cut down ensemble here
-        if cut:
-            self.ensemble.update_conformers(
-                lambda conf: conf.bmws[-1],
-                self.get_settings()["threshold_bmw"],
-                boltzmann=True,
-            )
-
-            # Recalculate Boltzmann populations to be used by ANMR
-            self.ensemble.calc_boltzmannweights(
-                self.get_general_settings()["temperature"],
-                self._name
-            )
-
         # Generate files for ANMR
         self.__generate_anmr()
 
@@ -186,6 +174,8 @@ class NMR(CensoPart):
                 # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
                 # while the other functional isn't
                 "gcp": True,  # by default GCP should always be used if possible
+                "fc_only": self.get_settings()["fc_only"],
+                "ss_cutoff": self.get_settings()["ss_cutoff"],
                 "sm": self.get_settings()["sm_s"],
                 "h_active": self.get_settings()["h_active"],
                 "c_active": self.get_settings()["c_active"],
@@ -217,6 +207,8 @@ class NMR(CensoPart):
                     "template": self.get_settings()["template"],
                     "gcp": True,
                     "sm": self.get_settings()[f"sm{ending}"],
+                    "fc_only": self.get_settings()["fc_only"],
+                    "ss_cutoff": self.get_settings()["ss_cutoff"],
                     "h_active": self.get_settings()["h_active"],
                     "c_active": self.get_settings()["c_active"],
                     "f_active": self.get_settings()["f_active"],
@@ -244,9 +236,9 @@ class NMR(CensoPart):
         }
         # Only lookup solvent if solvation should be used
         if not self.get_general_settings()["gas-phase"]:
-            prepinfo["xtb_rrho"]["solvent_key_prog"] = SolventHelper.get_solvent(
+            prepinfo["xtb_rrho"]["solvent_key_xtb"] = SolventHelper.get_solvent(
                 self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
-            assert prepinfo["xtb_rrho"]["solvent_key_prog"] is not None
+            assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         return prepinfo
 

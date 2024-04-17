@@ -145,6 +145,7 @@ class QmProc:
             # if a calculation failed all following calculations will not be executed
             if not job.meta[j]["success"]:
                 for j2 in job.jobtype[job.jobtype.index(j) + 1:]:
+                    job.results[j2] = None
                     job.meta[j2]["success"] = False
                     job.meta[j2]["error"] = "Previous calculation failed"
                 break
@@ -341,9 +342,10 @@ class QmProc:
         returncode = self._make_call(call, outputpath, jobdir)
 
         # if returncode != 0 then some error happened in xtb
+        # TODO - returncodes
         if returncode != 0:
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_sp"
+            meta["error"] = "unknown_error"
             return result, meta
 
         # read energy from outputfile
@@ -392,7 +394,7 @@ class QmProc:
             result["energy_xtb_gas"] = spres["energy"]
         else:
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_gsolv"
+            meta["error"] = spmeta["error"]
             return result, meta
 
         # run single-point in solution:
@@ -403,7 +405,7 @@ class QmProc:
             result["energy_xtb_solv"] = spres["energy"]
         else:
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_gsolv"
+            meta["error"] = spmeta["error"]
             return result, meta
 
         # only reached if both gas-phase and solvated sp succeeded
@@ -571,7 +573,7 @@ class QmProc:
         # check if converged:
         if returncode != 0:
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_rrho"
+            meta["error"] = "unknown_error"
             return result, meta
 
         # read output and store lines
