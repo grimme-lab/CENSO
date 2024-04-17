@@ -28,6 +28,7 @@ class NMR(CensoPart):
 
     _options = {
         "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
+        "ss_cutoff": {"default": 8.0, "range": [0.1, 100.0]},
         "prog": {"default": "orca", "options": PROGS},  # required
         "func_j": {"default": "pbe0-d4", "options": []},
         "basis_j": {"default": "def2-TZVP", "options": []},
@@ -39,6 +40,7 @@ class NMR(CensoPart):
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "couplings": {"default": True},
+        "fc_only": {"default": True},
         "shieldings": {"default": True},
         "h_active": {"default": True},
         "c_active": {"default": True},
@@ -172,6 +174,8 @@ class NMR(CensoPart):
                 # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
                 # while the other functional isn't
                 "gcp": True,  # by default GCP should always be used if possible
+                "fc_only": self.get_settings()["fc_only"],
+                "ss_cutoff": self.get_settings()["ss_cutoff"],
                 "sm": self.get_settings()["sm_s"],
                 "h_active": self.get_settings()["h_active"],
                 "c_active": self.get_settings()["c_active"],
@@ -203,6 +207,8 @@ class NMR(CensoPart):
                     "template": self.get_settings()["template"],
                     "gcp": True,
                     "sm": self.get_settings()[f"sm{ending}"],
+                    "fc_only": self.get_settings()["fc_only"],
+                    "ss_cutoff": self.get_settings()["ss_cutoff"],
                     "h_active": self.get_settings()["h_active"],
                     "c_active": self.get_settings()["c_active"],
                     "f_active": self.get_settings()["f_active"],
