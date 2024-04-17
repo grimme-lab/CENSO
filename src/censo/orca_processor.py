@@ -320,6 +320,17 @@ class OrcaProc(QmProc):
         },
     }
 
+    # Dict to map orca returncodes to error messages
+    __returncode_to_err: dict[int, str] = {
+        24: "input_error",
+        25: "input_error",
+        25: "input_error",
+        30: "input_error",
+        52: "input_error",
+        55: "input_error",
+        125: "unknown_error",
+    }
+
     # NOTE: this is currently not functionally used but could be used as a guideline
     __req_settings = {
         **{
@@ -355,6 +366,7 @@ class OrcaProc(QmProc):
         **QmProc._req_settings_xtb
     }
 
+    # NOTE: currently unused
     @classmethod
     def check_requirements(cls, jobs: list[ParallelJob]) -> None:
         """
@@ -731,6 +743,29 @@ class OrcaProc(QmProc):
 
         return indict
 
+    @staticmethod
+    def __check_output(lines: list[str]) -> str | None:
+        """
+        Checks the lines from the output file for errors and returns them.
+
+        Args:
+            lines: list of lines from the output file.
+
+        Returns:
+            str | None: error message if an error was found, None otherwise
+        """
+        # Dict mapping specific messages from the output to error messages
+        # TODO - this should be extended later
+        out_to_err = {
+            "SCF NOT CONVERGED": "scf_not_converged",
+        }
+        for line in lines:
+            if any(key in line for key in out_to_err.keys()):
+                # Returns the first error found
+                key = next(filter(lambda x: x in line, out_to_err.keys()))
+                return out_to_err[key]
+        return None
+
     def _sp(
         self,
         job: ParallelJob,
@@ -777,12 +812,9 @@ class OrcaProc(QmProc):
             indict = self.__prep(job, "sp", no_solv=no_solv)
 
             # check for flags raised for this jobtype
-            if "sp" in job.flags or "gsolv" in job.flags:
-                if (
-                    job.flags["sp"] == "scf_not_converged"
-                    or job.flags["gsolv"] == "scf_not_converged"
-                ):
-                    indict = self.__apply_flags(indict, "scf_not_converged")
+            # NOTE: all other jobtypes call this function so flags are always checked here
+            # except xtb_opt
+            indict = self.__apply_flags(job, indict)
 
             # write input into file "{filename}.inp" in a subdir created for the
             # conformer
@@ -802,14 +834,10 @@ class OrcaProc(QmProc):
 
         # call orca
         call = [self._paths["orcapath"], f"{filename}.inp"]
-        self._make_call(call, outputpath, jobdir)
+        returncode = self._make_call(call, outputpath, jobdir)
+        # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
 
-        # do not check returncode, since orca doesn't give meaningful returncodes
-        # check the outputfile instead, basically if the file doesn't say "SCF CONVERGED" or "SCF NOT CONVERGED"
-        # somewhere, something went wrong
-        # easily remedied:
-        # "SCF NOT CONVERGED"
-        # "Error encountered when trying to calculate the atomic fitting density!"
+        meta["success"] = returncode == 0
 
         # read output
         with open(outputpath, "r", encoding=CODING, newline=None) as out:
@@ -825,27 +853,19 @@ class OrcaProc(QmProc):
                 None,
             )
 
-            # Check if scf is converged, this results to None if it cannot be
-            # determined if the SCF converged or not
-            meta["success"] = next(
-                (True for line in lines if "SCF CONVERGED" in line), None) or next(
-                (False for line in lines if "SCF NOT CONVERGED" in line), None)
-
-        # TODO - important - this is not really correct, might not mean that the scf didn't
-        # converge
-        if meta["success"] is not None and not meta["success"]:
-            meta["error"] = "SCF not converged"
-        elif meta["success"] is None:
-            meta["success"] = False
-            meta["error"] = "Unknown error"
+            # Check for errors in the output file in case returncode is 0
+            if meta["success"]:
+                meta["error"] = self.__check_output(lines)
+                meta["success"] = meta["error"] is None and result["energy"] is not None
+            else:
+                meta["error"] = self.__returncode_to_err.get(
+                    returncode, "unknown_error")
 
         if self.copy_mo:
             # store the path to the current .gbw file for this conformer if
             # possible
             if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
                 meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
-
-        # TODO - clean up?
 
         return result, meta
 
@@ -887,7 +907,7 @@ class OrcaProc(QmProc):
             result["energy_gas"] = spres["energy"]
         else:
             meta["success"] = False
-            meta["error"] = "SCF not converged"
+            meta["error"] = spmeta["error"]
             return result, meta
 
         # calculate in solution
@@ -897,7 +917,7 @@ class OrcaProc(QmProc):
             result["energy_solv"] = spres["energy"]
         else:
             meta["success"] = False
-            meta["error"] = "SCF not converged"
+            meta["error"] = spmeta["error"]
             return result, meta
 
         if self.copy_mo:
@@ -942,7 +962,6 @@ class OrcaProc(QmProc):
             "geom": None,
         }
         """
-        # TODO - check if orca scf converges
         # NOTE: some "intuitivity problems":
         # the geometry of the conformer is written into a coord file and also into a xyz-file to be used by orca
         # xtb then outputs a file with the optimized geometry as 'xtbopt.coord', which is then read into the conformer
@@ -999,6 +1018,9 @@ class OrcaProc(QmProc):
         # prepare input dict
         parser = OrcaParser()
         indict = self.__prep(job, "xtb_opt", xyzfile=f"{filename}.xyz")
+
+        # apply flags
+        indict = self.__apply_flags(job, indict)
 
         # write orca input into file "xtb_opt.inp" in a subdir created for the
         # conformer
@@ -1075,9 +1097,11 @@ class OrcaProc(QmProc):
         returncode = self._make_call(call, outputpath, jobdir)
 
         # check if optimization finished without errors
+        # NOTE: right now, not converging scfs are not handled because returncodes need to be implemented first
         if returncode != 0:
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_opt"
+            meta["error"] = "unknown_error"
+            # TODO - the xtb returncodes should be handled
             return result, meta
 
         # read output
@@ -1099,7 +1123,7 @@ class OrcaProc(QmProc):
         meta["success"] = (False if next((x for x in lines if any(
             y in x for y in error_ind)), None) is not None else True)
         if not meta["success"]:
-            meta["error"] = "what went wrong in xtb_opt"
+            meta["error"] = "unknown_error"
             return result, meta
 
         # check convergence
@@ -1159,7 +1183,7 @@ class OrcaProc(QmProc):
             assert result["converged"] is not None
         except AssertionError:
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_opt"
+            meta["error"] = "unknown_error"
 
         return result, meta
 
@@ -1212,7 +1236,7 @@ class OrcaProc(QmProc):
 
             if not spmeta["success"]:
                 meta["success"] = False
-                meta["error"] = f"sp for nmr{ending} failed"
+                meta["error"] = spmeta["error"]
                 return result, meta
 
             # Grab shieldings and energy from the output
@@ -1228,6 +1252,11 @@ class OrcaProc(QmProc):
                 ),
                 None,
             )
+
+            if result["energy"] is None:
+                meta["success"] = False
+                meta["error"] = "unknown_error"
+                return result, meta
 
             # For shieldings watch out for the line "CHEMICAL SHIELDING SUMMARY
             # (ppm)"
@@ -1325,7 +1354,7 @@ class OrcaProc(QmProc):
 
         if not spmeta["success"]:
             meta["success"] = False
-            meta["error"] = "sp failed"
+            meta["error"] = spmeta["error"]
             return result, meta
 
         # Grab excitations and energy from the output
@@ -1341,6 +1370,11 @@ class OrcaProc(QmProc):
             ),
             None,
         )
+
+        if result["energy"] is None:
+            meta["success"] = False
+            meta["error"] = "unknown_error"
+            return result, meta
 
         # Find the line index of the actual excitations information
         start = lines.index(
@@ -1361,7 +1395,7 @@ class OrcaProc(QmProc):
         return result, meta
 
     @ staticmethod
-    def __apply_flags(indict: OrderedDict[str, any], *args) -> OrderedDict[str, any]:
+    def __apply_flags(job: ParallelJob, indict: OrderedDict[str, any]) -> OrderedDict[str, any]:
         """
         apply flags to an orca input
 
@@ -1380,14 +1414,14 @@ class OrcaProc(QmProc):
                 "main": ["veryslowconv"],
             },
         }
+        flags = [flag for flag in job.flags.values() if flag in flag_to_setting]
 
-        for flag in args:
-            if flag in flag_to_setting:
-                # insert all settings dictated by the flags after the main
-                for key, value in flag_to_setting[flag].items():
-                    if key == "main":
-                        indict[key].extend(value)
-                    else:
-                        indict = od_insert(indict, key, value, 1)
+        for flag in flags:
+            # insert all settings dictated by the flags after the main
+            for key, value in flag_to_setting[flag].items():
+                if key == "main":
+                    indict[key].extend(value)
+                else:
+                    indict = od_insert(indict, key, value, 1)
 
         return indict

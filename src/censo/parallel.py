@@ -88,8 +88,6 @@ def execute(
     # execute the jobs
     jobs = dqp(jobs, processor)
 
-    assert jobs is not None
-
     # Try to get the mo_path from metadata and store it in the respective conformer object
     mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
     for conf in conformers:
@@ -107,15 +105,17 @@ def execute(
             if mo_paths.get(conf.geom.id, None) is not None:
                 conf.mo_paths.append(mo_paths[conf.geom.id])
 
-    # update results for all conformers (if enabled)
+    # special warning if all jobs failed
+    if len(jobs) == len(failed_confs):
+        logger.warning(
+            "All jobs failed and could not be recovered!"
+        )
+
+        # update results for all conformers (if enabled)
     if update:
         for conf, job in zip(conformers, jobs):
             conf.results.setdefault(
                 job.prepinfo["partname"], {}).update(job.results)
-
-    # TODO - For each failed job print the error
-    for failed in filter(lambda job: job.conf.id in failed_confs, jobs):
-        continue
 
     return len(conformers) != len(failed_confs), {job.conf.id: job.results for job in jobs}, failed_confs
 
@@ -272,7 +272,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[
             that could not be recovered.
     """
     # determine failed jobs
-    logger.debug("Retrying failed jobs...")
+    logger.debug("Checking for failed jobs...")
     failed_jobs = [
         i
         for i, job in enumerate(jobs)
@@ -281,23 +281,24 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[
 
     if len(failed_jobs) != 0:
         # create a new list of failed jobs that should be restarted with special flags
-        # contains jobs that should be retried (depends if the error can be handled or not)
+        # contains jobs that should be retried (depends on wether the error can be handled or not)
         retry = []
 
         # determine flags for jobs based on error messages
         for failed_job in failed_jobs:
+            handled_errors = [
+                "scf_not_converged",
+                "Previous calculation failed"
+            ]
+
             # list of jobtypes that should be removed from the jobtype list
             jtremove = []
             for jt in jobs[failed_job].jobtype:
-                # for now only sp and gsolv calculations are caught
-                if not jobs[failed_job].meta[jt]["success"] and jt in [
-                    "sp",
-                    "gsolv",
-                ]:
-                    if jobs[failed_job].meta[jt]["error"] == "SCF not converged":
+                if not jobs[failed_job].meta[jt]["success"]:
+                    if jobs[failed_job].meta[jt]["error"] in handled_errors:
                         retry.append(failed_job)
-                        jobs[failed_job].flags[jt] = "scf_not_converged"
-                # store all successful jobtypes
+                        jobs[failed_job].flags[jt] = jobs[failed_job].meta[jt]["error"]
+                # store all successful jobtypes to be removed later
                 elif jobs[failed_job].meta[jt]["success"]:
                     jtremove.append(jt)
 
@@ -307,7 +308,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[
 
         # execute jobs that should be retried
         logger.info(
-            f"Failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
+            f"Number of failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
         )
 
         if len(retry) > 0:
@@ -320,9 +321,11 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[
         for job in jobs:
             if not all(job.meta[jt]["success"] for jt in job.jobtype):
                 logger.warning(
-                    f"{job.conf.name} job recovery failed."
+                    f"{job.conf.name} job recovery failed. Error: {job.meta[jt]['error']}. Check output files."
                 )
                 failed_confs.append(job.conf.id)
+            else:
+                logger.info(f"Successfully retried job for {job.conf.name}.")
     else:
         retry = []
         failed_confs = []

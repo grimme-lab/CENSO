@@ -61,7 +61,11 @@ class EnsembleData:
         """
         Returns the conformers list. Includes a check wether there are any conformers left.
         """
-        assert len(self.__conformers) > 0
+        try:
+            assert len(self.__conformers) > 0
+        except AssertionError:
+            raise AssertionError(
+                "There are no more conformers in the ensemble! Possibly all jobs failed, check output files.")
         return self.__conformers
 
     @conformers.setter
