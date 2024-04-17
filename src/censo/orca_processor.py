@@ -720,11 +720,12 @@ class OrcaProc(QmProc):
                 todo3["giao_2el"] = ["giao_2el_same_as_scf"]
                 todo3["giao_1el"] = ["giao_1el_analytic"]
             if jobtype.endswith("_j") or jobtype == "nmr":
-                if prepinfo["fc_only"]:
+                if prepinfo[jobtype]["fc_only"]:
                     todo2.append("ssfc")
                 else:
                     todo2.append("ssall")
-                todo3["SpinSpinRThresh"] = [f"{prepinfo['ss_cutoff']:.4f}"]
+                todo3["SpinSpinRThresh"] = [
+                    f"{prepinfo[jobtype]['ss_cutoff']:.4f}"]
 
             # Workaround for weird orca quirk:
             # Creates a "Nuclei" entry for every active nucleus, which is then parsed
