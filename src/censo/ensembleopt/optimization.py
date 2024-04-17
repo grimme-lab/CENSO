@@ -98,7 +98,7 @@ class Optimization(EnsembleOptimizer):
         # Check for constraint file
         if self.get_settings()["constrain"]:
             assert os.path.isfile(os.path.join(
-                self.ensemble.workdir), "constraints.xtb")
+                self.ensemble.workdir, "constraints.xtb"))
             self.constraints = os.path.join(
                 self.ensemble.workdir, "constraints.xtb")
 

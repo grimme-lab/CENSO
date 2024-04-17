@@ -59,7 +59,7 @@ class CensoPart:
 
     # this should contain the part number as a string
     # in this case it's just a placeholder, for e.g. prescreening it would be "0"
-    _part_no = "PART"
+    _part_no = "NaN"
 
     @staticmethod
     def set_general_settings(settings: dict[str, any]) -> None:
@@ -242,7 +242,7 @@ class CensoPart:
         """
 
         # Print header with part name
-        print(h2(f"{self.__class__.__name__.upper()} - {self._name.upper()}"))
+        print(h2(f"{self._name.upper()}"))
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
