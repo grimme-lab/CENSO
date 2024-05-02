@@ -261,8 +261,7 @@ class Prescreening(EnsembleOptimizer):
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
             "ΔGsolv (xTB)": lambda conf: (
-                f"{conf.results[self._name]['xtb_gsolv']
-                    ['gsolv'] * AU2KCAL:.6f}"
+                f"{conf.results[self._name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
                 if "xtb_gsolv" in conf.results[self._name].keys()
                 else "---"
             ),
