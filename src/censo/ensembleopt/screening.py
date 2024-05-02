@@ -39,9 +39,7 @@ class Screening(Prescreening):
         "prog": {"default": "orca", "options": PROGS},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "grid": {"default": "low+", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "implicit": {"default": True},
         "template": {"default": False},
     }

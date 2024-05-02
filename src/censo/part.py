@@ -62,15 +62,41 @@ class CensoPart:
     _part_no = "NaN"
 
     @staticmethod
-    def set_general_settings(settings: dict[str, any]) -> None:
+    def set_general_settings(settings: dict[str, any], complete: bool = True) -> None:
+        """
+        Set all general settings according to a settings dictionary. Will validate the dictionary and complete it 
+        if complete = True.
+
+        Args:
+            settings (dict[str, any]): The settings to be set.
+            complete (bool): If True, the settings will be completed with default values if they are missing.
+
+        Returns:
+            None
+        """
         CensoPart._validate(settings)
-        settings = CensoPart._complete(settings)
-        CensoPart._settings = settings
+        if complete:
+            settings = CensoPart._complete(settings)
+            CensoPart._settings = settings
+        else:
+            for setting in settings:
+                CensoPart._settings[setting] = settings[setting]
 
     @staticmethod
-    def set_general_setting(setting, value):
+    def set_general_setting(setting: str, value: any):
+        """
+        Set a general setting to a specific value. Will check the value and type of the setting.
+
+        Args:
+            setting (str): The setting to be set.
+            value (any): The value to be set. 
+
+        Returns:
+            None
+        """
         assert type(value) is type(CensoPart._settings[setting])
         CensoPart._settings[setting] = value
+        CensoPart._validate(CensoPart._settings)
 
     @staticmethod
     def get_general_settings():
@@ -81,15 +107,41 @@ class CensoPart:
         return cls._settings
 
     @classmethod
-    def set_settings(cls, settings: dict[str, any]):
+    def set_settings(cls, settings: dict[str, any], complete: bool = True):
+        """
+        Set all part specific settings according to a settings dictionary. Will validate the dictionary and complete 
+        it if complete = True.
+
+        Args:
+            settings (dict[str, any]): The settings to be set.
+            complete (bool): If True, the settings will be completed with default values if they are missing.
+
+        Returns:
+            None
+        """
         cls._validate(settings)
-        settings = cls._complete(settings)
-        cls._settings = settings
+        if complete:
+            settings = cls._complete(settings)
+            cls._settings = settings
+        else:
+            for setting in settings:
+                cls._settings[setting] = settings[setting]
 
     @classmethod
     def set_setting(cls, setting_name: str, setting_value: any):
+        """
+        Set a part specific setting to a specific value. Will check the value and type of the setting.
+
+        Args:
+            setting_name (str): The setting to be set.
+            setting_value (any): The value to be set.
+
+        Returns:
+            None
+        """
         assert type(setting_value) is type(cls._settings[setting_name])
         cls._settings[setting_name] = setting_value
+        cls._validate(cls._settings)
 
     @classmethod
     def get_options(cls):

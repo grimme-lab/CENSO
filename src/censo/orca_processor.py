@@ -24,6 +24,10 @@ class OrcaParser:
     Parser for orca input files. Can read input files and transpile them to ordered dict. Also capable of writing an
     input file from a properly ordered dict (see __todict for format).
     """
+    __exceptions = [
+                        "maxcore",
+                        ]
+
 
     def read_input(self, path: str) -> OrderedDict:
         """
@@ -122,25 +126,26 @@ class OrcaParser:
                 setting = split[0]
                 converted[setting] = {}
 
-                # check it there is already some option in the same line as the
+                # check if there is already some option in the same line as the
                 # setting declaration
                 if len(split) > 1:
                     option = split[1]
                     converted[setting][option] = split[2:]
 
-                # find end of definition block
-                end = i + self.__eob(lines[i:])
+                if setting not in self.__exceptions:
+                    # find end of definition block
+                    end = i + self.__eob(lines[i:])
 
-                # in case the eob is found within the line itself remove the
-                # 'end' substring
-                if end == i:
-                    converted[setting][option].remove("end")
-                # consume remaining definitions
-                else:
-                    for line2 in lines[i + 1:end]:
-                        split = line2.split()
-                        option = split[0]
-                        converted[setting][option] = split[1:]
+                    # in case the eob is found within the line itself remove the
+                    # 'end' substring
+                    if end == i:
+                        converted[setting][option].remove("end")
+                    # consume remaining definitions
+                    else:
+                        for line2 in lines[i + 1:end]:
+                            split = line2.split()
+                            option = split[0]
+                            converted[setting][option] = split[1:]
             # geometry input line found
             elif line.startswith("*") and "geom" not in converted.keys():
                 if "geom" in converted.keys():
@@ -262,6 +267,7 @@ class OrcaParser:
                     lines.append(
                         f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
+                    # NOTE: TypeError is raised if reduce fails due to indict[key][option] not being iterable
                 lines.append("end\n")
             except TypeError:
                 lines[-1] = f"%{key} {list(indict[key].keys())[0]}\n"

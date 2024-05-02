@@ -31,9 +31,7 @@ class Prescreening(EnsembleOptimizer):
         "basis": {"default": "def2-SV(P)", "options": []},
         "prog": {"default": "orca", "options": PROGS},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "grid": {"default": "low", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "template": {"default": False},
     }
 

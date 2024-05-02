@@ -274,6 +274,7 @@ class EnsembleData:
     def remove_conformers(self, confids: list[int]) -> None:
         """
         Remove the conformers with the IDs listed in 'confids' from further consideration.
+        The removed conformers will be stored in self.rem.
 
         Args:
             confids (list[int]): A list of conformer IDs.
