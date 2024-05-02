@@ -199,8 +199,8 @@ class CensoPart:
                 # NOTE: KeyError is raised when the conversion for bools fails
                 except (ValueError, KeyError):
                     raise ValueError(
-                        f"Value '{tovalidate[setting_name]}' is not allowed for setting '{
-                            setting_name}' in part of type '{cls.__name__}'"
+                        f"Value '{tovalidate[setting_name]}' is not allowed for setting " +
+                        f"'{setting_name}' in part of type '{cls.__name__}'"
                     )
             else:
                 setting_value = tovalidate[setting_name]
@@ -213,8 +213,8 @@ class CensoPart:
                     # Only check if there are options
                     # This is fatal so an exception is raised
                     raise ValueError(
-                        f"Value '{setting_value}' is not allowed for setting '{
-                            setting_name}' in part of type '{cls.__name__}'."
+                        f"Value '{setting_value}' is not allowed for setting " +
+                        f"'{setting_name}' in part of type '{cls.__name__}'."
                     )
 
             # set the value in the dict tovalidate to the casted value
