@@ -82,8 +82,14 @@ def execute(
     if balance:
         set_omp_chunking(jobs)
     else:
-        for job in jobs:
-            job.omp = omp
+        if omp > OMPMIN:
+            logger.warning(f"User OMP setting is below the minimum value of {
+                           OMPMIN}. Using {OMPMIN} instead.")
+            for job in jobs:
+                job.omp = OMPMIN
+        else:
+            for job in jobs:
+                job.omp = omp
 
     # execute the jobs
     jobs = dqp(jobs, processor)
@@ -95,7 +101,7 @@ def execute(
             conf.mo_paths.append(mo_paths[conf.geom.id])
 
     if retry_failed:
-        retried, failed_confs = retry_failed_jobs(jobs, processor)
+        retried, failed_confs = retry_failed_jobs(jobs, processor, balance)
 
         # Again, try to get the mo_path from metadata and store it in the respective conformer object
         mo_paths = {
@@ -140,7 +146,8 @@ def reduce_cores(
         enough_cores.wait_for(lambda: free_cores.value >= omp)
         free_cores.value -= omp
         logger.debug(
-            f"Free cores decreased {free_cores.value + omp} -> {free_cores.value}."
+            f"Free cores decreased {
+                free_cores.value + omp} -> {free_cores.value}."
         )
 
 
@@ -151,7 +158,8 @@ def increase_cores(
     with enough_cores:
         free_cores.value += omp
         logger.debug(
-            f"Free cores increased {free_cores.value - omp} -> {free_cores.value}."
+            f"Free cores increased {
+                free_cores.value - omp} -> {free_cores.value}."
         )
         enough_cores.notify()
 
@@ -259,7 +267,7 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
             jobs_left -= p  # Decrement the number of remaining jobs
 
 
-def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[int], list[int]]:
+def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool) -> tuple[list[int], list[int]]:
     """
     Tries to recover failed jobs.
 
@@ -308,11 +316,15 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[
 
         # execute jobs that should be retried
         logger.info(
-            f"Number of failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
+            f"Number of failed jobs: {len(failed_jobs)}. Restarting {
+                len(retry)} jobs."
         )
 
         if len(retry) > 0:
-            set_omp_chunking([jobs[i] for i in retry])
+            # Rebalancing necessary
+            if balance:
+                set_omp_chunking([jobs[i] for i in retry])
+
             for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
                 jobs[i] = job
 
@@ -321,7 +333,8 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc) -> tuple[list[
         for job in jobs:
             if not all(job.meta[jt]["success"] for jt in job.jobtype):
                 logger.warning(
-                    f"{job.conf.name} job recovery failed. Error: {job.meta[jt]['error']}. Check output files."
+                    f"{job.conf.name} job recovery failed. Error: {
+                        job.meta[jt]['error']}. Check output files."
                 )
                 failed_confs.append(job.conf.id)
             else:
