@@ -27,14 +27,14 @@ class NMR(CensoPart):
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
     _options = {
-        "resonance_frequency": {"default": 300.0, "range": [150.0, 1000.0]},
-        "ss_cutoff": {"default": 8.0, "range": [0.1, 100.0]},
+        "resonance_frequency": {"default": 300.0},
+        "ss_cutoff": {"default": 8.0},
         "prog": {"default": "orca", "options": PROGS},  # required
-        "func_j": {"default": "pbe0-d4", "options": []},
-        "basis_j": {"default": "def2-TZVP", "options": []},
+        "func_j": {"default": "pbe0-d4"},
+        "basis_j": {"default": "def2-TZVP"},
         "sm_j": {"default": "smd", "options": __solv_mods},
-        "func_s": {"default": "pbe0-d4", "options": []},
-        "basis_s": {"default": "def2-TZVP", "options": []},
+        "func_s": {"default": "pbe0-d4"},
+        "basis_s": {"default": "def2-TZVP"},
         "sm_s": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": False},  # required

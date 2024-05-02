@@ -27,11 +27,11 @@ class UVVis(CensoPart):
 
     _options = {
         "prog": {"default": "orca", "options": PROGS},  # required
-        "func": {"default": "wb97x-d4", "options": []},
-        "basis": {"default": "def2-TZVP", "options": []},
+        "func": {"default": "wb97x-d4"},
+        "basis": {"default": "def2-TZVP"},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "nroots": {"default": 20, "range": [1, 100]},
+        "nroots": {"default": 20},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "gcp": {"default": True},  # required
@@ -225,7 +225,8 @@ class UVVis(CensoPart):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{
+                                       self._name.upper()}.out')}."
         )
         with open(
             os.path.join(self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}.out"), "w", newline=None

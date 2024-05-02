@@ -25,9 +25,8 @@ class OrcaParser:
     input file from a properly ordered dict (see __todict for format).
     """
     __exceptions = [
-                        "maxcore",
-                        ]
-
+        "maxcore",
+    ]
 
     def read_input(self, path: str) -> OrderedDict:
         """
@@ -132,7 +131,7 @@ class OrcaParser:
                     option = split[1]
                     converted[setting][option] = split[2:]
 
-                if setting not in self.__exceptions:
+                if setting.lower() not in self.__exceptions:
                     # find end of definition block
                     end = i + self.__eob(lines[i:])
 
@@ -265,7 +264,8 @@ class OrcaParser:
             try:
                 for option in indict[key].keys():
                     lines.append(
-                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {
+                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                     # NOTE: TypeError is raised if reduce fails due to indict[key][option] not being iterable
                 lines.append("end\n")
@@ -293,11 +293,13 @@ class OrcaParser:
                 if "Nuclei" in option:
                     # Special treatment for the "Nuclei" option in %eprnmr
                     lines.append(
-                        f"    {option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {
+                            option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                 else:
                     lines.append(
-                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {
+                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
             lines.append("end\n")
 
@@ -486,7 +488,8 @@ class OrcaProc(QmProc):
                 )
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    f"Could not find template file {job.prepinfo['partname']}.orca.template."
+                    f"Could not find template file {
+                        job.prepinfo['partname']}.orca.template."
                 )
 
         # prepare the main line of the orca input
@@ -609,7 +612,8 @@ class OrcaProc(QmProc):
                     )
                 else:
                     logger.warning(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
+                        f"{f'worker{os.getpid()}:':{
+                            WARNLEN}}Selected basis not available for GCP. GCP not employed."
                     )
 
         # add job keyword for geometry optimizations
@@ -837,7 +841,8 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess, os.path.join(
                         jobdir, f"{filename}.gbw"))
@@ -1084,7 +1089,8 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess, os.path.join(
                         jobdir, f"{filename}.gbw"))

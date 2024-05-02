@@ -26,9 +26,9 @@ class Prescreening(EnsembleOptimizer):
     _grid = "low"
 
     _options = {
-        "threshold": {"default": 4.0, "range": [1.0, 10.0]},
-        "func": {"default": "pbe-d4", "options": []},
-        "basis": {"default": "def2-SV(P)", "options": []},
+        "threshold": {"default": 4.0},
+        "func": {"default": "pbe-d4"},
+        "basis": {"default": "def2-SV(P)"},
         "prog": {"default": "orca", "options": PROGS},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": True},
@@ -289,7 +289,8 @@ class Prescreening(EnsembleOptimizer):
             "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
         )
         lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {
+                'avG(T) /a.u.':>14}\n"
         )
 
         # calculate averaged free enthalpy
@@ -312,7 +313,8 @@ class Prescreening(EnsembleOptimizer):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {
+                avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-"))
 
