@@ -358,8 +358,7 @@ class Screening(Prescreening):
             if not self.get_settings().get("implicit", False) else "---",
             "GmRRHO":
             lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs']
-                [self.get_general_settings()['temperature']]:.6f}"
+            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"] else "---",
             "Gtot":
             lambda conf: f"{conf.results[self._name]['gtot']:.6f}",

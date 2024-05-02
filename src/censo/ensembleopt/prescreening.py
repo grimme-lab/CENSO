@@ -254,8 +254,7 @@ class Prescreening(EnsembleOptimizer):
                 else "---"
             ),
             "ΔE (xTB)": lambda conf: (
-                f"{(conf.results[self._name]['xtb_gsolv']
-                    ['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+                f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
                 if "xtb_gsolv" in conf.results[self._name].keys()
                 else "---"
             ),
