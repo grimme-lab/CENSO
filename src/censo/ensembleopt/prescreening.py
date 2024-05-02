@@ -41,9 +41,7 @@ class Prescreening(EnsembleOptimizer):
         """
         # set jobtype to pass to handler
         # TODO - it is not very nice to partially handle 'Screening' settings here
-        if self.get_general_settings()["gas-phase"] or self.get_settings().get(
-            "implicit", False
-        ):
+        if self.get_general_settings()["gas-phase"] or self.get_settings().get("implicit", False):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
@@ -320,10 +318,7 @@ class Prescreening(EnsembleOptimizer):
 
         # write everything to a file
         filename = f"{self._part_no}_{self._name.upper()}.out"
-        logger.debug(
-            f"Writing to {os.path.join(
-                self.ensemble.workdir, filename)}."
-        )
+        logger.debug( f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
         with open(
             os.path.join(self.ensemble.workdir, filename), "w", newline=None
         ) as outfile:

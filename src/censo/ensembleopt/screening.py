@@ -264,9 +264,7 @@ class Screening(Prescreening):
         # write everything to a file
         filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
-        with open(os.path.join(self.ensemble.workdir, filename),
-                  "w",
-                  newline=None) as outfile:
+        with open(os.path.join(self.ensemble.workdir, filename), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
     def write_results2(self) -> None:
