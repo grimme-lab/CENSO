@@ -1,21 +1,12 @@
 import os
 
-from .optimizer import EnsembleOptimizer
-from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
-from ..parallel import execute
-from ..params import PLENGTH, AU2KCAL
-from ..params import (
-    PROGS,
-    GRIDOPTIONS,
-    GFNOPTIONS,
-)
-from ..utilities import (
-    format_data,
-    print,
-    h1
-)
+from ..ensembledata import EnsembleData
 from ..logging import setup_logger
+from ..parallel import execute
+from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS
+from ..utilities import format_data, h1, print
+from .optimizer import EnsembleOptimizer
 
 logger = setup_logger(__name__)
 
@@ -50,7 +41,9 @@ class Prescreening(EnsembleOptimizer):
         """
         # set jobtype to pass to handler
         # TODO - it is not very nice to partially handle 'Screening' settings here
-        if self.get_general_settings()["gas-phase"] or self.get_settings().get("implicit", False):
+        if self.get_general_settings()["gas-phase"] or self.get_settings().get(
+            "implicit", False
+        ):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
@@ -137,9 +130,7 @@ class Prescreening(EnsembleOptimizer):
         """
 
         # Gtot = E (DFT) + Gsolv (xtb)
-        if (
-            not self.get_general_settings()["gas-phase"]
-        ):
+        if not self.get_general_settings()["gas-phase"]:
             gtot = (
                 conf.results[self._name]["sp"]["energy"]
                 + conf.results[self._name]["xtb_gsolv"]["gsolv"]
@@ -165,8 +156,7 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
-        print(
-            h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
+        print(h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
 
         # column headers
         headers = [
@@ -258,17 +248,25 @@ class Prescreening(EnsembleOptimizer):
         # determines what to print for each conformer in each column
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
-            "ΔE (xTB)": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
+            "E (xTB)": lambda conf: (
+                f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
+                if "xtb_gsolv" in conf.results[self._name].keys()
+                else "---"
+            ),
+            "ΔE (xTB)": lambda conf: (
+                f"{(conf.results[self._name]['xtb_gsolv']
+                    ['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+                if "xtb_gsolv" in conf.results[self._name].keys()
+                else "---"
+            ),
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
-            "ΔGsolv (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
+            "ΔGsolv (xTB)": lambda conf: (
+                f"{conf.results[self._name]['xtb_gsolv']
+                    ['gsolv'] * AU2KCAL:.6f}"
+                if "xtb_gsolv" in conf.results[self._name].keys()
+                else "---"
+            ),
             "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
             # "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
             # if "xtb_gsolv" in conf.results[self._name].keys()
@@ -289,8 +287,7 @@ class Prescreening(EnsembleOptimizer):
             "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
         )
         lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {
-                'avG(T) /a.u.':>14}\n"
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
 
         # calculate averaged free enthalpy
@@ -313,8 +310,7 @@ class Prescreening(EnsembleOptimizer):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {
-                avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-"))
 
@@ -327,7 +323,8 @@ class Prescreening(EnsembleOptimizer):
         # write everything to a file
         filename = f"{self._part_no}_{self._name.upper()}.out"
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
+            f"Writing to {os.path.join(
+                self.ensemble.workdir, filename)}."
         )
         with open(
             os.path.join(self.ensemble.workdir, filename), "w", newline=None

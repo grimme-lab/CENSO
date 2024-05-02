@@ -3,20 +3,15 @@ stores ensembledata and conformers
 functionality for program setup
 """
 
-from argparse import Namespace
 import os
-from math import exp
+from argparse import Namespace
 from collections.abc import Callable
+from math import exp
 
-from .params import AU2J, KB, DESCR, DIGILEN
 from .datastructure import MoleculeData
-from .utilities import (
-    check_for_float,
-    do_md5,
-    t2x,
-    print
-)
 from .logging import setup_logger
+from .params import AU2J, DESCR, DIGILEN, KB
+from .utilities import check_for_float, do_md5, print, t2x
 
 logger = setup_logger(__name__)
 
@@ -65,7 +60,8 @@ class EnsembleData:
             assert len(self.__conformers) > 0
         except AssertionError:
             raise AssertionError(
-                "There are no more conformers in the ensemble! Possibly all jobs failed, check output files.")
+                "There are no more conformers in the ensemble! Possibly all jobs failed, check output files."
+            )
         return self.__conformers
 
     @conformers.setter
@@ -110,8 +106,7 @@ class EnsembleData:
             lines = inp.readlines()
             if any(["$coord" in line for line in lines]):
                 _, self.runinfo["nat"], self.ensemble_path = t2x(
-                    self.ensemble_path, writexyz=True, outfile="converted.xyz"
-                )
+                    self.ensemble_path, writexyz=True, outfile="converted.xyz")
             else:
                 self.runinfo["nat"] = int(lines[0].split()[0])
 
@@ -133,16 +128,14 @@ class EnsembleData:
         print(DESCR)
 
         # Print information about read ensemble
-        print(
-            f"Read {len(self.conformers)} conformers.\n",
-            "Number of atoms:".ljust(DIGILEN // 2, " ") +
-            f"{self.runinfo['nat']}" + "\n",
-            "Charge:".ljust(DIGILEN // 2, " ") +
-            f"{self.runinfo['charge']}" + "\n",
-            "Unpaired electrons:".ljust(
-                DIGILEN // 2, " ") + f"{self.runinfo['unpaired']}" + "\n",
-            sep=""
-        )
+        print(f"Read {len(self.conformers)} conformers.\n",
+              "Number of atoms:".ljust(DIGILEN // 2, " ") +
+              f"{self.runinfo['nat']}" + "\n",
+              "Charge:".ljust(DIGILEN // 2, " ") +
+              f"{self.runinfo['charge']}" + "\n",
+              "Unpaired electrons:".ljust(DIGILEN // 2, " ") +
+              f"{self.runinfo['unpaired']}" + "\n",
+              sep="")
 
     def setup_conformers(self, maxconf: int) -> None:
         """
@@ -179,8 +172,7 @@ class EnsembleData:
                     global logger
                     logger.warning(
                         f"Provided nconf is larger than number of conformers in input file. Setting to "
-                        f"the max. amount automatically."
-                    )
+                        f"the max. amount automatically.")
                 else:
                     nconf = self.args.nconf
             else:
@@ -193,16 +185,12 @@ class EnsembleData:
                 # Don't use the property here since the conformer list is expected to be empty, otherwise assertion
                 # would fail
                 self.__conformers.append(
-                    MoleculeData(
-                        f"CONF{i + 1}", lines[2 + i *
-                                              (nat + 2):(i + 1) * (nat + 2)]
-                    )
-                )
+                    MoleculeData(f"CONF{i + 1}",
+                                 lines[2 + i * (nat + 2):(i + 1) * (nat + 2)]))
 
                 # precalculated energy set to 0.0 if it cannot be found
-                self.conformers[i].xtb_energy = (
-                    check_for_float(lines[i * (nat + 2) + 1]) or 0.0
-                )
+                self.conformers[i].xtb_energy = (check_for_float(
+                    lines[i * (nat + 2) + 1]) or 0.0)
 
             # also works if xtb_energy is None for some reason (None is put first)
             self.conformers.sort(key=lambda x: x.xtb_energy)
@@ -237,10 +225,9 @@ class EnsembleData:
             # filter out all conformers above threshold
             # so that 'filtered' contains all conformers that should not be considered any further
             filtered = [
-                conf
-                for conf in filter(
-                    (additional_filter or True)
-                    and (lambda x: target(x) - limit > threshold),
+                conf for conf in filter(
+                    (additional_filter or True) and (
+                        lambda x: target(x) - limit > threshold),
                     self.conformers,
                 )
             ]
@@ -263,8 +250,8 @@ class EnsembleData:
         # move the sorted out conformers to rem list
         for conf in filtered:
             # pop item from conformers and insert this item at index 0 in rem
-            self.rem.insert(0, self.conformers.pop(
-                self.conformers.index(conf)))
+            self.rem.insert(0,
+                            self.conformers.pop(self.conformers.index(conf)))
 
             # Log removed conformers
             logger.debug(f"Removed {conf.name}.")
@@ -290,8 +277,8 @@ class EnsembleData:
 
             for r in remove:
                 # pop item from conformers and insert this item at index 0 in rem
-                self.rem.insert(0, self.conformers.pop(
-                    self.conformers.index(r)))
+                self.rem.insert(0,
+                                self.conformers.pop(self.conformers.index(r)))
 
                 # Log removed conformers
                 logger.debug(f"Removed {r.name}.")
@@ -301,8 +288,8 @@ class EnsembleData:
         dump the conformers to a file
         """
         with open(
-            os.path.join(f"{self.workdir}", f"censo_ensemble_{part}.xyz"), "w"
-        ) as file:
+                os.path.join(f"{self.workdir}", f"censo_ensemble_{part}.xyz"),
+                "w") as file:
             for conf in self.conformers:
                 file.writelines(conf.geom.toxyz())
 
@@ -319,15 +306,17 @@ class EnsembleData:
             None
         """
         # find lowest gtot value
-        if all(["gtot" in conf.results[part].keys() for conf in self.conformers]):
+        if all(
+                ["gtot" in conf.results[part].keys() for conf in self.conformers]):
             minfree: float = min(
-                [conf.results[part]["gtot"] for conf in self.conformers]
-            )
+                [conf.results[part]["gtot"] for conf in self.conformers])
 
             # calculate boltzmann factors
             bmfactors = {
-                id(conf): conf.degen
-                * exp(-(conf.results[part]["gtot"] - minfree) * AU2J / (KB * temp))
+                id(conf):
+                conf.degen *
+                exp(-(conf.results[part]["gtot"] - minfree) * AU2J /
+                    (KB * temp))
                 for conf in self.conformers
             }
         else:
@@ -336,20 +325,19 @@ class EnsembleData:
             # since then the energy might be 'None'
             gtot_replacement = False
             for jt in ["xtb_opt", "sp"]:
-                if all(jt in conf.results[part].keys() for conf in self.conformers):
-                    minfree: float = min(
-                        [conf.results[part][jt]["energy"]
-                            for conf in self.conformers]
-                    )
+                if all(jt in conf.results[part].keys()
+                       for conf in self.conformers):
+                    minfree: float = min([
+                        conf.results[part][jt]["energy"]
+                        for conf in self.conformers
+                    ])
 
                     # calculate boltzmann factors
                     bmfactors = {
-                        id(conf): conf.degen
-                        * exp(
-                            -(conf.results[part][jt]["energy"] - minfree)
-                            * AU2J
-                            / (KB * temp)
-                        )
+                        id(conf):
+                        conf.degen *
+                        exp(-(conf.results[part][jt]["energy"] - minfree) *
+                            AU2J / (KB * temp))
                         for conf in self.conformers
                     }
                     gtot_replacement = True
