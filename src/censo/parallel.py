@@ -7,10 +7,10 @@ import signal
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from .datastructure import MoleculeData, ParallelJob
-from .params import OMPMIN, OMPMAX
+from .logging import setup_logger
+from .params import OMPMAX, OMPMIN
 from .procfact import ProcessorFactory
 from .qm_processor import QmProc
-from .logging import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -19,10 +19,17 @@ ncores = os.cpu_count()
 
 
 def execute(
-        conformers: list[MoleculeData], workdir: str, prog: str, prepinfo: dict[str, dict], jobtype: list[str],
-        copy_mo: bool = False, retry_failed: bool = False, balance: bool = True, maxcores: int = OMPMIN,
-        omp: int = OMPMIN,
-        update: bool = True,
+    conformers: list[MoleculeData],
+    workdir: str,
+    prog: str,
+    prepinfo: dict[str, dict],
+    jobtype: list[str],
+    copy_mo: bool = False,
+    retry_failed: bool = False,
+    balance: bool = True,
+    maxcores: int = OMPMIN,
+    omp: int = OMPMIN,
+    update: bool = True,
 ) -> tuple[bool, dict, list]:
     """
     Manages parallel execution of external program calls. Sets cores used per job, checks requirements,
@@ -48,7 +55,7 @@ def execute(
     try:
         assert len(conformers) > 0
     except AssertionError as e:
-        raise e("No jobs to compute!")
+        raise AssertionError("No jobs to compute!") from e
 
     # Create jobs from conformers data
     jobs = prepare_jobs(conformers, prepinfo, jobtype)
@@ -72,9 +79,8 @@ def execute(
     # TODO - how would this work when multiple different programs are supported?
     for job in jobs:
         try:
-            job.mo_guess = next(
-                c for c in conformers if c.geom.id == job.conf.id
-            ).mo_paths[-1]
+            job.mo_guess = next(c for c in conformers
+                                if c.geom.id == job.conf.id).mo_paths[-1]
         except IndexError:
             pass
 
@@ -83,8 +89,9 @@ def execute(
         set_omp_chunking(jobs)
     else:
         if omp > OMPMIN:
-            logger.warning(f"User OMP setting is below the minimum value of {
-                           OMPMIN}. Using {OMPMIN} instead.")
+            logger.warning(
+                f"User OMP setting is below the minimum value of {OMPMIN}. Using {OMPMIN} instead."
+            )
             for job in jobs:
                 job.omp = OMPMIN
         else:
@@ -105,7 +112,8 @@ def execute(
 
         # Again, try to get the mo_path from metadata and store it in the respective conformer object
         mo_paths = {
-            job.conf.id: job.meta["mo_path"] for job in [jobs[i] for i in retried]
+            job.conf.id: job.meta["mo_path"]
+            for job in [jobs[i] for i in retried]
         }
         for conf in conformers:
             if mo_paths.get(conf.geom.id, None) is not None:
@@ -113,23 +121,24 @@ def execute(
 
     # special warning if all jobs failed
     if len(jobs) == len(failed_confs):
-        logger.warning(
-            "All jobs failed and could not be recovered!"
-        )
+        logger.warning("All jobs failed and could not be recovered!")
 
         # update results for all conformers (if enabled)
     if update:
         for conf, job in zip(conformers, jobs):
-            conf.results.setdefault(
-                job.prepinfo["partname"], {}).update(job.results)
+            conf.results.setdefault(job.prepinfo["partname"],
+                                    {}).update(job.results)
 
-    return len(conformers) != len(failed_confs), {job.conf.id: job.results for job in jobs}, failed_confs
+    return len(conformers) != len(failed_confs), {
+        job.conf.id: job.results
+        for job in jobs
+    }, failed_confs
 
 
-def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict], jobtype: list[str]) -> list[ParallelJob]:
+def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict],
+                 jobtype: list[str]) -> list[ParallelJob]:
     # create jobs from conformers
-    jobs = [ParallelJob(conf.geom, jobtype)
-            for conf in conformers]
+    jobs = [ParallelJob(conf.geom, jobtype) for conf in conformers]
 
     # put settings into jobs
     for job in jobs:
@@ -138,28 +147,24 @@ def prepare_jobs(conformers: list[MoleculeData], prepinfo: dict[str, dict], jobt
     return jobs
 
 
-def reduce_cores(
-    free_cores: multiprocessing.Value, omp: int, enough_cores: multiprocessing.Condition
-):
+def reduce_cores(free_cores: multiprocessing.Value, omp: int,
+                 enough_cores: multiprocessing.Condition):
     # acquire lock on the condition and wait until enough cores are available
     with enough_cores:
         enough_cores.wait_for(lambda: free_cores.value >= omp)
         free_cores.value -= omp
         logger.debug(
-            f"Free cores decreased {
-                free_cores.value + omp} -> {free_cores.value}."
+            f"Free cores decreased {free_cores.value + omp} -> {free_cores.value}."
         )
 
 
-def increase_cores(
-    free_cores: multiprocessing.Value, omp: int, enough_cores: multiprocessing.Condition
-):
+def increase_cores(free_cores: multiprocessing.Value, omp: int,
+                   enough_cores: multiprocessing.Condition):
     # acquire lock on the condition and increase the number of cores, notifying one waiting process
     with enough_cores:
         free_cores.value += omp
         logger.debug(
-            f"Free cores increased {
-                free_cores.value - omp} -> {free_cores.value}."
+            f"Free cores increased {free_cores.value - omp} -> {free_cores.value}."
         )
         enough_cores.notify()
 
@@ -178,9 +183,8 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
 
     with multiprocessing.Manager() as manager:
         # execute calculations for given list of conformers
-        with ProcessPoolExecutor(
-            max_workers=ncores // min(job.omp for job in jobs)
-        ) as executor:
+        with ProcessPoolExecutor(max_workers=ncores //
+                                 min(job.omp for job in jobs)) as executor:
             # make sure that the executor exits gracefully on termination
             # TODO - is using wait=False a good option here?
             # should be fine since workers will kill programs with SIGTERM
@@ -213,11 +217,8 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
                     # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
                     # omp of the current item in the for-iterator (e.g. the submitted job has omp=4, but the current jobs[i]
                     # has omp=7, so the callback would use 7 instead of 4)
-                    tasks[-1].add_done_callback(
-                        lambda _, omp=jobs[i].omp: increase_cores(
-                            free_cores, omp, enough_cores
-                        )
-                    )
+                    tasks[-1].add_done_callback(lambda _, omp=jobs[
+                        i].omp: increase_cores(free_cores, omp, enough_cores))
                 except RuntimeError:
                     # Makes this exit gracefully in case that the main process is killed
                     return None
@@ -252,22 +253,20 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
             p = minprocs  # Set the number of processes to the minimum if there are less jobs left than minprocs
         else:
             # Find the largest number of processes that evenly divides the remaining jobs
-            p = max(
-                [
-                    j
-                    for j in range(minprocs, maxprocs)
-                    if ncores % j == 0 and j <= jobs_left
-                ]
-            )
+            p = max([
+                j for j in range(minprocs, maxprocs)
+                if ncores % j == 0 and j <= jobs_left
+            ])
 
         # Set the number of cores for each job for as many jobs as possible before moving onto the next omp value
         while jobs_left - p >= 0:
-            for job in jobs[tot_jobs - jobs_left: tot_jobs - jobs_left + p]:
+            for job in jobs[tot_jobs - jobs_left:tot_jobs - jobs_left + p]:
                 job.omp = ncores // p  # Set the number of cores for each job
             jobs_left -= p  # Decrement the number of remaining jobs
 
 
-def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool) -> tuple[list[int], list[int]]:
+def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc,
+                      balance: bool) -> tuple[list[int], list[int]]:
     """
     Tries to recover failed jobs.
 
@@ -282,8 +281,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool)
     # determine failed jobs
     logger.debug("Checking for failed jobs...")
     failed_jobs = [
-        i
-        for i, job in enumerate(jobs)
+        i for i, job in enumerate(jobs)
         if any(not job.meta[jt]["success"] for jt in job.jobtype)
     ]
 
@@ -295,8 +293,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool)
         # determine flags for jobs based on error messages
         for failed_job in failed_jobs:
             handled_errors = [
-                "scf_not_converged",
-                "Previous calculation failed"
+                "scf_not_converged", "Previous calculation failed"
             ]
 
             # list of jobtypes that should be removed from the jobtype list
@@ -305,7 +302,8 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool)
                 if not jobs[failed_job].meta[jt]["success"]:
                     if jobs[failed_job].meta[jt]["error"] in handled_errors:
                         retry.append(failed_job)
-                        jobs[failed_job].flags[jt] = jobs[failed_job].meta[jt]["error"]
+                        jobs[failed_job].flags[jt] = jobs[failed_job].meta[jt][
+                            "error"]
                 # store all successful jobtypes to be removed later
                 elif jobs[failed_job].meta[jt]["success"]:
                     jtremove.append(jt)
@@ -316,8 +314,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool)
 
         # execute jobs that should be retried
         logger.info(
-            f"Number of failed jobs: {len(failed_jobs)}. Restarting {
-                len(retry)} jobs."
+            f"Number of failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
         )
 
         if len(retry) > 0:
@@ -325,7 +322,8 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool)
             if balance:
                 set_omp_chunking([jobs[i] for i in retry])
 
-            for i, job in zip([i for i in retry], dqp([jobs[i] for i in retry], processor)):
+            for i, job in zip([i for i in retry],
+                              dqp([jobs[i] for i in retry], processor)):
                 jobs[i] = job
 
         # any jobs that still failed will lead to the conformer being marked as unrecoverable
@@ -333,8 +331,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc, balance: bool)
         for job in jobs:
             if not all(job.meta[jt]["success"] for jt in job.jobtype):
                 logger.warning(
-                    f"{job.conf.name} job recovery failed. Error: {
-                        job.meta[jt]['error']}. Check output files."
+                    f"{job.conf.name} job recovery failed. Error: {job.meta[jt]['error']}. Check output files."
                 )
                 failed_confs.append(job.conf.id)
             else:
