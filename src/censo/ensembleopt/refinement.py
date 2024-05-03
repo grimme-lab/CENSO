@@ -166,7 +166,7 @@ class Refinement(Screening):
                          id(conf):
                          conf.results[self._name]["gsolv"]["energy_gas"]
                          for conf in self.ensemble.conformers
-        })
+                     })
 
         printmap = {
             "CONF#":
@@ -178,8 +178,7 @@ class Refinement(Screening):
             if not self.get_settings().get("implicit", False) else "---",
             "GmRRHO":
             lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs']
-                [self.get_general_settings()['temperature']]:.6f}"
+            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"] else "---",
             "Gtot":
             lambda conf: f"{conf.results[self._name]['gtot']:.6f}",
