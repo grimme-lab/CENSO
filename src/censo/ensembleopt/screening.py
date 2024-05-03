@@ -114,8 +114,7 @@ class Screening(Prescreening):
                 ])))
                 threshold += fuzzy
                 print(
-                    f"Updated fuzzy threshold: {
-                        threshold * AU2KCAL:.2f} kcal/mol."
+                    f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol."
                 )
 
                 # update the conformer list in ensemble (remove confs if below threshold)
@@ -142,7 +141,8 @@ class Screening(Prescreening):
         # should not be included in the single-point energy the 'gsolv' job should've been run
         if (not self.get_general_settings()["gas-phase"]
                 and not self.get_settings()["implicit"]):
-            return conf.results[self._name]["gsolv"]["energy_gas"] + conf.results[self._name]["gsolv"]["gsolv"]
+            return conf.results[self._name]["gsolv"][
+                "energy_gas"] + conf.results[self._name]["gsolv"]["gsolv"]
         # Otherwise, return just the single-point energy
         else:
             return conf.results[self._name]["sp"]["energy"]
@@ -226,7 +226,7 @@ class Screening(Prescreening):
                          id(conf):
                          conf.results[self._name]["gsolv"]["energy_gas"]
                          for conf in self.ensemble.conformers
-        })
+                     })
 
         # determines what to print for each conformer in each column
         printmap = {
@@ -263,8 +263,11 @@ class Screening(Prescreening):
 
         # write everything to a file
         filename = f"{self._part_no}_{self._name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
-        with open(os.path.join(self.ensemble.workdir, filename), "w", newline=None) as outfile:
+        logger.debug(
+            f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
+        with open(os.path.join(self.ensemble.workdir, filename),
+                  "w",
+                  newline=None) as outfile:
             outfile.writelines(lines)
 
     def write_results2(self) -> None:
@@ -338,7 +341,7 @@ class Screening(Prescreening):
                          id(conf):
                          conf.results[self._name]["gsolv"]["energy_gas"]
                          for conf in self.ensemble.conformers
-        })
+                     })
 
         printmap = {
             "CONF#":
@@ -403,7 +406,9 @@ class Screening(Prescreening):
 
         # append lines to already existing file
         filename = f"{self._part_no}_{self._name.upper()}.out"
-        with open(os.path.join(self.ensemble.workdir, filename), "a", newline=None) as outfile:
+        with open(os.path.join(self.ensemble.workdir, filename),
+                  "a",
+                  newline=None) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results to a json file

@@ -200,8 +200,7 @@ class Refinement(Screening):
             "\nBoltzmann averaged free energy/enthalpy of ensemble (high level single-points):\n"
         )
         lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {
-                'avG(T) /a.u.':>14}\n"
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
         )
 
         # calculate averaged free enthalpy
@@ -219,8 +218,7 @@ class Refinement(Screening):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {
-                avE:>14.7f}  {avG:>14.7f}     <<==part3==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part3==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
