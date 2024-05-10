@@ -1,21 +1,12 @@
 import os
 
-from .optimizer import EnsembleOptimizer
-from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
-from ..parallel import execute
-from ..params import PLENGTH, AU2KCAL
-from ..params import (
-    PROGS,
-    GRIDOPTIONS,
-    GFNOPTIONS,
-)
-from ..utilities import (
-    format_data,
-    print,
-    h1
-)
+from ..ensembledata import EnsembleData
 from ..logging import setup_logger
+from ..parallel import execute
+from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS
+from ..utilities import format_data, h1, print
+from .optimizer import EnsembleOptimizer
 
 logger = setup_logger(__name__)
 
@@ -26,14 +17,12 @@ class Prescreening(EnsembleOptimizer):
     _grid = "low"
 
     _options = {
-        "threshold": {"default": 4.0, "range": [1.0, 10.0]},
-        "func": {"default": "pbe-d4", "options": []},
-        "basis": {"default": "def2-SV(P)", "options": []},
+        "threshold": {"default": 4.0},
+        "func": {"default": "pbe-d4"},
+        "basis": {"default": "def2-SV(P)"},
         "prog": {"default": "orca", "options": PROGS},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "grid": {"default": "low", "options": GRIDOPTIONS},
         "run": {"default": True},
-        "gcp": {"default": True},
         "template": {"default": False},
     }
 
@@ -139,9 +128,7 @@ class Prescreening(EnsembleOptimizer):
         """
 
         # Gtot = E (DFT) + Gsolv (xtb)
-        if (
-            not self.get_general_settings()["gas-phase"]
-        ):
+        if not self.get_general_settings()["gas-phase"]:
             gtot = (
                 conf.results[self._name]["sp"]["energy"]
                 + conf.results[self._name]["xtb_gsolv"]["gsolv"]
@@ -167,8 +154,7 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
-        print(
-            h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
+        print(h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
 
         # column headers
         headers = [
@@ -260,17 +246,23 @@ class Prescreening(EnsembleOptimizer):
         # determines what to print for each conformer in each column
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
-            "ΔE (xTB)": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
+            "E (xTB)": lambda conf: (
+                f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
+                if "xtb_gsolv" in conf.results[self._name].keys()
+                else "---"
+            ),
+            "ΔE (xTB)": lambda conf: (
+                f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+                if "xtb_gsolv" in conf.results[self._name].keys()
+                else "---"
+            ),
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
-            "ΔGsolv (xTB)": lambda conf: f"{conf.results[self._name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
-            if "xtb_gsolv" in conf.results[self._name].keys()
-            else "---",
+            "ΔGsolv (xTB)": lambda conf: (
+                f"{conf.results[self._name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
+                if "xtb_gsolv" in conf.results[self._name].keys()
+                else "---"
+            ),
             "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
             # "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
             # if "xtb_gsolv" in conf.results[self._name].keys()
@@ -326,9 +318,7 @@ class Prescreening(EnsembleOptimizer):
 
         # write everything to a file
         filename = f"{self._part_no}_{self._name.upper()}.out"
-        logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, filename)}."
-        )
+        logger.debug( f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
         with open(
             os.path.join(self.ensemble.workdir, filename), "w", newline=None
         ) as outfile:

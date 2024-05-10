@@ -35,24 +35,61 @@ class CensoPart:
     """
 
     _options = {
-        "maxcores": {"default": 4, "range": [OMPMIN, 256]},
-        "omp": {"default": 4, "range": [OMPMIN, OMPMAX]},
-        "imagthr": {"default": -100.0, "range": [-300.0, 0.0]},
-        "sthr": {"default": 0.0, "range": [0.0, 100.0]},
-        "scale": {"default": 1.0, "range": [0.0, 1.0]},
-        "temperature": {"default": 298.15, "range": [1e-05, 2000.0]},
-        "solvent": {"default": "h2o", "options": []},
-        "sm_rrho": {"default": "alpb", "options": ["alpb", "gbsa"]},
-        "multitemp": {"default": True},
-        "evaluate_rrho": {"default": True},
-        "consider_sym": {"default": True},
-        "bhess": {"default": True},
-        "rmsdbias": {"default": False},
-        "balance": {"default": True},
-        "gas-phase": {"default": False},
-        "copy_mo": {"default": True},
-        "retry_failed": {"default": True},
-        "trange": {"default": [273.15, 373.15, 5]},
+        "maxcores": {
+            "default": 4
+        },
+        "omp": {
+            "default": 4
+        },
+        "imagthr": {
+            "default": -100.0
+        },
+        "sthr": {
+            "default": 0.0
+        },
+        "scale": {
+            "default": 1.0
+        },
+        "temperature": {
+            "default": 298.15
+        },
+        "solvent": {
+            "default": "h2o"
+        },
+        "sm_rrho": {
+            "default": "alpb",
+            "options": ["alpb", "gbsa"]
+        },
+        "multitemp": {
+            "default": True
+        },
+        "evaluate_rrho": {
+            "default": True
+        },
+        "consider_sym": {
+            "default": True
+        },
+        "bhess": {
+            "default": True
+        },
+        "rmsdbias": {
+            "default": False
+        },
+        "balance": {
+            "default": True
+        },
+        "gas-phase": {
+            "default": False
+        },
+        "copy_mo": {
+            "default": True
+        },
+        "retry_failed": {
+            "default": True
+        },
+        "trange": {
+            "default": [273.15, 373.15, 5]
+        },
     }
 
     _settings = {}
@@ -62,13 +99,39 @@ class CensoPart:
     _part_no = "NaN"
 
     @staticmethod
-    def set_general_settings(settings: dict[str, any]) -> None:
+    def set_general_settings(settings: dict[str, any],
+                             complete: bool = True) -> None:
+        """
+        Set all general settings according to a settings dictionary. Will validate the dictionary and complete it 
+        if complete = True.
+
+        Args:
+            settings (dict[str, any]): The settings to be set.
+            complete (bool): If True, the settings will be completed with default values if they are missing.
+
+        Returns:
+            None
+        """
         CensoPart._validate(settings)
-        settings = CensoPart._complete(settings)
-        CensoPart._settings = settings
+        if complete:
+            settings = CensoPart._complete(settings)
+            CensoPart._settings = settings
+        else:
+            for setting in settings:
+                CensoPart._settings[setting] = settings[setting]
 
     @staticmethod
-    def set_general_setting(setting, value):
+    def set_general_setting(setting: str, value: any):
+        """
+        Set a general setting to a specific value. Will check the type of the setting.
+
+        Args:
+            setting (str): The setting to be set.
+            value (any): The value to be set. 
+
+        Returns:
+            None
+        """
         assert type(value) is type(CensoPart._settings[setting])
         CensoPart._settings[setting] = value
 
@@ -81,15 +144,41 @@ class CensoPart:
         return cls._settings
 
     @classmethod
-    def set_settings(cls, settings: dict[str, any]):
+    def set_settings(cls, settings: dict[str, any], complete: bool = True):
+        """
+        Set all part specific settings according to a settings dictionary. Will validate the dictionary and complete 
+        it if complete = True.
+
+        Args:
+            settings (dict[str, any]): The settings to be set.
+            complete (bool): If True, the settings will be completed with default values if they are missing.
+
+        Returns:
+            None
+        """
         cls._validate(settings)
-        settings = cls._complete(settings)
-        cls._settings = settings
+        if complete:
+            settings = cls._complete(settings)
+            cls._settings = settings
+        else:
+            for setting in settings:
+                cls._settings[setting] = settings[setting]
 
     @classmethod
     def set_setting(cls, setting_name: str, setting_value: any):
+        """
+        Set a part specific setting to a specific value. Will check the value and type of the setting.
+
+        Args:
+            setting_name (str): The setting to be set.
+            setting_value (any): The value to be set.
+
+        Returns:
+            None
+        """
         assert type(setting_value) is type(cls._settings[setting_name])
         cls._settings[setting_name] = setting_value
+        cls._validate(cls._settings)
 
     @classmethod
     def get_options(cls):
@@ -119,7 +208,7 @@ class CensoPart:
             None
 
         Raises:
-            ValueError: If the setting is not allowed or the value is not within the allowed range.
+            ValueError: If the setting is not allowed or the value is not within the allowed options.
         """
         # go through each section and try to validate each setting's type
         remove = []
@@ -132,43 +221,40 @@ class CensoPart:
                 remove.append(setting_name)
                 continue
 
-            # try to cast the setting-string into the correct type
-            try:
-                if setting_type == bool:
-                    setting_value = {"True": True, "False": False}.get(
-                        tovalidate[setting_name]
-                    )
-                elif setting_type == list:
-                    setting_value = ast.literal_eval(tovalidate[setting_name])
-                else:
-                    setting_value = setting_type(tovalidate[setting_name])
-            # if that's not possible raise an exception
-            # NOTE: KeyError is raised when the conversion for bools fails
-            except (ValueError, KeyError):
-                raise ValueError(
-                    f"Value '{tovalidate[setting_name]}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'"
-                )
+            # If necessary, try to cast the setting-string into the correct type
+            if not isinstance(tovalidate[setting_name], setting_type):
+                try:
+                    if setting_type == bool:
+                        setting_value = {
+                            "True": True,
+                            "False": False
+                        }.get(tovalidate[setting_name])
+                    elif setting_type == list:
+                        setting_value = ast.literal_eval(
+                            tovalidate[setting_name])
+                    else:
+                        setting_value = setting_type(tovalidate[setting_name])
+                # if that's not possible raise an exception
+                # NOTE: KeyError is raised when the conversion for bools fails
+                except (ValueError, KeyError) as e:
+                    raise ValueError(
+                        f"Value '{tovalidate[setting_name]}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'"
+                    ) from e
+            else:
+                setting_value = tovalidate[setting_name]
 
             # now check if the setting is allowed
-            # for strings check if string is within a list of allowed values
-            if setting_type == str:
+            # for strings check if string is within a list of allowed values if it exists
+            if setting_type == str and "options" in cls._options[
+                    setting_name].keys():
                 options = cls._options[setting_name]["options"]
                 if setting_value not in options and len(options) > 0:
                     # Only check if there are options
                     # This is fatal so an exception is raised
                     raise ValueError(
-                        f"Value '{setting_value}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'."
-                    )
-            # for numeric values check if value is within a range
-            elif setting_type in (int, float):
-                interval = cls._options[setting_name]["range"]
-                if not interval[0] <= setting_value <= interval[1]:
-                    # This is fatal so an exception is raised
-                    raise ValueError(
-                        f"Value '{setting_value}' is out of range "
-                        f"({interval[0]},{interval[1]}) for setting '{setting_name}' in part of type '{cls.__name__}'."
-                    )
-            # NOTE: there is no check for complex types yet (i.e. lists)
+                        f"Value '{setting_value}' is not allowed for setting "
+                        +
+                        f"'{setting_name}' in part of type '{cls.__name__}'.")
 
             # set the value in the dict tovalidate to the casted value
             tovalidate[setting_name] = setting_value
@@ -194,14 +280,15 @@ class CensoPart:
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(
-                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}")
+            self.dir = os.path.join(self.ensemble.workdir,
+                                    f"{self._part_no}_{self._name.upper()}")
             if os.path.isdir(self.dir):
                 global logger
                 # logger.warning(
                 #    f"Folder {self.dir} already exists. Potentially overwriting files."
                 # )
-            elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
+            elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(
+                    self.dir):
                 raise RuntimeError(
                     f"Could not create directory for {self._name}.")
 
@@ -255,10 +342,11 @@ class CensoPart:
         Returns:
             None
         """
-        results = {conf.name: conf.results[self._name]
-                   for conf in self.ensemble.conformers}
+        results = {
+            conf.name: conf.results[self._name]
+            for conf in self.ensemble.conformers
+        }
         filename = f"{self._part_no}_{self._name.upper()}.json"
-        with open(
-            os.path.join(self.ensemble.workdir, filename), "w"
-        ) as outfile:
+        with open(os.path.join(self.ensemble.workdir, filename),
+                  "w") as outfile:
             json.dump(results, outfile, indent=4)

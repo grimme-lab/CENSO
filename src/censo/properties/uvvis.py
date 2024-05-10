@@ -7,11 +7,7 @@ import os
 
 from ..ensembledata import EnsembleData
 from ..parallel import execute
-from ..params import (
-    SOLV_MODS,
-    PROGS,
-    GFNOPTIONS
-)
+from ..params import (SOLV_MODS, PROGS, GFNOPTIONS)
 from ..datastructure import MoleculeData
 from ..part import CensoPart
 from ..utilities import timeit, SolventHelper, DfaHelper, format_data
@@ -26,15 +22,36 @@ class UVVis(CensoPart):
     __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
 
     _options = {
-        "prog": {"default": "orca", "options": PROGS},  # required
-        "func": {"default": "wb97x-d4", "options": []},
-        "basis": {"default": "def2-TZVP", "options": []},
-        "sm": {"default": "smd", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
-        "nroots": {"default": 20, "range": [1, 100]},
-        "run": {"default": False},  # required
-        "template": {"default": False},  # required
-        "gcp": {"default": True},  # required
+        "prog": {
+            "default": "orca",
+            "options": PROGS
+        },  # required
+        "func": {
+            "default": "wb97x-d4"
+        },
+        "basis": {
+            "default": "def2-TZVP"
+        },
+        "sm": {
+            "default": "smd",
+            "options": __solv_mods
+        },
+        "gfnv": {
+            "default": "gfn2",
+            "options": GFNOPTIONS
+        },
+        "nroots": {
+            "default": 20
+        },
+        "run": {
+            "default": False
+        },  # required
+        "template": {
+            "default": False
+        },  # required
+        "gcp": {
+            "default": True
+        },  # required
     }
 
     _settings = {}
@@ -77,12 +94,10 @@ class UVVis(CensoPart):
         self.ensemble.remove_conformers(failed)
 
         # If RRHO contribution should be included and there was no previous ensemble optimization, calculate RRHO
-        if not (
-                any(
-                    part in conf.results.keys() for conf in self.ensemble.conformers
-                    for part in ["screening", "optimization", "refinement"]
-                ) and self.get_general_settings()["evaluate_rrho"]
-        ):
+        if not (any(part in conf.results.keys()
+                    for conf in self.ensemble.conformers
+                    for part in ["screening", "optimization", "refinement"])
+                and self.get_general_settings()["evaluate_rrho"]):
             jobtype = ["xtb_rrho"]
             prepinfo = self.setup_prepinfo_rrho()
 
@@ -108,9 +123,7 @@ class UVVis(CensoPart):
             conf.results[self._name]["gtot"] = self.gtot(conf)
 
         self.ensemble.calc_boltzmannweights(
-            self.get_general_settings()["temperature"],
-            self._name
-        )
+            self.get_general_settings()["temperature"], self._name)
 
         # Ensemble averaging of excitations
         self.__excitation_averaging()
@@ -127,24 +140,32 @@ class UVVis(CensoPart):
         prepinfo["general"] = self.get_general_settings()
 
         prepinfo["uvvis"] = {
-            "func_name": DfaHelper.get_name(
-                self.get_settings()["func"],
-                self.get_settings()["prog"]
-            ),
-            "func_type": DfaHelper.get_type(self.get_settings()["func"]),
-            "disp": DfaHelper.get_disp(self.get_settings()["func"]),
-            "basis": self.get_settings()["basis"],
-            "grid": "high+",  # hardcoded grid settings
-            "template": self.get_settings()["template"],
+            "func_name":
+            DfaHelper.get_name(self.get_settings()["func"],
+                               self.get_settings()["prog"]),
+            "func_type":
+            DfaHelper.get_type(self.get_settings()["func"]),
+            "disp":
+            DfaHelper.get_disp(self.get_settings()["func"]),
+            "basis":
+            self.get_settings()["basis"],
+            "grid":
+            "high+",  # hardcoded grid settings
+            "template":
+            self.get_settings()["template"],
             # while the other functional isn't
-            "gcp": True,  # by default GCP should always be used if possible
-            "sm": self.get_settings()["sm"],
-            "nroots": self.get_settings()["nroots"],
+            "gcp":
+            True,  # by default GCP should always be used if possible
+            "sm":
+            self.get_settings()["sm"],
+            "nroots":
+            self.get_settings()["nroots"],
         }
         # Only look up solvent if solvation is used
         if not self.get_general_settings()["gas-phase"]:
             prepinfo["uvvis"]["solvent_key_prog"] = SolventHelper.get_solvent(
-                self.get_settings()["sm"], self.get_general_settings()["solvent"])
+                self.get_settings()["sm"],
+                self.get_general_settings()["solvent"])
             assert prepinfo["uvvis"]["solvent_key_prog"] is not None
 
         return prepinfo
@@ -162,8 +183,10 @@ class UVVis(CensoPart):
         }
         # Only lookup solvent if solvation should be used
         if not self.get_general_settings()["gas-phase"]:
-            prepinfo["xtb_rrho"]["solvent_key_xtb"] = SolventHelper.get_solvent(
-                self.get_general_settings()["sm_rrho"], self.get_general_settings()["solvent"])
+            prepinfo["xtb_rrho"][
+                "solvent_key_xtb"] = SolventHelper.get_solvent(
+                    self.get_general_settings()["sm_rrho"],
+                    self.get_general_settings()["solvent"])
             assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         return prepinfo
@@ -175,11 +198,17 @@ class UVVis(CensoPart):
         """
         if self.get_general_settings()["evaluate_rrho"]:
             if "optimization" in conformer.results.keys():
-                return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["optimization"]["xtb_rrho"]["energy"]
+                return conformer.results[
+                    self._name]["uvvis"]["energy"] + conformer.results[
+                        "optimization"]["xtb_rrho"]["energy"]
             elif "screening" in conformer.results.keys():
-                return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["screening"]["xtb_rrho"]["energy"]
+                return conformer.results[
+                    self._name]["uvvis"]["energy"] + conformer.results[
+                        "screening"]["xtb_rrho"]["energy"]
             else:
-                return conformer.results[self._name]["uvvis"]["energy"] + conformer.results["uvvis"]["xtb_rrho"]["energy"]
+                return conformer.results[
+                    self._name]["uvvis"]["energy"] + conformer.results[
+                        "uvvis"]["xtb_rrho"]["energy"]
 
     def __excitation_averaging(self):
         """
@@ -194,17 +223,9 @@ class UVVis(CensoPart):
                 eps.append((excitation["wavelength"], epsilon_max, conf.name))
 
         # Print table
-        headers = [
-            "λ",
-            "ε_max",
-            "Origin. CONF#"
-        ]
+        headers = ["λ", "ε_max", "Origin. CONF#"]
 
-        units = [
-            "[nm]",
-            "",
-            ""
-        ]
+        units = ["[nm]", "", ""]
 
         printmap = {
             "λ": lambda exc: f"{exc[0]:.2f}",
@@ -212,10 +233,7 @@ class UVVis(CensoPart):
             "Origin. CONF#": lambda exc: f"{exc[2]}",
         }
 
-        rows = [
-            [printmap[header](exc) for header in headers]
-            for exc in eps
-        ]
+        rows = [[printmap[header](exc) for header in headers] for exc in eps]
 
         lines = format_data(headers, rows, units=units)
 
@@ -227,13 +245,15 @@ class UVVis(CensoPart):
         logger.debug(
             f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
         )
-        with open(
-            os.path.join(self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}.out"), "w", newline=None
-        ) as outfile:
+        with open(os.path.join(self.ensemble.workdir,
+                               f"{self._part_no}_{self._name.upper()}.out"),
+                  "w",
+                  newline=None) as outfile:
             outfile.writelines(lines)
 
         # Dump data into json
-        with open(os.path.join(self.ensemble.workdir, "excitations.json"), "w") as f:
+        with open(os.path.join(self.ensemble.workdir, "excitations.json"),
+                  "w") as f:
             json.dump(eps, f, indent=4)
 
     def write_results(self) -> None:

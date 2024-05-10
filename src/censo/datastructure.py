@@ -37,8 +37,10 @@ class GeometryData:
         for line in xyz:
             spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
-            self.xyz.append({"element": element, "xyz": [
-                            float(i) for i in spl[1:]]})
+            self.xyz.append({
+                "element": element,
+                "xyz": [float(i) for i in spl[1:]]
+            })
 
         # Count atoms
         self.nat: int = len(self.xyz)
@@ -62,10 +64,8 @@ class GeometryData:
             coord.append(
                 reduce(
                     lambda x, y: f"{x} {y}",
-                    list(map(lambda x: float(x) / BOHR2ANG,
-                             atom["xyz"])) + [f"{atom['element']}\n"]
-                )
-            )
+                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"])) +
+                    [f"{atom['element']}\n"]))
 
         coord.append("$end\n")
 
@@ -152,6 +152,7 @@ class MoleculeData:
 
 
 class ParallelJob:
+
     def __init__(self, conf: GeometryData, jobtype: list[str]):
         # conformer for the job
         self.conf = conf
@@ -173,7 +174,11 @@ class ParallelJob:
         # NOTE: prepinfo.keys() and items in jobtype are not necessarily the same! E.g. for NMR
         # jobtype = ["nmr"], prepinfo.keys() = ["nmr_s"], or prepinfo.keys() = ["nmr_s", "nmr_j"], ...
         self.prepinfo: dict[str, dict[str, any]] = {
-            "general": {}, "partname": "", "charge": 0, "unpaired": 0}
+            "general": {},
+            "partname": "",
+            "charge": 0,
+            "unpaired": 0
+        }
 
         # store metadata, is updated by the processor
         # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
