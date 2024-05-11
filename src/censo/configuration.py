@@ -9,15 +9,19 @@ from .utilities import DfaHelper, SolventHelper, print
 
 parts = {}
 
-# Flag to indicate wether a rcfile has been found in the home directory
-homerc = None
-
 
 def configure(rcpath: str = None, create_new: bool = False):
     """
     Configures the application based on the provided configuration file path.
     If no configuration file path is provided, it searches for the default configuration file.
-    If no configuration file is found, it creates a new one with default settings.
+    If no configuration file is found, it raises an error.
+
+    Args:
+        rcpath (str): Path to the configuration file.
+        create_new (bool): If True, a new configuration file will be created at rcpath.
+
+    Returns:
+        None
     """
     # Try to find the .censo2rc in the user's home directory
     # if no configuration file path is provided
@@ -27,16 +31,15 @@ def configure(rcpath: str = None, create_new: bool = False):
         if not os.path.isfile(rcpath) and not create_new:
             raise FileNotFoundError(
                 f"No configuration file found at {rcpath}.")
-        else:
-            censorc_path = rcpath
+        censorc_path = rcpath
 
     # Set up the DFAHelper
-    DfaHelper.set_dfa_dict(os.path.join(
-        ASSETS_PATH, "censo_dfa_settings.json"))
+    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH,
+                                        "censo_dfa_settings.json"))
 
     # Set up the SolventHelper
-    SolventHelper.set_solvent_dict(os.path.join(
-        ASSETS_PATH, "censo_solvents_db.json"))
+    SolventHelper.set_solvent_dict(
+        os.path.join(ASSETS_PATH, "censo_solvents_db.json"))
 
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
@@ -56,12 +59,16 @@ def configure(rcpath: str = None, create_new: bool = False):
     }
 
     # If no configuration file was found above, set the rcflag to False
-    global homerc
     if censorc_path is None:
-        homerc = False
-        return
+        raise RuntimeError(
+            "No configuration file has been found.",
+            "Please provide rcfile either in your home directory or via '-inprc' in command line or calling the 'configure'-method."
+        )
     # if explicitely told to create a new configuration file, do so
     elif create_new:
+        if rcpath is None:
+            raise RuntimeError(
+                "Please provide a path for the new rcfile to be written to.")
         censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
     # Otherwise, read the configuration file and configure the parts with the settings from it
@@ -71,7 +78,6 @@ def configure(rcpath: str = None, create_new: bool = False):
         for part in parts.values():
             part.set_settings({})
 
-        homerc = True
         settings_dict = read_rcfile(censorc_path)
 
         # first set general settings
@@ -101,8 +107,10 @@ def read_rcfile(path: str) -> dict[str, dict[str, any]]:
     with open(path, "r") as file:
         parser.read_file(file)
 
-    returndict = {section: dict(parser[section])
-                  for section in parser.sections()}
+    returndict = {
+        section: dict(parser[section])
+        for section in parser.sections()
+    }
     return returndict
 
 
@@ -140,15 +148,13 @@ def write_rcfile(path: str) -> None:
         from .part import CensoPart
 
         parts["general"] = CensoPart
-        parser.read_dict(
-            {
-                partname: {
-                    settingname: setting["default"]
-                    for settingname, setting in part.get_options().items()
-                }
-                for partname, part in parts.items()
+        parser.read_dict({
+            partname: {
+                settingname: setting["default"]
+                for settingname, setting in part.get_options().items()
             }
-        )
+            for partname, part in parts.items()
+        })
 
         # Try to get paths from 'which'
         if external_paths is None:
@@ -163,14 +169,12 @@ def write_rcfile(path: str) -> None:
     print(
         f"\nA new configuration file was written into {path}.\n"
         "You should adjust the settings to your needs and set the program paths.\n"
-        "Right now the settings are at their default values.\n"
-    )
+        "Right now the settings are at their default values.\n")
 
     if CENSORCNAME not in path:
         print(
             f"Additionally make sure that the file name is '{CENSORCNAME}'.\n"
-            f"Currently it is '{os.path.split(path)[-1]}'.\n"
-        )
+            f"Currently it is '{os.path.split(path)[-1]}'.\n")
 
 
 def read_program_paths(path: str) -> dict[str, str] | None:
@@ -219,9 +223,8 @@ def find_program_paths() -> dict[str, str]:
     # if orca was found try to determine orca version from the path (kinda hacky)
     if paths["orcapath"] != "":
         try:
-            paths["orcaversion"] = (
-                paths["orcapath"].split(os.sep)[-2][5:10].replace("_", ".")
-            )
+            paths["orcaversion"] = (paths["orcapath"].split(
+                os.sep)[-2][5:10].replace("_", "."))
         except Exception:
             paths["orcaversion"] = ""
 
