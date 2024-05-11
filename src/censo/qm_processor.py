@@ -174,7 +174,10 @@ class QmProc:
             "xtb": "xtbpath",
             "orca": "orcapath",
         }
-        assert self._paths[pathmap[prog]] != ""
+        try:
+            assert self._paths[pathmap[prog]].strip() != ""
+        except AssertionError as exc:
+            raise AssertionError(f"Path for {prog} not found.") from exc
 
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:

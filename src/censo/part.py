@@ -329,7 +329,10 @@ class CensoPart:
         """
 
         # Print header with part name
-        print(h2(f"{self._name.upper()}"))
+        if self.__class__ == CensoPart:
+            print(h2("GENERAL SETTINGS"))
+        else:
+            print(h2(f"{self._name.upper()}"))
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
