@@ -836,10 +836,13 @@ class OrcaProc(QmProc):
 
         # call orca
         call = [f"{filename}.inp"]
-        returncode = self._make_call("orca", call, outputpath, jobdir)
+        returncode, errors = self._make_call("orca", call, outputpath, jobdir)
         # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
 
         meta["success"] = returncode == 0
+        if not meta["success"]:
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         # read output
         with open(outputpath, "r", encoding=CODING, newline=None) as out:
@@ -1098,13 +1101,15 @@ class OrcaProc(QmProc):
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # call xtb
-        returncode = self._make_call("xtb", call, outputpath, jobdir)
+        returncode, errors = self._make_call("xtb", call, outputpath, jobdir)
 
         # check if optimization finished without errors
         # NOTE: right now, not converging scfs are not handled because returncodes need to be implemented first
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "unknown_error"
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             # TODO - the xtb returncodes should be handled
             return result, meta
 

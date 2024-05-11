@@ -156,7 +156,7 @@ class QmProc:
         return job
 
     def _make_call(self, prog: str, call: list, outputpath: str,
-                   jobdir: str) -> int:
+                   jobdir: str) -> tuple[int, str]:
         """
         Make a call to an external program and write output into outputfile.
 
@@ -177,7 +177,9 @@ class QmProc:
         try:
             assert self._paths[pathmap[prog]].strip() != ""
         except AssertionError as exc:
-            raise AssertionError(f"Path for {prog} not found.") from exc
+            raise AssertionError(
+                f"Path for {prog} not found. Please set up {pathmap[prog]} in the rcfile."
+            ) from exc
 
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
@@ -189,7 +191,7 @@ class QmProc:
                 [prog] + call,
                 shell=False,
                 stdin=None,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE,
                 universal_newlines=False,
                 cwd=jobdir,
                 stdout=outputfile,
@@ -206,11 +208,12 @@ class QmProc:
                 lambda signum, frame: handle_sigterm(signum, frame, sub))
 
             # wait for process to finish
-            returncode = sub.wait()
+            _, errors = sub.communicate()
+            returncode = sub.returncode
 
             logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
-        return returncode
+        return returncode, errors
 
     def _create_jobdir(self, confname: str, job: str) -> str:
         """
@@ -343,13 +346,15 @@ class QmProc:
                 xcout.write("$end\n")
 
         # call xtb
-        returncode = self._make_call("xtb", call, outputpath, jobdir)
+        returncode, errors = self._make_call("xtb", call, outputpath, jobdir)
 
         # if returncode != 0 then some error happened in xtb
         # TODO - returncodes
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "unknown_error"
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             return result, meta
 
         # read energy from outputfile
@@ -573,12 +578,14 @@ class QmProc:
             ])
 
         # call xtb
-        returncode = self._make_call("xtb", call, outputpath, jobdir)
+        returncode, errors = self._make_call("xtb", call, outputpath, jobdir)
 
         # check if converged:
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "unknown_error"
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             return result, meta
 
         # read output and store lines
