@@ -9,15 +9,19 @@ from .utilities import DfaHelper, SolventHelper, print
 
 parts = {}
 
-# Flag to indicate wether a rcfile has been found in the home directory
-homerc = None
-
 
 def configure(rcpath: str = None, create_new: bool = False):
     """
     Configures the application based on the provided configuration file path.
     If no configuration file path is provided, it searches for the default configuration file.
-    If no configuration file is found, it creates a new one with default settings.
+    If no configuration file is found, it raises an error.
+
+    Args:
+        rcpath (str): Path to the configuration file.
+        create_new (bool): If True, a new configuration file will be created at rcpath.
+
+    Returns:
+        None
     """
     # Try to find the .censo2rc in the user's home directory
     # if no configuration file path is provided
@@ -27,16 +31,15 @@ def configure(rcpath: str = None, create_new: bool = False):
         if not os.path.isfile(rcpath) and not create_new:
             raise FileNotFoundError(
                 f"No configuration file found at {rcpath}.")
-        else:
-            censorc_path = rcpath
+        censorc_path = rcpath
 
     # Set up the DFAHelper
-    DfaHelper.set_dfa_dict(os.path.join(
-        ASSETS_PATH, "censo_dfa_settings.json"))
+    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH,
+                                        "censo_dfa_settings.json"))
 
     # Set up the SolventHelper
-    SolventHelper.set_solvent_dict(os.path.join(
-        ASSETS_PATH, "censo_solvents_db.json"))
+    SolventHelper.set_solvent_dict(
+        os.path.join(ASSETS_PATH, "censo_solvents_db.json"))
 
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
@@ -55,37 +58,42 @@ def configure(rcpath: str = None, create_new: bool = False):
         "uvvis": UVVis,
     }
 
-    # If no configuration file was found above, set the rcflag to False
-    global homerc
-    if censorc_path is None:
-        homerc = False
-        return
     # if explicitely told to create a new configuration file, do so
-    elif create_new:
-        censorc_path = os.path.join(rcpath, "censo2rc_NEW")
+    if create_new:
+        if rcpath is None:
+            # If not chosen otherwise, the new rcfile is written in the home dir
+            censorc_path = os.path.join(os.path.expanduser("~"),
+                                        "censo2rc_NEW")
+        else:
+            censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
-    # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
         # Initialize default settings
         # Make sure that settings are initialized even if there is no section for this part in the rcfile
         for part in parts.values():
             part.set_settings({})
 
-        homerc = True
-        settings_dict = read_rcfile(censorc_path)
+        # Read rcfile if it exists
+        if censorc_path is not None:
+            # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
+            settings_dict = read_rcfile(censorc_path)
 
-        # first set general settings
-        CensoPart.set_general_settings(settings_dict["general"])
+            # first set general settings
+            CensoPart.set_general_settings(settings_dict["general"])
 
-        # set settings for each part
-        for section, settings in settings_dict.items():
-            if section in parts.keys():
-                parts[section].set_settings(settings)
-            # NOTE: if section is not in the parts names, it will be ignored
+            # Then the remaining settings for each part
+            for section, settings in settings_dict.items():
+                if section in parts:
+                    parts[section].set_settings(settings)
+                # NOTE: if section is not in the parts names, it will be ignored
 
-    # Update the paths for the processors
-    paths = read_rcfile(censorc_path)["paths"]
-    QmProc._paths.update(paths)
+            paths = read_rcfile(censorc_path)["paths"]
+        else:
+            # Try to automatically determine program paths (not guaranteed to succeed)
+            paths = find_program_paths()
+
+        # Update the paths for the processors
+        QmProc._paths.update(paths)
 
     # create user assets folder if it does not exist
     if not os.path.isdir(USER_ASSETS_PATH):
@@ -101,8 +109,10 @@ def read_rcfile(path: str) -> dict[str, dict[str, any]]:
     with open(path, "r") as file:
         parser.read_file(file)
 
-    returndict = {section: dict(parser[section])
-                  for section in parser.sections()}
+    returndict = {
+        section: dict(parser[section])
+        for section in parser.sections()
+    }
     return returndict
 
 
@@ -140,15 +150,13 @@ def write_rcfile(path: str) -> None:
         from .part import CensoPart
 
         parts["general"] = CensoPart
-        parser.read_dict(
-            {
-                partname: {
-                    settingname: setting["default"]
-                    for settingname, setting in part.get_options().items()
-                }
-                for partname, part in parts.items()
+        parser.read_dict({
+            partname: {
+                settingname: setting["default"]
+                for settingname, setting in part.get_options().items()
             }
-        )
+            for partname, part in parts.items()
+        })
 
         # Try to get paths from 'which'
         if external_paths is None:
@@ -163,14 +171,12 @@ def write_rcfile(path: str) -> None:
     print(
         f"\nA new configuration file was written into {path}.\n"
         "You should adjust the settings to your needs and set the program paths.\n"
-        "Right now the settings are at their default values.\n"
-    )
+        "Right now the settings are at their default values.\n")
 
     if CENSORCNAME not in path:
         print(
             f"Additionally make sure that the file name is '{CENSORCNAME}'.\n"
-            f"Currently it is '{os.path.split(path)[-1]}'.\n"
-        )
+            f"Currently it is '{os.path.split(path)[-1]}'.\n")
 
 
 def read_program_paths(path: str) -> dict[str, str] | None:
@@ -196,12 +202,12 @@ def find_program_paths() -> dict[str, str]:
     mapping = {
         "orcapath": "orca",
         "xtbpath": "xtb",
-        "crestpath": "crest",
-        "cosmorssetup": None,
-        "dbpath": None,
-        "cosmothermversion": None,
-        "mpshiftpath": None,
-        "escfpath": None,
+        #"crestpath": "crest",
+        #"cosmorssetup": None,
+        #"dbpath": None,
+        #"cosmothermversion": None,
+        #"mpshiftpath": None,
+        #"escfpath": None,
     }
     paths = {}
 
@@ -219,9 +225,8 @@ def find_program_paths() -> dict[str, str]:
     # if orca was found try to determine orca version from the path (kinda hacky)
     if paths["orcapath"] != "":
         try:
-            paths["orcaversion"] = (
-                paths["orcapath"].split(os.sep)[-2][5:10].replace("_", ".")
-            )
+            paths["orcaversion"] = (paths["orcapath"].split(
+                os.sep)[-2][5:10].replace("_", "."))
         except Exception:
             paths["orcaversion"] = ""
 
