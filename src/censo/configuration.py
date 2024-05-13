@@ -58,14 +58,8 @@ def configure(rcpath: str = None, create_new: bool = False):
         "uvvis": UVVis,
     }
 
-    # If no configuration file was found above, set the rcflag to False
-    if censorc_path is None and not create_new:
-        raise RuntimeError(
-            "No configuration file has been found. " +
-            "Please provide rcfile either in your home directory or via '-inprc' in command line or calling 'configure' with 'create_new=True'."
-        )
     # if explicitely told to create a new configuration file, do so
-    elif create_new:
+    if create_new:
         if rcpath is None:
             # If not chosen otherwise, the new rcfile is written in the home dir
             censorc_path = os.path.join(os.path.expanduser("~"),
@@ -73,27 +67,32 @@ def configure(rcpath: str = None, create_new: bool = False):
         else:
             censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
-    # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
         # Initialize default settings
         # Make sure that settings are initialized even if there is no section for this part in the rcfile
         for part in parts.values():
             part.set_settings({})
 
-        # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
-        settings_dict = read_rcfile(censorc_path)
+        # Read rcfile if it exists
+        if censorc_path is not None:
+            # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
+            settings_dict = read_rcfile(censorc_path)
 
-        # first set general settings
-        CensoPart.set_general_settings(settings_dict["general"])
+            # first set general settings
+            CensoPart.set_general_settings(settings_dict["general"])
 
-        # Then the remaining settings for each part
-        for section, settings in settings_dict.items():
-            if section in parts:
-                parts[section].set_settings(settings)
-            # NOTE: if section is not in the parts names, it will be ignored
+            # Then the remaining settings for each part
+            for section, settings in settings_dict.items():
+                if section in parts:
+                    parts[section].set_settings(settings)
+                # NOTE: if section is not in the parts names, it will be ignored
+
+            paths = read_rcfile(censorc_path)["paths"]
+        else:
+            # Try to automatically determine program paths (not guaranteed to succeed)
+            paths = find_program_paths()
 
         # Update the paths for the processors
-        paths = read_rcfile(censorc_path)["paths"]
         QmProc._paths.update(paths)
 
     # create user assets folder if it does not exist
@@ -203,12 +202,12 @@ def find_program_paths() -> dict[str, str]:
     mapping = {
         "orcapath": "orca",
         "xtbpath": "xtb",
-        "crestpath": "crest",
-        "cosmorssetup": None,
-        "dbpath": None,
-        "cosmothermversion": None,
-        "mpshiftpath": None,
-        "escfpath": None,
+        #"crestpath": "crest",
+        #"cosmorssetup": None,
+        #"dbpath": None,
+        #"cosmothermversion": None,
+        #"mpshiftpath": None,
+        #"escfpath": None,
     }
     paths = {}
 
