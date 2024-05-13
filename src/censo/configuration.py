@@ -59,17 +59,19 @@ def configure(rcpath: str = None, create_new: bool = False):
     }
 
     # If no configuration file was found above, set the rcflag to False
-    if censorc_path is None:
+    if censorc_path is None and not create_new:
         raise RuntimeError(
-            "No configuration file has been found.",
-            "Please provide rcfile either in your home directory or via '-inprc' in command line or calling the 'configure'-method."
+            "No configuration file has been found. " +
+            "Please provide rcfile either in your home directory or via '-inprc' in command line or calling 'configure' with 'create_new=True'."
         )
     # if explicitely told to create a new configuration file, do so
     elif create_new:
         if rcpath is None:
-            raise RuntimeError(
-                "Please provide a path for the new rcfile to be written to.")
-        censorc_path = os.path.join(rcpath, "censo2rc_NEW")
+            # If not chosen otherwise, the new rcfile is written in the home dir
+            censorc_path = os.path.join(os.path.expanduser("~"),
+                                        "censo2rc_NEW")
+        else:
+            censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
     # Otherwise, read the configuration file and configure the parts with the settings from it
     else:
@@ -78,20 +80,21 @@ def configure(rcpath: str = None, create_new: bool = False):
         for part in parts.values():
             part.set_settings({})
 
+        # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
         settings_dict = read_rcfile(censorc_path)
 
         # first set general settings
         CensoPart.set_general_settings(settings_dict["general"])
 
-        # set settings for each part
+        # Then the remaining settings for each part
         for section, settings in settings_dict.items():
-            if section in parts.keys():
+            if section in parts:
                 parts[section].set_settings(settings)
             # NOTE: if section is not in the parts names, it will be ignored
 
-    # Update the paths for the processors
-    paths = read_rcfile(censorc_path)["paths"]
-    QmProc._paths.update(paths)
+        # Update the paths for the processors
+        paths = read_rcfile(censorc_path)["paths"]
+        QmProc._paths.update(paths)
 
     # create user assets folder if it does not exist
     if not os.path.isdir(USER_ASSETS_PATH):

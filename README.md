@@ -31,7 +31,7 @@ ensemble = EnsembleData(workdir)
 ensemble.read_input(input_path, charge=0, unpaired=0)
 
 # If the user wants to use a specific rcfile:
-configure("/abs/path/to/rcfile")
+configure(rcpath="/abs/path/to/rcfile")
 
 # Setup all the parts that the user wants to run
 parts = [
