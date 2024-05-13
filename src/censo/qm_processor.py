@@ -188,7 +188,7 @@ class QmProc:
 
             # create subprocess for external program
             sub = subprocess.Popen(
-                [prog] + call,
+                [self._paths[pathmap[prog]]] + call,
                 shell=False,
                 stdin=None,
                 stderr=subprocess.PIPE,
