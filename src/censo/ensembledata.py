@@ -194,7 +194,7 @@ class EnsembleData:
                                     if "CONF" in s)
 
                 self.__conformers.append(
-                    MoleculeData(f"CONF{confname}",
+                    MoleculeData(confname,
                                  lines[2 + i * (nat + 2):(i + 1) * (nat + 2)]))
 
                 # precalculated energy set to 0.0 if it cannot be found
