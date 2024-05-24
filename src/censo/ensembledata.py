@@ -104,7 +104,7 @@ class EnsembleData:
         # if $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
             lines = inp.readlines()
-            if any(["$coord" in line for line in lines]):
+            if any("$coord" in line for line in lines):
                 _, self.runinfo["nat"], self.ensemble_path = t2x(
                     self.ensemble_path, writexyz=True, outfile="converted.xyz")
             else:
@@ -184,13 +184,22 @@ class EnsembleData:
             for i in range(nconf):
                 # Don't use the property here since the conformer list is expected to be empty, otherwise assertion
                 # would fail
+                # Check whether the names are stored in the ensemble file,
+                # use those if possible because of crest rotamer files
+                if "CONF" not in lines[1 + i * (nat + 2)]:
+                    confname = f"CONF{i + 1}"
+                else:
+                    confname = next(s
+                                    for s in lines[1 + i * (nat + 2)].split()
+                                    if "CONF" in s)
+
                 self.__conformers.append(
-                    MoleculeData(f"CONF{i + 1}",
+                    MoleculeData(confname,
                                  lines[2 + i * (nat + 2):(i + 1) * (nat + 2)]))
 
                 # precalculated energy set to 0.0 if it cannot be found
-                self.conformers[i].xtb_energy = (check_for_float(
-                    lines[i * (nat + 2) + 1]) or 0.0)
+                self.conformers[i].xtb_energy = check_for_float(
+                    lines[1 + i * (nat + 2)]) or 0.0
 
             # also works if xtb_energy is None for some reason (None is put first)
             self.conformers.sort(key=lambda x: x.xtb_energy)
@@ -307,7 +316,7 @@ class EnsembleData:
         """
         # find lowest gtot value
         if all(
-                ["gtot" in conf.results[part].keys() for conf in self.conformers]):
+            ["gtot" in conf.results[part].keys() for conf in self.conformers]):
             minfree: float = min(
                 [conf.results[part]["gtot"] for conf in self.conformers])
 
