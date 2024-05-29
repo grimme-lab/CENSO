@@ -110,7 +110,7 @@ class EnsembleData:
             else:
                 self.runinfo["nat"] = int(lines[0].split()[0])
 
-        # set charge and unpaired via funtion args or cml args
+        # Set charge and unpaired via funtion args or cml args
         if self.args is not None:
             self.runinfo["charge"] = charge or self.args.charge
             self.runinfo["unpaired"] = unpaired or self.args.unpaired
