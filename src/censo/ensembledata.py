@@ -98,7 +98,7 @@ class EnsembleData:
 
         self.ensemble_path = ensemble_path
 
-        # store md5 hash for quick comparison of inputs later
+        # Store md5 hash for quick comparison of inputs later
         self.runinfo["md5"] = do_md5(self.ensemble_path)
 
         # if $coord in file => tm format, needs to be converted to xyz
