@@ -124,9 +124,6 @@ class EnsembleData:
 
         self.setup_conformers(nconf)
 
-        # Print CENSO header
-        print(DESCR)
-
         # Print information about read ensemble
         print(f"Read {len(self.conformers)} conformers.\n",
               "Number of atoms:".ljust(DIGILEN // 2, " ") +

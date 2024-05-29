@@ -127,7 +127,6 @@ qm_prepinfo = {
     },
 }
 
-
 # rotational entropy from symmetry
 # https://cccbdb.nist.gov/thermo.asp
 rot_sym_num = {
@@ -261,15 +260,15 @@ si_bib = {
         r"  year = {2002}",
         r"}",
         r"@misc{COSMOtherm,",
-        r"   title = {COSMOtherm, Release 19; COSMOlogic GmbH & Co. KG, "
-        + "{\tt http://www.cosmologic.de}.}",
+        r"   title = {COSMOtherm, Release 19; COSMOlogic GmbH & Co. KG, " +
+        "{\tt http://www.cosmologic.de}.}",
         r"}",
     ],
     "xtb": [
         r"@article{xtb_generic,",
         r"  title={Extended tight‐binding quantum chemistry methods},",
-        r"  author={Bannwarth, Christoph and Caldeweyher, Eike and Ehlert,"
-        + " Sebastian and Hansen, Andreas and Pracht, Philipp and Seibert, Jakob "
+        r"  author={Bannwarth, Christoph and Caldeweyher, Eike and Ehlert," +
+        " Sebastian and Hansen, Andreas and Pracht, Philipp and Seibert, Jakob "
         + "and Spicher, Spicher and Grimme, Stefan},",
         r"  journal={{WIREs} Comput{.} Mol{.} Sci{.}},",
         r"  volume = {11},",
@@ -280,7 +279,8 @@ si_bib = {
         r"}",
         r"@article{GFN2,",
         r"  title={GFN2-xTB—An accurate and broadly parametrized self-consistent"
-        + " tight-binding quantum chemical method with multipole electrostatics and"
+        +
+        " tight-binding quantum chemical method with multipole electrostatics and"
         + " density-dependent dispersion contributions},",
         r"  author={Bannwarth, Christoph and Ehlert, Sebastian and Grimme, Stefan},",
         r"  journal={J{.} Chem{.} Theory Comput{.}},",
@@ -293,8 +293,10 @@ si_bib = {
         r"}",
         r"@article{GFN1,",
         r"  title={A robust and accurate tight-binding quantum chemical method "
-        + "for structures, vibrational frequencies, and noncovalent interactions of"
-        + " large molecular systems parametrized for all spd-block elements (Z=1--86)},",
+        +
+        "for structures, vibrational frequencies, and noncovalent interactions of"
+        +
+        " large molecular systems parametrized for all spd-block elements (Z=1--86)},",
         r"  author={Grimme, Stefan and Bannwarth, Christoph and Shushkov, Philip},",
         r"  journal={J{.} Chem{.} Theory Comput{.}},",
         r"  volume={13},",
@@ -380,8 +382,8 @@ si_bib = {
         r"  year = {1996}",
         r"}",
         r"@article{pbe0_one_erratum,",
-        r"  title = {Generalized Gradient Approximation Made Simple "
-        + "[Phys. Rev. Lett. 77, 3865 (1996)]},",
+        r"  title = {Generalized Gradient Approximation Made Simple " +
+        "[Phys. Rev. Lett. 77, 3865 (1996)]},",
         r"  author = {Perdew, John P. and Burke, Kieron and Ernzerhof, Matthias},",
         r"  journal = {Phys. Rev. Lett.},",
         r"  volume = {78},",
@@ -396,8 +398,8 @@ si_bib = {
         r"}",
         r"@article{PBE0_two,",
         r"  author = {Adamo,Carlo and Barone,Vincenzo},",
-        r"  title = {Toward reliable density functional methods without "
-        + "adjustable parameters: The PBE0 model},",
+        r"  title = {Toward reliable density functional methods without " +
+        "adjustable parameters: The PBE0 model},",
         r"  journal = {The Journal of Chemical Physics},",
         r"  volume = {110},",
         r"  number = {13},",
@@ -444,7 +446,8 @@ si_bib = {
         r"  number = {18},",
         r"  pages = {3297},",
         r"  title = {{Balanced basis sets of split valence, triple zeta valence "
-        + "and quadruple zeta valence quality for H to Rn: Design and assessment of accuracy}},",
+        +
+        "and quadruple zeta valence quality for H to Rn: Design and assessment of accuracy}},",
         r"  url = {http://xlink.rsc.org/?DOI=b508541a},",
         r"  volume = {7},",
         r"  year = {2005}",
