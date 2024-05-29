@@ -101,7 +101,7 @@ class EnsembleData:
         # Store md5 hash for quick comparison of inputs later
         self.runinfo["md5"] = do_md5(self.ensemble_path)
 
-        # if $coord in file => tm format, needs to be converted to xyz
+        # If $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
             lines = inp.readlines()
             if any("$coord" in line for line in lines):
