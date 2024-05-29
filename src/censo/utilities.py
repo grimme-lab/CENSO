@@ -44,6 +44,7 @@ class DfaHelper:
                 if part in v["part"]
             ]
         else:
+            prog = prog.lower()
             return [
                 func for func, v in cls._dfa_dict["functionals"].items()
                 if part in v["part"] and v[prog] != ""
@@ -62,11 +63,14 @@ class DfaHelper:
         Returns:
             str: The name of the functional.
         """
+        func = func.lower()
+        prog = prog.lower()
         if func in cls._dfa_dict["functionals"].keys():
             name = cls._dfa_dict["functionals"][func][prog]
         else:
             logger.warning(
-                f"Functional {func} not found for program {prog}. Applying name literally.")
+                f"Functional {func} not found for program {prog}. Applying name literally."
+            )
             name = func
         return name
 
@@ -82,11 +86,13 @@ class DfaHelper:
         Returns:
             str: The dispersion correction name.
         """
+        func = func.lower()
         if func in cls._dfa_dict["functionals"].keys():
             disp = cls._dfa_dict["functionals"][func]["disp"]
         else:
             logger.warning(
-                f"Could not determine dispersion correction for {func}. Applying none.")
+                f"Could not determine dispersion correction for {func}. Applying none."
+            )
             disp = "novdw"
         return disp
 
@@ -102,11 +108,13 @@ class DfaHelper:
         Returns:
             str: The type of the functional.
         """
+        func = func.lower()
         if func in cls._dfa_dict["functionals"].keys():
             rettype = cls._dfa_dict["functionals"][func]["type"]
         else:
             logger.warning(
-                f"Could not determine functional type for {func}. Assuming GGA.")
+                f"Could not determine functional type for {func}. Assuming GGA."
+            )
             rettype = "GGA"
         return rettype
 
@@ -119,6 +127,7 @@ class SolventHelper:
     """
     Helper class to manage solvent lookup.
     """
+
     @classmethod
     def set_solvent_dict(cls, solvent_dict_path: str) -> None:
         """
@@ -168,9 +177,11 @@ def print(*args, **kwargs):
     print_orig(*args, sep=sep, end=end, file=file, flush=flush)
 
 
-def format_data(
-        headers: list[str], rows: list[list[str]], units: list[str] = None, sortby: int = 0, padding: int = 6
-) -> list[str]:
+def format_data(headers: list[str],
+                rows: list[list[str]],
+                units: list[str] = None,
+                sortby: int = 0,
+                padding: int = 6) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
 
@@ -185,11 +196,15 @@ def format_data(
         list[str]: The list of formatted lines representing the table.
 
     """
+
     def natural_sort_key(s):
         """
         Natural sorting key for strings.
         """
-        return [int(text) if text.isdigit() else text for text in re.split("(\d+)", s)]
+        return [
+            int(text) if text.isdigit() else text
+            for text in re.split("(\d+)", s)
+        ]
 
     lines = []
 
@@ -201,31 +216,23 @@ def format_data(
                 len(headers[i]),
                 max(len(rows[j][i]) for j in range(len(rows))),
                 len(units[i])
-            ])
-            for i in range(ncols)
+            ]) for i in range(ncols)
         ]
     else:
         maxcolw = [
-            max(
-                len(headers[i]),
-                max(len(rows[j][i]) for j in range(len(rows)))
-            )
+            max(len(headers[i]),
+                max(len(rows[j][i]) for j in range(len(rows))))
             for i in range(ncols)
         ]
 
     # add table header
-    lines.append(
-        " ".join(f"{headers[i]:^{width + padding}}"
-                 for i, width in enumerate(maxcolw)) + "\n"
-    )
+    lines.append(" ".join(f"{headers[i]:^{width + padding}}"
+                          for i, width in enumerate(maxcolw)) + "\n")
 
     # Add units
     if units is not None:
-        lines.append(
-            " ".join(
-                f"{units[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
-            ) + "\n"
-        )
+        lines.append(" ".join(f"{units[i]:^{width + padding}}"
+                              for i, width in enumerate(maxcolw)) + "\n")
 
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
@@ -239,11 +246,8 @@ def format_data(
 
     # add a line for every row
     for row in rows:
-        lines.append(
-            " ".join(
-                f"{row[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
-            ) + "\n"
-        )
+        lines.append(" ".join(f"{row[i]:^{width + padding}}"
+                              for i, width in enumerate(maxcolw)) + "\n")
 
     # Remove leading whitespace
     start = min(len(line) - len(line.lstrip()) for line in lines)
@@ -273,11 +277,9 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
     return result
 
 
-def t2x(
-    path: str, writexyz: bool = False, outfile: str = "original.xyz"
-
-
-) -> tuple[list, int, str]:
+def t2x(path: str,
+        writexyz: bool = False,
+        outfile: str = "original.xyz") -> tuple[list, int, str]:
     """
     convert TURBOMOLE coord file to xyz data and/or write *.xyz output
 
@@ -308,15 +310,12 @@ def t2x(
                     f"{float(line.split()[2]) * BOHR2ANG:.10f}",
                     f"{str(line.split()[3].lower()).capitalize()}",
                 ],
-            )
-        )
+            ))
 
     # get path from args without the filename of the ensemble (last element of path)
     if os.path.isfile(path):
-        outpath = functools.reduce(
-            lambda x, y: os.path.join(x, y), list(
-                os.path.split(path))[::-1][1:][::-1]
-        )
+        outpath = functools.reduce(lambda x, y: os.path.join(x, y),
+                                   list(os.path.split(path))[::-1][1:][::-1])
     # or just use the given path if it is not a file path
     else:
         outpath = path
@@ -381,9 +380,8 @@ def timeit(f) -> Callable:
     return wrapper
 
 
-def od_insert(
-    od: OrderedDict[str, any], key: str, value: any, index: int
-) -> OrderedDict[str, any]:
+def od_insert(od: OrderedDict[str, any], key: str, value: any,
+              index: int) -> OrderedDict[str, any]:
     """
     Insert a new key/value pair into an OrderedDict at a specific position.
     If it was a normal dict:

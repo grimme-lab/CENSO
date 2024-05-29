@@ -263,7 +263,7 @@ def override_rc(args: Namespace) -> None:
 
     for part in list(parts.values()) + [CensoPart]:
         part_settings = part.get_settings()
-        for setting in part_settings.keys():
+        for setting in part_settings:
             if getattr(args, setting, None) is not None:
                 part.set_setting(setting, getattr(args, setting))
 
