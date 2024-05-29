@@ -623,6 +623,9 @@ class OrcaProc(QmProc):
         elif jobtype == "opt":
             indict["main"].extend(["OPT", "tightSCF"])
 
+        # additional print settings
+        indict["main"].extend(["printgap"])
+
         return indict
 
     def __prep_pregeom(self, prepinfo: dict[str, any], indict: OrderedDict,
@@ -664,6 +667,10 @@ class OrcaProc(QmProc):
             indict = od_insert(indict, "tddft",
                                {"nroots": [f"{prepinfo['uvvis']['nroots']}"]},
                                list(indict.keys()).index("main") + 1)
+
+        # Additional print settings
+        indict = od_insert(indict, "output", {"printlevel": ["normal"]},
+                           list(indict.keys()).index("main") + 1)
 
         return indict
 
