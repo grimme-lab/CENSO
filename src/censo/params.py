@@ -5,7 +5,6 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 """
 import os
 import sys
-import json
 
 from .__version__ import __version__
 
@@ -14,7 +13,7 @@ DESCR = f"""
         |                                                              |
         |                                                              |
         |                   CENSO - Commandline ENSO                   |
-        |                           v {__version__:<{19}}              |
+        |                    v {__version__:<{19}}                     |
         |    energetic sorting of CREST Conformer Rotamer Ensembles    |
         |                    University of Bonn, MCTC                  |
         |                           ??? 2024                           |
@@ -23,16 +22,18 @@ DESCR = f"""
         |                                                              |
         |______________________________________________________________|
 
-        Please cite: 
+        Please cite:
             ???
-        S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn 
+        S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn
         J. Phys. Chem. A 2021, 125, 19, 4039-4054.
         DOI: https://doi.org/10.1021/acs.jpca.1c00971
-        
+
         This program is distributed in the hope that it will be useful,
         but WITHOUT ANY WARRANTY; without even the implied warranty of
         MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 """
+
+START_DESCR = "Energetic sorting of Conformer Rotamer Ensembles (command line version)."
 
 ENVIRON = os.environ.copy()
 if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...

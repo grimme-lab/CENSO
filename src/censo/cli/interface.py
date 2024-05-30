@@ -11,7 +11,7 @@ from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
 from ..properties import NMR, UVVis
-from ..params import DESCR, __version__
+from ..params import START_DESCR, __version__
 from ..utilities import print
 from ..logging import setup_logger
 
@@ -23,7 +23,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     Console entry point to execute CENSO from the command line.
     """
     try:
-        args = parse(DESCR, argv)
+        args = parse(START_DESCR, argv)
     except ArgumentError as e:
         print(e.message)
         return 1
