@@ -66,7 +66,7 @@ def execute(
         workdir,
     )
 
-    # adjust value for the number of available cores
+    # Adjust value for the number of available cores
     global ncores
     ncores = min(ncores, maxcores)
 

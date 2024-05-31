@@ -98,10 +98,10 @@ class EnsembleData:
 
         self.ensemble_path = ensemble_path
 
-        # store md5 hash for quick comparison of inputs later
+        # Store md5 hash for quick comparison of inputs later
         self.runinfo["md5"] = do_md5(self.ensemble_path)
 
-        # if $coord in file => tm format, needs to be converted to xyz
+        # If $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
             lines = inp.readlines()
             if any("$coord" in line for line in lines):
@@ -110,7 +110,7 @@ class EnsembleData:
             else:
                 self.runinfo["nat"] = int(lines[0].split()[0])
 
-        # set charge and unpaired via funtion args or cml args
+        # Set charge and unpaired via funtion args or cml args
         if self.args is not None:
             self.runinfo["charge"] = charge or self.args.charge
             self.runinfo["unpaired"] = unpaired or self.args.unpaired
@@ -123,9 +123,6 @@ class EnsembleData:
                 "Charge or number of unpaired electrons not defined.")
 
         self.setup_conformers(nconf)
-
-        # Print CENSO header
-        print(DESCR)
 
         # Print information about read ensemble
         print(f"Read {len(self.conformers)} conformers.\n",
