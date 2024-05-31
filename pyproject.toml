@@ -23,3 +23,4 @@ scripts = [
 readme = {file = "README.md"}
 
 [tool.setuptools_scm]
+version_file = "src/censo/__version__.py"
