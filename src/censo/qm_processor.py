@@ -190,6 +190,7 @@ class QmProc:
             sub = subprocess.Popen(
                 [self._paths[pathmap[prog]]] + call,
                 shell=False,
+                text=True,
                 stdin=None,
                 stderr=subprocess.PIPE,
                 universal_newlines=False,
