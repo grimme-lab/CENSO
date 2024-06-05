@@ -624,7 +624,10 @@ class OrcaProc(QmProc):
             indict["main"].extend(["OPT", "tightSCF"])
 
         # additional print settings
-        indict["main"].extend(["printgap"])
+        if jobtype == "xtb_opt":
+            indict["main"].extend(["miniprint"])
+        else:
+            indict["main"].extend(["printgap"])
 
         return indict
 
@@ -669,8 +672,9 @@ class OrcaProc(QmProc):
                                list(indict.keys()).index("main") + 1)
 
         # Additional print settings
-        indict = od_insert(indict, "output", {"printlevel": ["normal"]},
-                           list(indict.keys()).index("main") + 1)
+        if jobtype != "xtb_opt":
+            indict = od_insert(indict, "output", {"printlevel": ["normal"]},
+                               list(indict.keys()).index("main") + 1)
 
         return indict
 
