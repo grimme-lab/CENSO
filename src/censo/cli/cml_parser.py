@@ -121,8 +121,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     groups[0].add_argument(
         "--loglevel",
         dest="loglevel",
-        help=
-        "Set the loglevel for all modules to a specified level (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
+        help="Set the loglevel for all modules to a specified level.",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
 
     # GENERAL SETTINGS

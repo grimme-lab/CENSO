@@ -105,6 +105,7 @@ def read_rcfile(path: str) -> dict[str, dict[str, any]]:
     Read from config data from file located at 'path'
     """
     # read config file
+    print(f"Reading configuration file from {path}.")
     parser: configparser.ConfigParser = configparser.ConfigParser()
     with open(path, "r") as file:
         parser.read_file(file)
