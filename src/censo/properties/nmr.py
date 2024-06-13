@@ -303,9 +303,12 @@ class NMR(CensoPart):
         If None of these are found, the energies of the NMR calculations will be used (couplings calculation energy first (lifo)).
         """
         using_part = None
-        for partname in ["prescreening", "screening", "optimization", "refinement"]:
+        for partname in [
+                "prescreening", "screening", "optimization", "refinement"
+        ]:
             # This way, the most high-level partname should get stuck in using_part
-            if all(partname in conf.results.keys() for conf in self.ensemble.conformers):
+            if all(partname in conf.results.keys()
+                   for conf in self.ensemble.conformers):
                 using_part = partname
 
         # If using_part stays None the NMR energies must be used and xtb_rrho might be necessary
@@ -332,32 +335,47 @@ class NMR(CensoPart):
                 # Remove failed conformers
                 self.ensemble.remove_conformers(failed)
             for conf in self.ensemble.conformers:
-                conf.results[self._name]["energy"] = conf.results[self._name]["nmr"]["energy"]
+                conf.results[self._name]["energy"] = conf.results[
+                    self._name]["nmr"]["energy"]
                 conf.results[self._name]["gsolv"] = 0.0
-                conf.results[self._name]["grrho"] = conf.results[self._name].get("xtb_rrho", {"energy": 0.0})["energy"]
+                conf.results[self._name]["grrho"] = conf.results[
+                    self._name].get("xtb_rrho", {"energy": 0.0})["energy"]
         elif using_part == "optimization":
             for conf in self.ensemble.conformers:
-                conf.results[self._name]["energy"] = conf.results[using_part]["xtb_opt"]["energy"]
+                conf.results[self._name]["energy"] = conf.results[using_part][
+                    "xtb_opt"]["energy"]
                 conf.results[self._name]["gsolv"] = 0.0
-                conf.results[self._name]["grrho"] = conf.results[using_part].get("xtb_rrho", {"energy": 0.0})["energy"]
+                conf.results[
+                    self._name]["grrho"] = conf.results[using_part].get(
+                        "xtb_rrho", {"energy": 0.0})["energy"]
         elif using_part in ["screening", "refinement"]:
-            if all("gsolv" in conf.results[using_part].keys() for conf in self.ensemble.conformers):
+            if all("gsolv" in conf.results[using_part].keys()
+                   for conf in self.ensemble.conformers):
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[using_part]["gsolv"]["energy_gas"]
-                    conf.results[self._name]["gsolv"] = conf.results[using_part]["gsolv"]["gsolv"]
-                    conf.results[self._name]["grrho"] = conf.results[using_part].get("xtb_rrho", {"energy": 0.0})["energy"]
+                    conf.results[self._name]["energy"] = conf.results[
+                        using_part]["gsolv"]["energy_gas"]
+                    conf.results[self._name]["gsolv"] = conf.results[
+                        using_part]["gsolv"]["gsolv"]
+                    conf.results[
+                        self._name]["grrho"] = conf.results[using_part].get(
+                            "xtb_rrho", {"energy": 0.0})["energy"]
             else:
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[using_part]["sp"]["energy"]
+                    conf.results[self._name]["energy"] = conf.results[
+                        using_part]["sp"]["energy"]
                     conf.results[self._name]["gsolv"] = 0.0
-                    conf.results[self._name]["grrho"] = conf.results[using_part].get("xtb_rrho", {"energy": 0.0})["energy"]
+                    conf.results[
+                        self._name]["grrho"] = conf.results[using_part].get(
+                            "xtb_rrho", {"energy": 0.0})["energy"]
         elif using_part == "prescreening":
-            if all("xtb_gsolv" in conf.results[using_part].keys() for conf in self.ensemble.conformers):
+            if all("xtb_gsolv" in conf.results[using_part].keys()
+                   for conf in self.ensemble.conformers):
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[using_part]["sp"]["energy"]
-                    conf.results[self._name]["gsolv"] = conf.results[using_part]["xtb_gsolv"]["gsolv"]
+                    conf.results[self._name]["energy"] = conf.results[
+                        using_part]["sp"]["energy"]
+                    conf.results[self._name]["gsolv"] = conf.results[
+                        using_part]["xtb_gsolv"]["gsolv"]
                     conf.results[self._name]["grrho"] = 0.0
-
 
     def __generate_anmr(self):
         """
@@ -377,23 +395,14 @@ class NMR(CensoPart):
 
         # determines what to print for each conformer in each column
         printmap = {
-            "ONOFF":
-            lambda conf: "1",
-            "NMR":
-            lambda conf: f"{conf.name[4:]}",
-            "CONF":
-            lambda conf: f"{conf.name[4:]}",
-            "BW":
-            lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
-            "Energy":
-            lambda conf: f"{conf.results[self._name]['energy']:.6f}",
-            "Gsolv":
-            lambda conf: f"{conf.results[self._name]['gsolv']:.6f}",
-            "mRRHO":
-            lambda conf:
-            f"{conf.results[self._name]['grrho']:.6f}"
-            "gi":
-            lambda conf: f"{conf.degen}",
+            "ONOFF": lambda conf: "1",
+            "NMR": lambda conf: f"{conf.name[4:]}",
+            "CONF": lambda conf: f"{conf.name[4:]}",
+            "BW": lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
+            "Energy": lambda conf: f"{conf.results[self._name]['energy']:.6f}",
+            "Gsolv": lambda conf: f"{conf.results[self._name]['gsolv']:.6f}",
+            "mRRHO": lambda conf: f"{conf.results[self._name]['grrho']:.6f}",
+            "gi": lambda conf: f"{conf.degen}",
         }
 
         rows = [[printmap[header](conf) for header in headers]
