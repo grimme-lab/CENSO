@@ -955,6 +955,7 @@ class OrcaProc(QmProc):
                  ) -> tuple[dict[str, any], dict[str, any]]:
         """
         ORCA geometry optimization using ANCOPT.
+        Note that solvation is handled here always implicitly.
 
         Args:
             job: ParallelJob object containing the job information, metadata is stored in job.meta

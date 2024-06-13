@@ -141,8 +141,7 @@ class Screening(Prescreening):
         # should not be included in the single-point energy the 'gsolv' job should've been run
         if (not self.get_general_settings()["gas-phase"]
                 and not self.get_settings()["implicit"]):
-            return conf.results[self._name]["gsolv"][
-                "energy_gas"] + conf.results[self._name]["gsolv"]["gsolv"]
+            return conf.results[self._name]["gsolv"]["energy_solv"]
         # Otherwise, return just the single-point energy
         else:
             return conf.results[self._name]["sp"]["energy"]

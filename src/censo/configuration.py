@@ -76,7 +76,7 @@ def configure(rcpath: str = None, create_new: bool = False):
         # Read rcfile if it exists
         if censorc_path is not None:
             # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
-            settings_dict = read_rcfile(censorc_path)
+            settings_dict = read_rcfile(censorc_path, silent=False)
 
             # first set general settings
             CensoPart.set_general_settings(settings_dict["general"])
@@ -100,12 +100,21 @@ def configure(rcpath: str = None, create_new: bool = False):
         os.mkdir(USER_ASSETS_PATH)
 
 
-def read_rcfile(path: str) -> dict[str, dict[str, any]]:
+def read_rcfile(path: str, silent: bool = True) -> dict[str, dict[str, any]]:
     """
-    Read from config data from file located at 'path'
+    Read the configuration file at 'path' and return the settings as a dictionary.
+
+    Args:
+        path (str): Path to the configuration file.
+        silent (bool): If True, no messages will be printed.
+
+    Returns:
+        dict[str, dict[str, any]]: Dictionary containing the settings read from the configuration file.
     """
     # read config file
-    print(f"Reading configuration file from {path}.")
+    if not silent:
+        print(f"Reading configuration file from {path}.")
+
     parser: configparser.ConfigParser = configparser.ConfigParser()
     with open(path, "r") as file:
         parser.read_file(file)
@@ -267,54 +276,3 @@ def override_rc(args: Namespace) -> None:
         for setting in part_settings:
             if getattr(args, setting, None) is not None:
                 part.set_setting(setting, getattr(args, setting))
-
-
-# __settings_options = {
-# "optrot": {
-#     "func": {
-#         "default": "pbe-d4",
-#         "options": dfa_settings.find_func("optrot")
-#     },
-#     "func_or_scf": {
-#         "default": "r2scan-3c",
-#         "options": []
-#     },
-#     "basis": {
-#         "default": "def2-SVPD",
-#         "options": basis_sets
-#     },
-#     "prog": {
-#         "default": "orca",
-#         "options": [
-#             "orca"
-#         ]
-#     },
-#     "run": {
-#         "default": False
-#     },
-#     "freq_or": {
-#         "default": [
-#             598.0
-#         ]
-#     }
-# },
-# "uvvis": {
-#     "nroots": {
-#         "default": 20,
-#         "range": [
-#             1,
-#             100
-#         ]
-#     },
-#     "sigma": {
-#         "default": 0.1,
-#         "range": [
-#             0.1,
-#             1.0
-#         ]
-#     },
-#     "run": {
-#         "default": False
-#     }
-# },
-# }

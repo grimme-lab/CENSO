@@ -46,7 +46,11 @@ class Prescreening(EnsembleOptimizer):
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
         elif not self.get_settings().get("implicit", False):
-            jobtype = ["xtb_gsolv"]
+            # Only for prescreening the solvation should be calculated with xtb
+            if self._name == "prescreening":
+                jobtype = ["xtb_gsolv"]
+            else:
+                jobtype = ["gsolv"]
 
             # Compile all information required for the preparation of input files in parallel execution step
             prepinfo = self.setup_prepinfo(jobtype)
