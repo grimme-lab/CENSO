@@ -193,7 +193,6 @@ class QmProc:
                 text=True,
                 stdin=None,
                 stderr=subprocess.PIPE,
-                universal_newlines=False,
                 cwd=jobdir,
                 stdout=outputfile,
                 env=ENVIRON,
