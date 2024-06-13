@@ -527,12 +527,17 @@ class OrcaProc(QmProc):
 
         # set  RI def2/J,   RIJCOSX def2/J
 
-        # Set def2/J in all cases
-        indict["main"].append("def2/J")
+        # Set def2/J in case of def2 basis
+        if "def2" in basis.lower():
+            indict["main"].append("def2/J")
+        # Otherwise use autoaux
+        else:
+            indict = od_insert(indict, "basis", {"auxJK": ["\"AutoAux\""]},
+                               list(indict.keys()).index("main") + 1)
 
         # settings for double hybrids
         if "double" in functype:
-            indict["main"].extend(["def2/J", "RIJCOSX"])
+            indict["main"].extend(["RIJCOSX"])
 
             if "nmr" in jobtype:
                 indict["main"].append("NOFROZENCORE")
@@ -554,16 +559,12 @@ class OrcaProc(QmProc):
                     list(indict.keys()).index("main") + 1,
                 )
 
-            # TODO - this doesn't handle composite double hybrids
             def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
             if basis.lower() in def2cbasis:
                 indict["main"].append(f"{basis}/C")
-                if not orca5:
-                    indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
-            else:
-                indict["main"].append("def2-TZVPP/C")
-                if not orca5:
-                    indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+
+            if not orca5:
+                indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
         # settings for hybrids
         elif "hybrid" in functype:
