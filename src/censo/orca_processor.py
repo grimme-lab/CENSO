@@ -532,8 +532,7 @@ class OrcaProc(QmProc):
             indict["main"].append("def2/J")
         # Otherwise use autoaux
         else:
-            indict = od_insert(indict, "basis", {"auxJK": ["\"AutoAux\""]},
-                               list(indict.keys()).index("main") + 1)
+            indict["main"].append("autoaux")
 
         # settings for double hybrids
         if "double" in functype:
