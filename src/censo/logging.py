@@ -2,12 +2,11 @@ import os
 import logging
 import sys
 
-
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO
 
+# _loglevel = logging.DEBUG
 
-# __loglevel = logging.DEBUG
 
 def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     """
@@ -36,10 +35,9 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
 
     # Define the log message format
     formatter = logging.Formatter(
-        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
-    )
-    stream_formatter = logging.Formatter(
-        "{levelname:^10s}- {message}", style="{")
+        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{")
+    stream_formatter = logging.Formatter("{levelname:^10s}- {message}",
+                                         style="{")
     handler.setFormatter(formatter)
     stream_handler.setFormatter(stream_formatter)
 
@@ -48,3 +46,17 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def set_loglevel(loglevel: str) -> None:
+    """
+    Set the log level for the logger.
+
+    Args:
+        loglevel (str): The log level to set.
+
+    Returns:
+        None
+    """
+    global __loglevel
+    __loglevel = getattr(logging, loglevel)

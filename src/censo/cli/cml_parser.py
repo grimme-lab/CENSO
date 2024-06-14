@@ -75,7 +75,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="unpaired",
         default=0,
         type=int,
-        help="Integer number of unpaired electrons of the investigated molecule.",
+        help=
+        "Integer number of unpaired electrons of the investigated molecule.",
     )
     groups[0].add_argument(
         "-version",
@@ -96,7 +97,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "-cleanup_all",
         dest="cleanup_all",
         action="store_true",
-        help="Delete all CENSO files from previous runs from current working directory. "
+        help=
+        "Delete all CENSO files from previous runs from current working directory. "
         "Stronger than -cleanup !",
     )
     groups[0].add_argument(
@@ -112,9 +114,15 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "-inprc",
         "--inprc",
         dest="inprcpath",
-        help="Use to provide a path to the CENSO configuration file if you want to use a different one"
+        help=
+        "Use to provide a path to the CENSO configuration file if you want to use a different one"
         " than the default (~/.censo2rc).",
     )
+    groups[0].add_argument(
+        "--loglevel",
+        dest="loglevel",
+        help="Set the loglevel for all modules to a specified level.",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
 
     # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))
@@ -132,7 +140,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         nargs=3,
         metavar=("start", "end", "step"),
         type=float,
-        help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
+        help=
+        "specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
         "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
     )
     groups[1].add_argument(
@@ -150,7 +159,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="consider_sym",
         action="store_const",
         const=True,
-        help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold). ",
+        help=
+        "Consider symmetry in mRRHO calcuation (based on desy xtb threshold). ",
     )
     groups[1].add_argument(
         "-rmsdbias",
@@ -205,7 +215,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--omp",
         dest="omp",
         type=int,
-        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
+        help=
+        "Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
         "if load balancing is disabled.",
     )
     groups[1].add_argument(
@@ -213,7 +224,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--maxcores",
         dest="maxcores",
         type=int,
-        help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
+        help=
+        "Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
         "the maximum number available.",
     )
     groups[1].add_argument(
@@ -534,7 +546,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     if not check_soft_requirements(args):
         raise argparse.ArgumentError(
             # None, "One of the soft requirements ('-inp', '-chrg', '-u') not met."
-            None, "You must provide an input file via '-inp'."
-        )
+            None,
+            "You must provide an input file via '-inp'.")
 
     return args

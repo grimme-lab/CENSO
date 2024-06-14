@@ -203,7 +203,7 @@ def format_data(headers: list[str],
         """
         return [
             int(text) if text.isdigit() else text
-            for text in re.split("(\d+)", s)
+            for text in re.split(r"(\d+)", s)
         ]
 
     lines = []

@@ -527,12 +527,16 @@ class OrcaProc(QmProc):
 
         # set  RI def2/J,   RIJCOSX def2/J
 
-        # Set def2/J in all cases
-        indict["main"].append("def2/J")
+        # Set def2/J in case of def2 basis
+        if "def2" in basis.lower():
+            indict["main"].append("def2/J")
+        # Otherwise use autoaux
+        else:
+            indict["main"].append("autoaux")
 
         # settings for double hybrids
         if "double" in functype:
-            indict["main"].extend(["def2/J", "RIJCOSX"])
+            indict["main"].extend(["RIJCOSX"])
 
             if "nmr" in jobtype:
                 indict["main"].append("NOFROZENCORE")
@@ -554,16 +558,12 @@ class OrcaProc(QmProc):
                     list(indict.keys()).index("main") + 1,
                 )
 
-            # TODO - this doesn't handle composite double hybrids
             def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
             if basis.lower() in def2cbasis:
                 indict["main"].append(f"{basis}/C")
-                if not orca5:
-                    indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
-            else:
-                indict["main"].append("def2-TZVPP/C")
-                if not orca5:
-                    indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
+
+            if not orca5:
+                indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
         # settings for hybrids
         elif "hybrid" in functype:
@@ -624,7 +624,10 @@ class OrcaProc(QmProc):
             indict["main"].extend(["OPT", "tightSCF"])
 
         # additional print settings
-        indict["main"].extend(["printgap"])
+        if jobtype == "xtb_opt":
+            indict["main"].extend(["miniprint"])
+        else:
+            indict["main"].extend(["printgap"])
 
         return indict
 
@@ -669,8 +672,9 @@ class OrcaProc(QmProc):
                                list(indict.keys()).index("main") + 1)
 
         # Additional print settings
-        indict = od_insert(indict, "output", {"printlevel": ["normal"]},
-                           list(indict.keys()).index("main") + 1)
+        if jobtype != "xtb_opt":
+            indict = od_insert(indict, "output", {"printlevel": ["normal"]},
+                               list(indict.keys()).index("main") + 1)
 
         return indict
 
@@ -951,6 +955,7 @@ class OrcaProc(QmProc):
                  ) -> tuple[dict[str, any], dict[str, any]]:
         """
         ORCA geometry optimization using ANCOPT.
+        Note that solvation is handled here always implicitly.
 
         Args:
             job: ParallelJob object containing the job information, metadata is stored in job.meta
