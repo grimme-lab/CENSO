@@ -84,10 +84,10 @@ class OrcaParser:
         (the list under "some option" contains just all the following substrings, that, in the input file,
         are separated by a whitespace, nothing fancy)
 
-        "geom": {"def": ["xyz/xyzfile", ...], "coord": [...]} (contains the geometry information block definition in 'def', 'coord' only if you use the option 'xyz')
+        "coords": {"def": ["xyz/xyzfile", ...], "coord": [...]} (contains the geometry information block definition in 'def', 'coord' only if you use the option 'xyz')
         'coord' for e.g. H2: "coord": [["H", "0.0", "0.0", "0.0"], ["H", "0.0", "0.0", "0.7"]]
 
-        "some setting after geom": {"some option": [...], ...}
+        "some setting after coords": {"some option": [...], ...}
 
         Comments get removed from the lines and therefore lost.
 
@@ -146,37 +146,32 @@ class OrcaParser:
                             option = split[0]
                             converted[setting][option] = split[1:]
             # geometry input line found
-            elif line.startswith("*") and "geom" not in converted.keys():
-                if "geom" in converted.keys():
-                    raise RuntimeError(
-                        "Error parsing ORCA input file (double geom definition)."
-                    )
-
-                converted["geom"] = {}
+            elif line.startswith("*") and "coords" not in converted.keys():
+                converted["coords"] = {}
 
                 if "xyzfile" in line:
-                    converted["geom"]["def"] = ["xyzfile"]
+                    converted["coords"]["def"] = ["xyzfile"]
                 # the 'xyz' keyword should be one of the first two substrings
                 elif "xyz" in line.split()[0] or "xyz" in line.split()[1]:
-                    converted["geom"]["def"] = ["xyz"]
+                    converted["coords"]["def"] = ["xyz"]
                 else:
                     raise RuntimeError("Error parsing ORCA input file.")
 
                 # add the remaining line to the dict
                 # get rid of '*'
                 line = line[1:]
-                converted["geom"]["def"].extend(line.split()[1:])
+                converted["coords"]["def"].extend(line.split()[1:])
 
-                # consume the remaining geometry information
-                if converted["geom"]["def"][0] == "xyz":
-                    converted["geom"]["coord"] = []
+                # consume the remaining coordsetry information
+                if converted["coords"]["def"][0] == "xyz":
+                    converted["coords"]["coord"] = []
                     # find end of definition block
                     # start search from next line since geometry definition
                     # starts with an '*'
                     end = i + self.__eob(lines[i + 1:], endchar="*") + 1
 
                     for line2 in lines[i + 1:end]:
-                        converted["geom"]["coord"].append(line2.split())
+                        converted["coords"]["coord"].append(line2.split())
             # check for template lines
             # NOTE: only these two need to be checked since they're the only
             # ones that are sensitive to ordering
@@ -193,18 +188,18 @@ class OrcaParser:
             elif "{geom}" in line:
                 # there should be no geometry definition block in a template
                 # file
-                if "geom" in converted.keys():
+                if "coords" in converted.keys():
                     raise RuntimeError(
-                        "Error parsing ORCA input file (double geom definition)."
+                        "Error parsing ORCA input file (double coords definition)."
                     )
-                # also main needs to be defined before geom
+                # also main needs to be defined before coords
                 elif "main" not in converted.keys():
                     raise RuntimeError(
                         "Error parsing ORCA input file (missing main definition)."
                     )
 
-                # if we reach this point, the geom key should be created
-                converted["geom"] = {}
+                # if we reach this point, the coords key should be created
+                converted["coords"] = {}
 
         return converted
 
@@ -647,7 +642,7 @@ class OrcaProc(QmProc):
         # unpaired, charge, and coordinates
         # by default coordinates are written directly into input file
         if xyzfile is None:
-            indict["geom"] = {
+            indict["coords"] = {
                 "def": [
                     "xyz",
                     charge,
@@ -656,7 +651,7 @@ class OrcaProc(QmProc):
                 "coord": conf.toorca(),
             }
         else:
-            indict["geom"] = {
+            indict["coords"] = {
                 "def": [
                     "xyzfile",
                     charge,

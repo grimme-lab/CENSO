@@ -120,6 +120,7 @@ class Optimization(EnsembleOptimizer):
         else:
             stopcycle = 200
         """
+        jobtype = ["xtb_opt"] if self.get_settings()["xtb_opt"] else ["opt"]
         # NOTE: (IMPORTANT) the following only uses xtb as driver (no native geometry optimizations)
         # Check for constraint file
         if self.get_settings()["constrain"]:
@@ -135,11 +136,7 @@ class Optimization(EnsembleOptimizer):
             # ensembleopt using macrocycles with 'optcycles' microcycles
             self.__macrocycle_opt(cut)
         else:
-            # do normal geometry optimization
-
-            jobtype = ["xtb_opt"
-                       ] if self.get_settings()["xtb_opt"] else ["opt"]
-
+            # do complete geometry optimization
             prepinfo = self.setup_prepinfo(jobtype)
 
             if not len(self.ensemble.conformers) > 1:
