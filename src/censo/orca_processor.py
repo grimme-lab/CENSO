@@ -432,6 +432,7 @@ class OrcaProc(QmProc):
                 "sp": self._sp,
                 "gsolv": self._gsolv,
                 "xtb_opt": self._xtb_opt,
+                "opt": self._opt,
                 "nmr": self._nmr,
                 "uvvis": self._uvvis,
             },
