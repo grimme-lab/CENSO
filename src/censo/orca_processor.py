@@ -252,7 +252,7 @@ class OrcaParser:
         allkeys = list(indict.keys())
 
         # skip first key ('main')
-        for key in allkeys[1:allkeys.index("geom")]:
+        for key in allkeys[1:allkeys.index("coords")]:
             lines.append(f"%{key}\n")
             # FIXME - temporary workaround for definition blocks that have no
             # 'end', this code smells immensely
@@ -270,18 +270,18 @@ class OrcaParser:
         # geometry definition line (e.g. "* xyzfile 0 1 input.xyz" / "* xyz 0
         # 1")
         lines.append(
-            f"* {reduce(lambda x, y: f'{x} {y}', indict['geom']['def'])}\n")
+            f"* {reduce(lambda x, y: f'{x} {y}', indict['coords']['def'])}\n")
 
         # write coordinates if "xyz" keyword is used
         # if "xyzfile" is used, nothing more has to be done
-        if indict["geom"].get("coord", False):
-            for coord in indict["geom"]["coord"]:
+        if indict["coords"].get("coord", False):
+            for coord in indict["coords"]["coord"]:
                 lines.append(f"{reduce(lambda x, y: f'{x} {y}', coord)}\n")
             lines.append("*\n")
 
         # lastly, write all the keywords and options that should be placed
         # after the geometry input (e.g. NMR settings)
-        for key in allkeys[allkeys.index("geom") + 1:]:
+        for key in allkeys[allkeys.index("coords") + 1:]:
             lines.append(f"%{key}\n")
             for option in indict[key].keys():
                 if "Nuclei" in option:
