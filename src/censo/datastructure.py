@@ -92,7 +92,16 @@ class GeometryData:
         """
         Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute
         """
-        raise NotImplementedError("TODO")
+        with open(path, "r") as file:
+            lines = file.readlines()
+
+        self.xyz = []
+        for line in lines:
+            split = line.split()
+            if len(split) == 4:
+                element = split[0]
+                coords = [float(x) for x in split[1:]]
+                self.xyz.append({"element": element, "xyz": coords})
 
     def toxyz(self) -> list[str]:
         """
