@@ -96,12 +96,12 @@ class GeometryData:
             lines = file.readlines()
 
         self.xyz = []
-        for line in lines:
+        # Just skip the first two lines
+        for line in lines[2:]:
             split = line.split()
-            if len(split) == 4:
-                element = split[0]
-                coords = [float(x) for x in split[1:]]
-                self.xyz.append({"element": element, "xyz": coords})
+            element = split[0]
+            coords = [float(x) for x in split[1:]]
+            self.xyz.append({"element": element, "xyz": coords})
 
     def toxyz(self) -> list[str]:
         """
