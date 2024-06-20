@@ -264,7 +264,8 @@ class OrcaParser:
             try:
                 for option in indict[key].keys():
                     lines.append(
-                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {
+                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                     # NOTE: TypeError is raised if reduce fails due to indict[key][option] not being iterable
                 lines.append("end\n")
@@ -292,11 +293,13 @@ class OrcaParser:
                 if "Nuclei" in option:
                     # Special treatment for the "Nuclei" option in %eprnmr
                     lines.append(
-                        f"    {option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {
+                            option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                 else:
                     lines.append(
-                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {
+                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
             lines.append("end\n")
 
@@ -488,7 +491,8 @@ class OrcaProc(QmProc):
                     ))
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    f"Could not find template file {job.prepinfo['partname']}.orca.template."
+                    f"Could not find template file {
+                        job.prepinfo['partname']}.orca.template."
                 )
 
         # prepare the main line of the orca input
@@ -524,6 +528,9 @@ class OrcaProc(QmProc):
 
         if "composite" not in functype:
             indict["main"].append(basis)
+        else:
+            # TODO - let's hope this printout is not too annoying
+            print("Composite method detected, ignoring 'basis' keyword.")
 
         # set  RI def2/J,   RIJCOSX def2/J
 
@@ -612,7 +619,8 @@ class OrcaProc(QmProc):
                         f"GCP(DFT/{gcp_keywords[basis.lower()]})")
                 else:
                     logger.warning(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
+                        f"{f'worker{os.getpid()}:':{
+                            WARNLEN}}Selected basis not available for GCP. GCP not employed."
                     )
 
         # add job keyword for geometry optimizations
@@ -624,7 +632,7 @@ class OrcaProc(QmProc):
             indict["main"].extend(["OPT", "tightSCF"])
 
         # additional print settings
-        if jobtype == "xtb_opt":
+        if jobtype in ["xtb_opt", "opt"]:
             indict["main"].extend(["miniprint"])
         else:
             indict["main"].extend(["printgap"])
@@ -647,7 +655,6 @@ class OrcaProc(QmProc):
         # single jobs clogging everything up
 
         # set keywords for the selected solvent model
-        # TODO - this is not good, reduce cyclomatic complexity
         if (not prepinfo["general"]["gas-phase"] and not no_solv
                 and ("sm" in prepinfo[jobtype].keys())):
             sm = prepinfo[jobtype]["sm"]
@@ -672,9 +679,23 @@ class OrcaProc(QmProc):
                                list(indict.keys()).index("main") + 1)
 
         # Additional print settings
-        if jobtype != "xtb_opt":
+        if jobtype not in ["xtb_opt", "opt"]:
             indict = od_insert(indict, "output", {"printlevel": ["normal"]},
                                list(indict.keys()).index("main") + 1)
+
+        if jobtype == "opt":
+            # Set max number of optimization cycles for ORCA driven optimization
+            indict = od_insert(indict, "geom", {"maxiter": [prepinfo["opt"]["optcycles"]]}, list(
+                indict.keys()).index("main") + 1)
+
+            # Insert constraints (if provided)
+            # FIXME - without better parser this will not work
+            """
+            if prepinfo["opt"]["constraints"] is not None:
+                parser = OrcaParser()
+                constraints = parser.read_input(prepinfo["opt"]["constraints"])
+                indict["geom"].update(constraints["geom"])
+            """
 
         return indict
 
@@ -840,7 +861,8 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))
@@ -947,6 +969,143 @@ class OrcaProc(QmProc):
 
         return result, meta
 
+    def _opt(self, job: ParallelJob, jobdir: str, filename: str = "opt") -> tuple[dict[str, any], dict[str, any]]:
+        """
+        Geometry optimization using ORCA optimizer.
+        Note that solvation in handled here always implicitly.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+            filename: name of the input file
+
+        Returns:
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
+        """
+        # prepare result
+        # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
+        # 'gncyc' contains the gradient norms for all cycles
+        # 'energy' contains the final energy of the optimization (converged or unconverged)
+        # 'geom' stores the optimized geometry in GeometryData.xyz format
+        result = {
+            "energy": None,
+            "cycles": None,
+            "converged": None,
+            "ecyc": None,
+            "grad_norm": None,
+            "gncyc": None,
+            "geom": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
+            "mo_path": None,
+        }
+
+        # set orca input/output paths
+        inputpath = os.path.join(jobdir, f"{filename}.inp")
+        outputpath = os.path.join(jobdir, f"{filename}.out")
+
+        # prepare input dict
+        # TODO - add constraints
+        parser = OrcaParser()
+        indict = self.__prep(job, "opt")
+
+        # apply flags
+        indict = self.__apply_flags(job, indict)
+
+        # write orca input in a subdir created for the conformer
+        parser.write_input(inputpath, indict)
+
+        # Get gbw files for initial guess
+        if self.copy_mo:
+            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
+                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
+                    logger.debug(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            job.mo_guess}."
+                    )
+                    shutil.copy(job.mo_guess,
+                                os.path.join(jobdir, f"{filename}.gbw"))
+
+        # call orca
+        call = [f"{filename}.inp"]
+        returncode, errors = self._make_call("orca", call, outputpath, jobdir)
+        # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
+
+        meta["success"] = returncode == 0
+        if not meta["success"]:
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+
+        # read output
+        with open(outputpath, "r", encoding=CODING, newline=None) as out:
+            lines = out.readlines()
+
+        # Get final energy
+        result["energy"] = next(
+            (float(line.split()[4])
+             for line in lines if "FINAL SINGLE POINT ENERGY" in line),
+            None,
+        )
+
+        # Check for errors in the output file in case returncode is 0
+        if meta["success"]:
+            meta["error"] = self.__check_output(lines)
+            meta["success"] = meta["error"] is None and result[
+                "energy"] is not None
+        else:
+            meta["error"] = self.__returncode_to_err.get(
+                returncode, "unknown_error")
+
+        # Check convergence
+        if next((True for x in lines if "OPTIMIZATION HAS CONVERGED" in x), None) is True:
+            result["converged"] = True
+        else:
+            result["converged"] = False
+
+        # Get the number of cycles
+        if result["converged"] is not None:
+            for line in lines:
+                if "GEOMETRY OPTIMIZATION CYCLE" in line:
+                    result["cycles"] = int(line.split()[4])
+
+            # Get energies for each cycle
+            result["ecyc"] = [float(line.split("....")[-1].split()[0])
+                              for line in filter(lambda x: "Current Energy" in x, lines)]
+
+            # Get all gradient norms for evaluation
+            result["gncyc"] = [
+                float(line.split("....")[-1].split()[0])
+                for line in filter(lambda x: "Current gradient norm" in x, lines)
+            ]
+
+            # Get the last gradient norm
+            result["grad_norm"] = result["gncyc"][-1]
+            meta["success"] = True
+
+        if self.copy_mo:
+            # store the path to the current .gbw file for this conformer if
+            # possible
+            if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
+                meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
+
+        # Read out optimized geometry and update conformer geometry with this
+        job.conf.fromxyz(os.path.join(jobdir, f"{filename}.xyz"))
+        result["geom"] = job.conf.xyz
+
+        # TODO - this might be a case where it would be reasonable to raise an
+        # exception
+        try:
+            assert result["converged"] is not None
+        except AssertionError:
+            meta["success"] = False
+            meta["error"] = "unknown_error"
+
+        return result, meta
+
     # TODO - split this up
     def _xtb_opt(self,
                  job: ParallelJob,
@@ -954,7 +1113,7 @@ class OrcaProc(QmProc):
                  filename: str = "xtb_opt"
                  ) -> tuple[dict[str, any], dict[str, any]]:
         """
-        ORCA geometry optimization using ANCOPT.
+        Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
 
         Args:
@@ -1094,7 +1253,8 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))

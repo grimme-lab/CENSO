@@ -88,6 +88,12 @@ class GeometryData:
             elif line.startswith("$end"):
                 break
 
+    def fromxyz(self, path: str) -> None:
+        """
+        Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute
+        """
+        raise NotImplementedError("TODO")
+
     def toxyz(self) -> list[str]:
         """
         method to convert self.xyz to xyz-file format
@@ -98,7 +104,8 @@ class GeometryData:
         ]
         for atom in self.xyz:
             lines.append(
-                f"{atom['element']} {atom['xyz'][0]:.10f} {atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
+                f"{atom['element']} {atom['xyz'][0]:.10f} {
+                    atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
             )
 
         return lines

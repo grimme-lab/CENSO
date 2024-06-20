@@ -86,6 +86,9 @@ class Optimization(EnsembleOptimizer):
         "constrain": {
             "default": False
         },
+        "xtb_opt": {
+                "default": False
+        },
     }
 
     _settings = {}
@@ -143,7 +146,8 @@ class Optimization(EnsembleOptimizer):
 
             if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
+                    f"Only one conformer ({
+                        self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
@@ -190,7 +194,8 @@ class Optimization(EnsembleOptimizer):
             print("Unconverged conformers:")
             for conf in unconverged:
                 print(
-                    f"{conf.name}, grad_norm: {conf.results[self._name]['xtb_opt']['grad_norm']}"
+                    f"{conf.name}, grad_norm: {
+                        conf.results[self._name]['xtb_opt']['grad_norm']}"
                 )
             print(
                 "The unconverged conformers will now be removed from consideration."
@@ -262,7 +267,8 @@ class Optimization(EnsembleOptimizer):
         ncyc = 0
         rrho_done = False
         print(
-            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
+            f"Optimization using macrocycles, {
+                self.get_settings()['optcycles']} microcycles per step."
         )
         nconv = 0
         ninit = len(self.confs_nc)
@@ -293,13 +299,12 @@ class Optimization(EnsembleOptimizer):
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
-                conf.results.setdefault(self._name,
-                                        {}).setdefault("xtb_opt", {})
+                conf.results.setdefault(
+                    self._name, {}).setdefault("xtb_opt", {})
 
                 # Update the values for "energy", "grad_norm", "converged", "geom"
                 for key in ["energy", "grad_norm", "converged", "geom"]:
-                    conf.results[self._name]["xtb_opt"][key] = results_opt[
-                        conf.geom.id]["xtb_opt"][key]
+                    conf.results[self._name]["xtb_opt"][key] = results_opt[conf.geom.id]["xtb_opt"][key]
 
                 # Add the number of cycles
                 conf.results[self._name]["xtb_opt"].setdefault("cycles", 0)
@@ -309,8 +314,7 @@ class Optimization(EnsembleOptimizer):
                 # Extend the energy and grad_norm lists
                 for key in ["ecyc", "gncyc"]:
                     conf.results[self._name]["xtb_opt"].setdefault(
-                        key,
-                        []).extend(results_opt[conf.geom.id]["xtb_opt"][key])
+                        key, []).extend(results_opt[conf.geom.id]["xtb_opt"][key])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
@@ -360,7 +364,8 @@ class Optimization(EnsembleOptimizer):
                         self.confs_nc,
                     )):
                 print(
-                    f"{conf.name} converged after {ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
+                    f"{conf.name} converged after {
+                        ncyc + results_opt[conf.geom.id]['xtb_opt']['cycles']} steps."
                 )
                 self.confs_nc.remove(conf)
                 nconv += 1
@@ -401,7 +406,8 @@ class Optimization(EnsembleOptimizer):
                     if conf in self.confs_nc:
                         print(
                             f"{conf.name} is no longer considered (gradient too small and"
-                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                            f" ΔG = {(self.grrho(conf) - limit)
+                                     * AU2KCAL:.2f})."
                         )
                         self.confs_nc.remove(conf)
 
@@ -454,10 +460,12 @@ class Optimization(EnsembleOptimizer):
             f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)":
             lambda conf:
-            f"{(conf.results[self._name]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
+            f"{(conf.results[self._name]['xtb_opt']
+                ['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO":
             lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            f"{conf.results[self._name]['xtb_rrho']['gibbs']
+                [self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"] else "---",
             "Gtot":
             lambda conf: f"{self.grrho(conf):.6f}",
@@ -479,7 +487,8 @@ class Optimization(EnsembleOptimizer):
             "\nBoltzmann averaged free energy/enthalpy of ensemble on optimized geometries:\n"
         )
         lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {
+                'avG(T) /a.u.':>14}\n"
         )
 
         # calculate averaged free enthalpy
@@ -497,7 +506,8 @@ class Optimization(EnsembleOptimizer):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {
+                avE:>14.7f}  {avG:>14.7f}     <<==part2==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
