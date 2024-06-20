@@ -259,7 +259,7 @@ class Optimization(EnsembleOptimizer):
         # at this point it's just self.ensemble.conformers, it is basically a todo-list
         self.confs_nc = self.ensemble.conformers.copy()
 
-        jobtype = "xtb_opt" if self.get_settings()["xtb_opt"] else "opt"
+        jobtype = ["xtb_opt"] if self.get_settings()["xtb_opt"] else ["opt"]
 
         prepinfo = self.setup_prepinfo(jobtype)
 

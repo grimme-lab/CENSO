@@ -114,8 +114,8 @@ class QmProc:
         # list containing the types of computations to do
         if not all(t in self._jobtypes.keys() for t in job.jobtype):
             raise RuntimeError(
-                f"At least one jobtype of {self._jobtypes} is not available for {self.__class__.__name__}.\nAvailable "
-                + f"jobtypes are: {self._jobtypes.keys()}")
+                f"At least one jobtype of {job.jobtype} is not available for {self.__class__.__name__}.\nAvailable "
+                + f"jobtypes are: {list(self._jobtypes.keys())}")
 
         # run all the computations
         for j in job.jobtype:

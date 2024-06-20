@@ -371,57 +371,6 @@ class OrcaProc(QmProc):
         **QmProc._req_settings_xtb
     }
 
-    # NOTE: currently unused
-    @classmethod
-    def check_requirements(cls, jobs: list[ParallelJob]) -> None:
-        """
-        Check, if the required settings are implemented in the jobs' prepinfo attributes for all the jobtypes.
-        Checks requirements for single-point always, except for xtb-only jobtypes.
-
-        Args:
-            jobs(list[ParallelJob]): List of jobs that are to be checked.
-
-        Returns:
-            None
-        """
-        failed = False
-        for job in jobs:
-            for jt in job.jobtype:
-                try:
-                    # To check requirements, look into the 'xtb_sp' for jts that call xtb single-points
-                    if jt == "xtb_gsolv":
-                        assert all(s in job.prepinfo[jt].keys()
-                                   for s in cls.__req_settings["xtb_sp"])
-                    # For most other DFT-based jobs check 'sp'
-                    elif jt == "gsolv" or jt in ["nmr", "nmr_s", "nmr_j"]:
-                        assert all(s in job.prepinfo[jt].keys()
-                                   for s in cls.__req_settings["sp"])
-
-                    # Check specific requirements
-                    assert all(s in job.prepinfo[jt].keys()
-                               for s in cls.__req_settings[jt])
-                except AssertionError:
-                    failed = True
-                    logger.debug(
-                        "The following settings are missing for implementation:"
-                    )
-                    if jt not in ["xtb_sp", "xtb_gsolv", "xtb_rrho"]:
-                        logger.debug(
-                            list(s for s in filter(
-                                lambda x: x not in job.prepinfo[jt].keys(),
-                                cls.__req_settings["sp"])))
-
-                    logger.debug(
-                        list(s for s in filter(
-                            lambda x: x not in job.prepinfo[jt].keys(),
-                            cls.__req_settings[jt])))
-
-        if failed:
-            raise RuntimeError(
-                "For at least one jobtype at least one setting is missing from job.prepinfo. "
-                "Set __loglevel to logging.DEBUG and check log file for more info."
-            )
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
