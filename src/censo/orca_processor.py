@@ -264,8 +264,7 @@ class OrcaParser:
             try:
                 for option in indict[key].keys():
                     lines.append(
-                        f"    {option} {
-                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                     # NOTE: TypeError is raised if reduce fails due to indict[key][option] not being iterable
                 lines.append("end\n")
@@ -293,13 +292,11 @@ class OrcaParser:
                 if "Nuclei" in option:
                     # Special treatment for the "Nuclei" option in %eprnmr
                     lines.append(
-                        f"    {
-                            option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                 else:
                     lines.append(
-                        f"    {option} {
-                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
             lines.append("end\n")
 
@@ -491,8 +488,7 @@ class OrcaProc(QmProc):
                     ))
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    f"Could not find template file {
-                        job.prepinfo['partname']}.orca.template."
+                    f"Could not find template file {job.prepinfo['partname']}.orca.template."
                 )
 
         # prepare the main line of the orca input
@@ -619,8 +615,7 @@ class OrcaProc(QmProc):
                         f"GCP(DFT/{gcp_keywords[basis.lower()]})")
                 else:
                     logger.warning(
-                        f"{f'worker{os.getpid()}:':{
-                            WARNLEN}}Selected basis not available for GCP. GCP not employed."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
                     )
 
         # add job keyword for geometry optimizations
@@ -685,8 +680,9 @@ class OrcaProc(QmProc):
 
         if jobtype == "opt":
             # Set max number of optimization cycles for ORCA driven optimization
-            indict = od_insert(indict, "geom", {"maxiter": [prepinfo["opt"]["optcycles"]]}, list(
-                indict.keys()).index("main") + 1)
+            indict = od_insert(indict, "geom",
+                               {"maxiter": [prepinfo["opt"]["optcycles"]]},
+                               list(indict.keys()).index("main") + 1)
 
             # Insert constraints (if provided)
             # FIXME - without better parser this will not work
@@ -861,8 +857,7 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
-                            job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))
@@ -969,7 +964,10 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    def _opt(self, job: ParallelJob, jobdir: str, filename: str = "opt") -> tuple[dict[str, any], dict[str, any]]:
+    def _opt(self,
+             job: ParallelJob,
+             jobdir: str,
+             filename: str = "opt") -> tuple[dict[str, any], dict[str, any]]:
         """
         Geometry optimization using ORCA optimizer.
         Note that solvation in handled here always implicitly.
@@ -1024,8 +1022,7 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
-                            job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))
@@ -1061,7 +1058,8 @@ class OrcaProc(QmProc):
                 returncode, "unknown_error")
 
         # Check convergence
-        if next((True for x in lines if "OPTIMIZATION HAS CONVERGED" in x), None) is True:
+        if next((True for x in lines if "OPTIMIZATION HAS CONVERGED" in x),
+                None) is True:
             result["converged"] = True
         else:
             result["converged"] = False
@@ -1073,13 +1071,15 @@ class OrcaProc(QmProc):
                     result["cycles"] = int(line.split()[4])
 
             # Get energies for each cycle
-            result["ecyc"] = [float(line.split("....")[-1].split()[0])
-                              for line in filter(lambda x: "Current Energy" in x, lines)]
+            result["ecyc"] = [
+                float(line.split("....")[-1].split()[0])
+                for line in filter(lambda x: "Current Energy" in x, lines)
+            ]
 
             # Get all gradient norms for evaluation
             result["gncyc"] = [
-                float(line.split("....")[-1].split()[0])
-                for line in filter(lambda x: "Current gradient norm" in x, lines)
+                float(line.split("....")[-1].split()[0]) for line in filter(
+                    lambda x: "Current gradient norm" in x, lines)
             ]
 
             # Get the last gradient norm
@@ -1253,8 +1253,7 @@ class OrcaProc(QmProc):
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
-                            job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))
