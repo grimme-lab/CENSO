@@ -104,8 +104,7 @@ class GeometryData:
         ]
         for atom in self.xyz:
             lines.append(
-                f"{atom['element']} {atom['xyz'][0]:.10f} {
-                    atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
+                f"{atom['element']} {atom['xyz'][0]:.10f} {atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
             )
 
         return lines
