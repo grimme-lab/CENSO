@@ -87,7 +87,7 @@ class Optimization(EnsembleOptimizer):
             "default": False
         },
         "xtb_opt": {
-                "default": False
+            "default": False
         },
     }
 
@@ -296,11 +296,13 @@ class Optimization(EnsembleOptimizer):
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.geom.id]["xtb_opt"]["geom"]
 
-                conf.results.setdefault(self._name, {}).setdefault("xtb_opt", {})
+                conf.results.setdefault(self._name,
+                                        {}).setdefault("xtb_opt", {})
 
                 # Update the values for "energy", "grad_norm", "converged", "geom"
                 for key in ["energy", "grad_norm", "converged", "geom"]:
-                    conf.results[self._name]["xtb_opt"][key] = results_opt[conf.geom.id]["xtb_opt"][key]
+                    conf.results[self._name]["xtb_opt"][key] = results_opt[
+                        conf.geom.id]["xtb_opt"][key]
 
                 # Add the number of cycles
                 conf.results[self._name]["xtb_opt"].setdefault("cycles", 0)
@@ -310,7 +312,8 @@ class Optimization(EnsembleOptimizer):
                 # Extend the energy and grad_norm lists
                 for key in ["ecyc", "gncyc"]:
                     conf.results[self._name]["xtb_opt"].setdefault(
-                        key, []).extend(results_opt[conf.geom.id]["xtb_opt"][key])
+                        key,
+                        []).extend(results_opt[conf.geom.id]["xtb_opt"][key])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
@@ -401,8 +404,7 @@ class Optimization(EnsembleOptimizer):
                     if conf in self.confs_nc:
                         print(
                             f"{conf.name} is no longer considered (gradient too small and"
-                            f" ΔG = {(self.grrho(conf) - limit)
-                                     * AU2KCAL:.2f})."
+                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
                         )
                         self.confs_nc.remove(conf)
 
@@ -455,12 +457,10 @@ class Optimization(EnsembleOptimizer):
             f"{conf.results[self._name]['xtb_opt']['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)":
             lambda conf:
-            f"{(conf.results[self._name]['xtb_opt']
-                ['energy'] - dftmin) * AU2KCAL:.2f}",
+            f"{(conf.results[self._name]['xtb_opt']['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO":
             lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs']
-                [self.get_general_settings()['temperature']]:.6f}"
+            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"] else "---",
             "Gtot":
             lambda conf: f"{self.grrho(conf):.6f}",
