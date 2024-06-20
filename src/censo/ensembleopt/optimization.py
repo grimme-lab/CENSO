@@ -445,7 +445,7 @@ class Optimization(EnsembleOptimizer):
         gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
 
         # Minimal pure DFT energy
-        dftmin = min(conf.results[self._name]["xtb_opt"]["energy"]
+        dftmin = min(conf.results[self._name][jobtype]["energy"]
                      for conf in self.ensemble.conformers)
 
         # Define what gets printed for which header
