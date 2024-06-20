@@ -524,9 +524,6 @@ class OrcaProc(QmProc):
 
         if "composite" not in functype:
             indict["main"].append(basis)
-        else:
-            # TODO - let's hope this printout is not too annoying
-            print("Composite method detected, ignoring 'basis' keyword.")
 
         # set  RI def2/J,   RIJCOSX def2/J
 
