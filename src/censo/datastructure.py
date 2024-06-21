@@ -16,14 +16,10 @@ class GeometryData:
     in order to keep the object small, since it has to be pickled for multiprocessing
     """
 
-    def __init__(self, identifier: int, name: str, xyz: list[str]):
+    def __init__(self, name: str, xyz: list[str]):
         """
         takes an identifier and the geometry lines from the xyz-file as input
         """
-
-        # identifier linking it to a MoleculeData object
-        # NOTE: this is runtime specific since it is set via built-in id-function
-        self.id: int = identifier
 
         # name of the linked MoleculeData
         self.name: str = name
@@ -88,6 +84,21 @@ class GeometryData:
             elif line.startswith("$end"):
                 break
 
+    def fromxyz(self, path: str) -> None:
+        """
+        Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute
+        """
+        with open(path, "r") as file:
+            lines = file.readlines()
+
+        self.xyz = []
+        # Just skip the first two lines
+        for line in lines[2:]:
+            split = line.split()
+            element = split[0]
+            coords = [float(x) for x in split[1:]]
+            self.xyz.append({"element": element, "xyz": coords})
+
     def toxyz(self) -> list[str]:
         """
         method to convert self.xyz to xyz-file format
@@ -106,10 +117,7 @@ class GeometryData:
 
 class MoleculeData:
     """
-    MoleculeData contains identifier, a GeometryData object,
-    as well as the sorting keys
-
-    The confomers' MoleculeDatas are set up in censo.ensembledata.EnsembleData.setup_conformers
+    The confomers' MoleculeData are set up in censo.ensembledata.EnsembleData.setup_conformers
     """
 
     def __init__(self, name: str, xyz: list[str]):
@@ -121,7 +129,7 @@ class MoleculeData:
         self.name: str = name
 
         # stores the geometry info to have a small object to be used for multiprocessing
-        self.geom: GeometryData = GeometryData(id(self), self.name, xyz)
+        self.geom: GeometryData = GeometryData(self.name, xyz)
 
         # stores the degeneration factor of the conformer
         self.degen: int = 1

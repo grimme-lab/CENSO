@@ -70,7 +70,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().optimize(cut=cut)
+        super().optimize(cut=False)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -139,8 +139,8 @@ class Screening(Prescreening):
         """
         # If solvation contributions should be included and the solvation free enthalpy
         # should not be included in the single-point energy the 'gsolv' job should've been run
-        if (not self.get_general_settings()["gas-phase"]
-                and not self.get_settings()["implicit"]):
+        if not self.get_general_settings(
+        )["gas-phase"] and not self.get_settings()["implicit"]:
             return conf.results[self._name]["gsolv"]["energy_solv"]
         # Otherwise, return just the single-point energy
         else:

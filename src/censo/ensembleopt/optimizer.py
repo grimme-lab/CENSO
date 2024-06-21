@@ -120,43 +120,46 @@ class EnsembleOptimizer(CensoPart):
                         self.get_general_settings()["solvent"])
                 assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
-        if "xtb_opt" in jobtype:
-            prepinfo["xtb_opt"] = {
-                "func_name":
-                DfaHelper.get_name(self.get_settings()["func"],
-                                   self.get_settings()["prog"]),
-                "func_type":
-                DfaHelper.get_type(self.get_settings()["func"]),
-                "disp":
-                DfaHelper.get_disp(self.get_settings()["func"]),
-                "basis":
-                self.get_settings()["basis"],
-                "grid":
-                self._grid,
-                "template":
-                self.get_settings()["template"],
-                "gcp":
-                True,
-                "optcycles":
-                self.get_settings()["optcycles"],
-                "hlow":
-                self.get_settings()["hlow"],
-                "optlevel":
-                self.get_settings()["optlevel"],
-                "macrocycles":
-                self.get_settings()["macrocycles"],
-                "constraints":
-                self.constraints,
-                # this is set to a path if constraints should be used, otherwise None
-            }
-            # Only look up solvent if solvation is used
-            if not self.get_general_settings()["gas-phase"]:
-                prepinfo["xtb_opt"]["sm"] = self.get_settings()["sm"]
-                prepinfo["xtb_opt"][
-                    "solvent_key_prog"] = SolventHelper.get_solvent(
-                        self.get_settings()["sm"],
-                        self.get_general_settings()["solvent"])
-                assert prepinfo["xtb_opt"]["solvent_key_prog"] is not None
+        for jt in ["xtb_opt", "opt"]:
+            if jt in jobtype:
+                prepinfo[jt] = {
+                    "func_name":
+                    DfaHelper.get_name(self.get_settings()["func"],
+                                       self.get_settings()["prog"]),
+                    "func_type":
+                    DfaHelper.get_type(self.get_settings()["func"]),
+                    "disp":
+                    DfaHelper.get_disp(self.get_settings()["func"]),
+                    "basis":
+                    self.get_settings()["basis"],
+                    "grid":
+                    self._grid,
+                    "template":
+                    self.get_settings()["template"],
+                    "gcp":
+                    True,
+                    "optcycles":
+                    self.get_settings()["optcycles"],
+                    "hlow":
+                    self.get_settings()["hlow"],
+                    "optlevel":
+                    self.get_settings()["optlevel"],
+                    "macrocycles":
+                    self.get_settings()["macrocycles"],
+                    "constraints":
+                    self.constraints,
+                    # this is set to a path if constraints should be used, otherwise None
+                }
+                # Only look up solvent if solvation is used
+                if not self.get_general_settings()["gas-phase"]:
+                    prepinfo[jt]["sm"] = self.get_settings()["sm"]
+                    prepinfo[jt][
+                        "solvent_key_prog"] = SolventHelper.get_solvent(
+                            self.get_settings()["sm"],
+                            self.get_general_settings()["solvent"])
+                    assert prepinfo[jt]["solvent_key_prog"] is not None
+
+                break
 
         return prepinfo
 
