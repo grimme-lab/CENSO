@@ -296,6 +296,7 @@ class Screening(Prescreening):
             "GmRRHO",
             "Gtot",
             "ΔGtot",
+            "Boltzmann weight",
         ]
 
         # column units
@@ -308,6 +309,7 @@ class Screening(Prescreening):
             "[Eh]",
             "[Eh]",
             "[kcal/mol]",
+            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
         ]
 
         # minimal xtb energy from single-point (and mRRHO)
@@ -365,6 +367,8 @@ class Screening(Prescreening):
             "ΔGtot":
             lambda conf:
             f"{(conf.results[self._name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight":
+            lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
         rows = [[printmap[header](conf) for header in headers]
