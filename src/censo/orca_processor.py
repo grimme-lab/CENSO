@@ -1010,61 +1010,53 @@ class OrcaProc(QmProc):
             None,
         )
 
+        meta["error"] = self.__check_output(lines)
+        meta[
+            "success"] = meta["error"] is None and result["energy"] is not None
+
         # Check for errors in the output file in case returncode is 0
         if meta["success"]:
-            meta["error"] = self.__check_output(lines)
-            meta["success"] = meta["error"] is None and result[
-                "energy"] is not None
-        else:
+            # Check convergence
+            if next((True for x in lines if "OPTIMIZATION HAS CONVERGED" in x),
+                    None) is True:
+                result["converged"] = True
+            else:
+                result["converged"] = False
+
+            # Get the number of cycles
+            if result["converged"] is not None:
+                for line in lines:
+                    if "GEOMETRY OPTIMIZATION CYCLE" in line:
+                        result["cycles"] = int(line.split()[4])
+
+                # Get energies for each cycle
+                result["ecyc"] = [
+                    float(line.split("....")[-1].split()[0])
+                    for line in filter(lambda x: "Current Energy" in x, lines)
+                ]
+
+                # Get all gradient norms for evaluation
+                result["gncyc"] = [
+                    float(line.split("....")[-1].split()[0]) for line in
+                    filter(lambda x: "Current gradient norm" in x, lines)
+                ]
+
+                # Get the last gradient norm
+                result["grad_norm"] = result["gncyc"][-1]
+                meta["success"] = True
+
+                # Read out optimized geometry and update conformer geometry with this
+                job.conf.fromxyz(os.path.join(jobdir, f"{filename}.xyz"))
+                result["geom"] = job.conf.xyz
+        elif meta["error"] is not None:
             meta["error"] = self.__returncode_to_err.get(
                 returncode, "unknown_error")
-
-        # Check convergence
-        if next((True for x in lines if "OPTIMIZATION HAS CONVERGED" in x),
-                None) is True:
-            result["converged"] = True
-        else:
-            result["converged"] = False
-
-        # Get the number of cycles
-        if result["converged"] is not None:
-            for line in lines:
-                if "GEOMETRY OPTIMIZATION CYCLE" in line:
-                    result["cycles"] = int(line.split()[4])
-
-            # Get energies for each cycle
-            result["ecyc"] = [
-                float(line.split("....")[-1].split()[0])
-                for line in filter(lambda x: "Current Energy" in x, lines)
-            ]
-
-            # Get all gradient norms for evaluation
-            result["gncyc"] = [
-                float(line.split("....")[-1].split()[0]) for line in filter(
-                    lambda x: "Current gradient norm" in x, lines)
-            ]
-
-            # Get the last gradient norm
-            result["grad_norm"] = result["gncyc"][-1]
-            meta["success"] = True
 
         if self.copy_mo:
             # store the path to the current .gbw file for this conformer if
             # possible
             if os.path.isfile(os.path.join(jobdir, f"{filename}.gbw")):
                 meta["mo_path"] = os.path.join(jobdir, f"{filename}.gbw")
-
-        # Read out optimized geometry and update conformer geometry with this
-        job.conf.fromxyz(os.path.join(jobdir, f"{filename}.xyz"))
-        result["geom"] = job.conf.xyz
-
-        # TODO - this might be a case where it would be reasonable to raise an
-        # exception
-        try:
-            assert result["converged"] is not None
-        except AssertionError:
-            meta["success"] = False
-            meta["error"] = "unknown_error"
 
         return result, meta
 
