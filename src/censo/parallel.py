@@ -125,6 +125,8 @@ def execute(
 
         # update results for all conformers (if enabled)
     if update:
+        conformers = sorted(conformers, lambda x: x.name)
+        jobs = sorted(jobs, lambda x: x.conf.name)
         for conf, job in zip(conformers, jobs):
             conf.results.setdefault(job.prepinfo["partname"],
                                     {}).update(job.results)
