@@ -123,7 +123,7 @@ def execute(
     if len(jobs) == len(failed_confs):
         logger.warning("All jobs failed and could not be recovered!")
 
-        # update results for all conformers (if enabled)
+    # update results for all conformers (if enabled)
     if update:
         conformers = sorted(conformers, key=lambda x: x.name)
         jobs = sorted(jobs, key=lambda x: x.conf.name)

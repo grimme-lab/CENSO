@@ -626,6 +626,26 @@ class OrcaProc(QmProc):
                                {"maxiter": [prepinfo["opt"]["optcycles"]]},
                                list(indict.keys()).index("main") + 1)
 
+            # Set optlevel
+            mapping = {
+                "crude": "loose",
+                "sloppy": "loose",
+                "loose": "loose",
+                "lax": "loose",
+                "normal": "loose",
+                "tight": "normal",
+                "vtight": "tight",
+                "extreme": "tight",
+            }
+            # Try to apply literally first
+            if prepinfo["optlevel"] in ["losse", "normal", "tight"]:
+                indict["geom"]["gconvergence"] = [prepinfo["optlevel"]]
+            # Otherwise map to roughly corresponding orca optlevel
+            else:
+                indict["geom"]["gconvergence"] = [
+                    mapping[prepinfo["optlevel"]]
+                ]
+
             # Insert constraints (if provided)
             # FIXME - without better parser this will not work
             """
