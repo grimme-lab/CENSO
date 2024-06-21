@@ -80,7 +80,7 @@ def execute(
     for job in jobs:
         try:
             job.mo_guess = next(c for c in conformers
-                                if c.geom.id == job.conf.id).mo_paths[-1]
+                                if c.name == job.conf.name).mo_paths[-1]
         except IndexError:
             pass
 
@@ -102,22 +102,22 @@ def execute(
     jobs = dqp(jobs, processor)
 
     # Try to get the mo_path from metadata and store it in the respective conformer object
-    mo_paths = {job.conf.id: job.meta["mo_path"] for job in jobs}
+    mo_paths = {job.conf.name: job.meta["mo_path"] for job in jobs}
     for conf in conformers:
-        if mo_paths[conf.geom.id] is not None:
-            conf.mo_paths.append(mo_paths[conf.geom.id])
+        if mo_paths[conf.name] is not None:
+            conf.mo_paths.append(mo_paths[conf.name])
 
     if retry_failed:
         retried, failed_confs = retry_failed_jobs(jobs, processor, balance)
 
         # Again, try to get the mo_path from metadata and store it in the respective conformer object
         mo_paths = {
-            job.conf.id: job.meta["mo_path"]
+            job.conf.name: job.meta["mo_path"]
             for job in [jobs[i] for i in retried]
         }
         for conf in conformers:
-            if mo_paths.get(conf.geom.id, None) is not None:
-                conf.mo_paths.append(mo_paths[conf.geom.id])
+            if mo_paths.get(conf.name, None) is not None:
+                conf.mo_paths.append(mo_paths[conf.name])
 
     # special warning if all jobs failed
     if len(jobs) == len(failed_confs):
@@ -130,7 +130,7 @@ def execute(
                                     {}).update(job.results)
 
     return len(conformers) != len(failed_confs), {
-        job.conf.id: job.results
+        job.conf.name: job.results
         for job in jobs
     }, failed_confs
 
@@ -333,7 +333,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc,
                 logger.warning(
                     f"{job.conf.name} job recovery failed. Error: {job.meta[jt]['error']}. Check output files."
                 )
-                failed_confs.append(job.conf.id)
+                failed_confs.append(job.conf.name)
             else:
                 logger.info(f"Successfully retried job for {job.conf.name}.")
     else:

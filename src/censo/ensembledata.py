@@ -266,11 +266,11 @@ class EnsembleData:
 
     def remove_conformers(self, confids: list[int]) -> None:
         """
-        Remove the conformers with the IDs listed in 'confids' from further consideration.
+        Remove the conformers with the names listed in 'confids' from further consideration.
         The removed conformers will be stored in self.rem.
 
         Args:
-            confids (list[int]): A list of conformer IDs.
+            confids (list[int]): A list of conformer names.
 
         Returns:
             None
@@ -279,7 +279,7 @@ class EnsembleData:
             remove = []
             for confid in confids:
                 remove.append(
-                    next(c for c in self.conformers if c.geom.id == confid))
+                    next(c for c in self.conformers if c.geom.name == confid))
 
             for r in remove:
                 # pop item from conformers and insert this item at index 0 in rem
@@ -319,7 +319,7 @@ class EnsembleData:
 
             # calculate boltzmann factors
             bmfactors = {
-                id(conf):
+                conf.name:
                 conf.degen *
                 exp(-(conf.results[part]["gtot"] - minfree) * AU2J /
                     (KB * temp))
@@ -340,7 +340,7 @@ class EnsembleData:
 
                     # calculate boltzmann factors
                     bmfactors = {
-                        id(conf):
+                        conf.name:
                         conf.degen *
                         exp(-(conf.results[part][jt]["energy"] - minfree) *
                             AU2J / (KB * temp))
@@ -358,5 +358,5 @@ class EnsembleData:
 
         # Store Boltzmann populations in results and also in a special list for convenience
         for conf in self.conformers:
-            conf.results[part]["bmw"] = bmfactors[id(conf)] / bsum
-            conf.bmws.append(bmfactors[id(conf)] / bsum)
+            conf.results[part]["bmw"] = bmfactors[conf.name] / bsum
+            conf.bmws.append(bmfactors[conf.name] / bsum)

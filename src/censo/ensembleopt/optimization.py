@@ -286,13 +286,13 @@ class Optimization(EnsembleOptimizer):
 
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
-            for conf in filter(lambda x: x.geom.id in failed, self.confs_nc):
+            for conf in filter(lambda x: x.name in failed, self.confs_nc):
                 self.confs_nc.remove(conf)
 
             # put geometry optimization results into conformer objects
             for conf in self.confs_nc:
                 # update geometry of the conformer
-                conf.geom.xyz = results_opt[conf.geom.id][jobtype[0]]["geom"]
+                conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
                 conf.results.setdefault(self._name,
                                         {}).setdefault(jobtype[0], {})
@@ -300,18 +300,18 @@ class Optimization(EnsembleOptimizer):
                 # Update the values for "energy", "grad_norm", "converged", "geom"
                 for key in ["energy", "grad_norm", "converged", "geom"]:
                     conf.results[self._name][jobtype[0]][key] = results_opt[
-                        conf.geom.id][jobtype[0]][key]
+                        conf.name][jobtype[0]][key]
 
                 # Add the number of cycles
                 conf.results[self._name][jobtype[0]].setdefault("cycles", 0)
                 conf.results[self._name][jobtype[0]]["cycles"] += results_opt[
-                    conf.geom.id][jobtype[0]]["cycles"]
+                    conf.name][jobtype[0]]["cycles"]
 
                 # Extend the energy and grad_norm lists
                 for key in ["ecyc", "gncyc"]:
                     conf.results[self._name][jobtype[0]].setdefault(
                         key,
-                        []).extend(results_opt[conf.geom.id][jobtype[0]][key])
+                        []).extend(results_opt[conf.name][jobtype[0]][key])
 
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
@@ -362,7 +362,7 @@ class Optimization(EnsembleOptimizer):
                         self.confs_nc,
                     )):
                 print(
-                    f"{conf.name} converged after {ncyc + results_opt[conf.geom.id][jobtype[0]]['cycles']} steps."
+                    f"{conf.name} converged after {ncyc + results_opt[conf.name][jobtype[0]]['cycles']} steps."
                 )
                 self.confs_nc.remove(conf)
                 nconv += 1
