@@ -639,10 +639,10 @@ class OrcaProc(QmProc):
             }
             # Try to apply literally first
             if prepinfo["opt"]["optlevel"] in ["loose", "normal", "tight"]:
-                indict["geom"]["gconvergence"] = [prepinfo["opt"]["optlevel"]]
+                indict["geom"]["convergence"] = [prepinfo["opt"]["optlevel"]]
             # Otherwise map to roughly corresponding orca optlevel
             else:
-                indict["geom"]["gconvergence"] = [
+                indict["geom"]["convergence"] = [
                     mapping[prepinfo["opt"]["optlevel"]]
                 ]
 
