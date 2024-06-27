@@ -168,7 +168,7 @@ class Optimization(EnsembleOptimizer):
             # update results for each conformer
             for conf in self.ensemble.conformers:
                 # update geometry of the conformer
-                conf.geom.xyz = results_opt[id(conf)][jobtype[0]]["geom"]
+                conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
         # Handle unconverged conformers (TODO)
         unconverged = self.confs_nc or [

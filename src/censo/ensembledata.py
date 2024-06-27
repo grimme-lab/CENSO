@@ -11,7 +11,7 @@ from math import exp
 from .datastructure import MoleculeData
 from .logging import setup_logger
 from .params import AU2J, DESCR, DIGILEN, KB
-from .utilities import check_for_float, do_md5, print, t2x
+from .utilities import check_for_float, print, t2x
 
 logger = setup_logger(__name__)
 
@@ -36,7 +36,6 @@ class EnsembleData:
         self.runinfo = {
             "nconf": None,
             "nat": None,
-            "md5": None,
             "charge": None,
             "unpaired": None,
         }
@@ -97,9 +96,6 @@ class EnsembleData:
         """
 
         self.ensemble_path = ensemble_path
-
-        # Store md5 hash for quick comparison of inputs later
-        self.runinfo["md5"] = do_md5(self.ensemble_path)
 
         # If $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
