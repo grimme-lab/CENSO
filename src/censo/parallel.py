@@ -268,7 +268,7 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
 
 
 def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc,
-                      balance: bool) -> tuple[list[int], list[int]]:
+                      balance: bool) -> tuple[list[int], list[str]]:
     """
     Tries to recover failed jobs.
 
@@ -277,7 +277,7 @@ def retry_failed_jobs(jobs: list[ParallelJob], processor: QmProc,
         processor (QmProc): Processor object.
 
     Returns:
-        tuple[list[int], list[int]]: List of indices of jobs that should be retried, list of ids of conformers
+        tuple[list[int], list[str]]: List of indices of jobs that should be retried, list of names of conformers
             that could not be recovered.
     """
     # determine failed jobs

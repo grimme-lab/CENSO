@@ -11,7 +11,7 @@ from math import exp
 from .datastructure import MoleculeData
 from .logging import setup_logger
 from .params import AU2J, DESCR, DIGILEN, KB
-from .utilities import check_for_float, do_md5, print, t2x
+from .utilities import check_for_float, print, t2x
 
 logger = setup_logger(__name__)
 
@@ -36,7 +36,6 @@ class EnsembleData:
         self.runinfo = {
             "nconf": None,
             "nat": None,
-            "md5": None,
             "charge": None,
             "unpaired": None,
         }
@@ -97,9 +96,6 @@ class EnsembleData:
         """
 
         self.ensemble_path = ensemble_path
-
-        # Store md5 hash for quick comparison of inputs later
-        self.runinfo["md5"] = do_md5(self.ensemble_path)
 
         # If $coord in file => tm format, needs to be converted to xyz
         with open(self.ensemble_path, "r") as inp:
@@ -264,30 +260,27 @@ class EnsembleData:
 
         return [conf.name for conf in filtered]
 
-    def remove_conformers(self, confids: list[int]) -> None:
+    def remove_conformers(self, confnames: list[str]) -> None:
         """
-        Remove the conformers with the names listed in 'confids' from further consideration.
+        Remove the conformers with the names listed in 'confnames' from further consideration.
         The removed conformers will be stored in self.rem.
 
         Args:
-            confids (list[int]): A list of conformer names.
+            confnames (list[str]): A list of conformer names.
 
         Returns:
             None
         """
-        if len(confids) > 0:
-            remove = []
-            for confid in confids:
-                remove.append(
-                    next(c for c in self.conformers if c.geom.name == confid))
+        if len(confnames) > 0:
+            for confname in confnames:
+                remove = next(c for c in self.conformers if c.name == confname)
 
-            for r in remove:
                 # pop item from conformers and insert this item at index 0 in rem
-                self.rem.insert(0,
-                                self.conformers.pop(self.conformers.index(r)))
+                self.rem.insert(
+                    0, self.conformers.pop(self.conformers.index(remove)))
 
                 # Log removed conformers
-                logger.debug(f"Removed {r.name}.")
+                logger.debug(f"Removed {remove.name}.")
 
     def dump_ensemble(self, part: str) -> None:
         """

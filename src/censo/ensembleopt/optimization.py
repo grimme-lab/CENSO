@@ -168,7 +168,7 @@ class Optimization(EnsembleOptimizer):
             # update results for each conformer
             for conf in self.ensemble.conformers:
                 # update geometry of the conformer
-                conf.geom.xyz = results_opt[id(conf)][jobtype[0]]["geom"]
+                conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
         # Handle unconverged conformers (TODO)
         unconverged = self.confs_nc or [
@@ -193,7 +193,8 @@ class Optimization(EnsembleOptimizer):
             print(
                 "The unconverged conformers will now be removed from consideration."
             )
-            self.ensemble.remove_conformers(unconverged)
+            self.ensemble.remove_conformers(
+                [conf.name for conf in unconverged])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
