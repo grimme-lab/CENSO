@@ -193,7 +193,8 @@ class Optimization(EnsembleOptimizer):
             print(
                 "The unconverged conformers will now be removed from consideration."
             )
-            self.ensemble.remove_conformers(unconverged)
+            self.ensemble.remove_conformers(
+                [conf.name for conf in unconverged])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
