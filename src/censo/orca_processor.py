@@ -621,10 +621,11 @@ class OrcaProc(QmProc):
                                list(indict.keys()).index("main") + 1)
 
         if jobtype == "opt":
-            # Set max number of optimization cycles for ORCA driven optimization
-            indict = od_insert(indict, "geom",
-                               {"maxiter": [prepinfo["opt"]["optcycles"]]},
-                               list(indict.keys()).index("main") + 1)
+            if prepinfo[jobtype]["macrocycles"]:
+                # Set max number of optimization cycles for ORCA driven optimization
+                indict = od_insert(indict, "geom",
+                                   {"maxiter": [prepinfo["opt"]["optcycles"]]},
+                                   list(indict.keys()).index("main") + 1)
 
             # Set optlevel
             mapping = {
@@ -637,6 +638,7 @@ class OrcaProc(QmProc):
                 "vtight": "tight",
                 "extreme": "tight",
             }
+
             # Try to apply literally first
             if prepinfo["opt"]["optlevel"] in ["loose", "normal", "tight"]:
                 indict["geom"]["convergence"] = [prepinfo["opt"]["optlevel"]]
