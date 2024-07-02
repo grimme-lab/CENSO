@@ -137,8 +137,6 @@ class Optimization(EnsembleOptimizer):
             self.__macrocycle_opt(cut)
         else:
             # do complete geometry optimization
-            prepinfo = self.setup_prepinfo(jobtype)
-
             if not len(self.ensemble.conformers) > 1:
                 print(
                     f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
@@ -147,6 +145,8 @@ class Optimization(EnsembleOptimizer):
             # disable spearman optimization
             print("Macrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
+
+            prepinfo = self.setup_prepinfo(jobtype)
 
             # run optimizations using xtb as driver
             success, results_opt, failed = execute(
