@@ -626,6 +626,9 @@ class OrcaProc(QmProc):
                 indict = od_insert(indict, "geom",
                                    {"maxiter": [prepinfo["opt"]["optcycles"]]},
                                    list(indict.keys()).index("main") + 1)
+            else:
+                indict = od_insert(indict, "geom", {},
+                                   list(indict.keys()).index("main") + 1)
 
             # Set optlevel
             mapping = {
