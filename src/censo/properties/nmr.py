@@ -498,6 +498,8 @@ class NMR(CensoPart):
         """
         Calculate the population weighted shielding constants for the ensemble NMR spectrum.
         """
+        # For each conf in conformers
+        # add shift shielding value multiplied by bmw to a list
         pass
 
     def write_results(self) -> None:

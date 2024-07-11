@@ -46,6 +46,30 @@
       "disp": "composite",
       "type": "composite_mgga"
     },
+    "r2scan-novdw": {
+      "tm": "r2scan",
+      "orca": "r2scan",
+      "disp": "novdw",
+      "type": "mgga"
+    },
+    "r2scan-d3": {
+      "tm": "r2scan",
+      "orca": "r2scan",
+      "disp": "d3bj",
+      "type": "mgga"
+    },
+    "r2scan-d3(0)": {
+      "tm": "r2scan",
+      "orca": "r2scan",
+      "disp": "d3(0)",
+      "type": "mgga"
+    },
+    "r2scan-d4": {
+      "tm": "r2scan",
+      "orca": "r2scan",
+      "disp": "d4",
+      "type": "mgga"
+    },
     "pbe-novdw": {
       "tm": "pbe",
       "orca": "pbe",

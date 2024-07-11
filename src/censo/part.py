@@ -338,6 +338,8 @@ class CensoPart:
         for setting, val in self._settings.items():
             print(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
 
+        print("\n")
+
     def write_json(self) -> None:
         """
         Writes the part's results to a json file.
