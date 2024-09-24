@@ -61,7 +61,7 @@ class Screening(Prescreening):
 
     _settings = {}
 
-    def optimize(self, cut: bool = True) -> None:
+    def optimize(self, ncores: int, cut: bool = True) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -70,7 +70,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().optimize(cut=False)
+        super().optimize(ncores, cut=False)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -91,7 +91,7 @@ class Screening(Prescreening):
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
-                maxcores=self.get_general_settings()["maxcores"],
+                maxcores=ncores,
                 retry_failed=self.get_general_settings()["retry_failed"],
             )
 

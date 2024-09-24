@@ -100,7 +100,7 @@ class NMR(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, ncores: int) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
         Note, that the ensemble will not be modified anymore.
@@ -132,7 +132,7 @@ class NMR(CensoPart):
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
-            maxcores=self.get_general_settings()["maxcores"],
+            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
@@ -140,7 +140,7 @@ class NMR(CensoPart):
         self.ensemble.remove_conformers(failed)
 
         # Set energy values to use later
-        self.__set_energy()
+        self.__set_energy(ncores)
         for conf in self.ensemble.conformers:
             conf.results[self._name]["gtot"] = self.gtot(conf)
 
@@ -294,7 +294,7 @@ class NMR(CensoPart):
 
         return prepinfo
 
-    def __set_energy(self):
+    def __set_energy(self, ncores: int):
         """
         Looks through results to set energy values.
         Order of preference:
@@ -328,7 +328,7 @@ class NMR(CensoPart):
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],
-                    maxcores=self.get_general_settings()["maxcores"],
+                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 

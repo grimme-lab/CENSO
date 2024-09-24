@@ -19,7 +19,7 @@ class EnsembleOptimizer(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self, cut: bool = True) -> None:
+    def run(self, ncores: int, cut: bool = True) -> None:
         """
         Boilerplate run logic for any ensemble optimization step. The 'optimize' method should be implemented for every
         class respectively.
@@ -31,7 +31,7 @@ class EnsembleOptimizer(CensoPart):
         self.print_update()
 
         # Perform the actual optimization logic
-        self.optimize(cut=cut)
+        self.optimize(ncores, cut=cut)
 
         # Print comparison with previous parts
         self.print_comparison()
@@ -44,7 +44,7 @@ class EnsembleOptimizer(CensoPart):
 
         # DONE
 
-    def optimize(self, cut: bool = True):
+    def optimize(self, ncores: int, cut: bool = True):
         raise NotImplementedError
 
     def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:

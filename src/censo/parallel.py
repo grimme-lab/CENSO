@@ -88,15 +88,21 @@ def execute(
     if balance:
         set_omp_chunking(jobs)
     else:
-        if omp > OMPMIN:
+        if omp < OMPMIN:
             logger.warning(
                 f"User OMP setting is below the minimum value of {OMPMIN}. Using {OMPMIN} instead."
             )
             for job in jobs:
                 job.omp = OMPMIN
-        else:
+        elif omp <= ncores:
             for job in jobs:
                 job.omp = omp
+        else:
+            logger.warning(
+                f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
+            )
+            for job in jobs:
+                job.omp = ncores
 
     # execute the jobs
     jobs = dqp(jobs, processor)
