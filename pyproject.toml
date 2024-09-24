@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "setuptools_scm[toml]"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "censo"
+dynamic = ["version", "readme"]
+requires-python = ">= 3.10"
+
+[project.urls]
+homepage = "https://github.com/grimme-lab/CENSO"
+documentation = "https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html"
+
+[project.optional-dependencies]
+dev = []
+scripts = [
+    "numpy",
+    "matplotlip",
+    "pandas"
+]
+
+[tool.setuptools.dynamic]
+readme = {file = "README.md"}
+
+[tool.setuptools_scm]
+version_file = "src/censo/__version__.py"

@@ -1,0 +1,6 @@
+name: censo
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10

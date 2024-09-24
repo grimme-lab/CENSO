@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Define the source and destination directories
+src_dir="4_NMR"
+dest_dir="anmr"
+
+# Create the destination directory in the current working directory
+mkdir -p "$dest_dir"
+
+# Copy anmr_enso, anmr_nucinfo, anmr_rotamers to the destination
+cp "anmr_"* "$dest_dir"
+
+# Loop through the CONF# directories in the source directory
+for conf_dir in "$src_dir"/CONF*; do
+    # Check if the iteration item is a directory
+    if [ -d "$conf_dir" ]; then
+        # Extract the CONF# directory name
+        conf_name=$(basename "$conf_dir")
+        
+        # Define the path for the new NMR directory inside the corresponding CONF# directory in the destination
+        new_nmr_dir="$dest_dir/$conf_name/NMR"
+        
+        # Create the NMR directory, including parent directories as needed
+        mkdir -p "$new_nmr_dir"
+        
+        # Copy the nmrprop.dat and coord files to the new NMR directory
+        cp "$conf_dir/nmrprop.dat" "$new_nmr_dir"
+        cp "$conf_dir/coord" "$new_nmr_dir"
+    fi
+done
+
