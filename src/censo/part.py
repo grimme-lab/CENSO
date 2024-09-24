@@ -316,7 +316,7 @@ class CensoPart:
         # It is set using the _create_dir method (intended to be used as wrapper for run)
         self.dir: str = None
 
-    def run(self) -> None:
+    def run(self, ncores: int) -> None:
         """
         what gets executed if the part is run
         should be implemented for every part respectively

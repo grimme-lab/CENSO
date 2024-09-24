@@ -88,15 +88,21 @@ def execute(
     if balance:
         set_omp_chunking(jobs)
     else:
-        if omp > OMPMIN:
+        if omp < OMPMIN:
             logger.warning(
                 f"User OMP setting is below the minimum value of {OMPMIN}. Using {OMPMIN} instead."
             )
             for job in jobs:
                 job.omp = OMPMIN
-        else:
+        elif omp <= ncores:
             for job in jobs:
                 job.omp = omp
+        else:
+            logger.warning(
+                f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
+            )
+            for job in jobs:
+                job.omp = ncores
 
     # execute the jobs
     jobs = dqp(jobs, processor)
@@ -251,14 +257,18 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
     while jobs_left > 0:
         if jobs_left >= maxprocs:
             p = maxprocs  # Set the number of processes to the maximum if there are enough jobs left
-        elif jobs_left < minprocs:
-            p = minprocs  # Set the number of processes to the minimum if there are less jobs left than minprocs
-        else:
+        elif minprocs <= jobs_left < maxprocs:
             # Find the largest number of processes that evenly divides the remaining jobs
             p = max([
                 j for j in range(minprocs, maxprocs)
                 if ncores % j == 0 and j <= jobs_left
             ])
+        else:
+            # There are not enough jobs left for at least minprocs processes
+            for job in jobs[tot_jobs - jobs_left:tot_jobs]:
+                job.omp = ncores // minprocs  # Set the number of cores for each job to the maximum value
+            jobs_left -= jobs_left
+            continue
 
         # Set the number of cores for each job for as many jobs as possible before moving onto the next omp value
         while jobs_left - p >= 0:

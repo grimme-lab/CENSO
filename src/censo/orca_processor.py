@@ -416,8 +416,8 @@ class OrcaProc(QmProc):
         TODO - OR/UVVis etc preparation steps
         """
 
-        # check ORCA version
-        orca5 = True if self._paths["orcaversion"].startswith("5") else False
+        # check ORCA version (orca5 = True means at least ORCA version 5)
+        orca5 = not self._paths["orcaversion"].startswith("4")
 
         indict = OrderedDict()
 

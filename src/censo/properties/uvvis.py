@@ -61,7 +61,7 @@ class UVVis(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def run(self) -> None:
+    def run(self, ncores: int) -> None:
         """
         Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
         Note, that the ensemble will not be modified anymore.
@@ -86,7 +86,7 @@ class UVVis(CensoPart):
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
-            maxcores=self.get_general_settings()["maxcores"],
+            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
@@ -94,7 +94,7 @@ class UVVis(CensoPart):
         self.ensemble.remove_conformers(failed)
 
         # Set energy values to be used later
-        self.__set_energy()
+        self.__set_energy(ncores)
 
         # Recalculate Boltzmann populations based on new single-point energy
         for conf in self.ensemble.conformers:
@@ -169,7 +169,7 @@ class UVVis(CensoPart):
 
         return prepinfo
 
-    def __set_energy(self):
+    def __set_energy(self, ncores: int):
         """
         Looks through results to set energy values.
         Order of preference:
@@ -178,9 +178,12 @@ class UVVis(CensoPart):
         If None of these are found, the energies of the UVVis calculations will be used.
         """
         using_part = None
-        for partname in ["prescreening", "screening", "optimization", "refinement"]:
+        for partname in [
+                "prescreening", "screening", "optimization", "refinement"
+        ]:
             # This way, the most high-level partname should get stuck in using_part
-            if all(partname in conf.results.keys() for conf in self.ensemble.conformers):
+            if all(partname in conf.results.keys()
+                   for conf in self.ensemble.conformers):
                 using_part = partname
 
         # If using_part stays None the UVVis energies must be used and xtb_rrho might be necessary
@@ -200,39 +203,54 @@ class UVVis(CensoPart):
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],
-                    maxcores=self.get_general_settings()["maxcores"],
+                    maxcores=self.ensemble.runinfo["maxcores"],
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
                 # Remove failed conformers
                 self.ensemble.remove_conformers(failed)
             for conf in self.ensemble.conformers:
-                conf.results[self._name]["energy"] = conf.results[self._name]["uvvis"]["energy"]
+                conf.results[self._name]["energy"] = conf.results[
+                    self._name]["uvvis"]["energy"]
                 conf.results[self._name]["gsolv"] = 0.0
-                conf.results[self._name]["grrho"] = conf.results[self._name].get("xtb_rrho", {"energy": 0.0})["energy"]
+                conf.results[self._name]["grrho"] = conf.results[
+                    self._name].get("xtb_rrho", {"energy": 0.0})["energy"]
         elif using_part == "optimization":
             for conf in self.ensemble.conformers:
-                conf.results[self._name]["energy"] = conf.results[using_part]["xtb_opt"]["energy"]
+                conf.results[self._name]["energy"] = conf.results[using_part][
+                    "xtb_opt"]["energy"]
                 conf.results[self._name]["gsolv"] = 0.0
-                conf.results[self._name]["grrho"] = conf.results[using_part].get("xtb_rrho", {"energy": 0.0})["energy"]
+                conf.results[
+                    self._name]["grrho"] = conf.results[using_part].get(
+                        "xtb_rrho", {"energy": 0.0})["energy"]
         elif using_part in ["screening", "refinement"]:
-            if all("gsolv" in conf.results[using_part].keys() for conf in self.ensemble.conformers):
+            if all("gsolv" in conf.results[using_part].keys()
+                   for conf in self.ensemble.conformers):
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[using_part]["gsolv"]["energy_gas"]
-                    conf.results[self._name]["gsolv"] = conf.results[using_part]["gsolv"]["gsolv"]
-                    conf.results[self._name]["grrho"] = conf.results[using_part].get("xtb_rrho", {"energy": 0.0})["energy"]
+                    conf.results[self._name]["energy"] = conf.results[
+                        using_part]["gsolv"]["energy_gas"]
+                    conf.results[self._name]["gsolv"] = conf.results[
+                        using_part]["gsolv"]["gsolv"]
+                    conf.results[
+                        self._name]["grrho"] = conf.results[using_part].get(
+                            "xtb_rrho", {"energy": 0.0})["energy"]
             else:
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[using_part]["sp"]["energy"]
+                    conf.results[self._name]["energy"] = conf.results[
+                        using_part]["sp"]["energy"]
                     conf.results[self._name]["gsolv"] = 0.0
-                    conf.results[self._name]["grrho"] = conf.results[using_part].get("xtb_rrho", {"energy": 0.0})["energy"]
+                    conf.results[
+                        self._name]["grrho"] = conf.results[using_part].get(
+                            "xtb_rrho", {"energy": 0.0})["energy"]
         elif using_part == "prescreening":
-            if all("xtb_gsolv" in conf.results[using_part].keys() for conf in self.ensemble.conformers):
+            if all("xtb_gsolv" in conf.results[using_part].keys()
+                   for conf in self.ensemble.conformers):
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[using_part]["sp"]["energy"]
-                    conf.results[self._name]["gsolv"] = conf.results[using_part]["xtb_gsolv"]["gsolv"]
+                    conf.results[self._name]["energy"] = conf.results[
+                        using_part]["sp"]["energy"]
+                    conf.results[self._name]["gsolv"] = conf.results[
+                        using_part]["xtb_gsolv"]["gsolv"]
                     conf.results[self._name]["grrho"] = 0.0
-
 
     def gtot(self, conformer: MoleculeData) -> float:
         resdict = conformer.results[self._name]

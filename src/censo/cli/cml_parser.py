@@ -48,21 +48,21 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     # RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
     groups[0].add_argument(
-        "-inp",
+        "-i",
         "--input",
         dest="inp",
         type=str,
         help="Relative path to ensemble file, e.g. crest_conformers.xyz ",
     )
     groups[0].add_argument(
-        "-nc",
+        "-n",
         "--nconf",
         dest="nconf",
         type=int,
         help="The first 'nconf' conformers will be considered.",
     )
     groups[0].add_argument(
-        "-chrg",
+        "-c",
         "--charge",
         dest="charge",
         default=0,
@@ -79,7 +79,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "Integer number of unpaired electrons of the investigated molecule.",
     )
     groups[0].add_argument(
-        "-version",
+        "-v",
         "--version",
         dest="version",
         action="store_true",
@@ -87,14 +87,12 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     )
     groups[0].add_argument(
         "--cleanup",
-        "-cleanup",
         dest="cleanup",
         action="store_true",
         help="Delete unneeded files from current working directory.",
     )
     groups[0].add_argument(
         "--cleanup_all",
-        "-cleanup_all",
         dest="cleanup_all",
         action="store_true",
         help=
@@ -102,16 +100,13 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "Stronger than -cleanup !",
     )
     groups[0].add_argument(
-        "-newconfig",
-        "-write_censorc",
-        "--write_censorc",
+        "--new-config",
         dest="writeconfig",
         action="store_true",
         help="Write new configuration file, which is placed into the current "
         "directory.",
     )
     groups[0].add_argument(
-        "-inprc",
         "--inprc",
         dest="inprcpath",
         help=
@@ -134,7 +129,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         help="Temperature in Kelvin for thermostatistical evaluation.",
     )
     groups[1].add_argument(
-        "-trange",
         "--trange",
         dest="trange",
         nargs=3,
@@ -145,7 +139,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
     )
     groups[1].add_argument(
-        "-bhess",
         "--bhess",
         dest="bhess",
         action="store_const",
@@ -154,8 +147,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "for mRRHO calcuation. ",
     )
     groups[1].add_argument(
-        "-consider_sym",
-        "--consider_sym",
+        "--consider-sym",
         dest="consider_sym",
         action="store_const",
         const=True,
@@ -163,7 +155,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "Consider symmetry in mRRHO calcuation (based on desy xtb threshold). ",
     )
     groups[1].add_argument(
-        "-rmsdbias",
         "--rmsdbias",
         dest="rmsdbias",
         action="store_const",
@@ -171,30 +162,27 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         help="Applies constraint to rmsdpot.xyz to be consistent to CREST. ",
     )
     groups[1].add_argument(
-        "-sm_rrho",
-        "--sm_rrho",
+        "--sm-rrho",
         dest="sm_rrho",
         type=str,
         help="Solvation model used in xTB GmRRHO calculation. Applied if not in "
         "gas-phase. Options are 'gbsa' or 'alpb'.",
     )
     groups[1].add_argument(
-        "-evaluate_rrho",
-        "--evaluate_rrho",
+        "--evaluate-rrho",
         dest="evaluate_rrho",
         action="store_const",
         const=True,
         help="Evaluate mRRHO contribution.",
     )
     groups[1].add_argument(
-        "-solvent",
+        "-s",
         "--solvent",
         dest="solvent",
         type=str,
         help="Solvent to be used for Gsolv calculation.",
     )
     groups[1].add_argument(
-        "-gp",
         "--gas-phase",
         dest="gas-phase",
         action="store_const",
@@ -202,7 +190,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         help="Run calculation in gas-phase, overriding all solvation settings.",
     )
     groups[1].add_argument(
-        "-cosmorsparam",
         "--cosmorsparam",
         dest="cosmorsparam",
         type=str,
@@ -220,7 +207,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "if load balancing is disabled.",
     )
     groups[1].add_argument(
-        "-cores",
         "--maxcores",
         dest="maxcores",
         type=int,
@@ -229,7 +215,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "the maximum number available.",
     )
     groups[1].add_argument(
-        "-imagthr",
         "--imagthr",
         dest="imagthr",
         type=float,
@@ -237,14 +222,12 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         " e.g. -30.0.",
     )
     groups[1].add_argument(
-        "-sthr",
         "--sthr",
         dest="sthr",
         type=float,
         help="Rotor cut-off for thermo in cm-1, e.g. 50.0.",
     )
     groups[1].add_argument(
-        "-scale",
         "--scale",
         dest="scale",
         type=float,

@@ -103,7 +103,7 @@ class Optimization(EnsembleOptimizer):
         # Attribute to store path to constraints file if used
         self.constraints = None
 
-    def optimize(self, cut: bool = True) -> None:
+    def optimize(self, ncores: int, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -134,7 +134,7 @@ class Optimization(EnsembleOptimizer):
         if self.get_settings()["macrocycles"] and len(
                 self.ensemble.conformers) > 1:
             # ensembleopt using macrocycles with 'optcycles' microcycles
-            self.__macrocycle_opt(cut)
+            self.__macrocycle_opt(ncores, cut)
         else:
             # do complete geometry optimization
             if not len(self.ensemble.conformers) > 1:
@@ -158,7 +158,7 @@ class Optimization(EnsembleOptimizer):
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
-                maxcores=self.get_general_settings()["maxcores"],
+                maxcores=ncores,
                 retry_failed=self.get_general_settings()["retry_failed"],
             )
 
@@ -211,7 +211,7 @@ class Optimization(EnsembleOptimizer):
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
-            maxcores=self.get_general_settings()["maxcores"],
+            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
@@ -247,7 +247,7 @@ class Optimization(EnsembleOptimizer):
         except KeyError:
             return conf.results[self._name][jobtype]["energy"]
 
-    def __macrocycle_opt(self, cut: bool):
+    def __macrocycle_opt(self, ncores: int, cut: bool):
         """
         Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
         and uses adaptive threshold based on mean trajectory similarity.
@@ -281,7 +281,7 @@ class Optimization(EnsembleOptimizer):
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
-                maxcores=self.get_general_settings()["maxcores"],
+                maxcores=ncores,
                 retry_failed=self.get_general_settings()["retry_failed"],
                 update=False)
 
@@ -333,7 +333,7 @@ class Optimization(EnsembleOptimizer):
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],
-                    maxcores=self.get_general_settings()["maxcores"],
+                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 

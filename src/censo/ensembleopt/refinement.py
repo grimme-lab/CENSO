@@ -54,10 +54,10 @@ class Refinement(Screening):
 
     _settings = {}
 
-    def optimize(self, cut: bool = True) -> None:
+    def optimize(self, ncores: int, cut: bool = True) -> None:
         """
         """
-        Prescreening.optimize(self, cut=False)
+        Prescreening.optimize(self, ncores, cut=False)
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
@@ -76,7 +76,7 @@ class Refinement(Screening):
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],
-                    maxcores=self.get_general_settings()["maxcores"],
+                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 

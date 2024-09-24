@@ -50,10 +50,14 @@ def entry_point(argv: list[str] | None = None) -> int:
         [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
     )
 
+    ncores = 4
+    if args.maxcores:
+        ncores = args.maxcores
+
     time = 0.0
     for part in run:
         p = part(ensemble)
-        runtime = p.run()
+        runtime = p.run(ncores)
         print(f"Ran {p._name} in {runtime:.2f} seconds!")
         time += runtime
 
