@@ -4,21 +4,19 @@ Can be installed using `pip` by running
     pip install .
 
 If you want to install and run `CENSO` without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
-> NOTE: you may want to change the `maxcores` setting in your `.censo2rc` to something more than 4.
-> It indicates the maximum number of cores `CENSO` is allowed to use.
 
 # Usage
 Basic usage: 
 
-    python3 -m censo -inp [path to ensemble input] ...
+    python3 -m censo -inp [path to ensemble input] --maxcores [number of cores] ...
 
 For information about command line options use the `-h` option.
 
 If you want to run it via helper script after adding it to your `$PATH`:
 
-    censo -inp [path to ensemble input] ...
+    censo -h
 
-CENSO can also be used as a package. A basic setup for a CENSO run in a Python file would look like this (WIP):
+CENSO can also be used as a package. A basic setup for a CENSO run in a Python file would look like this:
 ```python
 from censo.ensembledata import EnsembleData
 from censo.configuration import configure
@@ -29,6 +27,7 @@ workdir = "/absolute/path/to/your/workdir" # CENSO will put all files in this di
 input_path = "rel/path/to/your/inputfile" # path relative to the working directory
 ensemble = EnsembleData(workdir)
 ensemble.read_input(input_path, charge=0, unpaired=0)
+ncores = os.cpu_count() # Could be set to any other positive integer
 
 # If the user wants to use a specific rcfile:
 configure(rcpath="/abs/path/to/rcfile")
@@ -41,7 +40,7 @@ parts = [
 # Run all the parts and collect their runtimes
 part_timings = []
 for part in parts:
-    part_timings.append(part.run())
+    part_timings.append(part.run(ncores))
 
 # If no Exceptions were raised, all the output can now be found in 'workdir'
 # Data is given in a formatted plain text format (*.out) and and json format

@@ -8,11 +8,11 @@ import argparse
 
 def check_soft_requirements(args: argparse.Namespace) -> bool:
     """
-    Checks for soft-required options (e.g. if you call -newconfig you don't need to give -inp, for a normal
+    Checks for soft-required options (e.g. if you call --new-config you don't need to give -i, for a normal
     CENSO run you need to, though).
     """
     soft_required = [
-        "inp",
+        "inp", "maxcores"
         # "charge",
         # "unpaired",
     ]
