@@ -118,6 +118,14 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="loglevel",
         help="Set the loglevel for all modules to a specified level.",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+    groups[0].add_argument_group(
+        "--reload",
+        dest="reload",
+        nargs="+",
+        help=
+        "Reload data from json output files. List all file names separated by spaces. "
+        "Note that all conformers from the current ensemble need to be included in the output data keys.",
+    )
 
     # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))

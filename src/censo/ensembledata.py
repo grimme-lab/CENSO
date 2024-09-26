@@ -4,6 +4,7 @@ functionality for program setup
 """
 
 import os
+import json
 from argparse import Namespace
 from collections.abc import Callable
 from math import exp
@@ -67,6 +68,32 @@ class EnsembleData:
     def conformers(self, confs):
         assert all(isinstance(conf, MoleculeData) for conf in confs)
         self.__conformers = confs
+
+    def read_output(self, outpath: str) -> None:
+        """
+        Read json output file of a previous execution. Will try to load results into current conformer ensemble, matching 
+        based on names. If a conformer name does not exist in the current ensemble it will be ignored. If a conformer 
+        does not exist in the output data RuntimeError will be raised.
+
+        Args:
+            outpath (str): Path to the output file.
+
+        Returns:
+            None
+        """
+
+        with open(outpath, "r") as file:
+            data = json.load(file)
+
+        # Check if all conformers from the current ensemble are also found in the output data
+        if not all(conf.name in data for conf in self.conformers):
+            raise RuntimeError(
+                "Not all conformers from the current ensemble are found in the output data."
+            )
+
+        # Update results dict for the conformers
+        for conf in self.conformers:
+            conf.results.update(data[conf.name])
 
     def read_input(
         self,
