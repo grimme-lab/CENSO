@@ -40,7 +40,7 @@ class EnsembleOptimizer(CensoPart):
         self.print_update()
 
         # dump ensemble
-        self.ensemble.dump_ensemble(self._name)
+        self.ensemble.dump_ensemble(f"{self._part_no}_{self._name.upper()}")
 
         # DONE
 

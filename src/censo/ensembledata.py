@@ -84,8 +84,8 @@ class EnsembleData:
 
         Args:
             ensemble_path (str): Path to the ensemble input file.
-            charge (int, optional): Charge of the system. Defaults to None.
-            unpaired (int, optional): Number of unpaired electrons. Defaults to None.
+            charge (int, optional): Charge of the system. Defaults to None. Overwrites preexisting values.
+            unpaired (int, optional): Number of unpaired electrons. Defaults to None. Overwrites preexisting values.
             nconf (int, optional): Number of conformers to consider. Defaults to None.
 
         Returns:
@@ -111,8 +111,10 @@ class EnsembleData:
             self.runinfo["charge"] = charge or self.args.charge
             self.runinfo["unpaired"] = unpaired or self.args.unpaired
         else:
-            self.runinfo["charge"] = charge
-            self.runinfo["unpaired"] = unpaired
+            # Use arguments given for charge and unpaired, otherwise check if they were already set and use this value
+            self.runinfo["charge"] = charge or self.runinfo.get("charge", None)
+            self.runinfo["unpaired"] = unpaired or self.runinfo.get(
+                "unpaired", None)
 
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError(
@@ -286,9 +288,7 @@ class EnsembleData:
         """
         dump the conformers to a file
         """
-        with open(
-                os.path.join(f"{self.workdir}", f"censo_ensemble_{part}.xyz"),
-                "w") as file:
+        with open(os.path.join(f"{self.workdir}", f"{part}.xyz"), "w") as file:
             for conf in self.conformers:
                 file.writelines(conf.geom.toxyz())
 
