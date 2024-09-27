@@ -41,6 +41,7 @@ class QmProc:
         "orcaversion": "",
         "xtbpath": "",
         "crestpath": "",
+        "cefinepath": "",
         "cosmorssetup": "",
         "dbpath": "",
         "cosmothermversion": "",
