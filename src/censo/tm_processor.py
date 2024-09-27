@@ -60,6 +60,7 @@ class TmProc(QmProc):
         Prepares TURBOMOLE input files using cefine for a specified jobtype.
         """
         func = job.prepinfo[jobtype]["func_name"]
+        func_type = job.prepinfo[jobtype]["func_type"]
         basis = job.prepinfo[jobtype]["basis"]
         disp = job.prepinfo[jobtype]["disp"]
 
@@ -70,15 +71,11 @@ class TmProc(QmProc):
         ]
 
         # Configure grid
-        call.extend(self.__gridsettings[job.prepinfo["grid"]])
+        call.extend(self.__gridsettings[job.prepinfo[jobtype]["grid"]])
 
         # r2scan-3c should use m4 grid
         if func == "r2scan-3c":
             call[call.index("m3")] = "m4"
-
-        # Configure GCP settings
-        if job.prepinfo["gcp"]:
-            call.extend()
 
         # Add dispersion
         # dispersion correction information
@@ -93,9 +90,6 @@ class TmProc(QmProc):
 
         if disp not in ["composite", "nl"]:
             call.extend(mapping[disp])
-        elif disp == "nl":
-            # TODO - write $donl in control later
-            pass
 
         # Add charge and unpaired info
         if job.prepinfo["unpaired"] > 0:
@@ -128,38 +122,61 @@ class TmProc(QmProc):
                 self.job["success"] = False
                 broken = True
             """
-            pass
 
-        # TODO - do further manipulations of input files
-        self.__prep_main()
-        self.__prep_solv()
-        self.__prep_nmr()
+        # Do further manipulations of input files
+        with open(os.path.join(jobdir, "control"), "r+") as f:
+            lines = f.readlines()
 
-    def __prep_main(self):
-        # TODO - Special treatment for KT1/KT2
-        with open(os.path.join(self.job["workdir"], "control"),
-                  "r",
-                  newline=None) as inp:
-            tmp = inp.readlines()
-        with open(os.path.join(self.job["workdir"], "control"),
-                  "w",
-                  newline=None) as out:
-            for line in tmp:
-                if "functional" in line:
-                    out.write("   functional xcfun set-gga  \n")
-                    if (dfa_settings.functionals.get(
-                            self.job["func"]).get("tm") == "kt2"):
-                        out.write("   functional xcfun kt2 1.0  \n")
-                    elif (dfa_settings.functionals.get(
-                            self.job["func"]).get("tm") == "kt1"):
-                        out.write("   functional xcfun kt1 1.0  \n")
-                else:
-                    out.write(line + "\n")
+            self.__prep_main(lines, func, disp, func_type, basis)
+            self.__prep_solv(lines, job.prepinfo, jobtype)
+            self.__prep_special(lines, job.prepinfo, jobtype)
 
-    def __prep_solv(self):
-        pass
+            f.seek(0)  # Reset cursor to 0
+            f.writelines(lines)
+            f.truncate()  # Truncate in case the content is shorter than before
 
-    def __prep_nmr(self, prepinfo: dict[str, any], jobtype: str, jobdir: str):
+    def __prep_main(self, lines: list[str], func: str, disp: str,
+                    func_type: str, basis: str):
+        # Special treatment for KT1/KT2
+        if "kt" in func:
+            func_line_index = next(
+                lines.index(l) for l in lines if "functional" in l)
+            lines[func_line_index] = "   functional xcfun set-gga\n"
+            lines.insert(func_line_index + 1,
+                         f"   functional xcfun kt{func[2]} 1.0\n")
+        # Special treatment for b97-3c
+        elif func == "b97-3c":
+            # Needs three-body dispersion
+            disp_line_index = next(
+                lines.index(l) for l in lines if "disp" in l)
+            lines[disp_line_index] = "$disp3 -bj -abc\n"
+
+        # Enable non local dispersion
+        if disp == "nl":
+            lines.insert(-1, "$donl\n")
+
+        # Handle GCP
+        if func_type != "composite":
+            if basis.lower() == "def2-sv(p)":
+                lines.insert(-1, "$gcp dft/sv(p)\n")
+            else:
+                lines.insert(-1,
+                             f"$gcp dft/{basis.lower().replace('-', '')}\n")
+
+    def __prep_solv(self, lines: list[str], prepinfo: dict[str, any],
+                    jobtype: str):
+        if prepinfo[jobtype]["sm"] in ("cosmors", "dcosmors"):
+            lines[-1:-1] = ["$cosmo\n", f" {prepinfo}\n"]  # TODO TODO TODO
+
+            if jobtype == "rot":
+                # TODO - disable isorad option?
+                lines[-1:-1] = [
+                    " cavity closed\n", " use_contcav\n", " nspa=272\n",
+                    " nsph=162\n", "$cosmo_isorad\n"
+                ]
+
+    def __prep_special(self, lines: list[str], prepinfo: dict[str, any],
+                       jobtype: str):
         # Set NMR parameters
         if "nmr" in jobtype:
             # Determine the settings that need to be put into the input file for the NMR calculation
@@ -172,12 +189,9 @@ class TmProc(QmProc):
             }
 
             todo = [
-                element for element in active_elements_map.keys()
-                if active_elements_map[element]
+                element for element, active in active_elements_map.items()
+                if active
             ]
-
-            with open(os.path.join(jobdir, "control"), "r") as inp:
-                lines = inp.readlines()
 
             rpacor_line_index = next(
                 lines.index(l) for l in lines if "rpacor" in l)
@@ -194,12 +208,28 @@ class TmProc(QmProc):
                 ]
 
             lines.insert(-1, "$rpaconv 8\n")
+        elif jobtype == "rot":
+            """
+            controlappend.append("$scfinstab dynpol nm")
+            for i in self.job["freq_or"]:
+                controlappend.append(f" {i}")  # e.g. 589
+            controlappend.append("$velocity gauge")
+            controlappend.append("$rpaconv 4")
 
-            with open(os.path.join(jobdir, "control"), "w") as inp:
-                inp.writelines(lines)
+            """
+            raise NotImplementedError
 
     def _sp(self):
-        pass
+        # check, if there is an existing mo/alpha,beta file and copy it if option
+        # 'copy_mo' is true
+        if self.copy_mo:
+            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
+                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
+                    logger.debug(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
+                    )
+                    shutil.copy(job.mo_guess,
+                                os.path.join(jobdir, f"{filename}.gbw"))
 
     def _gsolv(self):
         pass

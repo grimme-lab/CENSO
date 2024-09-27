@@ -701,8 +701,8 @@ class OrcaProc(QmProc):
                 "P": prepinfo[jobtype]["p_active"],
             }
             todo = [
-                element for element in active_elements_map.keys()
-                if active_elements_map[element]
+                element for element, active in active_elements_map.items()
+                if active
             ]
 
             todo2 = []
