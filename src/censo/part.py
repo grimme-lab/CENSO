@@ -176,6 +176,11 @@ class CensoPart:
         Returns:
             None
         """
+        # Case insensitive check
+        setting_name = setting_name.lower()
+        if type(setting_value) is str:
+            setting_value = setting_value.lower()
+
         assert type(setting_value) is type(cls._settings[setting_name])
         cls._settings[setting_name] = setting_value
         cls._validate(cls._settings)
@@ -246,35 +251,40 @@ class CensoPart:
 
             # now check if the setting is allowed
             # for strings check if string is within a list of allowed values if it exists
-            if setting_type == str and "options" in cls._options[
-                    setting_name].keys():
-                options = cls._options[setting_name]["options"]
-                if setting_value not in options and len(options) > 0:
-                    # Only check if there are options
-                    # This is fatal so an exception is raised
-                    raise ValueError(
-                        f"Value '{setting_value}' is not allowed for setting "
-                        +
-                        f"'{setting_name}' in part of type '{cls.__name__}'.")
+            if setting_type == str:
+                # Case insensitive
+                setting_value = setting_value.lower()
 
-                # Further checks for special cases, e.g. sm/prog compatibility
-                if "sm" in setting_name and "prog" in cls._options.keys():
-                    prog = tovalidate.get(
-                        "prog", None) or cls._settings.get("prog", None)
-
-                    # sm/prog compatibility check, should not throw unwanted errors
-                    if ("cosmo" in setting_value and prog != "tm") or (any(sm in setting_value for sm in ["smd", "cpcm"]) and prog != "orca"):
+                # Only check if there are options
+                if "options" in cls._options[setting_name].keys():
+                    options = cls._options[setting_name]["options"]
+                    if setting_value not in options and len(options) > 0:
+                        # This is fatal so an exception is raised
                         raise ValueError(
-                            f"Value '{setting_value}' is not allowed for "
-                            + f"'{setting_name}' while using prog: "
-                            + f"'{tovalidate['prog']}' "
-                            + f"in part of type '{cls.__name__}'."
-                        )
+                            f"Value '{
+                                setting_value}' is not allowed for setting "
+                            +
+                            f"'{setting_name}' in part of type '{cls.__name__}'.")
+
+                    # Further checks for special cases, e.g. sm/prog compatibility
+                    if "sm" in setting_name and "prog" in cls._options.keys():
+                        prog = tovalidate.get(
+                            "prog", None) or cls._settings.get("prog", None)
+
+                        # sm/prog compatibility check, should not throw unwanted errors
+                        if ("cosmo" in setting_value and prog != "tm") or (any(sm in setting_value for sm in ["smd", "cpcm"]) and prog != "orca"):
+                            raise ValueError(
+                                f"Value '{setting_value}' is not allowed for "
+                                + f"'{setting_name}' while using prog: "
+                                + f"'{tovalidate['prog']}' "
+                                + f"in part of type '{cls.__name__}'."
+                            )
 
             # set the value in the dict tovalidate to the casted value
             tovalidate[setting_name] = setting_value
 
         # remove the invalid settings
+        # FIXME - is this correct?
         for setting in remove:
             tovalidate.pop(setting)
 
