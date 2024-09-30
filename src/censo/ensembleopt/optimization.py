@@ -139,7 +139,8 @@ class Optimization(EnsembleOptimizer):
             # do complete geometry optimization
             if not len(self.ensemble.conformers) > 1:
                 print(
-                    f"Only one conformer ({self.ensemble.conformers[0].name}) is available for optimization."
+                    f"Only one conformer ({
+                        self.ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
@@ -188,7 +189,8 @@ class Optimization(EnsembleOptimizer):
             print("Unconverged conformers:")
             for conf in unconverged:
                 print(
-                    f"{conf.name}, grad_norm: {conf.results[self._name][jobtype[0]]['grad_norm']}"
+                    f"{conf.name}, grad_norm: {
+                        conf.results[self._name][jobtype[0]]['grad_norm']}"
                 )
             print(
                 "The unconverged conformers will now be removed from consideration."
@@ -220,6 +222,10 @@ class Optimization(EnsembleOptimizer):
 
         for conf in self.ensemble.conformers:
             conf.results[self._name]["gtot"] = self.grrho(conf)
+
+        # sort conformers list with optimization key (gtot)
+        self.ensemble.conformers.sort(
+            key=lambda conf: conf.results[self._name]["gtot"])
 
         # calculate boltzmann weights from gtot values calculated here
         self.ensemble.calc_boltzmannweights(
@@ -264,7 +270,8 @@ class Optimization(EnsembleOptimizer):
         ncyc = 0
         rrho_done = False
         print(
-            f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
+            f"Optimization using macrocycles, {
+                self.get_settings()['optcycles']} microcycles per step."
         )
         nconv = 0
         ninit = len(self.confs_nc)
@@ -363,7 +370,8 @@ class Optimization(EnsembleOptimizer):
                         self.confs_nc,
                     )):
                 print(
-                    f"{conf.name} converged after {ncyc + results_opt[conf.name][jobtype[0]]['cycles']} steps."
+                    f"{conf.name} converged after {
+                        ncyc + results_opt[conf.name][jobtype[0]]['cycles']} steps."
                 )
                 self.confs_nc.remove(conf)
                 nconv += 1
@@ -404,7 +412,8 @@ class Optimization(EnsembleOptimizer):
                     if conf in self.confs_nc:
                         print(
                             f"{conf.name} is no longer considered (gradient too small and"
-                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
+                            f" ΔG = {(self.grrho(conf) - limit)
+                                     * AU2KCAL:.2f})."
                         )
                         self.confs_nc.remove(conf)
 
@@ -457,10 +466,12 @@ class Optimization(EnsembleOptimizer):
             lambda conf: f"{conf.results[self._name][jobtype]['energy']:.6f}",
             "ΔE (DFT) (+ δΔGsolv)":
             lambda conf:
-            f"{(conf.results[self._name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
+            f"{(conf.results[self._name][jobtype]
+                ['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO":
             lambda conf:
-            f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+            f"{conf.results[self._name]['xtb_rrho']['gibbs']
+                [self.get_general_settings()['temperature']]:.6f}"
             if self.get_general_settings()["evaluate_rrho"] else "---",
             "Gtot":
             lambda conf: f"{self.grrho(conf):.6f}",
@@ -482,7 +493,8 @@ class Optimization(EnsembleOptimizer):
             "\nBoltzmann averaged free energy/enthalpy of ensemble on optimized geometries:\n"
         )
         lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {
+                'avG(T) /a.u.':>14}\n"
         )
 
         # calculate averaged free enthalpy
@@ -500,7 +512,8 @@ class Optimization(EnsembleOptimizer):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {
+                avE:>14.7f}  {avG:>14.7f}     <<==part2==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
