@@ -102,7 +102,7 @@ class CensoPart:
     def set_general_settings(settings: dict[str, any],
                              complete: bool = True) -> None:
         """
-        Set all general settings according to a settings dictionary. Will validate the dictionary and complete it 
+        Set all general settings according to a settings dictionary. Will validate the dictionary and complete it
         if complete = True.
 
         Args:
@@ -127,7 +127,7 @@ class CensoPart:
 
         Args:
             setting (str): The setting to be set.
-            value (any): The value to be set. 
+            value (any): The value to be set.
 
         Returns:
             None
@@ -146,7 +146,7 @@ class CensoPart:
     @classmethod
     def set_settings(cls, settings: dict[str, any], complete: bool = True):
         """
-        Set all part specific settings according to a settings dictionary. Will validate the dictionary and complete 
+        Set all part specific settings according to a settings dictionary. Will validate the dictionary and complete
         it if complete = True.
 
         Args:
@@ -198,7 +198,7 @@ class CensoPart:
     @classmethod
     def _validate(cls, tovalidate: dict[str, any]) -> None:
         """
-        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by 
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by
         checking with cls._options.
 
         Args:
@@ -238,7 +238,8 @@ class CensoPart:
                 # NOTE: KeyError is raised when the conversion for bools fails
                 except (ValueError, KeyError) as e:
                     raise ValueError(
-                        f"Value '{tovalidate[setting_name]}' is not allowed for setting '{setting_name}' in part of type '{cls.__name__}'"
+                        f"Value '{tovalidate[setting_name]}' is not allowed "
+                        + f"for setting '{setting_name}' in part of type '{cls.__name__}'"
                     ) from e
             else:
                 setting_value = tovalidate[setting_name]
@@ -255,6 +256,20 @@ class CensoPart:
                         f"Value '{setting_value}' is not allowed for setting "
                         +
                         f"'{setting_name}' in part of type '{cls.__name__}'.")
+
+                # Further checks for special cases, e.g. sm/prog compatibility
+                if "sm" in setting_name and "prog" in cls._options.keys():
+                    prog = tovalidate.get(
+                        "prog", None) or cls._settings.get("prog", None)
+
+                    # sm/prog compatibility check, should not throw unwanted errors
+                    if ("cosmo" in setting_value and prog != "tm") or (any(sm in setting_value for sm in ["smd", "cpcm"]) and prog != "orca"):
+                        raise ValueError(
+                            f"Value '{setting_value}' is not allowed for "
+                            + f"'{setting_name}' while using prog: "
+                            + f"'{tovalidate['prog']}' "
+                            + f"in part of type '{cls.__name__}'."
+                        )
 
             # set the value in the dict tovalidate to the casted value
             tovalidate[setting_name] = setting_value
