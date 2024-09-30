@@ -203,8 +203,6 @@ class NMR(CensoPart):
                 self.get_settings()["fc_only"],
                 "ss_cutoff":
                 self.get_settings()["ss_cutoff"],
-                "sm":
-                self.get_settings()["sm_s"],
                 "h_active":
                 self.get_settings()["h_active"],
                 "c_active":
@@ -218,6 +216,7 @@ class NMR(CensoPart):
             }
             # Only look up solvent if solvation is used
             if not self.get_general_settings()["gas-phase"]:
+                prepinfo["nmr"]["sm"] = self.get_settings()["sm_s"]
                 prepinfo["nmr"][
                     "solvent_key_prog"] = SolventHelper.get_solvent(
                         self.get_settings()["sm_s"],
@@ -246,8 +245,6 @@ class NMR(CensoPart):
                     self.get_settings()["template"],
                     "gcp":
                     True,
-                    "sm":
-                    self.get_settings()[f"sm{ending}"],
                     "fc_only":
                     self.get_settings()["fc_only"],
                     "ss_cutoff":
@@ -265,6 +262,8 @@ class NMR(CensoPart):
                 }
             # Only look up solvent if solvation is used
             if not self.get_general_settings()["gas-phase"]:
+                prepinfo[f"nmr{ending}"]["sm"] = self.get_settings()[
+                    f"sm{ending}"]
                 prepinfo[f"nmr{ending}"][
                     "solvent_key_prog"] = SolventHelper.get_solvent(
                         self.get_settings()[f"sm{ending}"],

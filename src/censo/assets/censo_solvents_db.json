@@ -984,5 +984,71 @@
             "wet_octanol",
             "woctanol"
         ]
+    },
+    "cosmo": {
+        "acetonitrile": [
+            "cyanomethane",
+            "acetonitrile",
+            "mecn"
+        ],
+        "aniline": [
+            "aminobenzene",
+            "phenylamine",
+            "aniline"
+        ],
+        "benzene": [
+            "benzene"
+        ],
+        "ccl4": [
+            "ccl4"
+        ],
+        "chcl3": [
+            "chloroform",
+            "chcl3"
+        ],
+        "cyclohexane": [
+            "cyclohexane"
+        ],
+        "diethylether": [
+            "diethylether"
+        ],
+        "dimethylsulfoxide": [
+            "dimethylsulfoxide"
+        ],
+        "ethanol": [
+            "ethanol"
+        ],
+        "h2o": [
+            "h2o",
+            "water"
+        ],
+        "hexadecane": [
+            "hexadecane"
+        ],
+        "hexane": [
+            "hexane"
+        ],
+        "methanol": [
+            "methanol"
+        ],
+        "nitromethane": [
+            "nitromethane"
+        ],
+        "octanol": [
+            "octanol"
+        ],
+        "propanone": [
+            "propanone"
+        ],
+        "thf": [
+            "thf"
+        ],
+        "toluene": [
+            "toluene"
+        ],
+        "wet-octanol": [
+            "wet_octanol",
+            "woctanol"
+        ]
     }
 }

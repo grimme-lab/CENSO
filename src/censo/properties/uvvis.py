@@ -134,13 +134,12 @@ class UVVis(CensoPart):
             # while the other functional isn't
             "gcp":
             True,  # by default GCP should always be used if possible
-            "sm":
-            self.get_settings()["sm"],
             "nroots":
             self.get_settings()["nroots"],
         }
         # Only look up solvent if solvation is used
         if not self.get_general_settings()["gas-phase"]:
+            prepinfo["uvvis"]["sm"] = self.get_settings()["sm"]
             prepinfo["uvvis"]["solvent_key_prog"] = SolventHelper.get_solvent(
                 self.get_settings()["sm"],
                 self.get_general_settings()["solvent"])
@@ -289,7 +288,8 @@ class UVVis(CensoPart):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{
+                                       self._name.upper()}.out')}."
         )
         with open(os.path.join(self.ensemble.workdir,
                                f"{self._part_no}_{self._name.upper()}.out"),

@@ -115,7 +115,8 @@ class QmProc:
         # list containing the types of computations to do
         if not all(t in self._jobtypes.keys() for t in job.jobtype):
             raise RuntimeError(
-                f"At least one jobtype of {job.jobtype} is not available for {self.__class__.__name__}.\nAvailable "
+                f"At least one jobtype of {job.jobtype} is not available for {
+                    self.__class__.__name__}.\nAvailable "
                 + f"jobtypes are: {list(self._jobtypes.keys())}")
 
         # run all the computations
@@ -127,7 +128,8 @@ class QmProc:
             start = perf_counter()
 
             logger.info(
-                f"{f'worker{os.getpid()}:':{WARNLEN}}Running {j} calculation in {jobdir}."
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Running {
+                    j} calculation in {jobdir}."
             )
             print(f"Running {j} calculation for {job.conf.name}.")
             job.results[j], job.meta[j] = self._jobtypes[j](job, jobdir)
@@ -179,7 +181,8 @@ class QmProc:
             assert self._paths[pathmap[prog]].strip() != ""
         except AssertionError as exc:
             raise AssertionError(
-                f"Path for {prog} not found. Please set up {pathmap[prog]} in the rcfile."
+                f"Path for {prog} not found. Please set up {
+                    pathmap[prog]} in the rcfile."
             ) from exc
 
         # call external program and write output into outputfile

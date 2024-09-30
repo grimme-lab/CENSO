@@ -7,7 +7,7 @@ import os
 from .qm_processor import QmProc
 from .logging import setup_logger
 from .parallel import ParallelJob
-from .params import ENVIRON
+from .params import ENVIRON, ASSETS_PATH
 from .datastructure import GeometryData
 
 logger = setup_logger(__name__)
@@ -23,6 +23,40 @@ class TmProc(QmProc):
         "low+": ["-grid", "m4", "-scfconv", "6"],
         "high": ["-grid", "m4", "-scfconv", "7"],
         "high+": ["-grid", "m5", "-scfconv", "7"],
+    }
+
+    # COSMO dielectric constants stored here
+    # (mapped to solvent names under 'cosmo' in the solvent helper)
+    __cosmo_dcs = {
+        "acetone": 20.7,
+        "acetonitrile": 36.6,
+        "aniline": 6.9,
+        "benzaldehyde": 18.2,
+        "benzene": 2.3,
+        "ccl4": 2.2,
+        "ch2cl2": 9.1,
+        "chcl3": 4.8,
+        "cs2": 2.6,
+        "cyclohexane": 2.0,
+        "dichloroethane": 10.125,
+        "diethylether": 4.4,
+        "dioxane": 2.2,
+        "dmf": 38.3,
+        "dmso": 47.2,
+        "ethanol": 24.6,
+        "ethylacetate": 5.9,
+        "furan": 3.0,
+        "h2o": 80.1,
+        "hexadecane": 2.1,
+        "hexane": 1.9,
+        "methanol": 32.7,
+        "nitromethane": 38.2,
+        "octane": 1.94,
+        "octanol": 9.9,
+        "phenol": 8.0,
+        "thf": 7.6,
+        "toluene": 2.4,
+        "woctanol": 8.1
     }
 
     def __init__(self, *args, **kwargs):
@@ -128,7 +162,8 @@ class TmProc(QmProc):
             lines = f.readlines()
 
             self.__prep_main(lines, func, disp, func_type, basis)
-            self.__prep_solv(lines, job.prepinfo, jobtype)
+            if not no_solv:
+                self.__prep_solv(lines, job.prepinfo, jobtype)
             self.__prep_special(lines, job.prepinfo, jobtype)
 
             f.seek(0)  # Reset cursor to 0
@@ -165,11 +200,28 @@ class TmProc(QmProc):
 
     def __prep_solv(self, lines: list[str], prepinfo: dict[str, any],
                     jobtype: str):
-        if prepinfo[jobtype]["sm"] in ("cosmors", "dcosmors"):
-            lines[-1:-1] = ["$cosmo\n", f" {prepinfo}\n"]  # TODO TODO TODO
+        # NOTE: the latter is basically given due to compatibility checks
+        if not prepinfo["general"]["gas-phase"] and prepinfo[jobtype]["sm"] in ("cosmo", "dcosmors"):
+            lines.insert(-1, "$cosmo\n")
+
+            # write DC in any case
+            lines.insert(-1,
+                         f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent']]}")
+
+            if prepinfo[jobtype]["sm"] == "dcosmors":
+                # if using dcosmors also add the potential file path
+                # NOTE: the value for solvent should never be None
+                # (should be prevented in setup_prepinfo functions, as e.g. in optimizer.py)
+                if prepinfo[jobtype]["solvent"] not in ["woctanol", "hexadecane", "octanol"]:
+                    lines.insert(-1,
+                                 f"$dcosmo_rs file={prepinfo[jobtype]['solvent']}_25.pot")
+                else:
+                    # The three solvents above are specifically defined in the assets
+                    # TODO - this opens the possibility to insert your own potential files
+                    lines.insert(-1,
+                                 f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent'])}_25.pot")
 
             if jobtype == "rot":
-                # TODO - disable isorad option?
                 lines[-1:-1] = [
                     " cavity closed\n", " use_contcav\n", " nspa=272\n",
                     " nsph=162\n", "$cosmo_isorad\n"
@@ -201,6 +253,7 @@ class TmProc(QmProc):
 
             lines[-1:-1] = ["$ncoupling\n", " simple\n", " thr=0.0\n"]
 
+            # nucsel only required if not all elements are active
             if not all(element in todo for element in active_elements_map):
                 lines[-1:-1] = [
                     "$nucsel " + " ".join(todo) + "\n",
@@ -217,22 +270,43 @@ class TmProc(QmProc):
             controlappend.append("$rpaconv 4")
 
             """
-            raise NotImplementedError
+            raise NotImplementedError("Optical rotation not available yet!")
 
     def _sp(self):
         # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
+        # mo files: mos/alpha,beta
         if self.copy_mo:
             if job.mo_guess is not None and os.path.isfile(job.mo_guess):
                 if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            job.mo_guess}."
                     )
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))
 
     def _gsolv(self):
-        pass
+        """
+        Calculate the solvation contribution to the free enthalpy explicitely using COSMORS.
+        """
+        # Prepare gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+        # Run sp
+        # Prepare special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+        """
+        out.write("$cosmo \n")
+        out.write(" epsilon=infinity \n")
+        out.write(" use_contcav \n")
+        out.write(" cavity closed \n")
+        out.write(" nspa=272 \n")
+        out.write(" nsph=162 \n")
+        out.write("$cosmo_out file=out.cosmo \n")
+        out.write("$end \n")
+        """
+        # Run sp
+        # Prepare cosmotherm.inp
+        # Run cosmotherm
+        # Add volume work
 
     def _xtb_opt(self):
         pass
