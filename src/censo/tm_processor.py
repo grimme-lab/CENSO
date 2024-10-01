@@ -3,6 +3,7 @@ Contains TmProc class for calculating TURBOMOLE related properties of conformers
 """
 import subprocess
 import os
+import shutil
 
 from .qm_processor import QmProc
 from .logging import setup_logger
@@ -88,8 +89,7 @@ class TmProc(QmProc):
                job: ParallelJob,
                jobtype: str,
                jobdir: str,
-               no_solv: bool = False,
-               coordfile: str = None) -> list:
+               no_solv: bool = False) -> list:
         """
         Prepares TURBOMOLE input files using cefine for a specified jobtype.
         """
@@ -156,6 +156,10 @@ class TmProc(QmProc):
                 self.job["success"] = False
                 broken = True
             """
+
+        # Write coord file
+        with open(os.path.join(jobdir, "coord"), "w") as f:
+            f.writelines(job.conf.tocoord())
 
         # Do further manipulations of input files
         with open(os.path.join(jobdir, "control"), "r+") as f:
@@ -272,7 +276,41 @@ class TmProc(QmProc):
             """
             raise NotImplementedError("Optical rotation not available yet!")
 
-    def _sp(self):
+    def _sp(
+        self,
+        job: ParallelJob,
+        jobdir: str,
+        no_solv: bool = False,
+        prep: bool = True,
+    ) -> tuple[dict[str, float | None], dict[str, any]]:
+        """
+        TURBOMOLE single-point calculation.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+            no_solv: if True, no solvent model is used
+            prep: if True, a new input file is generated (you only really want to make use of this for NMR)
+
+        Returns:
+            result (dict[str, float | None]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
+
+        result = {
+            "energy": None,
+        }
+        """
+        # set results
+        result = {
+            "energy": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
+            "mo_path": None,
+        }
+
         # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
@@ -286,27 +324,55 @@ class TmProc(QmProc):
                     shutil.copy(job.mo_guess,
                                 os.path.join(jobdir, f"{filename}.gbw"))
 
-    def _gsolv(self):
+        return result, meta
+
+    def _gsolv(self, job: ParallelJob,
+               jobdir: str) -> tuple[dict[str, any], dict[str, any]]:
         """
-        Calculate the solvation contribution to the free enthalpy explicitely using COSMORS.
+        Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
         """
-        # Prepare gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
-        # Run sp
-        # Prepare special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
-        """
-        out.write("$cosmo \n")
-        out.write(" epsilon=infinity \n")
-        out.write(" use_contcav \n")
-        out.write(" cavity closed \n")
-        out.write(" nspa=272 \n")
-        out.write(" nsph=162 \n")
-        out.write("$cosmo_out file=out.cosmo \n")
-        out.write("$end \n")
-        """
-        # Run sp
-        # Prepare cosmotherm.inp
-        # Run cosmotherm
-        # Add volume work
+        # what is returned in the end
+        result = {
+            "gsolv": None,
+            "energy_gas": None,
+            "energy_solv": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
+            "mo_path": None,
+        }
+
+        if job.prepinfo["sp"]["sm"] in ["cosmo", "dcosmors"]:
+            # Non-COSMORS procedure:
+            # Run gas-phase sp
+            spres, spmeta = self._sp(job, jobdir, no_solv=True)
+
+            # Run solution sp
+            spres, spmeta = self._sp(job, jobdir)
+
+            # Calculate gsolv from energy difference
+        else:
+            # COSMORS procedure:
+            # Run gas-phase sp with unaltered settings
+            # Run gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+            # Run special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+            """
+            out.write("$cosmo \n")
+            out.write(" epsilon=infinity \n")
+            out.write(" use_contcav \n")
+            out.write(" cavity closed \n")
+            out.write(" nspa=272 \n")
+            out.write(" nsph=162 \n")
+            out.write("$cosmo_out file=out.cosmo \n")
+            out.write("$end \n")
+            """
+            # Prepare cosmotherm.inp
+            # Run cosmotherm
+            # Add volume work
+
+        return result, meta
 
     def _xtb_opt(self):
         pass

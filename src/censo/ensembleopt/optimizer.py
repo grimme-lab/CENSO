@@ -65,7 +65,7 @@ class EnsembleOptimizer(CensoPart):
         prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
         prepinfo["general"] = self.get_general_settings()
 
-        if "sp" in jobtype:
+        if "sp" in jobtype or "gsolv" in jobtype:
             prepinfo["sp"] = {
                 "func_name":
                 DfaHelper.get_name(self.get_settings()["func"],

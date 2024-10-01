@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 class UVVis(CensoPart):
     _part_no = "6"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    __solv_mods = tuple(t for t in reduce(lambda x, y: x + y, SOLV_MODS.values()) if t not in ("cosmors", "cosmors-fine"))
 
     _options = {
         "prog": {

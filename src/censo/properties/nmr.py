@@ -24,7 +24,9 @@ class NMR(CensoPart):
 
     _grid = "high+"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    __solv_mods = tuple(t
+                        for t in reduce(lambda x, y: x + y, SOLV_MODS.values())
+                        if t not in ("cosmors", "cosmors-fine"))
 
     _options = {
         "resonance_frequency": {
@@ -262,8 +264,8 @@ class NMR(CensoPart):
                 }
             # Only look up solvent if solvation is used
             if not self.get_general_settings()["gas-phase"]:
-                prepinfo[f"nmr{ending}"]["sm"] = self.get_settings()[
-                    f"sm{ending}"]
+                prepinfo[f"nmr{ending}"]["sm"] = self.get_settings(
+                )[f"sm{ending}"]
                 prepinfo[f"nmr{ending}"][
                     "solvent_key_prog"] = SolventHelper.get_solvent(
                         self.get_settings()[f"sm{ending}"],

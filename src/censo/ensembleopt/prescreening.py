@@ -62,7 +62,17 @@ class Prescreening(EnsembleOptimizer):
             # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
             # Gsolv will still be included in the DFT energy though
             jobtype = ["sp"]
-        elif not self.get_settings().get("implicit", False):
+        elif self.get_settings().get("sm", None) in [
+                "cosmors", "cosmors-fine"
+        ] and self.get_settings().get("implicit", False):
+            # If cosmors is used as solvent model the gsolv calculation needs to be done explicitely
+            logger.warning(
+                "COSMORS detected as solvation model, this requires explicit calculation of ΔGsolv."
+            )
+            jobtype = ["gsolv"]
+        elif not self.get_settings().get(
+                "implicit", False) or self.get_settings().get(
+                    "sm", None) in ["cosmors", "cosmors-fine"]:
             # Only for prescreening the solvation should be calculated with xtb
             if self._name == "prescreening":
                 jobtype = ["xtb_gsolv"]
