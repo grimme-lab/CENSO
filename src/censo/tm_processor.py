@@ -78,18 +78,12 @@ class TmProc(QmProc):
 
         # Stores setting wether to copy MO-files for faster SCFs
         self.copy_mo: bool = False
-        """self._jobtypes = {
-            **self._jobtypes, **{
-                "opt": self._opt,
-                "uvvis": self._uvvis,
-            }
-        }"""
 
     def __prep(self,
                job: ParallelJob,
                jobtype: str,
                jobdir: str,
-               no_solv: bool = False) -> list:
+               no_solv: bool = False) -> None:
         """
         Prepares TURBOMOLE input files using cefine for a specified jobtype.
         """
@@ -142,7 +136,7 @@ class TmProc(QmProc):
             env=ENVIRON,
         ).decode("utf-8").splitlines()
 
-        # Check output for errors
+        # TODO - Check output for errors
         for line in cefine_output:
             """
             if "define ended abnormally" in line:
@@ -166,7 +160,7 @@ class TmProc(QmProc):
             lines = f.readlines()
 
             self.__prep_main(lines, func, disp, func_type, basis)
-            if not no_solv:
+            if not no_solv and not job.prepinfo["general"]["gas-phase"]:
                 self.__prep_solv(lines, job.prepinfo, jobtype)
             self.__prep_special(lines, job.prepinfo, jobtype)
 
@@ -204,32 +198,30 @@ class TmProc(QmProc):
 
     def __prep_solv(self, lines: list[str], prepinfo: dict[str, any],
                     jobtype: str):
-        # NOTE: the latter is basically given due to compatibility checks
-        if not prepinfo["general"]["gas-phase"] and prepinfo[jobtype]["sm"] in ("cosmo", "dcosmors"):
-            lines.insert(-1, "$cosmo\n")
+        lines.insert(-1, "$cosmo\n")
 
-            # write DC in any case
-            lines.insert(-1,
-                         f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent']]}")
+        # write DC in any case
+        lines.insert(-1,
+                     f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent']]}")
 
-            if prepinfo[jobtype]["sm"] == "dcosmors":
-                # if using dcosmors also add the potential file path
-                # NOTE: the value for solvent should never be None
-                # (should be prevented in setup_prepinfo functions, as e.g. in optimizer.py)
-                if prepinfo[jobtype]["solvent"] not in ["woctanol", "hexadecane", "octanol"]:
-                    lines.insert(-1,
-                                 f"$dcosmo_rs file={prepinfo[jobtype]['solvent']}_25.pot")
-                else:
-                    # The three solvents above are specifically defined in the assets
-                    # TODO - this opens the possibility to insert your own potential files
-                    lines.insert(-1,
-                                 f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent'])}_25.pot")
+        if prepinfo[jobtype]["sm"] == "dcosmors":
+            # if using dcosmors also add the potential file path
+            # NOTE: the value for solvent should never be None
+            # (should be prevented in setup_prepinfo functions, as e.g. in optimizer.py)
+            if prepinfo[jobtype]["solvent"] not in ["woctanol", "hexadecane", "octanol"]:
+                lines.insert(-1,
+                             f"$dcosmo_rs file={prepinfo[jobtype]['solvent']}_25.pot")
+            else:
+                # The three solvents above are specifically defined in the assets
+                # TODO - this opens the possibility to insert your own potential files
+                lines.insert(-1,
+                             f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent'])}_25.pot")
 
-            if jobtype == "rot":
-                lines[-1:-1] = [
-                    " cavity closed\n", " use_contcav\n", " nspa=272\n",
-                    " nsph=162\n", "$cosmo_isorad\n"
-                ]
+        if jobtype == "rot":
+            lines[-1:-1] = [
+                " cavity closed\n", " use_contcav\n", " nspa=272\n",
+                " nsph=162\n", "$cosmo_isorad\n"
+            ]
 
     def __prep_special(self, lines: list[str], prepinfo: dict[str, any],
                        jobtype: str):
@@ -266,6 +258,7 @@ class TmProc(QmProc):
 
             lines.insert(-1, "$rpaconv 8\n")
         elif jobtype == "rot":
+            # TODO
             """
             controlappend.append("$scfinstab dynpol nm")
             for i in self.job["freq_or"]:
@@ -290,7 +283,7 @@ class TmProc(QmProc):
             job: ParallelJob object containing the job information, metadata is stored in job.meta
             jobdir: path to the job directory
             no_solv: if True, no solvent model is used
-            prep: if True, a new input file is generated (you only really want to make use of this for NMR)
+            prep: if True, a new input file is generated
 
         Returns:
             result (dict[str, float | None]): dictionary containing the results of the calculation
@@ -356,18 +349,35 @@ class TmProc(QmProc):
         else:
             # COSMORS procedure:
             # Run gas-phase sp with unaltered settings
+            spres, spmeta = self._sp(job, jobdir, no_solv=True)
+
             # Run gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+            job.prepinfo["sp"]["func_name"] = "b-p"
+            job.prepinfo["sp"]["disp"] = "novdw"
+
+            if job.prepinfo["sp"]["sm"] == "cosmors-fine":
+                job.prepinfo["sp"]["basis"] = "def2-tzvpd"
+            else:
+                job.prepinfo["sp"]["basis"] = "def2-tzvp"
+
+            spres, spmeta = self._sp(job, jobdir, no_solv=True)
+
             # Run special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
-            """
-            out.write("$cosmo \n")
-            out.write(" epsilon=infinity \n")
-            out.write(" use_contcav \n")
-            out.write(" cavity closed \n")
-            out.write(" nspa=272 \n")
-            out.write(" nsph=162 \n")
-            out.write("$cosmo_out file=out.cosmo \n")
-            out.write("$end \n")
-            """
+            self.__prep(job, "sp", jobdir, no_solv=True)
+
+            # Write special settings for cosmo into control file
+            with open(os.path.join(jobdir, "control"), "r+") as f:
+                lines = f.readlines()
+                
+                lines[-1:-1] = ["$cosmo\n", " epsilon=infinity\n", " use_contcav\n", " cavity closed\n", " nspa=272\n", " nsph=162\n", "$cosmo_out  file=out.cosmo\n"]
+
+                f.seek(0)
+                f.writelines(lines)
+                f.truncate()
+
+            # Run sp
+            spres, spmeta = self._sp(job, jobdir, prep=False)
+
             # Prepare cosmotherm.inp
             # Run cosmotherm
             # Add volume work

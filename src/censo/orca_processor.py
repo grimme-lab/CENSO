@@ -384,12 +384,6 @@ class OrcaProc(QmProc):
 
         # Stores setting wether to copy MO-files for faster SCFs
         self.copy_mo: bool = False
-        """self._jobtypes = {
-            **self._jobtypes, **{
-                "opt": self._opt,
-                "uvvis": self._uvvis,
-            }
-        }"""
 
     def __prep(self,
                job: ParallelJob,
