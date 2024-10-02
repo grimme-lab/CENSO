@@ -603,11 +603,224 @@ class TmProc(QmProc):
 
         return result, meta
 
-    def _xtb_opt(self):
-        pass
+    def _xtb_opt(self,
+                 job: ParallelJob,
+                 jobdir: str,
+                 filename: str = "xtb_opt"
+                 ) -> tuple[dict[str, any], dict[str, any]]:
+        """
+        Geometry optimization using ANCOPT and ORCA gradients.
+        Note that solvation is handled here always implicitly.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+            filename: name of the input file
+
+        Returns:
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
+
+        Keywords required in prepinfo:
+        - optcycles
+        - hlow
+        - optlevel
+        - macrocycles
+        - constraints
+
+        result = {
+            "energy": None,
+            "cycles": None,
+            "converged": None,
+            "ecyc": None,
+            "grad_norm": None,
+            "geom": None,
+        }
+        """
+        result = {
+            "energy": None,
+            "cycles": None,
+            "converged": None,
+            "ecyc": None,
+            "grad_norm": None,
+            "gncyc": None,
+            "geom": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
+            "mo_path": None,
+        }
+
+        xcontrolname = "xtb_opt-xcontrol-inp"
+
+        files = [
+            "xtbrestart",
+            "xtbtopo.mol",
+            xcontrolname,
+            "wbo",
+            "charges",
+            "gfnff_topo",
+        ]
+
+        # remove potentially preexisting files to avoid confusion
+        for file in files:
+            if os.path.isfile(os.path.join(jobdir, file)):
+                os.remove(os.path.join(jobdir, file))
+
+        # write conformer geometry to coord file
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w",
+                  newline=None) as file:
+            file.writelines(job.conf.tocoord())
+
+        # prepare configuration file for ancopt (xcontrol file)
+        with open(os.path.join(jobdir, xcontrolname), "w",
+                  newline=None) as out:
+            out.write("$opt \n")
+            if job.prepinfo["xtb_opt"]["macrocycles"]:
+                out.write(
+                    f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
+                out.write(
+                    f"microcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
+
+            out.writelines([
+                "average conv=true \n",
+                f"hlow={job.prepinfo['xtb_opt']['hlow']} \n",
+                "s6=30.00 \n",
+                # remove unnecessary sp/gradient call in xTB
+                "engine=lbfgs\n",
+                "$external\n",
+                f"   orca input file= {filename}.inp\n",
+                f"   orca bin= {self._paths['orcapath']} \n",
+            ])
+
+            # Import constraints
+            if job.prepinfo["xtb_opt"]["constraints"] is not None:
+                with open(job.prepinfo["xtb_opt"]["constraints"], "r") as f:
+                    lines = f.readlines()
+
+                out.writelines(lines)
+
+            out.write("$end \n")
+
+        # check, if there is an existing .gbw file and copy it if option
+        # 'copy_mo' is true
+        if self.copy_mo:
+            self.__copy_mo(jobdir, filename, job.mo_guess)
+
+        # prepare xtb call
+        call = [
+            f"{filename}.coord",  # name of the coord file generated above
+            "--opt",
+            job.prepinfo["xtb_opt"]["optlevel"],
+            "--tm",
+            "-I",
+            xcontrolname,
+        ]
+
+        # set path to the ancopt output file
+        outputpath = os.path.join(jobdir, f"{filename}.out")
+
+        # call xtb
+        returncode, errors = self._make_call("xtb", call, outputpath, jobdir)
+
+        # check if optimization finished without errors
+        # NOTE: right now, not converging scfs are not handled because returncodes need to be implemented first
+        if returncode != 0:
+            meta["success"] = False
+            meta["error"] = "unknown_error"
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            # TODO - the xtb returncodes should be handled
+            return result, meta
+
+        # read output
+        with open(outputpath, "r") as file:
+            lines = file.readlines()
+
+        result["ecyc"] = []
+        result["cycles"] = 0
+
+        # Substrings indicating error in xtb
+        error_ind = [
+            "external code error",
+            "|grad| > 500, something is totally wrong!",
+            "abnormal termination of xtb",
+        ]
+
+        # Check if xtb terminated normally (if there are any error indicators
+        # in the output)
+        meta["success"] = (False if next((x for x in lines if any(
+            y in x for y in error_ind)), None) is not None else True)
+        if not meta["success"]:
+            meta["error"] = "unknown_error"
+            return result, meta
+
+        # check convergence
+        if (next(
+            (True for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x),
+                None) is True):
+            result["converged"] = True
+        elif (next((True for x in lines if "FAILED TO CONVERGE GEOMETRY" in x),
+                   None) is True):
+            result["converged"] = False
+
+        # Get the number of cycles
+        if result["converged"] is not None:
+            # tmp is one of the values from the dict defined below
+            tmp = {
+                True: ("GEOMETRY OPTIMIZATION CONVERGED", 5),
+                False: ("FAILED TO CONVERGE GEOMETRY", 7),
+            }
+            tmp = tmp[result["converged"]]
+
+            result["cycles"] = int(
+                next(x for x in lines if tmp[0] in x).split()[tmp[1]])
+
+            # Get energies for each cycle
+            result["ecyc"].extend(
+                float(line.split("->")[-1])
+                for line in filter(lambda x: "av. E: " in x, lines))
+
+            # Get all gradient norms for evaluation
+            result["gncyc"] = [
+                float(line.split()[3])
+                for line in filter(lambda x: " gradient norm " in x, lines)
+            ]
+
+            # Get the last gradient norm
+            result["grad_norm"] = result["gncyc"][-1]
+
+            # store the final energy of the optimization in 'energy'
+            result["energy"] = result["ecyc"][-1]
+            meta["success"] = True
+
+        if self.copy_mo:
+            # store the path to the current MO file(s) for this conformer if possible
+            if os.path.isfile(os.path.join(jobdir, "mos")):
+                meta["mo_path"] = os.path.join(jobdir, "mos")
+            elif os.path.isfile(os.path.join(jobdir, "alpha")):
+                meta["mo_path"] = (os.path.join(
+                    jobdir, "alpha"), os.path.join(jobdir, "beta"))
+
+        # read out optimized geometry and update conformer geometry with this
+        job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
+        result["geom"] = job.conf.xyz
+
+        # TODO - this might be a case where it would be reasonable to raise an
+        # exception
+        try:
+            assert result["converged"] is not None
+        except AssertionError:
+            meta["success"] = False
+            meta["error"] = "unknown_error"
+
+        return result, meta
 
     def _opt(self):
-        pass
+        raise NotImplementedError(
+            "Pure TURBOMOLE geometry optimization not available yet.")
 
     def _nmr(self):
         pass
