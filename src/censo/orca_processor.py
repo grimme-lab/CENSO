@@ -259,7 +259,8 @@ class OrcaParser:
             try:
                 for option in indict[key].keys():
                     lines.append(
-                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {
+                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                     # NOTE: TypeError is raised if reduce fails due to indict[key][option] not being iterable
                 lines.append("end\n")
@@ -287,11 +288,13 @@ class OrcaParser:
                 if "Nuclei" in option:
                     # Special treatment for the "Nuclei" option in %eprnmr
                     lines.append(
-                        f"    {option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {
+                            option[:len(option)-1]} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
                 else:
                     lines.append(
-                        f"    {option} {reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
+                        f"    {option} {
+                            reduce(lambda x, y: f'{x} {y}', indict[key][option])}\n"
                     )
             lines.append("end\n")
 
@@ -302,6 +305,7 @@ class OrcaProc(QmProc):
     """
     Performs calculations with ORCA.
     """
+    _progname = "orca"
 
     # contains grid settings for ORCA 5.0+ (True) and older versions (False)
     # can be chosen by simple keyword (low/low+/high/high+)
@@ -427,7 +431,8 @@ class OrcaProc(QmProc):
                     ))
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    f"Could not find template file {job.prepinfo['partname']}.orca.template."
+                    f"Could not find template file {
+                        job.prepinfo['partname']}.orca.template."
                 )
 
         # prepare the main line of the orca input
@@ -551,7 +556,8 @@ class OrcaProc(QmProc):
                         f"GCP(DFT/{gcp_keywords[basis.lower()]})")
                 else:
                     logger.warning(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
+                        f"{f'worker{os.getpid()}:':{
+                            WARNLEN}}Selected basis not available for GCP. GCP not employed."
                     )
 
         # add job keyword for geometry optimizations
@@ -757,6 +763,29 @@ class OrcaProc(QmProc):
                 return out_to_err[key]
         return None
 
+    @staticmethod
+    def __copy_mo(jobdir: str, filename: str, guess_file: str | tuple) -> None:
+        """
+        Copy MO file if possible (should be ORCA .gbw file).
+
+        Args:
+            jobdir: path to the job directory
+            filename: name of the input file
+            guess_file: path to the .gbw file to copy 
+
+        Returns:
+            None
+        """
+        if guess_file is not None and type(guess_file) is not tuple:
+            if os.path.isfile(guess_file):
+                if os.path.join(jobdir, f"{filename}.gbw") != guess_file and ".gbw" in os.path.split(guess_file)[1]:
+                    logger.debug(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
+                            guess_file}."
+                    )
+                    shutil.copy(guess_file,
+                                os.path.join(jobdir, f"{filename}.gbw"))
+
     def _sp(
         self,
         job: ParallelJob,
@@ -815,13 +844,7 @@ class OrcaProc(QmProc):
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
         if self.copy_mo:
-            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
-                    logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
-                    )
-                    shutil.copy(job.mo_guess,
-                                os.path.join(jobdir, f"{filename}.gbw"))
+            self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # call orca
         call = [f"{filename}.inp"]
@@ -980,13 +1003,7 @@ class OrcaProc(QmProc):
 
         # Get gbw files for initial guess
         if self.copy_mo:
-            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
-                    logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
-                    )
-                    shutil.copy(job.mo_guess,
-                                os.path.join(jobdir, f"{filename}.gbw"))
+            self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # call orca
         call = [f"{filename}.inp"]
@@ -1203,13 +1220,7 @@ class OrcaProc(QmProc):
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
         if self.copy_mo:
-            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
-                    logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {job.mo_guess}."
-                    )
-                    shutil.copy(job.mo_guess,
-                                os.path.join(jobdir, f"{filename}.gbw"))
+            self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # prepare xtb call
         call = [

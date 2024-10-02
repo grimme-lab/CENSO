@@ -109,7 +109,8 @@ class GeometryData:
         ]
         for atom in self.xyz:
             lines.append(
-                f"{atom['element']} {atom['xyz'][0]:.10f} {atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
+                f"{atom['element']} {atom['xyz'][0]:.10f} {
+                    atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
             )
 
         return lines
@@ -138,7 +139,8 @@ class MoleculeData:
         self.xtb_energy: float = None
 
         # list to store the paths to all MO-files from the jobs run for this conformer
-        self.mo_paths: list[str] = []
+        # might also include tuples if open shell and tm is used
+        self.mo_paths: list[str, tuple] = []
 
         # store all Boltzmann weights in order of calculation
         # TODO - this might not be the nicest way of doing this
@@ -172,6 +174,7 @@ class ParallelJob:
         self.omp = OMPMIN
 
         # stores path to an mo file which is supposed to be used as a guess
+        # In case of open shell tm calculation this can be a tuple of files
         self.mo_guess = None
 
         # Stores all the important information for preparation of the input files for every jobtype

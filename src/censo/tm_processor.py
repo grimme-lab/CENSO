@@ -8,7 +8,7 @@ import shutil
 from .qm_processor import QmProc
 from .logging import setup_logger
 from .parallel import ParallelJob
-from .params import ENVIRON, ASSETS_PATH
+from .params import ENVIRON, ASSETS_PATH, WARNLEN
 from .datastructure import GeometryData
 
 logger = setup_logger(__name__)
@@ -18,6 +18,7 @@ class TmProc(QmProc):
     """
     Performs calculations using TURBOMOLE.
     """
+    _progname = "tm"
 
     __gridsettings = {
         "low": ["-grid", "m3", "-scfconv", "6"],
@@ -87,6 +88,7 @@ class TmProc(QmProc):
         """
         Prepares TURBOMOLE input files using cefine for a specified jobtype.
         """
+        # TODO - copy mo files
         func = job.prepinfo[jobtype]["func_name"]
         func_type = job.prepinfo[jobtype]["func_type"]
         basis = job.prepinfo[jobtype]["basis"]
@@ -269,6 +271,39 @@ class TmProc(QmProc):
             """
             raise NotImplementedError("Optical rotation not available yet!")
 
+    @staticmethod
+    def __copy_mo(jobdir: str, guess_file: str | tuple[str, str]) -> None:
+        """
+        Copy the MO file(s) for TURBOMOLE (should be TM format).
+        """
+        if guess_file is not None:
+            if type(guess_file) is tuple:
+                # open shell guess
+                if all(os.path.isfile(f)
+                       and any(g in f for g in ["alpha", "beta"])
+                       and not any(os.path.join(jobdir, g) == guess_file for g in ["alpha", "beta"]) for f in guess_file):
+                    # All MO files found and not already in dir
+                    # Copy MO files
+                    for g in ["alpha", "beta"]:
+                        logger.debug(
+                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {
+                                guess_file}."
+                        )
+                        shutil.copy(guess_file,
+                                    os.path.join(jobdir, g))
+            else:
+                # closed shell guess
+                if (os.path.isfile(guess_file)
+                    and os.path.split(guess_file)[1] == "mos"
+                        and os.path.join(jobdir, "mos") != guess_file):
+                    # Copy MO file
+                    logger.debug(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying mos file from {
+                            guess_file}."
+                    )
+                    shutil.copy(guess_file,
+                                os.path.join(jobdir, "mos"))
+
     def _sp(
         self,
         job: ParallelJob,
@@ -308,14 +343,7 @@ class TmProc(QmProc):
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
         if self.copy_mo:
-            if job.mo_guess is not None and os.path.isfile(job.mo_guess):
-                if os.path.join(jobdir, f"{filename}.gbw") != job.mo_guess:
-                    logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
-                            job.mo_guess}."
-                    )
-                    shutil.copy(job.mo_guess,
-                                os.path.join(jobdir, f"{filename}.gbw"))
+            self.__copy_mo(jobdir, job.mo_guess)
 
         return result, meta
 
@@ -368,8 +396,9 @@ class TmProc(QmProc):
             # Write special settings for cosmo into control file
             with open(os.path.join(jobdir, "control"), "r+") as f:
                 lines = f.readlines()
-                
-                lines[-1:-1] = ["$cosmo\n", " epsilon=infinity\n", " use_contcav\n", " cavity closed\n", " nspa=272\n", " nsph=162\n", "$cosmo_out  file=out.cosmo\n"]
+
+                lines[-1:-1] = ["$cosmo\n", " epsilon=infinity\n", " use_contcav\n",
+                                " cavity closed\n", " nspa=272\n", " nsph=162\n", "$cosmo_out  file=out.cosmo\n"]
 
                 f.seek(0)
                 f.writelines(lines)

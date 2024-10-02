@@ -9,7 +9,7 @@ class ProcessorFactory:
     # for now these are the only available processor types
     __proctypes: dict[str, type] = {
         "orca": OrcaProc,
-        #    "tm": TmProc,
+        "tm": TmProc,
     }
 
     @classmethod

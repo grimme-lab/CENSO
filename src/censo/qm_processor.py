@@ -35,6 +35,7 @@ class QmProc:
     """
     QmProc base class
     """
+    _progname = "generic"
 
     _paths = {
         "orcapath": "",
