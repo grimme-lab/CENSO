@@ -174,17 +174,22 @@ class QmProc:
             returncode (int): returncode of the external program
         """
         # make sure program path is not empty
-        pathmap = {
-            "xtb": "xtbpath",
-            "orca": "orcapath",
-        }
-        try:
-            assert self._paths[pathmap[prog]].strip() != ""
-        except AssertionError as exc:
-            raise AssertionError(
-                f"Path for {prog} not found. Please set up {
-                    pathmap[prog]} in the rcfile."
-            ) from exc
+        if prog != "tm":
+            pathmap = {
+                "xtb": "xtbpath",
+                "orca": "orcapath",
+            }
+            try:
+                assert self._paths[pathmap[prog]].strip() != ""
+                # NOTE: turbomole does not need this step since you can just call a binary w/o path
+                # Also the binaries are called differently for different purposes
+                # (e.g. ridft for single-points, but not for NMR, instead the binary names are passed in the call)
+                call.insert(0, self._paths[pathmap[prog]])
+            except AssertionError as exc:
+                raise AssertionError(
+                    f"Path for {prog} not found. Please set up {
+                        pathmap[prog]} in the rcfile."
+                ) from exc
 
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:

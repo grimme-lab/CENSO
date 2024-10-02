@@ -777,8 +777,8 @@ class OrcaProc(QmProc):
             None
         """
         if guess_file is not None and type(guess_file) is not tuple:
-            if os.path.isfile(guess_file):
-                if os.path.join(jobdir, f"{filename}.gbw") != guess_file and ".gbw" in os.path.split(guess_file)[1]:
+            if os.path.isfile(guess_file) and ".gbw" in os.path.split(guess_file)[1]:
+                if os.path.join(jobdir, f"{filename}.gbw") != guess_file:
                     logger.debug(
                         f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {
                             guess_file}."
@@ -860,21 +860,21 @@ class OrcaProc(QmProc):
         with open(outputpath, "r", encoding=CODING, newline=None) as out:
             lines = out.readlines()
 
-            # Get final energy
-            result["energy"] = next(
-                (float(line.split()[4])
-                 for line in lines if "FINAL SINGLE POINT ENERGY" in line),
-                None,
-            )
+        # Get final energy
+        result["energy"] = next(
+            (float(line.split()[4])
+             for line in lines if "FINAL SINGLE POINT ENERGY" in line),
+            None,
+        )
 
-            # Check for errors in the output file in case returncode is 0
-            if meta["success"]:
-                meta["error"] = self.__check_output(lines)
-                meta["success"] = meta["error"] is None and result[
-                    "energy"] is not None
-            else:
-                meta["error"] = self.__returncode_to_err.get(
-                    returncode, "unknown_error")
+        # Check for errors in the output file in case returncode is 0
+        if meta["success"]:
+            meta["error"] = self.__check_output(lines)
+            meta["success"] = meta["error"] is None and result[
+                "energy"] is not None
+        else:
+            meta["error"] = self.__returncode_to_err.get(
+                returncode, "unknown_error")
 
         if self.copy_mo:
             # store the path to the current .gbw file for this conformer if

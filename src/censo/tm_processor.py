@@ -27,6 +27,8 @@ class TmProc(QmProc):
         "high+": ["-grid", "m5", "-scfconv", "7"],
     }
 
+    __returncode_to_err = {}
+
     # COSMO dielectric constants stored here
     # (mapped to solvent names under 'cosmo' in the solvent helper)
     __cosmo_dcs = {
@@ -304,6 +306,29 @@ class TmProc(QmProc):
                     shutil.copy(guess_file,
                                 os.path.join(jobdir, "mos"))
 
+    @staticmethod
+    def __check_output(lines: list[str]) -> str | None:
+        """
+        Checks the lines from the output file for errors and returns them.
+
+        Args:
+            lines: list of lines from the output file.
+
+        Returns:
+            str | None: error message if an error was found, None otherwise
+        """
+        # Dict mapping specific messages from the output to error messages
+        # TODO - this should be extended later
+        out_to_err = {
+            "SCF NOT CONVERGED": "scf_not_converged",
+        }
+        for line in lines:
+            if any(key in line for key in out_to_err.keys()):
+                # Returns the first error found
+                key = next(filter(lambda x: x in line, out_to_err.keys()))
+                return out_to_err[key]
+        return None
+
     def _sp(
         self,
         job: ParallelJob,
@@ -324,7 +349,7 @@ class TmProc(QmProc):
             result (dict[str, float | None]): dictionary containing the results of the calculation
             meta (dict[str, any]): metadata about the job
 
-        result = {
+        result = {i can
             "energy": None,
         }
         """
@@ -339,11 +364,50 @@ class TmProc(QmProc):
             "mo_path": None,
         }
 
+        # set in/out path
+        outputpath = os.path.join(jobdir, "ridft.out")
+
         # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
         if self.copy_mo:
             self.__copy_mo(jobdir, job.mo_guess)
+
+        # call turbomole
+        call = ["ridft"]
+        returncode, errors = self._make_call("tm", call, outputpath, jobdir)
+
+        meta["success"] = returncode == 0
+        if not meta["success"]:
+            logger.warning(
+                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+
+        with open(outputpath, "r") as f:
+            lines = f.readlines()
+
+        # Get final energy
+        result["energy"] = next(
+            (float(line.split()[4])
+             for line in lines if "|  total energy      = " in line),
+            None,
+        )
+
+        # Check for errors in the output file in case returncode is 0
+        if meta["success"]:
+            meta["error"] = self.__check_output(lines)
+            meta["success"] = meta["error"] is None and result[
+                "energy"] is not None
+        else:
+            meta["error"] = self.__returncode_to_err.get(
+                returncode, "unknown_error")
+
+        if self.copy_mo:
+            # store the path to the current MO file(s) for this conformer if possible
+            if os.path.isfile(os.path.join(jobdir, "mos")):
+                meta["mo_path"] = os.path.join(jobdir, "mos")
+            elif os.path.isfile(os.path.join(jobdir, "alpha")):
+                meta["mo_path"] = (os.path.join(
+                    jobdir, "alpha"), os.path.join(jobdir, "beta"))
 
         return result, meta
 
