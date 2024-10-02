@@ -707,6 +707,7 @@ class QmProc:
                         "temperature"]] = None  # set this to None for predictability
                     result["entropy"][job.prepinfo["general"][
                         "temperature"]] = None  # set this to None for predictability
+                    # FIXME - why though?
 
             # only determine symmetry if all the needed information is there
             if "point group" and "linear" in data.keys():

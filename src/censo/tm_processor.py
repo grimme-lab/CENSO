@@ -4,12 +4,14 @@ Contains TmProc class for calculating TURBOMOLE related properties of conformers
 import subprocess
 import os
 import shutil
+import math
 
 from .qm_processor import QmProc
 from .logging import setup_logger
 from .parallel import ParallelJob
-from .params import ENVIRON, ASSETS_PATH, WARNLEN
+from .params import ENVIRON, ASSETS_PATH, WARNLEN, R, AU2KCAL
 from .datastructure import GeometryData
+from .utilities import frange
 
 logger = setup_logger(__name__)
 
@@ -415,6 +417,14 @@ class TmProc(QmProc):
                jobdir: str) -> tuple[dict[str, any], dict[str, any]]:
         """
         Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+
+        Returns:
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
         """
         # what is returned in the end
         result = {
@@ -434,14 +444,37 @@ class TmProc(QmProc):
             # Run gas-phase sp
             spres, spmeta = self._sp(job, jobdir, no_solv=True)
 
+            if spmeta["success"]:
+                result["energy_gas"] = spres["energy"]
+            else:
+                meta["success"] = False
+                meta["error"] = spmeta["error"]
+                return result, meta
+
             # Run solution sp
             spres, spmeta = self._sp(job, jobdir)
 
+            if spmeta["success"]:
+                result["energy_solv"] = spres["energy"]
+            else:
+                meta["success"] = False
+                meta["error"] = spmeta["error"]
+                return result, meta
+
             # Calculate gsolv from energy difference
+            result["gsolv"] = result["energy_solv"] - result["energy_gas"]
+            meta["success"] = True
         else:
             # COSMORS procedure:
             # Run gas-phase sp with unaltered settings
             spres, spmeta = self._sp(job, jobdir, no_solv=True)
+
+            if spmeta["success"]:
+                result["energy_gas"] = spres["energy"]
+            else:
+                meta["success"] = False
+                meta["error"] = spmeta["error"]
+                return result, meta
 
             # Run gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
             job.prepinfo["sp"]["func_name"] = "b-p"
@@ -453,6 +486,11 @@ class TmProc(QmProc):
                 job.prepinfo["sp"]["basis"] = "def2-tzvp"
 
             spres, spmeta = self._sp(job, jobdir, no_solv=True)
+
+            if not spmeta["success"]:
+                meta["success"] = False
+                meta["error"] = spmeta["error"]
+                return result, meta
 
             # Run special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
             self.__prep(job, "sp", jobdir, no_solv=True)
@@ -471,9 +509,97 @@ class TmProc(QmProc):
             # Run sp
             spres, spmeta = self._sp(job, jobdir, prep=False)
 
+            if not spmeta["success"]:
+                meta["success"] = False
+                meta["error"] = spmeta["error"]
+                return result, meta
+
             # Prepare cosmotherm.inp
+            lines = [self._paths["cosmorssetup"] +
+                     "\n", "EFILE VPFILE\n", "!!\n"]
+            if job.prepinfo["sp"]["solvent_key_prog"] == "woctanol":
+                lines.extend(
+                    [f"f = h2o.cosmo fdir={self._paths['dbpath']} autoc\n",
+                     f"f = 1-octanol.cosmo fdir={self._paths['dbpath']} autoc\n"]
+                )
+                mix = "0.27 0.73"
+            else:
+                lines.append(
+                    f"f = {job.prepinfo['sp']['solvent_key_prog']}.cosmo"
+                    + f" fdir={self._paths['dbpath']} autoc\n"
+                )
+                mix = "1.0 0.0"
+
+            lines.append("f = out.cosmo\n")
+
+            if job.prepinfo["general"]["multitemp"]:
+                trange = frange(
+                    job.prepinfo["general"]["trange"][0],
+                    job.prepinfo["general"]["trange"][1],
+                    step=job.prepinfo["general"]["trange"][2],
+                )
+
+                # Always append the fixed temperature to the trange so that it is the last value
+                trange.append(job.prepinfo["general"]["temperature"])
+
+                # Write trange to the xcontrol file
+                for t in trange:
+                    lines.append(
+                        f"henry xh={{mix}} tc={t - 273.15} Gsolv\n")
+            else:
+                lines.append(
+                    f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n")
+
             # Run cosmotherm
-            # Add volume work
+            returncode, errors = self._make_call()
+
+            meta["success"] = returncode == 0
+            if not meta["success"]:
+                logger.warning(
+                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+                meta["error"] = "unknown_error"
+                return result, meta
+
+            # Read output
+            gsolvt = {}
+            videal = 24.789561955 / 298.15  # molar volume for ideal gas at 298.15 K 100.0 kPa
+
+            cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
+            with open(cosmothermtab, "r") as inp:
+                lines = inp.readlines()
+            for line in lines:
+                if "T=" in line:
+                    T = float(line.split()[5])
+
+                    # Add volume work
+                    vwork = R * T * math.log(videal * T)
+                elif " out " in line:
+                    # Add volume work
+                    gsolvt[T] = float(line.split()[-1]) / \
+                        AU2KCAL + vwork / AU2KCAL
+
+            result["gsolvt"] = gsolvt
+            result["gsolv"] = gsolvt[job.prepinfo["general"]["temperature"]]
+            result["energy_solv"] = result["energy_gas"] + result["gsolv"]
+
+            # cosmothermd
+            with open(os.path.join(jobdir, "cosmors.out"), "w",) as out:
+                T = job.prepinfo["general"]["temperature"]
+                vwork = R * T * math.log(videal * T)
+
+                out.writelines([
+                    "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
+                    "final thermochemical solvation properties in kcal/mol\n"
+                    "----------------------------------------------------------\n",
+                    " Gsolv({} K)= {:10.3f}\n".format(
+                        T, result["gsolv"] *
+                        AU2KCAL - vwork),
+                    " VWork({} K)= {:10.3f}\n".format(
+                        T, vwork),
+                    " Gsolv+VWork({} K)= {:10.3f}\n".format(
+                        # volwork already included!
+                        T, result["gsolv"] * AU2KCAL)
+                ])
 
         return result, meta
 
