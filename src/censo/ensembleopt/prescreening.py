@@ -41,54 +41,51 @@ class Prescreening(EnsembleOptimizer):
         """
         # set jobtype to pass to handler
         # TODO - it is not very nice to partially handle 'Screening' settings here
-        if self.get_general_settings()["gas-phase"] or self.get_settings().get(
-            "implicit", False
-        ):
-            # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
-            # Gsolv will still be included in the DFT energy though
+        if self.get_general_settings()["gas-phase"]:
             jobtype = ["sp"]
-        elif self.get_settings().get("sm", None) in [
-            "cosmors",
-            "cosmors-fine",
-        ] and self.get_settings().get("implicit", False):
-            # If cosmors is used as solvent model the gsolv calculation needs to be done explicitely
-            logger.warning(
-                "COSMORS detected as solvation model, this requires explicit calculation of ΔGsolv."
-            )
-            jobtype = ["gsolv"]
-        elif not self.get_settings().get("implicit", False) or self.get_settings().get(
-            "sm", None
-        ) in ["cosmors", "cosmors-fine"]:
+        elif self.get_settings().get("implicit", False):
+            if self.get_settings().get("sm", None) in [
+                "cosmors",
+                "cosmors-fine",
+            ]:
+                # If cosmors is used as solvent model the gsolv calculation needs to be done explicitely
+                logger.warning(
+                    "COSMORS detected as solvation model, this requires explicit calculation of ΔGsolv."
+                )
+                jobtype = ["gsolv"]
+            else:
+                # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
+                # Gsolv will still be included in the DFT energy though
+                jobtype = ["sp"]
+        elif not self.get_settings().get("implicit", False):
             # Only for prescreening the solvation should be calculated with xtb
             if self._name == "prescreening":
                 jobtype = ["xtb_gsolv"]
+
+                # Compile all information required for the preparation of input files in parallel execution step
+                prepinfo = self.setup_prepinfo(jobtype)
+
+                # compute results
+                # for structure of results from handler.execute look there
+                success, _, failed = execute(
+                    self.ensemble.conformers,
+                    self.dir,
+                    self.get_settings()["prog"],
+                    prepinfo,
+                    jobtype,
+                    copy_mo=self.get_general_settings()["copy_mo"],
+                    balance=self.get_general_settings()["balance"],
+                    omp=self.get_general_settings()["omp"],
+                    maxcores=ncores,
+                    retry_failed=self.get_general_settings()["retry_failed"],
+                )
+
+                # Remove failed conformers
+                self.ensemble.remove_conformers(failed)
+
+                jobtype = ["sp"]
             else:
                 jobtype = ["gsolv"]
-
-            # Compile all information required for the preparation of input files in parallel execution step
-            prepinfo = self.setup_prepinfo(jobtype)
-
-            # compute results
-            # for structure of results from handler.execute look there
-            success, _, failed = execute(
-                self.ensemble.conformers,
-                self.dir,
-                self.get_settings()["prog"],
-                prepinfo,
-                jobtype,
-                copy_mo=self.get_general_settings()["copy_mo"],
-                balance=self.get_general_settings()["balance"],
-                omp=self.get_general_settings()["omp"],
-                maxcores=ncores,
-                retry_failed=self.get_general_settings()["retry_failed"],
-            )
-
-            # Remove failed conformers
-            self.ensemble.remove_conformers(failed)
-
-            jobtype = ["sp"]
-        else:
-            jobtype = ["gsolv"]
 
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo(jobtype)

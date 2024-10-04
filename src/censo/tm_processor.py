@@ -171,7 +171,11 @@ class TmProc(QmProc):
             lines = f.readlines()
 
             self.__prep_main(lines, func, disp, func_type, basis)
-            if not no_solv and not job.prepinfo["general"]["gas-phase"]:
+            if (
+                not no_solv
+                and not job.prepinfo["general"]["gas-phase"]
+                and "sm" in job.prepinfo[jobtype]
+            ):
                 self.__prep_solv(lines, job.prepinfo, jobtype)
             self.__prep_special(lines, job.prepinfo, jobtype)
 
