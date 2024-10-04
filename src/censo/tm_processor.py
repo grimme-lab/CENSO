@@ -383,6 +383,9 @@ class TmProc(QmProc):
         # set in/out path
         outputpath = os.path.join(jobdir, "ridft.out")
 
+        if prep:
+            self.__prep(job, "sp", jobdir, no_solv=no_solv)
+
         # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
@@ -531,6 +534,7 @@ class TmProc(QmProc):
                 f.truncate()
 
             # Run sp
+            # TODO - is prep=False correct here?
             spres, spmeta = self._sp(job, jobdir, prep=False)
 
             if not spmeta["success"]:
@@ -704,10 +708,6 @@ class TmProc(QmProc):
         for file in files:
             if os.path.isfile(os.path.join(jobdir, file)):
                 os.remove(os.path.join(jobdir, file))
-
-        # write conformer geometry to coord file
-        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
 
         # prepare configuration file for ancopt (xcontrol file)
         with open(os.path.join(jobdir, xcontrolname), "w", newline=None) as out:
