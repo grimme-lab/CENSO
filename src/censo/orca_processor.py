@@ -1332,7 +1332,7 @@ class OrcaProc(QmProc):
              jobdir: str,
              filename: str = "nmr") -> tuple[dict[str, any], dict[str, any]]:
         """
-        Calculate the NMR shieldings and/or couplings for a conformer. ORCA gives only the active cores in the output
+        Calculate the NMR shieldings and/or couplings for a conformer using ORCA. ORCA gives only the active cores in the output
         so there is not need for more thinking here.
         Formatting:
             'shielding' contains a list of tuples (atom_index, shielding), with atom_index being the index of the atom

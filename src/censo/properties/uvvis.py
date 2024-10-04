@@ -24,7 +24,7 @@ class UVVis(CensoPart):
     _options = {
         "prog": {
             "default": "orca",
-            "options": PROGS
+            "options": ["orca"]
         },  # required
         "func": {
             "default": "wb97x-d4"

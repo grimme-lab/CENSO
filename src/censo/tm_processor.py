@@ -550,7 +550,7 @@ class TmProc(QmProc):
                 lines.append(
                     f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n")
 
-            # Run cosmotherm
+            # TODO - Run cosmotherm
             returncode, errors = self._make_call()
 
             meta["success"] = returncode == 0
@@ -822,8 +822,143 @@ class TmProc(QmProc):
         raise NotImplementedError(
             "Pure TURBOMOLE geometry optimization not available yet.")
 
-    def _nmr(self):
-        pass
+    def _nmr(self,
+             job: ParallelJob,
+             jobdir: str) -> tuple[dict[str, any], dict[str, any]]:
+        """
+        Calculate the NMR shieldings and/or couplings for a conformer using TURBOMOLE.
+        Formatting:
+            'shielding' contains a list of tuples (atom_index, shielding), with atom_index being the index of the atom
+            in the internal coordinates of the GeometryData.
+            'couplings' contains a list of tuples ((atom_index1, atom_index2), coupling), with the indices of the atoms
+            in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
+            to tuple to be serializable.
+
+        Args:
+            job: ParallelJob object containing the job information, metadata is stored in job.meta
+            jobdir: path to the job directory
+
+        Returns:
+            result (dict[str, any]): dictionary containing the results of the calculation
+            meta (dict[str, any]): metadata about the job
+        """
+        # Set results
+        result = {
+            "energy": None,
+            "shieldings": None,
+            "couplings": None,
+        }
+
+        meta = {
+            "success": None,
+            "error": None,
+        }
+
+        # Run sp first
+        spres, spmeta = self._sp(job, jobdir)
+
+        if not spmeta["success"]:
+            meta["success"] = False
+            meta["error"] = spmeta["error"]
+            return result, meta
+        
+        result["energy"] = spres["energy"]
+
+        # Run shielding calculations if requested
+        if "nmr_s" in job.prepinfo or "nmr" in job.prepinfo:
+            # Set in/out path
+            outputpath = os.path.join(jobdir, "mpshift.out")
+
+            call = [self._paths["mpshiftpath"], "-smpcpus", f"{job.omp}"]
+
+            # Run mpshift for shielding calculation
+            returncode, errors = self._make_call("tm", call, outputpath, jobdir)
+
+            meta["success"] = returncode == 0
+            if not meta["success"]:
+                logger.warning(
+                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+                meta["error"] = "unknown_error"
+                return result, meta
+
+            # Grab shieldings from the output
+            with open(outputpath, "r") as f:
+                lines = f.readlines()
+
+            start = lines.index(
+                next(x for x in lines
+                     if ">>>>> DFT MAGNETIC SHIELDINGS <<<<<" in x))
+
+            lines = lines[start:]
+
+            result["shieldings"] = []
+
+            # Get lines with "ATOM" in it
+            line_indices = [lines.index(l) for l in lines if "ATOM" in l]
+
+            for i in line_indices:
+                split = lines[i].split()
+                result["shieldings"].append((int(split[2]), float(split[4])))
+
+            # Sort shieldings by atom index
+            result["shieldings"].sort(key=lambda x: x[0])
+
+        # Run couplings calculation if requested
+        if "nmr_j" in job.prepinfo or "nmr" in job.prepinfo:
+            # Set in/out path
+            outputpath = os.path.join(jobdir, "escf.out")
+
+            call = [self._paths["escfpath"], "-smpcpus", f"{job.omp}"]
+
+            # Run escf for couplings calculation
+            returncode, errors = self._make_call("tm", call, outputpath, jobdir)
+
+            meta["success"] = returncode == 0
+            if not meta["success"]:
+                logger.warning(
+                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+                meta["error"] = "unknown_error"
+                return result, meta
+
+            # Grab couplings from the output
+            with open(outputpath, "r") as f:
+                lines = f.readlines()
+
+            start = lines.index(next(x for x in lines if "Nuclear coupling constants" in x)) + 3
+
+            lines = lines[start:]
+
+            end = lines.index(next(x for x in lines if "-----" in x))
+
+            lines = lines[:end]
+
+            result["couplings"] = []
+
+            line_indices = [lines.index(l) for l in lines if len(l.split()) in [6, 7]]
+
+            for i in line_indices:
+                # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
+                # of a normal set
+                split = lines[i].split()
+                pair = frozenset((int(split[1]), int(split[4].split(":")[0])))
+                coupling = float(split[5])
+                result["couplings"].append((pair, coupling))
+
+            # Convert to set and back to get rid of duplicates
+            # ('vectorizing the symmetric matrix')
+            result["couplings"] = list(set(result["couplings"]))
+
+            # Convert all the frozensets to a tuple to be serializable
+            for i in range(len(result["couplings"])):
+                result["couplings"][i] = (tuple(result["couplings"][i][0]),
+                                          result["couplings"][i][1])
+
+            # Sort couplings by pairs
+            result["couplings"].sort(key=lambda x: x[0])
+
+        meta["success"] = True
+
+        return result, meta
 
     def _rot(self):
         pass
