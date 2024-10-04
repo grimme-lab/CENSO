@@ -35,7 +35,6 @@ class CensoPart:
     """
 
     _options = {
-        "maxcores": {"default": 4},
         "omp": {"default": 4},
         "imagthr": {"default": -100.0},
         "sthr": {"default": 0.0},

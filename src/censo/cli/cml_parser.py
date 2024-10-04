@@ -530,9 +530,8 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if not check_soft_requirements(args):
         raise argparse.ArgumentError(
-            # None, "One of the soft requirements ('-inp', '-chrg', '-u') not met."
             None,
-            "You must provide an input file via '-inp'.",
+            "You must provide an input file via '-i' and provide number of cores via '--maxcores'.",
         )
 
     return args
