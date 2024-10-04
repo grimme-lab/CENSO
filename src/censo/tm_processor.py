@@ -281,7 +281,7 @@ class TmProc(QmProc):
         Copy the MO file(s) for TURBOMOLE (should be TM format).
         """
         if guess_file is not None:
-            if type(guess_file) is tuple:
+            if isinstance(guess_file, tuple):
                 # open shell guess
                 if all(os.path.isfile(f)
                        and any(g in f for g in ["alpha", "beta"])
@@ -707,7 +707,7 @@ class TmProc(QmProc):
         # check, if there is an existing .gbw file and copy it if option
         # 'copy_mo' is true
         if self.copy_mo:
-            self.__copy_mo(jobdir, filename, job.mo_guess)
+            self.__copy_mo(jobdir, job.mo_guess)
 
         # prepare xtb call
         call = [
