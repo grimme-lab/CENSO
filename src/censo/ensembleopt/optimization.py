@@ -434,11 +434,9 @@ class Optimization(EnsembleOptimizer):
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name][jobtype]['energy']:.6f}",
-            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name][jobtype]
-                ['energy'] - dftmin) * AU2KCAL:.2f}",
+            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf: (
-                f"{conf.results[self._name]['xtb_rrho']['gibbs']
-                [self.get_general_settings()['temperature']]:.6f}"
+                f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
