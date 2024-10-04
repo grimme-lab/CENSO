@@ -92,7 +92,6 @@ class TmProc(QmProc):
         """
         Prepares TURBOMOLE input files using cefine for a specified jobtype.
         """
-        # TODO - copy mo files
         func = job.prepinfo[jobtype]["func_name"]
         func_type = job.prepinfo[jobtype]["func_type"]
         basis = job.prepinfo[jobtype]["basis"]
@@ -550,8 +549,13 @@ class TmProc(QmProc):
                 lines.append(
                     f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n")
 
-            # TODO - Run cosmotherm
-            returncode, errors = self._make_call()
+            with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
+                f.writelines(lines)
+
+            # Run cosmotherm
+            outputpath = os.path.join(jobdir, "cosmotherm.out")
+            call = ["cosmotherm", "cosmotherm.inp"]
+            returncode, errors = self._make_call("tm", call, outputpath, jobdir)
 
             meta["success"] = returncode == 0
             if not meta["success"]:

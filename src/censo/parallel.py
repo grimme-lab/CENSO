@@ -8,9 +8,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from .datastructure import MoleculeData, ParallelJob
 from .logging import setup_logger
-from .params import OMPMAX, OMPMIN
+from .params import OMPMAX, OMPMIN, ENVIRON
 from .procfact import ProcessorFactory
 from .qm_processor import QmProc
+from .tm_processor import TmProc
 
 logger = setup_logger(__name__)
 
@@ -85,24 +86,33 @@ def execute(
             pass
 
     # set cores per process for each job
-    if balance:
+    # NOTE: since parallelization in tm is controlled using environment variables we cannot use automatic load balancing
+    if balance and not isinstance(processor, TmProc):
         set_omp_chunking(jobs)
     else:
         if omp < OMPMIN:
             logger.warning(
                 f"User OMP setting is below the minimum value of {OMPMIN}. Using {OMPMIN} instead."
             )
-            for job in jobs:
-                job.omp = OMPMIN
-        elif omp <= ncores:
-            for job in jobs:
-                job.omp = omp
-        else:
+            omp = OMPMIN
+        elif omp > ncores:
             logger.warning(
                 f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
             )
-            for job in jobs:
-                job.omp = ncores
+            omp = ncores
+
+        if isinstance(processor, TmProc):
+            if balance:
+                logger.warning(
+                    f"Automatic load balancing is not supported for TURBOMOLE. Using OMP = {omp} for all jobs instead."
+                )
+
+            # Configure environment variables
+            ENVIRON['PARA_ARCH'] = 'SMP'
+            ENVIRON['PARNODES'] = omp
+
+        for job in jobs:
+            job.omp = omp
 
     # execute the jobs
     jobs = dqp(jobs, processor)
