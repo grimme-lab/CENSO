@@ -111,7 +111,7 @@ def execute(
 
             # Configure environment variables
             ENVIRON["PARA_ARCH"] = "SMP"
-            ENVIRON["PARNODES"] = omp
+            ENVIRON["PARNODES"] = str(omp)
 
         for job in jobs:
             job.omp = omp

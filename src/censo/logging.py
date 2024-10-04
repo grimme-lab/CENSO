@@ -59,4 +59,4 @@ def set_loglevel(loglevel: str) -> None:
         None
     """
     global __loglevel
-    __loglevel = loglevel
+    __loglevel = getattr(logging, loglevel)
