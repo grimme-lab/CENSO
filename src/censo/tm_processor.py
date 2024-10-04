@@ -137,23 +137,19 @@ class TmProc(QmProc):
             call.extend(["-chrg", f"{job.prepinfo['charge']}"])
 
         # Call cefine
-        cefine_output = (
-            subprocess.check_output(
-                call,
-                shell=False,
-                text=True,
-                stdin=None,
-                stderr=subprocess.PIPE,
-                cwd=jobdir,
-                env=ENVIRON,
-            )
-            .decode("utf-8")
-            .splitlines()
+        cefine_output = subprocess.check_output(
+            call,
+            shell=False,
+            text=True,
+            stdin=None,
+            stderr=subprocess.PIPE,
+            cwd=jobdir,
+            env=ENVIRON,
         )
 
         # TODO - Check output for errors
+        """
         for line in cefine_output:
-            """
             if "define ended abnormally" in line:
                 self.job["success"] = False
                 broken = True
@@ -164,7 +160,7 @@ class TmProc(QmProc):
             elif "Could not find the beginning of the MO-eigenvalue data" in line:
                 self.job["success"] = False
                 broken = True
-            """
+        """
 
         # Write coord file
         with open(os.path.join(jobdir, "coord"), "w") as f:
@@ -745,7 +741,7 @@ class TmProc(QmProc):
 
         # prepare xtb call
         call = [
-            f"{filename}.coord",  # name of the coord file generated above
+            "coord",  # name of the coord file generated above
             "--opt",
             job.prepinfo["xtb_opt"]["optlevel"],
             "--tm",
