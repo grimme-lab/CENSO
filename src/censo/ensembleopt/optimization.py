@@ -383,8 +383,7 @@ class Optimization(EnsembleOptimizer):
                     if conf in self.confs_nc:
                         print(
                             f"{conf.name} is no longer considered (gradient too small and"
-                            f" ΔG = {(self.grrho(conf) - limit)
-                                     * AU2KCAL:.2f})."
+                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
                         )
                         self.confs_nc.remove(conf)
 
