@@ -1,13 +1,14 @@
 """
 Calculates the ensemble UV/Vis spectrum.
 """
+
 from functools import reduce
 import json
 import os
 
 from ..ensembledata import EnsembleData
 from ..parallel import execute
-from ..params import (SOLV_MODS, GFNOPTIONS)
+from ..params import SOLV_MODS, GFNOPTIONS
 from ..utilities import SolventHelper, DfaHelper, format_data, print
 from ..logging import setup_logger
 from .property_calculator import PropertyCalculator
@@ -18,39 +19,22 @@ logger = setup_logger(__name__)
 class UVVis(PropertyCalculator):
     _part_no = "6"
 
-    __solv_mods = tuple(t for t in reduce(lambda x, y: x + y, SOLV_MODS.values()) if t not in ("cosmors", "cosmors-fine"))
+    __solv_mods = tuple(
+        t
+        for t in reduce(lambda x, y: x + y, SOLV_MODS.values())
+        if t not in ("cosmors", "cosmors-fine")
+    )
 
     _options = {
-        "prog": {
-            "default": "orca",
-            "options": ["orca"]
-        },  # required
-        "func": {
-            "default": "wb97x-d4"
-        },
-        "basis": {
-            "default": "def2-TZVP"
-        },
-        "sm": {
-            "default": "smd",
-            "options": __solv_mods
-        },
-        "gfnv": {
-            "default": "gfn2",
-            "options": GFNOPTIONS
-        },
-        "nroots": {
-            "default": 20
-        },
-        "run": {
-            "default": False
-        },  # required
-        "template": {
-            "default": False
-        },  # required
-        "gcp": {
-            "default": True
-        },  # required
+        "prog": {"default": "orca", "options": ["orca"]},  # required
+        "func": {"default": "wb97x-d4"},
+        "basis": {"default": "def2-TZVP"},
+        "sm": {"default": "smd", "options": __solv_mods},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "nroots": {"default": 20},
+        "run": {"default": False},  # required
+        "template": {"default": False},  # required
+        "gcp": {"default": True},  # required
     }
 
     _settings = {}
@@ -101,31 +85,24 @@ class UVVis(PropertyCalculator):
         prepinfo["general"] = self.get_general_settings()
 
         prepinfo["uvvis"] = {
-            "func_name":
-            DfaHelper.get_name(self.get_settings()["func"],
-                               self.get_settings()["prog"]),
-            "func_type":
-            DfaHelper.get_type(self.get_settings()["func"]),
-            "disp":
-            DfaHelper.get_disp(self.get_settings()["func"]),
-            "basis":
-            self.get_settings()["basis"],
-            "grid":
-            "high+",  # hardcoded grid settings
-            "template":
-            self.get_settings()["template"],
+            "func_name": DfaHelper.get_name(
+                self.get_settings()["func"], self.get_settings()["prog"]
+            ),
+            "func_type": DfaHelper.get_type(self.get_settings()["func"]),
+            "disp": DfaHelper.get_disp(self.get_settings()["func"]),
+            "basis": self.get_settings()["basis"],
+            "grid": "high+",  # hardcoded grid settings
+            "template": self.get_settings()["template"],
             # while the other functional isn't
-            "gcp":
-            True,  # by default GCP should always be used if possible
-            "nroots":
-            self.get_settings()["nroots"],
+            "gcp": True,  # by default GCP should always be used if possible
+            "nroots": self.get_settings()["nroots"],
         }
         # Only look up solvent if solvation is used
         if not self.get_general_settings()["gas-phase"]:
             prepinfo["uvvis"]["sm"] = self.get_settings()["sm"]
             prepinfo["uvvis"]["solvent_key_prog"] = SolventHelper.get_solvent(
-                self.get_settings()["sm"],
-                self.get_general_settings()["solvent"])
+                self.get_settings()["sm"], self.get_general_settings()["solvent"]
+            )
             assert prepinfo["uvvis"]["solvent_key_prog"] is not None
 
         return prepinfo
@@ -163,18 +140,19 @@ class UVVis(PropertyCalculator):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{
-                                       self._name.upper()}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
         )
-        with open(os.path.join(self.ensemble.workdir,
-                               f"{self._part_no}_{self._name.upper()}.out"),
-                  "w",
-                  newline=None) as outfile:
+        with open(
+            os.path.join(
+                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}.out"
+            ),
+            "w",
+            newline=None,
+        ) as outfile:
             outfile.writelines(lines)
 
         # Dump data into json
-        with open(os.path.join(self.ensemble.workdir, "excitations.json"),
-                  "w") as f:
+        with open(os.path.join(self.ensemble.workdir, "excitations.json"), "w") as f:
             json.dump(eps, f, indent=4)
 
     def write_results(self) -> None:

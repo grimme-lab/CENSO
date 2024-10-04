@@ -29,17 +29,14 @@ def configure(rcpath: str = None, create_new: bool = False):
         censorc_path = find_rcfile()
     else:
         if not os.path.isfile(rcpath) and not create_new:
-            raise FileNotFoundError(
-                f"No configuration file found at {rcpath}.")
+            raise FileNotFoundError(f"No configuration file found at {rcpath}.")
         censorc_path = rcpath
 
     # Set up the DFAHelper
-    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH,
-                                        "censo_dfa_settings.json"))
+    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
 
     # Set up the SolventHelper
-    SolventHelper.set_solvent_dict(
-        os.path.join(ASSETS_PATH, "censo_solvents_db.json"))
+    SolventHelper.set_solvent_dict(os.path.join(ASSETS_PATH, "censo_solvents_db.json"))
 
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
@@ -62,8 +59,7 @@ def configure(rcpath: str = None, create_new: bool = False):
     if create_new:
         if rcpath is None:
             # If not chosen otherwise, the new rcfile is written in the home dir
-            censorc_path = os.path.join(os.path.expanduser("~"),
-                                        "censo2rc_NEW")
+            censorc_path = os.path.join(os.path.expanduser("~"), "censo2rc_NEW")
         else:
             censorc_path = os.path.join(rcpath, "censo2rc_NEW")
         write_rcfile(censorc_path)
@@ -119,17 +115,14 @@ def read_rcfile(path: str, silent: bool = True) -> dict[str, dict[str, any]]:
     with open(path, "r") as file:
         parser.read_file(file)
 
-    returndict = {
-        section: dict(parser[section])
-        for section in parser.sections()
-    }
+    returndict = {section: dict(parser[section]) for section in parser.sections()}
     return returndict
 
 
 def write_rcfile(path: str) -> None:
     """
     Write new configuration file with default settings into file at 'path'.
-    Also reads program paths from preexisting configuration file or tries to 
+    Also reads program paths from preexisting configuration file or tries to
     determine the paths automatically.
 
     Args:
@@ -160,13 +153,15 @@ def write_rcfile(path: str) -> None:
         from .part import CensoPart
 
         parts["general"] = CensoPart
-        parser.read_dict({
-            partname: {
-                settingname: setting["default"]
-                for settingname, setting in part.get_options().items()
+        parser.read_dict(
+            {
+                partname: {
+                    settingname: setting["default"]
+                    for settingname, setting in part.get_options().items()
+                }
+                for partname, part in parts.items()
             }
-            for partname, part in parts.items()
-        })
+        )
 
         # Try to get paths from 'which'
         if external_paths is None:
@@ -181,12 +176,14 @@ def write_rcfile(path: str) -> None:
     print(
         f"\nA new configuration file was written into {path}.\n"
         "You should adjust the settings to your needs and set the program paths.\n"
-        "Right now the settings are at their default values.\n")
+        "Right now the settings are at their default values.\n"
+    )
 
     if CENSORCNAME not in path:
         print(
             f"Additionally make sure that the file name is '{CENSORCNAME}'.\n"
-            f"Currently it is '{os.path.split(path)[-1]}'.\n")
+            f"Currently it is '{os.path.split(path)[-1]}'.\n"
+        )
 
 
 def read_program_paths(path: str) -> dict[str, str] | None:
@@ -235,8 +232,9 @@ def find_program_paths() -> dict[str, str]:
     # if orca was found try to determine orca version from the path (kinda hacky)
     if paths["orcapath"] != "":
         try:
-            paths["orcaversion"] = (paths["orcapath"].split(
-                os.sep)[-2][5:10].replace("_", "."))
+            paths["orcaversion"] = (
+                paths["orcapath"].split(os.sep)[-2][5:10].replace("_", ".")
+            )
         except Exception:
             paths["orcaversion"] = ""
 

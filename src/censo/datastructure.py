@@ -33,10 +33,7 @@ class GeometryData:
         for line in xyz:
             spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
-            self.xyz.append({
-                "element": element,
-                "xyz": [float(i) for i in spl[1:]]
-            })
+            self.xyz.append({"element": element, "xyz": [float(i) for i in spl[1:]]})
 
         # Count atoms
         self.nat: int = len(self.xyz)
@@ -60,8 +57,10 @@ class GeometryData:
             coord.append(
                 reduce(
                     lambda x, y: f"{x} {y}",
-                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"])) +
-                    [f"{atom['element']}\n"]))
+                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"]))
+                    + [f"{atom['element']}\n"],
+                )
+            )
 
         coord.append("$end\n")
 
@@ -109,8 +108,7 @@ class GeometryData:
         ]
         for atom in self.xyz:
             lines.append(
-                f"{atom['element']} {atom['xyz'][0]:.10f} {
-                    atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
+                f"{atom['element']} {atom['xyz'][0]:.10f} {atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
             )
 
         return lines
@@ -188,7 +186,7 @@ class ParallelJob:
             "general": {},
             "partname": "",
             "charge": 0,
-            "unpaired": 0
+            "unpaired": 0,
         }
 
         # store metadata, is updated by the processor

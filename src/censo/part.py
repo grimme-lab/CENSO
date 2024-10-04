@@ -35,61 +35,24 @@ class CensoPart:
     """
 
     _options = {
-        "maxcores": {
-            "default": 4
-        },
-        "omp": {
-            "default": 4
-        },
-        "imagthr": {
-            "default": -100.0
-        },
-        "sthr": {
-            "default": 0.0
-        },
-        "scale": {
-            "default": 1.0
-        },
-        "temperature": {
-            "default": 298.15
-        },
-        "solvent": {
-            "default": "h2o"
-        },
-        "sm_rrho": {
-            "default": "alpb",
-            "options": ["alpb", "gbsa"]
-        },
-        "multitemp": {
-            "default": True
-        },
-        "evaluate_rrho": {
-            "default": True
-        },
-        "consider_sym": {
-            "default": True
-        },
-        "bhess": {
-            "default": True
-        },
-        "rmsdbias": {
-            "default": False
-        },
-        "balance": {
-            "default": True
-        },
-        "gas-phase": {
-            "default": False
-        },
-        "copy_mo": {
-            "default": True
-        },
-        "retry_failed": {
-            "default": True
-        },
-        "trange": {
-            "default": [273.15, 373.15, 5]
-        },
+        "maxcores": {"default": 4},
+        "omp": {"default": 4},
+        "imagthr": {"default": -100.0},
+        "sthr": {"default": 0.0},
+        "scale": {"default": 1.0},
+        "temperature": {"default": 298.15},
+        "solvent": {"default": "h2o"},
+        "sm_rrho": {"default": "alpb", "options": ["alpb", "gbsa"]},
+        "multitemp": {"default": True},
+        "evaluate_rrho": {"default": True},
+        "consider_sym": {"default": True},
+        "bhess": {"default": True},
+        "rmsdbias": {"default": False},
+        "balance": {"default": True},
+        "gas-phase": {"default": False},
+        "copy_mo": {"default": True},
+        "retry_failed": {"default": True},
+        "trange": {"default": [273.15, 373.15, 5]},
     }
 
     _settings = {}
@@ -99,8 +62,7 @@ class CensoPart:
     _part_no = "NaN"
 
     @staticmethod
-    def set_general_settings(settings: dict[str, any],
-                             complete: bool = True) -> None:
+    def set_general_settings(settings: dict[str, any], complete: bool = True) -> None:
         """
         Set all general settings according to a settings dictionary. Will validate the dictionary and complete it
         if complete = True.
@@ -230,13 +192,11 @@ class CensoPart:
             if not isinstance(tovalidate[setting_name], setting_type):
                 try:
                     if setting_type == bool:
-                        setting_value = {
-                            "True": True,
-                            "False": False
-                        }.get(tovalidate[setting_name])
+                        setting_value = {"True": True, "False": False}.get(
+                            tovalidate[setting_name]
+                        )
                     elif setting_type == list:
-                        setting_value = ast.literal_eval(
-                            tovalidate[setting_name])
+                        setting_value = ast.literal_eval(tovalidate[setting_name])
                     else:
                         setting_value = setting_type(tovalidate[setting_name])
                 # if that's not possible raise an exception
@@ -261,18 +221,21 @@ class CensoPart:
                     if setting_value not in options and len(options) > 0:
                         # This is fatal so an exception is raised
                         raise ValueError(
-                            f"Value '{
-                                setting_value}' is not allowed for setting "
-                            +
-                            f"'{setting_name}' in part of type '{cls.__name__}'.")
+                            f"Value '{setting_value}' is not allowed for setting "
+                            + f"'{setting_name}' in part of type '{cls.__name__}'."
+                        )
 
                     # Further checks for special cases, e.g. sm/prog compatibility
                     if "sm" in setting_name and "prog" in cls._options.keys():
-                        prog = tovalidate.get(
-                            "prog", None) or cls._settings.get("prog", None)
+                        prog = tovalidate.get("prog", None) or cls._settings.get(
+                            "prog", None
+                        )
 
                         # sm/prog compatibility check, should not throw unwanted errors
-                        if ("cosmo" in setting_value and prog != "tm") or (any(sm in setting_value for sm in ["smd", "cpcm"]) and prog != "orca"):
+                        if ("cosmo" in setting_value and prog != "tm") or (
+                            any(sm in setting_value for sm in ["smd", "cpcm"])
+                            and prog != "orca"
+                        ):
                             raise ValueError(
                                 f"Value '{setting_value}' is not allowed for "
                                 + f"'{setting_name}' while using prog: "
@@ -305,17 +268,16 @@ class CensoPart:
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(self.ensemble.workdir,
-                                    f"{self._part_no}_{self._name.upper()}")
+            self.dir = os.path.join(
+                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}"
+            )
             if os.path.isdir(self.dir):
                 global logger
                 # logger.warning(
                 #    f"Folder {self.dir} already exists. Potentially overwriting files."
                 # )
-            elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(
-                    self.dir):
-                raise RuntimeError(
-                    f"Could not create directory for {self._name}.")
+            elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
+                raise RuntimeError(f"Could not create directory for {self._name}.")
 
             return runner(self, *args, **kwargs)
 
@@ -373,10 +335,8 @@ class CensoPart:
             None
         """
         results = {
-            conf.name: conf.results[self._name]
-            for conf in self.ensemble.conformers
+            conf.name: conf.results[self._name] for conf in self.ensemble.conformers
         }
         filename = f"{self._part_no}_{self._name.upper()}.json"
-        with open(os.path.join(self.ensemble.workdir, filename),
-                  "w") as outfile:
+        with open(os.path.join(self.ensemble.workdir, filename), "w") as outfile:
             json.dump(results, outfile, indent=4)

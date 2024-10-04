@@ -1,6 +1,7 @@
 """
 Contains boilerplate class for calculating ensemble properties.
 """
+
 from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..part import CensoPart
@@ -15,6 +16,7 @@ class PropertyCalculator(CensoPart):
     """
     Boilerplate class for all property calculations.
     """
+
     _grid = ""
 
     def __init__(self, ensemble: EnsembleData):
@@ -40,7 +42,8 @@ class PropertyCalculator(CensoPart):
 
         # Calculate Boltzmann populations
         self.ensemble.calc_boltzmannweights(
-            self.get_general_settings()["temperature"], self._name)
+            self.get_general_settings()["temperature"], self._name
+        )
 
         # Perform the property calculations
         self.property(ncores)
@@ -67,10 +70,10 @@ class PropertyCalculator(CensoPart):
         }
         # Only lookup solvent if solvation should be used
         if not self.get_general_settings()["gas-phase"]:
-            prepinfo["xtb_rrho"][
-                "solvent_key_xtb"] = SolventHelper.get_solvent(
-                    self.get_general_settings()["sm_rrho"],
-                    self.get_general_settings()["solvent"])
+            prepinfo["xtb_rrho"]["solvent_key_xtb"] = SolventHelper.get_solvent(
+                self.get_general_settings()["sm_rrho"],
+                self.get_general_settings()["solvent"],
+            )
             assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         return prepinfo
@@ -84,12 +87,11 @@ class PropertyCalculator(CensoPart):
         If None of these are found, raise RuntimeError.
         """
         using_part = None
-        for partname in [
-                "prescreening", "screening", "optimization", "refinement"
-        ]:
+        for partname in ["prescreening", "screening", "optimization", "refinement"]:
             # This way, the most high-level partname should get stuck in using_part
-            if all(partname in conf.results.keys()
-                   for conf in self.ensemble.conformers):
+            if all(
+                partname in conf.results.keys() for conf in self.ensemble.conformers
+            ):
                 using_part = partname
 
         if using_part is None:
@@ -100,36 +102,46 @@ class PropertyCalculator(CensoPart):
         if using_part == "optimization":
             for conf in self.ensemble.conformers:
                 conf.results[self._name]["energy"] = conf.results[using_part][
-                    "xtb_opt"]["energy"]
+                    "xtb_opt"
+                ]["energy"]
                 conf.results[self._name]["gsolv"] = 0.0
-                conf.results[
-                    self._name]["grrho"] = conf.results[using_part].get(
-                        "xtb_rrho", {"energy": 0.0})["energy"]
+                conf.results[self._name]["grrho"] = conf.results[using_part].get(
+                    "xtb_rrho", {"energy": 0.0}
+                )["energy"]
         elif using_part in ["screening", "refinement"]:
-            if all("gsolv" in conf.results[using_part].keys()
-                   for conf in self.ensemble.conformers):
+            if all(
+                "gsolv" in conf.results[using_part].keys()
+                for conf in self.ensemble.conformers
+            ):
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[
-                        using_part]["gsolv"]["energy_gas"]
-                    conf.results[self._name]["gsolv"] = conf.results[
-                        using_part]["gsolv"]["gsolv"]
-                    conf.results[
-                        self._name]["grrho"] = conf.results[using_part].get(
-                            "xtb_rrho", {"energy": 0.0})["energy"]
+                    conf.results[self._name]["energy"] = conf.results[using_part][
+                        "gsolv"
+                    ]["energy_gas"]
+                    conf.results[self._name]["gsolv"] = conf.results[using_part][
+                        "gsolv"
+                    ]["gsolv"]
+                    conf.results[self._name]["grrho"] = conf.results[using_part].get(
+                        "xtb_rrho", {"energy": 0.0}
+                    )["energy"]
             else:
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[
-                        using_part]["sp"]["energy"]
+                    conf.results[self._name]["energy"] = conf.results[using_part]["sp"][
+                        "energy"
+                    ]
                     conf.results[self._name]["gsolv"] = 0.0
-                    conf.results[
-                        self._name]["grrho"] = conf.results[using_part].get(
-                            "xtb_rrho", {"energy": 0.0})["energy"]
+                    conf.results[self._name]["grrho"] = conf.results[using_part].get(
+                        "xtb_rrho", {"energy": 0.0}
+                    )["energy"]
         elif using_part == "prescreening":
-            if all("xtb_gsolv" in conf.results[using_part].keys()
-                   for conf in self.ensemble.conformers):
+            if all(
+                "xtb_gsolv" in conf.results[using_part].keys()
+                for conf in self.ensemble.conformers
+            ):
                 for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[
-                        using_part]["sp"]["energy"]
-                    conf.results[self._name]["gsolv"] = conf.results[
-                        using_part]["xtb_gsolv"]["gsolv"]
+                    conf.results[self._name]["energy"] = conf.results[using_part]["sp"][
+                        "energy"
+                    ]
+                    conf.results[self._name]["gsolv"] = conf.results[using_part][
+                        "xtb_gsolv"
+                    ]["gsolv"]
                     conf.results[self._name]["grrho"] = 0.0

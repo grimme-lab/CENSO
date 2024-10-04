@@ -1,6 +1,7 @@
 """
 Contains TmProc class for calculating TURBOMOLE related properties of conformers.
 """
+
 import subprocess
 import os
 import shutil
@@ -20,6 +21,7 @@ class TmProc(QmProc):
     """
     Performs calculations using TURBOMOLE.
     """
+
     _progname = "tm"
 
     __gridsettings = {
@@ -62,7 +64,7 @@ class TmProc(QmProc):
         "phenol": 8.0,
         "thf": 7.6,
         "toluene": 2.4,
-        "woctanol": 8.1
+        "woctanol": 8.1,
     }
 
     def __init__(self, *args, **kwargs):
@@ -84,11 +86,9 @@ class TmProc(QmProc):
         # Stores setting wether to copy MO-files for faster SCFs
         self.copy_mo: bool = False
 
-    def __prep(self,
-               job: ParallelJob,
-               jobtype: str,
-               jobdir: str,
-               no_solv: bool = False) -> None:
+    def __prep(
+        self, job: ParallelJob, jobtype: str, jobdir: str, no_solv: bool = False
+    ) -> None:
         """
         Prepares TURBOMOLE input files using cefine for a specified jobtype.
         """
@@ -99,8 +99,14 @@ class TmProc(QmProc):
 
         # Set up basic cefine call
         call = [
-            self._paths["cefinepath"], "-func", func, "-bas", basis, "-sym",
-            "c1", "-noopt"
+            self._paths["cefinepath"],
+            "-func",
+            func,
+            "-bas",
+            basis,
+            "-sym",
+            "c1",
+            "-noopt",
         ]
 
         # Configure grid
@@ -131,15 +137,19 @@ class TmProc(QmProc):
             call.extend(["-chrg", f"{job.prepinfo['charge']}"])
 
         # Call cefine
-        cefine_output = subprocess.check_output(
-            call,
-            shell=False,
-            text=True,
-            stdin=None,
-            stderr=subprocess.PIPE,
-            cwd=jobdir,
-            env=ENVIRON,
-        ).decode("utf-8").splitlines()
+        cefine_output = (
+            subprocess.check_output(
+                call,
+                shell=False,
+                text=True,
+                stdin=None,
+                stderr=subprocess.PIPE,
+                cwd=jobdir,
+                env=ENVIRON,
+            )
+            .decode("utf-8")
+            .splitlines()
+        )
 
         # TODO - Check output for errors
         for line in cefine_output:
@@ -173,20 +183,18 @@ class TmProc(QmProc):
             f.writelines(lines)
             f.truncate()  # Truncate in case the content is shorter than before
 
-    def __prep_main(self, lines: list[str], func: str, disp: str,
-                    func_type: str, basis: str):
+    def __prep_main(
+        self, lines: list[str], func: str, disp: str, func_type: str, basis: str
+    ):
         # Special treatment for KT1/KT2
         if "kt" in func:
-            func_line_index = next(
-                lines.index(l) for l in lines if "functional" in l)
+            func_line_index = next(lines.index(l) for l in lines if "functional" in l)
             lines[func_line_index] = "   functional xcfun set-gga\n"
-            lines.insert(func_line_index + 1,
-                         f"   functional xcfun kt{func[2]} 1.0\n")
+            lines.insert(func_line_index + 1, f"   functional xcfun kt{func[2]} 1.0\n")
         # Special treatment for b97-3c
         elif func == "b97-3c":
             # Needs three-body dispersion
-            disp_line_index = next(
-                lines.index(l) for l in lines if "disp" in l)
+            disp_line_index = next(lines.index(l) for l in lines if "disp" in l)
             lines[disp_line_index] = "$disp3 -bj -abc\n"
 
         # Enable non local dispersion
@@ -198,38 +206,44 @@ class TmProc(QmProc):
             if basis.lower() == "def2-sv(p)":
                 lines.insert(-1, "$gcp dft/sv(p)\n")
             else:
-                lines.insert(-1,
-                             f"$gcp dft/{basis.lower().replace('-', '')}\n")
+                lines.insert(-1, f"$gcp dft/{basis.lower().replace('-', '')}\n")
 
-    def __prep_solv(self, lines: list[str], prepinfo: dict[str, any],
-                    jobtype: str):
+    def __prep_solv(self, lines: list[str], prepinfo: dict[str, any], jobtype: str):
         lines.insert(-1, "$cosmo\n")
 
         # write DC in any case
-        lines.insert(-1,
-                     f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent']]}")
+        lines.insert(-1, f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent']]}")
 
         if prepinfo[jobtype]["sm"] == "dcosmors":
             # if using dcosmors also add the potential file path
             # NOTE: the value for solvent should never be None
             # (should be prevented in setup_prepinfo functions, as e.g. in optimizer.py)
-            if prepinfo[jobtype]["solvent"] not in ["woctanol", "hexadecane", "octanol"]:
-                lines.insert(-1,
-                             f"$dcosmo_rs file={prepinfo[jobtype]['solvent']}_25.pot")
+            if prepinfo[jobtype]["solvent"] not in [
+                "woctanol",
+                "hexadecane",
+                "octanol",
+            ]:
+                lines.insert(
+                    -1, f"$dcosmo_rs file={prepinfo[jobtype]['solvent']}_25.pot"
+                )
             else:
                 # The three solvents above are specifically defined in the assets
                 # TODO - this opens the possibility to insert your own potential files
-                lines.insert(-1,
-                             f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent'])}_25.pot")
+                lines.insert(
+                    -1,
+                    f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent'])}_25.pot",
+                )
 
         if jobtype == "rot":
             lines[-1:-1] = [
-                " cavity closed\n", " use_contcav\n", " nspa=272\n",
-                " nsph=162\n", "$cosmo_isorad\n"
+                " cavity closed\n",
+                " use_contcav\n",
+                " nspa=272\n",
+                " nsph=162\n",
+                "$cosmo_isorad\n",
             ]
 
-    def __prep_special(self, lines: list[str], prepinfo: dict[str, any],
-                       jobtype: str):
+    def __prep_special(self, lines: list[str], prepinfo: dict[str, any], jobtype: str):
         # Set NMR parameters
         if "nmr" in jobtype:
             # Determine the settings that need to be put into the input file for the NMR calculation
@@ -242,12 +256,10 @@ class TmProc(QmProc):
             }
 
             todo = [
-                element for element, active in active_elements_map.items()
-                if active
+                element for element, active in active_elements_map.items() if active
             ]
 
-            rpacor_line_index = next(
-                lines.index(l) for l in lines if "rpacor" in l)
+            rpacor_line_index = next(lines.index(l) for l in lines if "rpacor" in l)
             rpacor = float(lines[rpacor_line_index].split()[-1])
             rpacor = rpacor if rpacor > 10000 else 10000
             lines[rpacor_line_index] = f"$rpacor {rpacor}\n"
@@ -258,7 +270,7 @@ class TmProc(QmProc):
             if not all(element in todo for element in active_elements_map):
                 lines[-1:-1] = [
                     "$nucsel " + " ".join(todo) + "\n",
-                    "$nucsel2 " + " ".join(todo) + "\n"
+                    "$nucsel2 " + " ".join(todo) + "\n",
                 ]
 
             lines.insert(-1, "$rpaconv 8\n")
@@ -282,30 +294,33 @@ class TmProc(QmProc):
         if guess_file is not None:
             if isinstance(guess_file, tuple):
                 # open shell guess
-                if all(os.path.isfile(f)
-                       and any(g in f for g in ["alpha", "beta"])
-                       and not any(os.path.join(jobdir, g) == guess_file for g in ["alpha", "beta"]) for f in guess_file):
+                if all(
+                    os.path.isfile(f)
+                    and any(g in f for g in ["alpha", "beta"])
+                    and not any(
+                        os.path.join(jobdir, g) == guess_file for g in ["alpha", "beta"]
+                    )
+                    for f in guess_file
+                ):
                     # All MO files found and not already in dir
                     # Copy MO files
                     for g in ["alpha", "beta"]:
                         logger.debug(
-                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {
-                                guess_file}."
+                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {guess_file}."
                         )
-                        shutil.copy(guess_file,
-                                    os.path.join(jobdir, g))
+                        shutil.copy(guess_file, os.path.join(jobdir, g))
             else:
                 # closed shell guess
-                if (os.path.isfile(guess_file)
+                if (
+                    os.path.isfile(guess_file)
                     and os.path.split(guess_file)[1] == "mos"
-                        and os.path.join(jobdir, "mos") != guess_file):
+                    and os.path.join(jobdir, "mos") != guess_file
+                ):
                     # Copy MO file
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying mos file from {
-                            guess_file}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying mos file from {guess_file}."
                     )
-                    shutil.copy(guess_file,
-                                os.path.join(jobdir, "mos"))
+                    shutil.copy(guess_file, os.path.join(jobdir, "mos"))
 
     @staticmethod
     def __check_output(lines: list[str]) -> str | None:
@@ -380,40 +395,43 @@ class TmProc(QmProc):
 
         meta["success"] = returncode == 0
         if not meta["success"]:
-            logger.warning(
-                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         with open(outputpath, "r") as f:
             lines = f.readlines()
 
         # Get final energy
         result["energy"] = next(
-            (float(line.split()[4])
-             for line in lines if "|  total energy      = " in line),
+            (
+                float(line.split()[4])
+                for line in lines
+                if "|  total energy      = " in line
+            ),
             None,
         )
 
         # Check for errors in the output file in case returncode is 0
         if meta["success"]:
             meta["error"] = self.__check_output(lines)
-            meta["success"] = meta["error"] is None and result[
-                "energy"] is not None
+            meta["success"] = meta["error"] is None and result["energy"] is not None
         else:
-            meta["error"] = self.__returncode_to_err.get(
-                returncode, "unknown_error")
+            meta["error"] = self.__returncode_to_err.get(returncode, "unknown_error")
 
         if self.copy_mo:
             # store the path to the current MO file(s) for this conformer if possible
             if os.path.isfile(os.path.join(jobdir, "mos")):
                 meta["mo_path"] = os.path.join(jobdir, "mos")
             elif os.path.isfile(os.path.join(jobdir, "alpha")):
-                meta["mo_path"] = (os.path.join(
-                    jobdir, "alpha"), os.path.join(jobdir, "beta"))
+                meta["mo_path"] = (
+                    os.path.join(jobdir, "alpha"),
+                    os.path.join(jobdir, "beta"),
+                )
 
         return result, meta
 
-    def _gsolv(self, job: ParallelJob,
-               jobdir: str) -> tuple[dict[str, any], dict[str, any]]:
+    def _gsolv(
+        self, job: ParallelJob, jobdir: str
+    ) -> tuple[dict[str, any], dict[str, any]]:
         """
         Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
 
@@ -498,8 +516,15 @@ class TmProc(QmProc):
             with open(os.path.join(jobdir, "control"), "r+") as f:
                 lines = f.readlines()
 
-                lines[-1:-1] = ["$cosmo\n", " epsilon=infinity\n", " use_contcav\n",
-                                " cavity closed\n", " nspa=272\n", " nsph=162\n", "$cosmo_out  file=out.cosmo\n"]
+                lines[-1:-1] = [
+                    "$cosmo\n",
+                    " epsilon=infinity\n",
+                    " use_contcav\n",
+                    " cavity closed\n",
+                    " nspa=272\n",
+                    " nsph=162\n",
+                    "$cosmo_out  file=out.cosmo\n",
+                ]
 
                 f.seek(0)
                 f.writelines(lines)
@@ -514,12 +539,13 @@ class TmProc(QmProc):
                 return result, meta
 
             # Prepare cosmotherm.inp
-            lines = [self._paths["cosmorssetup"] +
-                     "\n", "EFILE VPFILE\n", "!!\n"]
+            lines = [self._paths["cosmorssetup"] + "\n", "EFILE VPFILE\n", "!!\n"]
             if job.prepinfo["sp"]["solvent_key_prog"] == "woctanol":
                 lines.extend(
-                    [f"f = h2o.cosmo fdir={self._paths['dbpath']} autoc\n",
-                     f"f = 1-octanol.cosmo fdir={self._paths['dbpath']} autoc\n"]
+                    [
+                        f"f = h2o.cosmo fdir={self._paths['dbpath']} autoc\n",
+                        f"f = 1-octanol.cosmo fdir={self._paths['dbpath']} autoc\n",
+                    ]
                 )
                 mix = "0.27 0.73"
             else:
@@ -543,11 +569,11 @@ class TmProc(QmProc):
 
                 # Write trange to the xcontrol file
                 for t in trange:
-                    lines.append(
-                        f"henry xh={{mix}} tc={t - 273.15} Gsolv\n")
+                    lines.append(f"henry xh={{mix}} tc={t - 273.15} Gsolv\n")
             else:
                 lines.append(
-                    f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n")
+                    f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
+                )
 
             with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
                 f.writelines(lines)
@@ -560,13 +586,16 @@ class TmProc(QmProc):
             meta["success"] = returncode == 0
             if not meta["success"]:
                 logger.warning(
-                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}"
+                )
                 meta["error"] = "unknown_error"
                 return result, meta
 
             # Read output
             gsolvt = {}
-            videal = 24.789561955 / 298.15  # molar volume for ideal gas at 298.15 K 100.0 kPa
+            videal = (
+                24.789561955 / 298.15
+            )  # molar volume for ideal gas at 298.15 K 100.0 kPa
 
             cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
             with open(cosmothermtab, "r") as inp:
@@ -579,39 +608,42 @@ class TmProc(QmProc):
                     vwork = R * T * math.log(videal * T)
                 elif " out " in line:
                     # Add volume work
-                    gsolvt[T] = float(line.split()[-1]) / \
-                        AU2KCAL + vwork / AU2KCAL
+                    gsolvt[T] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
 
             result["gsolvt"] = gsolvt
             result["gsolv"] = gsolvt[job.prepinfo["general"]["temperature"]]
             result["energy_solv"] = result["energy_gas"] + result["gsolv"]
 
             # cosmothermd
-            with open(os.path.join(jobdir, "cosmors.out"), "w",) as out:
+            with open(
+                os.path.join(jobdir, "cosmors.out"),
+                "w",
+            ) as out:
                 T = job.prepinfo["general"]["temperature"]
                 vwork = R * T * math.log(videal * T)
 
-                out.writelines([
-                    "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
-                    "final thermochemical solvation properties in kcal/mol\n"
-                    "----------------------------------------------------------\n",
-                    " Gsolv({} K)= {:10.3f}\n".format(
-                        T, result["gsolv"] *
-                        AU2KCAL - vwork),
-                    " VWork({} K)= {:10.3f}\n".format(
-                        T, vwork),
-                    " Gsolv+VWork({} K)= {:10.3f}\n".format(
-                        # volwork already included!
-                        T, result["gsolv"] * AU2KCAL)
-                ])
+                out.writelines(
+                    [
+                        "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
+                        "final thermochemical solvation properties in kcal/mol\n"
+                        "----------------------------------------------------------\n",
+                        " Gsolv({} K)= {:10.3f}\n".format(
+                            T, result["gsolv"] * AU2KCAL - vwork
+                        ),
+                        " VWork({} K)= {:10.3f}\n".format(T, vwork),
+                        " Gsolv+VWork({} K)= {:10.3f}\n".format(
+                            # volwork already included!
+                            T,
+                            result["gsolv"] * AU2KCAL,
+                        ),
+                    ]
+                )
 
         return result, meta
 
-    def _xtb_opt(self,
-                 job: ParallelJob,
-                 jobdir: str,
-                 filename: str = "xtb_opt"
-                 ) -> tuple[dict[str, any], dict[str, any]]:
+    def _xtb_opt(
+        self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt"
+    ) -> tuple[dict[str, any], dict[str, any]]:
         """
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
@@ -674,30 +706,28 @@ class TmProc(QmProc):
                 os.remove(os.path.join(jobdir, file))
 
         # write conformer geometry to coord file
-        with open(os.path.join(jobdir, f"{filename}.coord"), "w",
-                  newline=None) as file:
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
             file.writelines(job.conf.tocoord())
 
         # prepare configuration file for ancopt (xcontrol file)
-        with open(os.path.join(jobdir, xcontrolname), "w",
-                  newline=None) as out:
+        with open(os.path.join(jobdir, xcontrolname), "w", newline=None) as out:
             out.write("$opt \n")
             if job.prepinfo["xtb_opt"]["macrocycles"]:
-                out.write(
-                    f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
-                out.write(
-                    f"microcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
+                out.write(f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
+                out.write(f"microcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
 
-            out.writelines([
-                "average conv=true \n",
-                f"hlow={job.prepinfo['xtb_opt']['hlow']} \n",
-                "s6=30.00 \n",
-                # remove unnecessary sp/gradient call in xTB
-                "engine=lbfgs\n",
-                "$external\n",
-                f"   orca input file= {filename}.inp\n",
-                f"   orca bin= {self._paths['orcapath']} \n",
-            ])
+            out.writelines(
+                [
+                    "average conv=true \n",
+                    f"hlow={job.prepinfo['xtb_opt']['hlow']} \n",
+                    "s6=30.00 \n",
+                    # remove unnecessary sp/gradient call in xTB
+                    "engine=lbfgs\n",
+                    "$external\n",
+                    f"   orca input file= {filename}.inp\n",
+                    f"   orca bin= {self._paths['orcapath']} \n",
+                ]
+            )
 
             # Import constraints
             if job.prepinfo["xtb_opt"]["constraints"] is not None:
@@ -734,8 +764,7 @@ class TmProc(QmProc):
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "unknown_error"
-            logger.warning(
-                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             # TODO - the xtb returncodes should be handled
             return result, meta
 
@@ -755,19 +784,26 @@ class TmProc(QmProc):
 
         # Check if xtb terminated normally (if there are any error indicators
         # in the output)
-        meta["success"] = (False if next((x for x in lines if any(
-            y in x for y in error_ind)), None) is not None else True)
+        meta["success"] = (
+            False
+            if next((x for x in lines if any(y in x for y in error_ind)), None)
+            is not None
+            else True
+        )
         if not meta["success"]:
             meta["error"] = "unknown_error"
             return result, meta
 
         # check convergence
-        if (next(
-            (True for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x),
-                None) is True):
+        if (
+            next((True for x in lines if "GEOMETRY OPTIMIZATION CONVERGED" in x), None)
+            is True
+        ):
             result["converged"] = True
-        elif (next((True for x in lines if "FAILED TO CONVERGE GEOMETRY" in x),
-                   None) is True):
+        elif (
+            next((True for x in lines if "FAILED TO CONVERGE GEOMETRY" in x), None)
+            is True
+        ):
             result["converged"] = False
 
         # Get the number of cycles
@@ -780,12 +816,14 @@ class TmProc(QmProc):
             tmp = tmp[result["converged"]]
 
             result["cycles"] = int(
-                next(x for x in lines if tmp[0] in x).split()[tmp[1]])
+                next(x for x in lines if tmp[0] in x).split()[tmp[1]]
+            )
 
             # Get energies for each cycle
             result["ecyc"].extend(
                 float(line.split("->")[-1])
-                for line in filter(lambda x: "av. E: " in x, lines))
+                for line in filter(lambda x: "av. E: " in x, lines)
+            )
 
             # Get all gradient norms for evaluation
             result["gncyc"] = [
@@ -805,8 +843,10 @@ class TmProc(QmProc):
             if os.path.isfile(os.path.join(jobdir, "mos")):
                 meta["mo_path"] = os.path.join(jobdir, "mos")
             elif os.path.isfile(os.path.join(jobdir, "alpha")):
-                meta["mo_path"] = (os.path.join(
-                    jobdir, "alpha"), os.path.join(jobdir, "beta"))
+                meta["mo_path"] = (
+                    os.path.join(jobdir, "alpha"),
+                    os.path.join(jobdir, "beta"),
+                )
 
         # read out optimized geometry and update conformer geometry with this
         job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
@@ -824,11 +864,12 @@ class TmProc(QmProc):
 
     def _opt(self):
         raise NotImplementedError(
-            "Pure TURBOMOLE geometry optimization not available yet.")
+            "Pure TURBOMOLE geometry optimization not available yet."
+        )
 
-    def _nmr(self,
-             job: ParallelJob,
-             jobdir: str) -> tuple[dict[str, any], dict[str, any]]:
+    def _nmr(
+        self, job: ParallelJob, jobdir: str
+    ) -> tuple[dict[str, any], dict[str, any]]:
         """
         Calculate the NMR shieldings and/or couplings for a conformer using TURBOMOLE.
         Formatting:
@@ -865,7 +906,7 @@ class TmProc(QmProc):
             meta["success"] = False
             meta["error"] = spmeta["error"]
             return result, meta
-        
+
         result["energy"] = spres["energy"]
 
         # Run shielding calculations if requested
@@ -881,7 +922,8 @@ class TmProc(QmProc):
             meta["success"] = returncode == 0
             if not meta["success"]:
                 logger.warning(
-                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}"
+                )
                 meta["error"] = "unknown_error"
                 return result, meta
 
@@ -890,8 +932,8 @@ class TmProc(QmProc):
                 lines = f.readlines()
 
             start = lines.index(
-                next(x for x in lines
-                     if ">>>>> DFT MAGNETIC SHIELDINGS <<<<<" in x))
+                next(x for x in lines if ">>>>> DFT MAGNETIC SHIELDINGS <<<<<" in x)
+            )
 
             lines = lines[start:]
 
@@ -920,7 +962,8 @@ class TmProc(QmProc):
             meta["success"] = returncode == 0
             if not meta["success"]:
                 logger.warning(
-                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}"
+                )
                 meta["error"] = "unknown_error"
                 return result, meta
 
@@ -928,7 +971,10 @@ class TmProc(QmProc):
             with open(outputpath, "r") as f:
                 lines = f.readlines()
 
-            start = lines.index(next(x for x in lines if "Nuclear coupling constants" in x)) + 3
+            start = (
+                lines.index(next(x for x in lines if "Nuclear coupling constants" in x))
+                + 3
+            )
 
             lines = lines[start:]
 
@@ -954,8 +1000,10 @@ class TmProc(QmProc):
 
             # Convert all the frozensets to a tuple to be serializable
             for i in range(len(result["couplings"])):
-                result["couplings"][i] = (tuple(result["couplings"][i][0]),
-                                          result["couplings"][i][1])
+                result["couplings"][i] = (
+                    tuple(result["couplings"][i][0]),
+                    result["couplings"][i][1],
+                )
 
             # Sort couplings by pairs
             result["couplings"].sort(key=lambda x: x[0])
