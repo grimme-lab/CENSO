@@ -208,26 +208,29 @@ class TmProc(QmProc):
         lines.insert(-1, "$cosmo\n")
 
         # write DC in any case
-        lines.insert(-1, f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent']]}")
+        lines.insert(
+            -1, f" epsilon= {self.__cosmo_dcs[prepinfo[jobtype]['solvent_key_prog']]}"
+        )
 
         if prepinfo[jobtype]["sm"] == "dcosmors":
             # if using dcosmors also add the potential file path
             # NOTE: the value for solvent should never be None
             # (should be prevented in setup_prepinfo functions, as e.g. in optimizer.py)
-            if prepinfo[jobtype]["solvent"] not in [
+            if prepinfo[jobtype]["solvent_key_prog"] not in [
                 "woctanol",
                 "hexadecane",
                 "octanol",
             ]:
                 lines.insert(
-                    -1, f"$dcosmo_rs file={prepinfo[jobtype]['solvent']}_25.pot"
+                    -1,
+                    f"$dcosmo_rs file={prepinfo[jobtype]['solvent_key_prog']}_25.pot",
                 )
             else:
                 # The three solvents above are specifically defined in the assets
                 # TODO - this opens the possibility to insert your own potential files
                 lines.insert(
                     -1,
-                    f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent'])}_25.pot",
+                    f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot",
                 )
 
         if jobtype == "rot":
