@@ -210,16 +210,14 @@ class TmProc(QmProc):
             ]:
                 lines.insert(
                     -1,
-                    f"$dcosmo_rs file={
-                        prepinfo[jobtype]['solvent_key_prog']}_25.pot",
+                    f"$dcosmo_rs file={prepinfo[jobtype]['solvent_key_prog']}_25.pot",
                 )
             else:
                 # The three solvents above are specifically defined in the assets
                 # TODO - this opens the possibility to insert your own potential files
                 lines.insert(
                     -1,
-                    f"$dcosmo_rs file={os.path.join(
-                        ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot",
+                    f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot",
                 )
 
         if jobtype == "rot":
@@ -294,8 +292,7 @@ class TmProc(QmProc):
                     # Copy MO files
                     for g in ["alpha", "beta"]:
                         logger.debug(
-                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {
-                                g} file from {guess_file}."
+                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {guess_file}."
                         )
                         shutil.copy(guess_file, os.path.join(jobdir, g))
             else:
@@ -307,8 +304,7 @@ class TmProc(QmProc):
                 ):
                     # Copy MO file
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying mos file from {
-                            guess_file}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying mos file from {guess_file}."
                     )
                     shutil.copy(guess_file, os.path.join(jobdir, "mos"))
 
@@ -538,8 +534,7 @@ class TmProc(QmProc):
                 lines.extend(
                     [
                         f"f = h2o.cosmo fdir={self._paths['dbpath']} autoc\n",
-                        f"f = 1-octanol.cosmo fdir={
-                            self._paths['dbpath']} autoc\n",
+                        f"f = 1-octanol.cosmo fdir={self._paths['dbpath']} autoc\n",
                     ]
                 )
                 mix = "0.27 0.73"
@@ -567,8 +562,7 @@ class TmProc(QmProc):
                     lines.append(f"henry xh={{mix}} tc={t - 273.15} Gsolv\n")
             else:
                 lines.append(
-                    f"henry xh={{mix}} tc={
-                        job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
+                    f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
                 )
 
             with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
@@ -706,10 +700,7 @@ class TmProc(QmProc):
             out.write("$opt \n")
             if job.prepinfo["xtb_opt"]["macrocycles"]:
                 out.write(f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
-                out.write(
-                    f"microcycle={
-                          job.prepinfo['xtb_opt']['optcycles']} \n"
-                )
+                out.write(f"microcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
 
             out.writelines(
                 [
