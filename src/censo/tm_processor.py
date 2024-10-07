@@ -142,8 +142,7 @@ class TmProc(QmProc):
 
         # Check cefine for errors
         if returncode != 0:
-            logger.warning(
-                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             return
 
         # Write coord file
@@ -172,16 +171,13 @@ class TmProc(QmProc):
     ):
         # Special treatment for KT1/KT2
         if "kt" in func:
-            func_line_index = next(lines.index(l)
-                                   for l in lines if "functional" in l)
+            func_line_index = next(lines.index(l) for l in lines if "functional" in l)
             lines[func_line_index] = "   functional xcfun set-gga\n"
-            lines.insert(func_line_index + 1,
-                         f"   functional xcfun kt{func[2]} 1.0\n")
+            lines.insert(func_line_index + 1, f"   functional xcfun kt{func[2]} 1.0\n")
         # Special treatment for b97-3c
         elif func == "b97-3c":
             # Needs three-body dispersion
-            disp_line_index = next(lines.index(l)
-                                   for l in lines if "disp" in l)
+            disp_line_index = next(lines.index(l) for l in lines if "disp" in l)
             lines[disp_line_index] = "$disp3 -bj -abc\n"
 
         # Enable non local dispersion
@@ -193,8 +189,7 @@ class TmProc(QmProc):
             if basis.lower() == "def2-sv(p)":
                 lines.insert(-1, "$gcp dft/sv(p)\n")
             else:
-                lines.insert(-1,
-                             f"$gcp dft/{basis.lower().replace('-', '')}\n")
+                lines.insert(-1, f"$gcp dft/{basis.lower().replace('-', '')}\n")
 
     def __prep_solv(self, lines: list[str], prepinfo: dict[str, any], jobtype: str):
         lines.insert(-1, "$cosmo\n")
@@ -252,8 +247,7 @@ class TmProc(QmProc):
                 element for element, active in active_elements_map.items() if active
             ]
 
-            rpacor_line_index = next(lines.index(l)
-                                     for l in lines if "rpacor" in l)
+            rpacor_line_index = next(lines.index(l) for l in lines if "rpacor" in l)
             rpacor = float(lines[rpacor_line_index].split()[-1])
             rpacor = rpacor if rpacor > 10000 else 10000
             lines[rpacor_line_index] = f"$rpacor {rpacor}\n"
@@ -394,8 +388,7 @@ class TmProc(QmProc):
 
         meta["success"] = returncode == 0
         if not meta["success"]:
-            logger.warning(
-                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         with open(outputpath, "r") as f:
             lines = f.readlines()
@@ -415,8 +408,7 @@ class TmProc(QmProc):
             meta["error"] = self.__check_output(lines)
             meta["success"] = meta["error"] is None and result["energy"] is not None
         else:
-            meta["error"] = self.__returncode_to_err.get(
-                returncode, "unknown_error")
+            meta["error"] = self.__returncode_to_err.get(returncode, "unknown_error")
 
         if self.copy_mo:
             # store the path to the current MO file(s) for this conformer if possible
@@ -541,8 +533,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Prepare cosmotherm.inp
-            lines = [self._paths["cosmorssetup"] +
-                     "\n", "EFILE VPFILE\n", "!!\n"]
+            lines = [self._paths["cosmorssetup"] + "\n", "EFILE VPFILE\n", "!!\n"]
             if job.prepinfo["sp"]["solvent_key_prog"] == "woctanol":
                 lines.extend(
                     [
@@ -586,8 +577,7 @@ class TmProc(QmProc):
             # Run cosmotherm
             outputpath = os.path.join(jobdir, "cosmotherm.out")
             call = ["cosmotherm", "cosmotherm.inp"]
-            returncode, errors = self._make_call(
-                "tm", call, outputpath, jobdir)
+            returncode, errors = self._make_call("tm", call, outputpath, jobdir)
 
             meta["success"] = returncode == 0
             if not meta["success"]:
@@ -614,8 +604,7 @@ class TmProc(QmProc):
                     vwork = R * T * math.log(videal * T)
                 elif " out " in line:
                     # Add volume work
-                    gsolvt[T] = float(line.split()[-1]) / \
-                        AU2KCAL + vwork / AU2KCAL
+                    gsolvt[T] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
 
             result["gsolvt"] = gsolvt
             result["gsolv"] = gsolvt[job.prepinfo["general"]["temperature"]]
@@ -716,10 +705,11 @@ class TmProc(QmProc):
         with open(os.path.join(jobdir, xcontrolname), "w", newline=None) as out:
             out.write("$opt \n")
             if job.prepinfo["xtb_opt"]["macrocycles"]:
+                out.write(f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
                 out.write(
-                    f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
-                out.write(f"microcycle={
-                          job.prepinfo['xtb_opt']['optcycles']} \n")
+                    f"microcycle={
+                          job.prepinfo['xtb_opt']['optcycles']} \n"
+                )
 
             out.writelines(
                 [
@@ -769,8 +759,7 @@ class TmProc(QmProc):
         if returncode != 0:
             meta["success"] = False
             meta["error"] = "unknown_error"
-            logger.warning(
-                f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             # TODO - the xtb returncodes should be handled
             return result, meta
 
@@ -923,8 +912,7 @@ class TmProc(QmProc):
             call = [self._paths["mpshiftpath"], "-smpcpus", f"{job.omp}"]
 
             # Run mpshift for shielding calculation
-            returncode, errors = self._make_call(
-                "tm", call, outputpath, jobdir)
+            returncode, errors = self._make_call("tm", call, outputpath, jobdir)
 
             meta["success"] = returncode == 0
             if not meta["success"]:
@@ -964,8 +952,7 @@ class TmProc(QmProc):
             call = [self._paths["escfpath"], "-smpcpus", f"{job.omp}"]
 
             # Run escf for couplings calculation
-            returncode, errors = self._make_call(
-                "tm", call, outputpath, jobdir)
+            returncode, errors = self._make_call("tm", call, outputpath, jobdir)
 
             meta["success"] = returncode == 0
             if not meta["success"]:
@@ -980,8 +967,7 @@ class TmProc(QmProc):
                 lines = f.readlines()
 
             start = (
-                lines.index(
-                    next(x for x in lines if "Nuclear coupling constants" in x))
+                lines.index(next(x for x in lines if "Nuclear coupling constants" in x))
                 + 3
             )
 
@@ -993,8 +979,7 @@ class TmProc(QmProc):
 
             result["couplings"] = []
 
-            line_indices = [lines.index(l)
-                            for l in lines if len(l.split()) in [6, 7]]
+            line_indices = [lines.index(l) for l in lines if len(l.split()) in [6, 7]]
 
             for i in line_indices:
                 # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
