@@ -53,7 +53,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         "--input",
         dest="inp",
         type=str,
-        help="Relative path to ensemble file, e.g. crest_conformers.xyz ",
+        help="Relative path to ensemble file, e.g. crest_conformers.xyz. For a default run this is REQUIRED. ",
     )
     groups[0].add_argument(
         "-n",
@@ -110,6 +110,13 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         dest="inprcpath",
         help="Use to provide a path to the CENSO configuration file if you want to use a different one"
         " than the default (~/.censo2rc).",
+    )
+    groups[0].add_argument(
+        "--maxcores",
+        dest="maxcores",
+        type=int,
+        help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
+        "the maximum number available. For a default run this is REQUIRED.",
     )
     groups[0].add_argument(
         "--loglevel",
@@ -208,13 +215,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         type=int,
         help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
         "if load balancing is disabled.",
-    )
-    groups[1].add_argument(
-        "--maxcores",
-        dest="maxcores",
-        type=int,
-        help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
-        "the maximum number available.",
     )
     groups[1].add_argument(
         "--imagthr",
