@@ -11,13 +11,15 @@ If you want to install and run `CENSO` without `pip` you can add the `CENSO/src`
 # Usage
 Basic usage: 
 
-    python3 -m censo -inp [path to ensemble input] --maxcores [number of cores] ...
+    python3 -m censo -i [path to ensemble input] --maxcores [number of cores] ...
 
 For information about command line options use the `-h` option.
 
 If you want to run it via helper script after adding it to your `$PATH`:
 
-    censo -h
+    censo -i [path to ensemble input] --maxcores [number of cores]
+
+Please note that the ``--maxcores`` option is required for every run.
 
 CENSO can also be used as a package. A basic setup for a CENSO run in a Python file would look like this:
 ```python

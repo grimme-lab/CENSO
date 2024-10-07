@@ -96,9 +96,6 @@ def startup(args) -> EnsembleData | None:
     elif args.inprcpath is not None:
         configure(args.inprcpath)
 
-    if args.loglevel:
-        set_loglevel(args.loglevel)
-
     # Override settings with command line arguments
     override_rc(args)
 
@@ -137,7 +134,8 @@ def cleanup_run(cwd, complete=False):
 
     print(
         f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
-        f"will be deleted:")
+        f"will be deleted:"
+    )
     for sub in to_delete:
         print(sub)
 
@@ -155,8 +153,8 @@ def cleanup_run(cwd, complete=False):
             print(f"Removing: {subdir}")
             shutil.rmtree(subdir)
         for file in files:
-            if any(s in file
-                   for s in to_delete) and (complete
-                                            or "ensemble" not in file):
+            if any(s in file for s in to_delete) and (
+                complete or "ensemble" not in file
+            ):
                 print(f"Removing: {file}")
                 os.remove(os.path.join(subdir, file))
