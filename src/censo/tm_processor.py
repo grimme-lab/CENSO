@@ -128,7 +128,7 @@ class TmProc(QmProc):
         }
 
         if disp not in ["composite", "nl"]:
-            call.extend(mapping[disp])
+            call.append(mapping[disp])
 
         # Add charge and unpaired info
         if job.prepinfo["unpaired"] > 0:
