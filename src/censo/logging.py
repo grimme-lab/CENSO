@@ -5,6 +5,8 @@ import sys
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO
 
+__loggers = []
+
 # _loglevel = logging.DEBUG
 
 
@@ -19,8 +21,6 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     Returns:
         logging.Logger: The configured logger instance.
     """
-    global __logpath, __loglevel
-
     if not silent:
         print(f"LOGFILE CAN BE FOUND AT: {__logpath}")
 
@@ -45,6 +45,8 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     logger.addHandler(handler)
     logger.addHandler(stream_handler)
 
+    __loggers.append(logger)
+
     return logger
 
 
@@ -60,3 +62,5 @@ def set_loglevel(loglevel: str) -> None:
     """
     global __loglevel
     __loglevel = getattr(logging, loglevel)
+    for logger in __loggers:
+        logger.setLevel(__loglevel)
