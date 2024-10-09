@@ -67,6 +67,96 @@ class TmProc(QmProc):
         "woctanol": 8.1,
     }
 
+    # Contains mapping from lower case to proper spelling of bases for TM
+    # (should be available for most elements)
+    # TODO - consider adding custom basis mapping in user assets
+    __basis_mapping = {
+        "dzp": "DZP",
+        "svp": "SVP",
+        "def-svp": "def-SVP",
+        "def2-svp": "def2-SVP",
+        "dhf-svp": "dhf-SVP",
+        "dhf-svp-2c": "dhf-SVP-2c",
+        "tz": "TZ",
+        "tzv": "TZV",
+        "tzp": "TZP",
+        "tzvp": "TZVP",
+        "def-tzvp": "def-TZVP",
+        "def2-tzvp": "def2-TZVP",
+        "dhf-tzvp": "dhf-TZVP",
+        "dhf-tzvp-2c": "dhf-TZVP-2c",
+        "tzvpp": "TZVPP",
+        "def-tzvpp": "def-TZVPP",
+        "def2-tzvpp": "def2-TZVPP",
+        "dhf-tzvpp": "dhf-TZVPP",
+        "dhf-tzvpp-2c": "dhf-TZVPP-2c",
+        "tzvppp": "TZVPPP",
+        "def-qzv": "def-QZV",
+        "def2-qzv": "def2-QZV",
+        "qzv": "QZV",
+        "qz": "QZ",
+        "def-qzvp": "def-QZVP",
+        "def2-qzvp": "def2-QZVP",
+        "dhf-qzvp": "dhf-QZVP",
+        "dhf-qzvp-2c": "dhf-QZVP-2c",
+        "qzvp": "QZVP",
+        "qzp": "QZP",
+        "def-qzvpp": "def-QZVPP",
+        "def2-qzvpp": "def2-QZVPP",
+        "dhf-qzvpp": "dhf-QZVPP",
+        "dhf-qzvpp-2c": "dhf-QZVPP-2c",
+        "qzvpp": "QZVPP",
+        "qzpp": "QZPP",
+        "minix": "minix",
+        "sto-3g": "sto-3g",
+        "3-21g": "3-21g",
+        "4-31g": "4-31g",
+        "def2-qzvppd": "def2-QZVPPD",
+        "def2-qzvpd": "def2-QZVPD",
+        "6-31g": "6-31G",
+        "6-31g*": "6-31G*",
+        "6-31g**": "6-31G**",
+        "6-311g": "6-311G",
+        "6-311g*": "6-311G*",
+        "6-311g**": "6-311G**",
+        "6-311++g**": "6-311++G**",
+        "6-311g(2df,2pd)": "6-311G(2df,2pd)",
+        "cc-pvdz": "cc-pVDZ",
+        "aug-cc-pvdz": "aug-cc-pVDZ",
+        "yp-aug-cc-pvdz": "YP-aug-cc-pVDZ",
+        "d-aug-cc-pvdz": "d-aug-cc-pVDZ",
+        "cc-pvtz": "cc-pVTZ",
+        "cc-pvtz-kernel": "cc-pVTZ-kernel",
+        "aug-cc-pvtz": "aug-cc-pVTZ",
+        "yp-aug-cc-pvtz": "YP-aug-cc-pVTZ",
+        "d-aug-cc-pvtz": "d-aug-cc-pVTZ",
+        "d-aug-cc-pvtz-oep": "d-aug-cc-pVTZ-oep",
+        "cc-pvqz": "cc-pVQZ",
+        "aug-cc-pvqz": "aug-cc-pVQZ",
+        "yp-aug-cc-pvqz": "YP-aug-cc-pVQZ",
+        "d-aug-cc-pvqz": "d-aug-cc-pVQZ",
+        "cc-pv5z": "cc-pV5Z",
+        "aug-cc-pv5z": "aug-cc-pV5Z",
+        "yp-aug-cc-pv5z": "YP-aug-cc-pV5Z",
+        "d-aug-cc-pv5z": "d-aug-cc-pV5Z",
+        "cc-pv6z": "cc-pV6Z",
+        "aug-cc-pv6z": "aug-cc-pV6Z",
+        "r12": "r12",
+        "cc-pvdz-f12": "cc-pVDZ-F12",
+        "cc-pvtz-f12": "cc-pVTZ-F12",
+        "cc-pvqz-f12": "cc-pVQZ-F12",
+        "def2-svpd": "def2-SVPD",
+        "def2-tzvppd": "def2-TZVPPD",
+        "def2-tzvpd": "def2-TZVPD",
+        "dz": "DZ",
+        "sv": "SV",
+        "sv(p)": "SV(P)",
+        "def-sv(p)": "def-SV(P)",
+        "def2-sv(p)": "def2-SV(P)",
+        "dhf-sv(p)": "dhf-SV(P)",
+        "dhf-sv(p)-2c": "dhf-SV(P)-2c",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -94,7 +184,13 @@ class TmProc(QmProc):
         """
         func = job.prepinfo[jobtype]["func_name"]
         func_type = job.prepinfo[jobtype]["func_type"]
-        basis = job.prepinfo[jobtype]["basis"]
+        try:
+            basis = self.__basis_mapping[job.prepinfo[jobtype]["basis"]]
+        except KeyError as exc:
+            raise KeyError(
+                f"Basis {job.prepinfo[jobtype]['basis']} could not be found for TURBOMOLE input preparation. "
+                f"Available basis sets: {list(self.__basis_mapping.values())}"
+            ) from exc
         disp = job.prepinfo[jobtype]["disp"]
 
         # Set up basic cefine call
