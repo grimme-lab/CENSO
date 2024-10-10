@@ -233,12 +233,12 @@ class TmProc(QmProc):
 
         # Call cefine
         outputpath = os.path.join(jobdir, "cefine.out")
-        returncode, errors = self._make_call("tm", call, outputpath, jobdir)
+        _, errors = self._make_call("tm", call, outputpath, jobdir)
 
         # Check cefine for errors
-        if returncode != 0:
+        if "define ended abnormally" in errors:
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
-            return
+            raise RuntimeError("Define failed")
 
         # Write coord file
         with open(os.path.join(jobdir, "coord"), "w", encoding=ENCODING) as f:

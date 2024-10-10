@@ -58,10 +58,10 @@ class EnsembleData:
         """
         try:
             assert len(self.__conformers) > 0
-        except AssertionError:
+        except AssertionError as exc:
             raise AssertionError(
                 "There are no more conformers in the ensemble! Possibly all jobs failed, check output files."
-            )
+            ) from exc
         return self.__conformers
 
     @conformers.setter
