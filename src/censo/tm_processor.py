@@ -265,7 +265,14 @@ class TmProc(QmProc):
         with open(os.path.join(jobdir, "control"), "r+") as f:
             lines = f.readlines()
 
-            self.__prep_main(lines, func, disp, func_type, basis)
+            self.__prep_main(
+                lines,
+                func,
+                disp,
+                func_type,
+                basis,
+                job.prepinfo[jobtype].get("gcp", False),
+            )
             if (
                 not no_solv
                 and not job.prepinfo["general"]["gas-phase"]
@@ -279,7 +286,13 @@ class TmProc(QmProc):
             f.truncate()  # Truncate in case the content is shorter than before
 
     def __prep_main(
-        self, lines: list[str], func: str, disp: str, func_type: str, basis: str
+        self,
+        lines: list[str],
+        func: str,
+        disp: str,
+        func_type: str,
+        basis: str,
+        gcp: bool,
     ):
         # Special treatment for KT1/KT2
         if "kt" in func:
@@ -297,7 +310,7 @@ class TmProc(QmProc):
             lines.insert(-1, "$donl\n")
 
         # Handle GCP
-        if func_type != "composite":
+        if func_type != "composite" and gcp:
             if "def" in basis:
                 if basis.lower() == "def2-sv(p)":
                     lines.insert(-1, "$gcp dft/sv(p)\n")
