@@ -91,6 +91,17 @@ class EnsembleOptimizer(CensoPart):
                 )
                 assert prepinfo["sp"]["solvent_key_prog"] is not None
 
+            if (
+                self.get_settings()["prog"] == "tm"
+                and prepinfo["sp"]["disp"] == "d4"
+                and prepinfo["sp"]["gcp"]
+            ):
+                logger.warning(
+                    "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
+                    "together with the D4 correction. GCP will be disabled."
+                )
+                prepinfo["sp"]["gcp"] = False
+
         # TODO - this doesn't look very nice
         if "xtb_gsolv" in jobtype:
             prepinfo["xtb_sp"] = {
@@ -134,6 +145,7 @@ class EnsembleOptimizer(CensoPart):
                     "constraints": self.constraints,
                     # this is set to a path if constraints should be used, otherwise None
                 }
+
                 # Only look up solvent if solvation is used
                 if not self.get_general_settings()["gas-phase"]:
                     prepinfo[jt]["sm"] = self.get_settings()["sm"]
@@ -142,6 +154,17 @@ class EnsembleOptimizer(CensoPart):
                         self.get_general_settings()["solvent"],
                     )
                     assert prepinfo[jt]["solvent_key_prog"] is not None
+
+                if (
+                    self.get_settings()["prog"] == "tm"
+                    and prepinfo["sp"]["disp"] == "d4"
+                    and prepinfo["sp"]["gcp"]
+                ):
+                    logger.warning(
+                        "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
+                        "together with the D4 correction. GCP will be disabled."
+                    )
+                    prepinfo["sp"]["gcp"] = False
 
                 break
 

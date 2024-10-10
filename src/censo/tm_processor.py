@@ -155,6 +155,15 @@ class TmProc(QmProc):
         "dhf-sv(p)-2c": "dhf-SV(P)-2c",
     }
 
+    # Composite method basis set names
+    __composite_method_basis = {
+        "pbeh-3c": "def2-mSVP",
+        "b97-3c": "def2-mTZVP",
+        "hf-3c": "minix",
+        "r2scan-3c": "def2-mTZVPP",
+        "b3lyp-3c": "def2-mSVP",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -178,30 +187,39 @@ class TmProc(QmProc):
         self, job: ParallelJob, jobtype: str, jobdir: str, no_solv: bool = False
     ) -> None:
         """
-        Prepares TURBOMOLE input files using cefine for a specified jobtype.
+        Prepares TURBOMOLE input files for a specified jobtype.
         """
         func = job.prepinfo[jobtype]["func_name"]
         func_type = job.prepinfo[jobtype]["func_type"]
-        try:
-            basis = self.__basis_mapping[job.prepinfo[jobtype]["basis"]]
-        except KeyError as exc:
-            raise KeyError(
-                f"Basis {job.prepinfo[jobtype]['basis']} could not be found for TURBOMOLE input preparation. "
-                f"Available basis sets: {list(self.__basis_mapping.values())}"
-            ) from exc
-        disp = job.prepinfo[jobtype]["disp"]
 
         # Set up basic cefine call
         call = [
             self._paths["cefinepath"],
             "-func",
             func,
-            "-bas",
-            basis,
             "-sym",
             "c1",
             "-noopt",
         ]
+
+        if "composite" not in func_type:
+            try:
+                basis = self.__basis_mapping[job.prepinfo[jobtype]["basis"]]
+                call.extend(
+                    [
+                        "-bas",
+                        basis,
+                    ]
+                )
+            except KeyError as exc:
+                raise KeyError(
+                    f"Basis {job.prepinfo[jobtype]['basis']} could not be found for TURBOMOLE input preparation. "
+                    f"Available basis sets: {list(self.__basis_mapping.values())}"
+                ) from exc
+        else:
+            basis = ""
+
+        disp = job.prepinfo[jobtype]["disp"]
 
         # Configure grid
         call.extend(self.__gridsettings[job.prepinfo[jobtype]["grid"]])

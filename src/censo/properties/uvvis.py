@@ -34,7 +34,6 @@ class UVVis(PropertyCalculator):
         "nroots": {"default": 20},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
-        "gcp": {"default": True},  # required
     }
 
     _settings = {}
@@ -93,8 +92,7 @@ class UVVis(PropertyCalculator):
             "basis": self.get_settings()["basis"],
             "grid": "high+",  # hardcoded grid settings
             "template": self.get_settings()["template"],
-            # while the other functional isn't
-            "gcp": True,  # by default GCP should always be used if possible
+            "gcp": False,  # GCP is not necessary for spectra calculations
             "nroots": self.get_settings()["nroots"],
         }
         # Only look up solvent if solvation is used

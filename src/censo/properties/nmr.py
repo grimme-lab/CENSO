@@ -135,9 +135,7 @@ class NMR(PropertyCalculator):
                 "basis": self.get_settings()["basis_s"],
                 "grid": "high+",  # hardcoded grid settings
                 "template": self.get_settings()["template"],
-                # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
-                # while the other functional isn't
-                "gcp": True,  # by default GCP should always be used if possible
+                "gcp": False,  # GCP is not necessary for spectra calculations
                 "fc_only": self.get_settings()["fc_only"],
                 "ss_cutoff": self.get_settings()["ss_cutoff"],
                 "h_active": self.get_settings()["h_active"],
@@ -172,7 +170,7 @@ class NMR(PropertyCalculator):
                     "basis": self.get_settings()[f"basis{ending}"],
                     "grid": "high+",
                     "template": self.get_settings()["template"],
-                    "gcp": True,
+                    "gcp": False,  # GCP is not necessary for spectra calculations
                     "fc_only": self.get_settings()["fc_only"],
                     "ss_cutoff": self.get_settings()["ss_cutoff"],
                     "h_active": self.get_settings()["h_active"],
