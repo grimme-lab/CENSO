@@ -13,7 +13,6 @@ from .params import ASSETS_PATH, WARNLEN, R, AU2KCAL
 from .utilities import frange
 
 logger = setup_logger(__name__)
-ENCODING = "ISO-8859-1"  # TM needs this specific encoding for text files
 
 
 class TmProc(QmProc):
@@ -241,11 +240,11 @@ class TmProc(QmProc):
             raise RuntimeError("Define failed")
 
         # Write coord file
-        with open(os.path.join(jobdir, "coord"), "w", encoding=ENCODING) as f:
+        with open(os.path.join(jobdir, "coord"), "w") as f:
             f.writelines(job.conf.tocoord())
 
         # Do further manipulations of input files
-        with open(os.path.join(jobdir, "control"), "r+", encoding=ENCODING) as f:
+        with open(os.path.join(jobdir, "control"), "r+") as f:
             lines = f.readlines()
 
             self.__prep_main(lines, func, disp, func_type, basis)
@@ -485,7 +484,7 @@ class TmProc(QmProc):
         # Some errors in TURBOMOLE apparently produce non-human-readable characters in the output file, which
         # cannot be decoded using utf-8
         try:
-            with open(outputpath, "r", encoding=ENCODING) as f:
+            with open(outputpath, "r") as f:
                 lines = f.readlines()
         except Exception:
             meta["success"] = False
@@ -605,7 +604,7 @@ class TmProc(QmProc):
             self.__prep(job, "sp", jobdir, no_solv=True)
 
             # Write special settings for cosmo into control file
-            with open(os.path.join(jobdir, "control"), "r+", encoding=ENCODING) as f:
+            with open(os.path.join(jobdir, "control"), "r+") as f:
                 lines = f.readlines()
 
                 lines[-1:-1] = [
@@ -668,9 +667,7 @@ class TmProc(QmProc):
                     f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
                 )
 
-            with open(
-                os.path.join(jobdir, "cosmotherm.inp"), "w", encoding=ENCODING
-            ) as f:
+            with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
                 f.writelines(lines)
 
             # Run cosmotherm
@@ -693,7 +690,7 @@ class TmProc(QmProc):
             )  # molar volume for ideal gas at 298.15 K 100.0 kPa
 
             cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
-            with open(cosmothermtab, "r", encoding=ENCODING) as inp:
+            with open(cosmothermtab, "r") as inp:
                 lines = inp.readlines()
             for line in lines:
                 if "T=" in line:
@@ -710,9 +707,7 @@ class TmProc(QmProc):
             result["energy_solv"] = result["energy_gas"] + result["gsolv"]
 
             # cosmothermd
-            with open(
-                os.path.join(jobdir, "cosmors.out"), "w", encoding=ENCODING
-            ) as out:
+            with open(os.path.join(jobdir, "cosmors.out"), "w") as out:
                 T = job.prepinfo["general"]["temperature"]
                 vwork = R * T * math.log(videal * T)
 
@@ -800,9 +795,7 @@ class TmProc(QmProc):
                 os.remove(os.path.join(jobdir, file))
 
         # prepare configuration file for ancopt (xcontrol file)
-        with open(
-            os.path.join(jobdir, xcontrolname), "w", encoding=ENCODING, newline=None
-        ) as out:
+        with open(os.path.join(jobdir, xcontrolname), "w", newline=None) as out:
             out.write("$opt \n")
             if job.prepinfo["xtb_opt"]["macrocycles"]:
                 out.write(f"maxcycle={job.prepinfo['xtb_opt']['optcycles']} \n")
@@ -823,9 +816,7 @@ class TmProc(QmProc):
 
             # Import constraints
             if job.prepinfo["xtb_opt"]["constraints"] is not None:
-                with open(
-                    job.prepinfo["xtb_opt"]["constraints"], "r", encoding=ENCODING
-                ) as f:
+                with open(job.prepinfo["xtb_opt"]["constraints"], "r") as f:
                     lines = f.readlines()
 
                 out.writelines(lines)
@@ -863,7 +854,7 @@ class TmProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath, "r", encoding=ENCODING) as file:
+        with open(outputpath, "r") as file:
             lines = file.readlines()
 
         result["ecyc"] = []
@@ -1022,7 +1013,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Grab shieldings from the output
-            with open(outputpath, "r", encoding=ENCODING) as f:
+            with open(outputpath, "r") as f:
                 lines = f.readlines()
 
             start = lines.index(
@@ -1062,7 +1053,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Grab couplings from the output
-            with open(outputpath, "r", encoding=ENCODING) as f:
+            with open(outputpath, "r") as f:
                 lines = f.readlines()
 
             start = (

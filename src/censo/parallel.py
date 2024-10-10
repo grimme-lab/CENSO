@@ -250,7 +250,10 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
                     return None
 
             # wait for all jobs to finish and collect results
-            results = [task.result() for task in as_completed(tasks)]
+            try:
+                results = [task.result() for task in as_completed(tasks)]
+            except Exception as exc:
+                raise exc
 
     return results
 
