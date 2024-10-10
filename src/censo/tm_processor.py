@@ -225,7 +225,7 @@ class TmProc(QmProc):
         call.extend(self.__gridsettings[job.prepinfo[jobtype]["grid"]])
 
         # r2scan-3c should use m4 grid
-        if func == "r2scan-3c":
+        if func == "r2scan-3c" and "m3" in call:
             call[call.index("m3")] = "m4"
 
         # Add dispersion
