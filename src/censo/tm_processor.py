@@ -230,6 +230,10 @@ class TmProc(QmProc):
         if job.prepinfo["charge"] != 0:
             call.extend(["-chrg", f"{job.prepinfo['charge']}"])
 
+        # Write coord file
+        with open(os.path.join(jobdir, "coord"), "w") as f:
+            f.writelines(job.conf.tocoord())
+
         # Call cefine
         outputpath = os.path.join(jobdir, "cefine.out")
         _, errors = self._make_call("tm", call, outputpath, jobdir)
@@ -238,10 +242,6 @@ class TmProc(QmProc):
         if "define ended abnormally" in errors:
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             raise RuntimeError("Define failed")
-
-        # Write coord file
-        with open(os.path.join(jobdir, "coord"), "w") as f:
-            f.writelines(job.conf.tocoord())
 
         # Do further manipulations of input files
         with open(os.path.join(jobdir, "control"), "r+") as f:

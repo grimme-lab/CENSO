@@ -253,7 +253,7 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
             try:
                 results = [task.result() for task in as_completed(tasks)]
             except Exception as exc:
-                raise exc
+                raise Exception from exc
 
     return results
 
