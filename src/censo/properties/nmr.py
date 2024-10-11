@@ -15,6 +15,7 @@ from ..params import (
 from .property_calculator import PropertyCalculator
 from ..utilities import print, DfaHelper, format_data, SolventHelper
 from ..logging import setup_logger
+from ..part import CensoPart
 
 logger = setup_logger(__name__)
 
@@ -34,10 +35,16 @@ class NMR(PropertyCalculator):
         "resonance_frequency": {"default": 300.0},
         "ss_cutoff": {"default": 8.0},
         "prog": {"default": "orca", "options": PROGS},  # required
-        "func_j": {"default": "pbe0-d4"},
+        "func_j": {
+            "default": "pbe0-d4",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis_j": {"default": "def2-TZVP"},
         "sm_j": {"default": "smd", "options": __solv_mods},
-        "func_s": {"default": "pbe0-d4"},
+        "func_s": {
+            "default": "pbe0-d4",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis_s": {"default": "def2-TZVP"},
         "sm_s": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
@@ -54,6 +61,59 @@ class NMR(PropertyCalculator):
     }
 
     _settings = {}
+
+    @classmethod
+    def _validate(cls, tovalidate: dict[str, any]) -> None:
+        """
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by
+        checking with cls._options.
+        This is the part-specific version of the method. It will run the general validation first and then
+        check part-specific logic.
+
+        Args:
+            tovalidate (dict[str, any]): The dict containing the settings to be validated.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the setting is not allowed or the value is not within the allowed options.
+        """
+        # General validation
+        super()._validate(tovalidate)
+
+        # Part-specific validation
+        # NOTE: tovalidate is always complete
+        for ending in ["_s", "_j"]:
+            mapping = {"_s": "shieldings", "_j": "couplings"}
+
+            # Only check settings for shieldings/couplings calculations if they are actually turned on
+            if tovalidate[mapping[ending]]:
+                # Check availability of func for prog
+                func = tovalidate[f"func{ending}"]
+                if func not in cls._options[f"func{ending}"][tovalidate["prog"]]:
+                    raise ValueError(
+                        f"Functional {func} is not available for {tovalidate['prog']}. "
+                        "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
+                    )
+
+                # Check sm availability for prog
+                # Remember: tovalidate is always complete so we don't need .get with default None here
+                sm = tovalidate[f"sm{ending}"]
+                if sm not in cls._options["sm"][tovalidate["prog"]]:
+                    raise ValueError(
+                        f"Solvent model {sm} not available for {tovalidate['prog']}."
+                    )
+
+                # Check solvent availability for sm
+                if (
+                    cls.get_general_settings()["solvent"]
+                    not in CensoPart._options["solvent"][sm]
+                ):
+                    raise ValueError(
+                        f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "
+                        "Please create an issue on GitHub if you think this is incorrect."
+                    )
 
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
@@ -150,7 +210,6 @@ class NMR(PropertyCalculator):
                 prepinfo["nmr"]["solvent_key_prog"] = SolventHelper.get_solvent(
                     self.get_settings()["sm_s"], self.get_general_settings()["solvent"]
                 )
-                assert prepinfo["nmr"]["solvent_key_prog"] is not None
         else:
             todo = {
                 "_s": self.get_settings()["shieldings"],
@@ -188,7 +247,6 @@ class NMR(PropertyCalculator):
                         self.get_general_settings()["solvent"],
                     )
                 )
-                assert prepinfo[f"nmr{ending}"]["solvent_key_prog"] is not None
 
         return prepinfo
 

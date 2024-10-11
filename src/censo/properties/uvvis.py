@@ -8,10 +8,11 @@ import os
 
 from ..ensembledata import EnsembleData
 from ..parallel import execute
-from ..params import SOLV_MODS, GFNOPTIONS
+from ..params import SOLV_MODS, GFNOPTIONS, PROGS
 from ..utilities import SolventHelper, DfaHelper, format_data, print
 from ..logging import setup_logger
 from .property_calculator import PropertyCalculator
+from ..part import CensoPart
 
 logger = setup_logger(__name__)
 
@@ -27,7 +28,10 @@ class UVVis(PropertyCalculator):
 
     _options = {
         "prog": {"default": "orca", "options": ["orca"]},  # required
-        "func": {"default": "wb97x-d4"},
+        "func": {
+            "default": "wb97x-d4",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis": {"default": "def2-TZVP"},
         "sm": {"default": "smd", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
@@ -37,6 +41,54 @@ class UVVis(PropertyCalculator):
     }
 
     _settings = {}
+
+    @classmethod
+    def _validate(cls, tovalidate: dict[str, any]) -> None:
+        """
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by
+        checking with cls._options.
+        This is the part-specific version of the method. It will run the general validation first and then
+        check part-specific logic.
+
+        Args:
+            tovalidate (dict[str, any]): The dict containing the settings to be validated.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the setting is not allowed or the value is not within the allowed options.
+        """
+        # General validation
+        super()._validate(tovalidate)
+
+        # Part-specific validation
+        # NOTE: tovalidate is always complete
+        # Check availability of func for prog
+        func = tovalidate["func"]
+        if func not in cls._options["func"][tovalidate["prog"]]:
+            raise ValueError(
+                f"Functional {func} is not available for {tovalidate['prog']}. "
+                "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
+            )
+
+        # Check sm availability for prog
+        # Remember: tovalidate is always complete so we don't need .get with default None here
+        sm = tovalidate["sm"]
+        if sm not in cls._options["sm"][tovalidate["prog"]]:
+            raise ValueError(
+                f"Solvent model {sm} not available for {tovalidate['prog']}."
+            )
+
+        # Check solvent availability for sm
+        if (
+            cls.get_general_settings()["solvent"]
+            not in CensoPart._options["solvent"][sm]
+        ):
+            raise ValueError(
+                f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "
+                "Please create an issue on GitHub if you think this is incorrect."
+            )
 
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
@@ -101,7 +153,6 @@ class UVVis(PropertyCalculator):
             prepinfo["uvvis"]["solvent_key_prog"] = SolventHelper.get_solvent(
                 self.get_settings()["sm"], self.get_general_settings()["solvent"]
             )
-            assert prepinfo["uvvis"]["solvent_key_prog"] is not None
 
         return prepinfo
 

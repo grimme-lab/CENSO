@@ -12,7 +12,7 @@ from ..datastructure import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, GFNOPTIONS, GRIDOPTIONS, PLENGTH, PROGS, SOLV_MODS
-from ..utilities import format_data, h1, print
+from ..utilities import format_data, h1, print, DfaHelper, SolventHelper
 from .prescreening import Prescreening
 
 logger = setup_logger(__name__)
@@ -23,18 +23,21 @@ class Screening(Prescreening):
 
     _grid = "low+"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    __solv_mods = reduce(lambda x, y: x + y, (SOLV_MODS[prog] for prog in PROGS))
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 3.5},
-        "func": {"default": "r2scan-3c"},
+        "func": {
+            "default": "r2scan-3c",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "orca", "options": PROGS},
-        "sm": {"default": "smd", "options": __solv_mods},
+        "prog": {"default": "tm", "options": PROGS},
+        "sm": {"default": "cosmors", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": True},
-        "implicit": {"default": True},
+        "implicit": {"default": False},
         "template": {"default": False},
     }
 

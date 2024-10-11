@@ -66,6 +66,8 @@ def configure(rcpath: str = None, create_new: bool = False):
     else:
         # Initialize default settings
         # Make sure that settings are initialized even if there is no section for this part in the rcfile
+        # General settings should always be configured first
+        CensoPart.set_general_settings({})
         for part in parts.values():
             part.set_settings({})
 

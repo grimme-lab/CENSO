@@ -74,7 +74,6 @@ class PropertyCalculator(CensoPart):
                 self.get_general_settings()["sm_rrho"],
                 self.get_general_settings()["solvent"],
             )
-            assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         return prepinfo
 

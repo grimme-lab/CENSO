@@ -11,7 +11,7 @@ from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import SOLV_MODS, PROGS, GFNOPTIONS, AU2KCAL, PLENGTH
-from ..utilities import print, format_data, h1
+from ..utilities import print, format_data, h1, DfaHelper
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -22,7 +22,7 @@ class Optimization(EnsembleOptimizer):
 
     __solv_mods = tuple(
         t
-        for t in reduce(lambda x, y: x + y, SOLV_MODS.values())
+        for t in reduce(lambda x, y: x + y, (SOLV_MODS[prog] for prog in PROGS))
         if t not in ("cosmors", "cosmors-fine")
     )
 
@@ -34,10 +34,13 @@ class Optimization(EnsembleOptimizer):
         "threshold": {"default": 1.5},
         "hlow": {"default": 0.01},
         "gradthr": {"default": 0.01},
-        "func": {"default": "r2scan-3c"},
+        "func": {
+            "default": "r2scan-3c",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "orca", "options": PROGS},
-        "sm": {"default": "smd", "options": __solv_mods},
+        "prog": {"default": "tm", "options": PROGS},
+        "sm": {"default": "dcosmors", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "optlevel": {
             "default": "normal",
@@ -57,7 +60,7 @@ class Optimization(EnsembleOptimizer):
         "crestcheck": {"default": False},
         "template": {"default": False},
         "constrain": {"default": False},
-        "xtb_opt": {"default": False},
+        "xtb_opt": {"default": True},
     }
 
     _settings = {}
@@ -183,6 +186,8 @@ class Optimization(EnsembleOptimizer):
 
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
+
+        # TODO - Add the possibility to explicitely calculate solvation contributions
 
         for conf in self.ensemble.conformers:
             conf.results[self._name]["gtot"] = self.grrho(conf)

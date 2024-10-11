@@ -61,11 +61,11 @@ def entry_point(argv: list[str] | None = None) -> int:
         print(f"Ran {p._name} in {runtime:.2f} seconds!")
         time += runtime
 
-    runtime = timedelta(seconds=int(runtime))
-    hours, r = divmod(runtime.seconds, 3600)
+    time = timedelta(seconds=int(time))
+    hours, r = divmod(time.seconds, 3600)
     minutes, seconds = divmod(r, 60)
-    if runtime.days:
-        hours += runtime.days * 24
+    if time.days:
+        hours += time.days * 24
 
     print(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d}")
 

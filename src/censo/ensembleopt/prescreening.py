@@ -5,7 +5,7 @@ from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS
-from ..utilities import format_data, h1, print
+from ..utilities import format_data, h1, print, DfaHelper
 from .optimizer import EnsembleOptimizer
 
 logger = setup_logger(__name__)
@@ -18,9 +18,12 @@ class Prescreening(EnsembleOptimizer):
 
     _options = {
         "threshold": {"default": 4.0},
-        "func": {"default": "pbe-d4"},
+        "func": {
+            "default": "pbe-d4",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis": {"default": "def2-SV(P)"},
-        "prog": {"default": "orca", "options": PROGS},
+        "prog": {"default": "tm", "options": PROGS},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": True},
         "template": {"default": False},

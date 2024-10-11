@@ -10,7 +10,7 @@ from .qm_processor import QmProc
 from .logging import setup_logger
 from .parallel import ParallelJob
 from .params import ASSETS_PATH, WARNLEN, R, AU2KCAL
-from .utilities import frange
+from .utilities import frange, DfaHelper
 
 logger = setup_logger(__name__)
 
@@ -153,15 +153,6 @@ class TmProc(QmProc):
         "def2-sv(p)": "def2-SV(P)",
         "dhf-sv(p)": "dhf-SV(P)",
         "dhf-sv(p)-2c": "dhf-SV(P)-2c",
-    }
-
-    # Composite method basis set names
-    __composite_method_basis = {
-        "pbeh-3c": "def2-mSVP",
-        "b97-3c": "def2-mTZVP",
-        "hf-3c": "minix",
-        "r2scan-3c": "def2-mTZVPP",
-        "b3lyp-3c": "def2-mSVP",
     }
 
     def __init__(self, *args, **kwargs):
@@ -522,15 +513,13 @@ class TmProc(QmProc):
         if not meta["success"]:
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
-        # Some errors in TURBOMOLE apparently produce non-human-readable characters in the output file, which
-        # cannot be decoded using utf-8
         try:
             with open(outputpath, "r") as f:
                 lines = f.readlines()
         except Exception:
             meta["success"] = False
             meta["error"] = "unknown_error"
-            return
+            return result, meta
 
         # Get final energy
         result["energy"] = next(
@@ -987,7 +976,7 @@ class TmProc(QmProc):
 
         return result, meta
 
-    def _opt(self):
+    def _opt(self, *args, **kwargs):
         raise NotImplementedError(
             "Pure TURBOMOLE geometry optimization not available yet."
         )

@@ -5,14 +5,9 @@ import ast
 from collections.abc import Callable
 
 from .ensembledata import EnsembleData
-from .params import (
-    PLENGTH,
-    DIGILEN,
-    OMPMIN,
-    OMPMAX,
-)
+from .params import PLENGTH, DIGILEN, OMPMIN, OMPMAX, SOLV_MODS
 from .logging import setup_logger
-from .utilities import print, h1, h2
+from .utilities import print, h1, h2, SolventHelper
 
 logger = setup_logger(__name__)
 
@@ -40,8 +35,14 @@ class CensoPart:
         "sthr": {"default": 0.0},
         "scale": {"default": 1.0},
         "temperature": {"default": 298.15},
-        "solvent": {"default": "h2o"},
-        "sm_rrho": {"default": "alpb", "options": ["alpb", "gbsa"]},
+        "solvent": {
+            "default": "h2o",
+            "options": {
+                sm: list(SolventHelper.get_solvents_dict(sm).keys())
+                for sm in functools.reduce(lambda x, y: x + y, SOLV_MODS.values())
+            },
+        },
+        "sm_rrho": {"default": "alpb", "options": SOLV_MODS["xtb"]},
         "multitemp": {"default": True},
         "evaluate_rrho": {"default": True},
         "consider_sym": {"default": True},
@@ -73,13 +74,10 @@ class CensoPart:
         Returns:
             None
         """
-        CensoPart._validate(settings)
         if complete:
             settings = CensoPart._complete(settings)
-            CensoPart._settings = settings
-        else:
-            for setting in settings:
-                CensoPart._settings[setting] = settings[setting]
+        CensoPart._settings.update(settings)
+        CensoPart._validate(CensoPart._settings)
 
     @staticmethod
     def set_general_setting(setting: str, value: any):
@@ -117,13 +115,10 @@ class CensoPart:
         Returns:
             None
         """
-        cls._validate(settings)
         if complete:
             settings = cls._complete(settings)
-            cls._settings = settings
-        else:
-            for setting in settings:
-                cls._settings[setting] = settings[setting]
+        cls._settings.update(settings)
+        cls._validate(cls._settings)
 
     @classmethod
     def set_setting(cls, setting_name: str, setting_value: any):
@@ -176,6 +171,23 @@ class CensoPart:
         Raises:
             ValueError: If the setting is not allowed or the value is not within the allowed options.
         """
+
+        def extract_options(d: dict) -> set:
+            """
+            Helper function to extract all unique options from the lowest nesting level.
+            """
+            options = set()
+
+            def extract(dd: dict) -> None:
+                for value in dd.values():
+                    if isinstance(value, dict):
+                        extract(value)
+                    else:
+                        options.add(value)
+
+            extract(d)
+            return options
+
         # go through each section and try to validate each setting's type
         remove = []
         for setting_name in tovalidate:
@@ -209,40 +221,22 @@ class CensoPart:
                 setting_value = tovalidate[setting_name]
 
             # now check if the setting is allowed
-            # for strings check if string is within a list of allowed values if it exists
+            # for any type check if setting is within a list of allowed values if it exists
             if setting_type == str:
                 # Case insensitive
                 setting_value = setting_value.lower()
 
                 # Only check if there are options
                 if "options" in cls._options[setting_name].keys():
-                    options = cls._options[setting_name]["options"]
+                    options = extract_options(cls._options[setting_name]["options"])
                     if setting_value not in options and len(options) > 0:
                         # This is fatal so an exception is raised
                         raise ValueError(
                             f"Value '{setting_value}' is not allowed for setting "
-                            + f"'{setting_name}' in part of type '{cls.__name__}'."
+                            + f"'{setting_name}' in part '{cls.__name__}'."
                         )
 
-                    # Further checks for special cases, e.g. sm/prog compatibility
-                    if "sm" in setting_name and "prog" in cls._options.keys():
-                        prog = tovalidate.get("prog", None) or cls._settings.get(
-                            "prog", None
-                        )
-
-                        # sm/prog compatibility check, should not throw unwanted errors
-                        if ("cosmo" in setting_value and prog != "tm") or (
-                            any(sm in setting_value for sm in ["smd", "cpcm"])
-                            and prog != "orca"
-                        ):
-                            raise ValueError(
-                                f"Value '{setting_value}' is not allowed for "
-                                + f"'{setting_name}' while using prog: "
-                                + f"'{tovalidate['prog']}' "
-                                + f"in part of type '{cls.__name__}'."
-                            )
-
-            # set the value in the dict tovalidate to the casted value
+            # set the value in the dict tovalidate to the cast value
             tovalidate[setting_name] = setting_value
 
         # remove the invalid settings

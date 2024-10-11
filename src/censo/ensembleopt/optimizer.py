@@ -14,6 +14,54 @@ class EnsembleOptimizer(CensoPart):
 
     _grid = ""
 
+    @classmethod
+    def _validate(cls, tovalidate: dict[str, any]) -> None:
+        """
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by
+        checking with cls._options.
+        This is the part-specific version of the method. It will run the general validation first and then
+        check part-specific logic.
+
+        Args:
+            tovalidate (dict[str, any]): The dict containing the settings to be validated.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the setting is not allowed or the value is not within the allowed options.
+        """
+        # General validation
+        super()._validate(tovalidate)
+
+        # Part-specific validation
+        # NOTE: tovalidate is always complete
+        # Check availability of func for prog
+        func = tovalidate["func"]
+        if func not in cls._options["func"][tovalidate["prog"]]:
+            raise ValueError(
+                f"Functional {func} is not available for {tovalidate['prog']}. "
+                "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
+            )
+
+        # Check sm availability for prog
+        sm = tovalidate.get("sm", None)
+        if sm is not None and sm not in cls._options["sm"][tovalidate["prog"]]:
+            raise ValueError(
+                f"Solvent model {sm} not available for {tovalidate['prog']}."
+            )
+
+        # Check solvent availability for sm
+        if (
+            sm is not None
+            and cls.get_general_settings()["solvent"]
+            not in CensoPart._options["solvent"][sm]
+        ):
+            raise ValueError(
+                f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "
+                "Please create an issue on GitHub if you think this is incorrect."
+            )
+
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
 
@@ -89,7 +137,6 @@ class EnsembleOptimizer(CensoPart):
                 prepinfo["sp"]["solvent_key_prog"] = SolventHelper.get_solvent(
                     self.get_settings()["sm"], self.get_general_settings()["solvent"]
                 )
-                assert prepinfo["sp"]["solvent_key_prog"] is not None
 
             if (
                 self.get_settings()["prog"] == "tm"
@@ -124,7 +171,6 @@ class EnsembleOptimizer(CensoPart):
                     self.get_general_settings()["sm_rrho"],
                     self.get_general_settings()["solvent"],
                 )
-                assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
 
         for jt in ["xtb_opt", "opt"]:
             if jt in jobtype:
@@ -153,7 +199,6 @@ class EnsembleOptimizer(CensoPart):
                         self.get_settings()["sm"],
                         self.get_general_settings()["solvent"],
                     )
-                    assert prepinfo[jt]["solvent_key_prog"] is not None
 
                 if (
                     self.get_settings()["prog"] == "tm"

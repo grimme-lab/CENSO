@@ -73,6 +73,7 @@ PROGS = ("orca", "tm")
 SOLV_MODS: dict[str, tuple] = {
     "orca": ("cpcm", "smd"),
     "tm": ("cosmo", "dcosmors", "cosmors", "cosmors-fine"),
+    "xtb": ("alpb", "gbsa"),
 }
 
 GRIDOPTIONS = (

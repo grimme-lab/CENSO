@@ -4,7 +4,7 @@ from functools import reduce
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS, SOLV_MODS
-from ..utilities import format_data, h1, print
+from ..utilities import format_data, h1, print, DfaHelper
 from .prescreening import Prescreening
 from .screening import Screening
 
@@ -16,25 +16,30 @@ class Refinement(Screening):
 
     _grid = "high+"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    __solv_mods = reduce(lambda x, y: x + y, (SOLV_MODS[prog] for prog in PROGS))
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 0.95},
-        "func": {"default": "wb97x-d3"},
+        "func": {
+            "default": "wb97x-d3",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "orca", "options": PROGS},
-        "sm": {"default": "smd", "options": __solv_mods},
+        "prog": {"default": "tm", "options": PROGS},
+        "sm": {"default": "cosmors", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": True},
-        "implicit": {"default": True},
+        "implicit": {"default": False},
         "template": {"default": False},
     }
 
     _settings = {}
 
     def optimize(self, ncores: int, cut: bool = True) -> None:
-        """ """
+        """
+        Similar to Screening.optimize, however here we use a Boltzmann population cutoff instead of kcal cutoff.
+        """
         Prescreening.optimize(self, ncores, cut=False)
 
         if self.get_general_settings()["evaluate_rrho"]:
