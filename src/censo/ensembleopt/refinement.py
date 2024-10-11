@@ -16,7 +16,7 @@ class Refinement(Screening):
 
     _grid = "high+"
 
-    __solv_mods = {prog: reduce(lambda x, y: x + y, SOLV_MODS[prog]) for prog in PROGS}
+    __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {

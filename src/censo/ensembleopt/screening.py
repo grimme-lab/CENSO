@@ -12,7 +12,7 @@ from ..datastructure import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, GFNOPTIONS, GRIDOPTIONS, PLENGTH, PROGS, SOLV_MODS
-from ..utilities import format_data, h1, print, DfaHelper, SolventHelper
+from ..utilities import format_data, h1, print, DfaHelper
 from .prescreening import Prescreening
 
 logger = setup_logger(__name__)
@@ -23,7 +23,7 @@ class Screening(Prescreening):
 
     _grid = "low+"
 
-    __solv_mods = {prog: reduce(lambda x, y: x + y, SOLV_MODS[prog]) for prog in PROGS}
+    __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {

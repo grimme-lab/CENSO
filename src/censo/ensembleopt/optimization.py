@@ -21,11 +21,7 @@ class Optimization(EnsembleOptimizer):
     _part_no = "2"
 
     __solv_mods = {
-        prog: tuple(
-            t
-            for t in reduce(lambda x, y: x + y, SOLV_MODS[prog])
-            if t not in ("cosmors", "cosmors-fine")
-        )
+        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
         for prog in PROGS
     }
 
