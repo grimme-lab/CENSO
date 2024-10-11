@@ -1216,7 +1216,6 @@ class OrcaProc(QmProc):
                     "average conv=true \n",
                     f"hlow={job.prepinfo['xtb_opt']['hlow']} \n",
                     "s6=30.00 \n",
-                    # remove unnecessary sp/gradient call in xTB
                     "engine=lbfgs\n",
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",

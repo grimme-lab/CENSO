@@ -157,14 +157,14 @@ class EnsembleOptimizer(CensoPart):
 
                 if (
                     self.get_settings()["prog"] == "tm"
-                    and prepinfo["sp"]["disp"] == "d4"
-                    and prepinfo["sp"]["gcp"]
+                    and prepinfo[jt]["disp"] == "d4"
+                    and prepinfo[jt]["gcp"]
                 ):
                     logger.warning(
                         "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
                         "together with the D4 correction. GCP will be disabled."
                     )
-                    prepinfo["sp"]["gcp"] = False
+                    prepinfo[jt]["gcp"] = False
 
                 break
 

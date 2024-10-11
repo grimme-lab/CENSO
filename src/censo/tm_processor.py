@@ -224,9 +224,11 @@ class TmProc(QmProc):
         # Configure grid
         call.extend(self.__gridsettings[job.prepinfo[jobtype]["grid"]])
 
-        # r2scan-3c should use m4 grid
-        if func == "r2scan-3c" and "m3" in call:
-            call[call.index("m3")] = "m4"
+        # r2scan-3c should use m4 grid and radsize 10
+        if func == "r2scan-3c":
+            if "m3" in call:
+                call[call.index("m3")] = "m4"
+            call.extend(["-radsize", "10"])
 
         # Add dispersion
         # dispersion correction information
@@ -845,11 +847,7 @@ class TmProc(QmProc):
                     "average conv=true \n",
                     f"hlow={job.prepinfo['xtb_opt']['hlow']} \n",
                     "s6=30.00 \n",
-                    # remove unnecessary sp/gradient call in xTB
                     "engine=lbfgs\n",
-                    "$external\n",
-                    f"   orca input file= {filename}.inp\n",
-                    f"   orca bin= {self._paths['orcapath']} \n",
                 ]
             )
 
@@ -862,10 +860,13 @@ class TmProc(QmProc):
 
             out.write("$end \n")
 
-        # check, if there is an existing .gbw file and copy it if option
+        # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
+        # mo files: mos/alpha,beta
         if self.copy_mo:
             self.__copy_mo(jobdir, job.mo_guess)
+
+        self.__prep(job, "xtb_opt", jobdir)
 
         # prepare xtb call
         call = [
