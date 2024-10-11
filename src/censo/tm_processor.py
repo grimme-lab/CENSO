@@ -311,7 +311,15 @@ class TmProc(QmProc):
 
         # Handle GCP
         if func_type != "composite" and gcp:
-            if "def" in basis:
+            gcp_keywords = {
+                "minis": "MINIS",
+                "sv": "SV",
+                "6-31g(d)": "631GD",
+                "def2-sv(p)": "SV(P)",
+                "def2-svp": "SVP",
+                "def2-tzvp": "TZ",
+            }
+            if basis.lower() in gcp_keywords:
                 if basis.lower() == "def2-sv(p)":
                     lines.insert(-1, "$gcp dft/sv(p)\n")
                 else:
@@ -495,14 +503,14 @@ class TmProc(QmProc):
         # set in/out path
         outputpath = os.path.join(jobdir, "ridft.out")
 
-        if prep:
-            self.__prep(job, "sp", jobdir, no_solv=no_solv)
-
         # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
         if self.copy_mo:
             self.__copy_mo(jobdir, job.mo_guess)
+
+        if prep:
+            self.__prep(job, "sp", jobdir, no_solv=no_solv)
 
         # call turbomole
         call = ["ridft"]
