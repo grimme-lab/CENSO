@@ -103,7 +103,7 @@ class NMR(PropertyCalculator):
                 # Check sm availability for prog
                 # Remember: tovalidate is always complete so we don't need .get with default None here
                 sm = tovalidate[f"sm{ending}"]
-                if sm not in cls._options["sm"]["options"][tovalidate["prog"]]:
+                if sm not in cls._options[f"sm{ending}"]["options"][tovalidate["prog"]]:
                     raise ValueError(
                         f"Solvent model {sm} not available for {tovalidate['prog']}."
                     )

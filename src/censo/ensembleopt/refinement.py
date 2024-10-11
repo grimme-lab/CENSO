@@ -22,7 +22,7 @@ class Refinement(Screening):
     _options = {
         "threshold": {"default": 0.95},
         "func": {
-            "default": "wb97x-d3",
+            "default": "wb97x-v",
             "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
         "basis": {"default": "def2-TZVP"},
