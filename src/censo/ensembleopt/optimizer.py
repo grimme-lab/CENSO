@@ -38,7 +38,7 @@ class EnsembleOptimizer(CensoPart):
         # NOTE: tovalidate is always complete
         # Check availability of func for prog
         func = tovalidate["func"]
-        if func not in cls._options["func"][tovalidate["prog"]]:
+        if func not in cls._options["func"]["options"][tovalidate["prog"]]:
             raise ValueError(
                 f"Functional {func} is not available for {tovalidate['prog']}. "
                 "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
@@ -46,7 +46,10 @@ class EnsembleOptimizer(CensoPart):
 
         # Check sm availability for prog
         sm = tovalidate.get("sm", None)
-        if sm is not None and sm not in cls._options["sm"][tovalidate["prog"]]:
+        if (
+            sm is not None
+            and sm not in cls._options["sm"]["options"][tovalidate["prog"]]
+        ):
             raise ValueError(
                 f"Solvent model {sm} not available for {tovalidate['prog']}."
             )
@@ -55,7 +58,7 @@ class EnsembleOptimizer(CensoPart):
         if (
             sm is not None
             and cls.get_general_settings()["solvent"]
-            not in CensoPart._options["solvent"][sm]
+            not in CensoPart._options["solvent"]["options"][sm]
         ):
             raise ValueError(
                 f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "

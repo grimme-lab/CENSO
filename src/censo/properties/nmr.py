@@ -91,7 +91,10 @@ class NMR(PropertyCalculator):
             if tovalidate[mapping[ending]]:
                 # Check availability of func for prog
                 func = tovalidate[f"func{ending}"]
-                if func not in cls._options[f"func{ending}"][tovalidate["prog"]]:
+                if (
+                    func
+                    not in cls._options[f"func{ending}"]["options"][tovalidate["prog"]]
+                ):
                     raise ValueError(
                         f"Functional {func} is not available for {tovalidate['prog']}. "
                         "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
@@ -100,7 +103,7 @@ class NMR(PropertyCalculator):
                 # Check sm availability for prog
                 # Remember: tovalidate is always complete so we don't need .get with default None here
                 sm = tovalidate[f"sm{ending}"]
-                if sm not in cls._options["sm"][tovalidate["prog"]]:
+                if sm not in cls._options["sm"]["options"][tovalidate["prog"]]:
                     raise ValueError(
                         f"Solvent model {sm} not available for {tovalidate['prog']}."
                     )
@@ -108,7 +111,7 @@ class NMR(PropertyCalculator):
                 # Check solvent availability for sm
                 if (
                     cls.get_general_settings()["solvent"]
-                    not in CensoPart._options["solvent"][sm]
+                    not in CensoPart._options["solvent"]["options"][sm]
                 ):
                     raise ValueError(
                         f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "

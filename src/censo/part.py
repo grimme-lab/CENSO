@@ -172,18 +172,18 @@ class CensoPart:
             ValueError: If the setting is not allowed or the value is not within the allowed options.
         """
 
-        def extract_options(d: dict) -> set:
+        def extract_options(d) -> set:
             """
             Helper function to extract all unique options from the lowest nesting level.
             """
             options = set()
 
-            def extract(dd: dict) -> None:
-                for value in dd.values():
-                    if isinstance(value, dict):
+            def extract(dd) -> None:
+                if isinstance(dd, dict):
+                    for value in dd.values():
                         extract(value)
-                    else:
-                        options.add(v for v in value)
+                else:
+                    options.update(dd)
 
             extract(d)
             return options
