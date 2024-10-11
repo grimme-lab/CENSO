@@ -20,11 +20,10 @@ logger = setup_logger(__name__)
 class UVVis(PropertyCalculator):
     _part_no = "6"
 
-    __solv_mods = tuple(
-        t
-        for t in reduce(lambda x, y: x + y, SOLV_MODS.values())
-        if t not in ("cosmors", "cosmors-fine")
-    )
+    __solv_mods = {
+        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
+        for prog in PROGS
+    }
 
     _options = {
         "prog": {"default": "orca", "options": ["orca"]},  # required

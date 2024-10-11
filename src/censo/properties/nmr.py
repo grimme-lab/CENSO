@@ -25,11 +25,10 @@ class NMR(PropertyCalculator):
 
     _grid = "high+"
 
-    __solv_mods = tuple(
-        t
-        for t in reduce(lambda x, y: x + y, SOLV_MODS.values())
-        if t not in ("cosmors", "cosmors-fine")
-    )
+    __solv_mods = {
+        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
+        for prog in PROGS
+    }
 
     _options = {
         "resonance_frequency": {"default": 300.0},
