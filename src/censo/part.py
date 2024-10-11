@@ -183,7 +183,7 @@ class CensoPart:
                     if isinstance(value, dict):
                         extract(value)
                     else:
-                        options.add(value)
+                        options.add(v for v in value)
 
             extract(d)
             return options
