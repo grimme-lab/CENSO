@@ -23,7 +23,7 @@ class Screening(Prescreening):
 
     _grid = "low+"
 
-    __solv_mods = reduce(lambda x, y: x + y, (SOLV_MODS[prog] for prog in PROGS))
+    __solv_mods = {prog: reduce(lambda x, y: x + y, SOLV_MODS[prog]) for prog in PROGS}
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {

@@ -20,11 +20,14 @@ logger = setup_logger(__name__)
 class Optimization(EnsembleOptimizer):
     _part_no = "2"
 
-    __solv_mods = tuple(
-        t
-        for t in reduce(lambda x, y: x + y, (SOLV_MODS[prog] for prog in PROGS))
-        if t not in ("cosmors", "cosmors-fine")
-    )
+    __solv_mods = {
+        prog: tuple(
+            t
+            for t in reduce(lambda x, y: x + y, SOLV_MODS[prog])
+            if t not in ("cosmors", "cosmors-fine")
+        )
+        for prog in PROGS
+    }
 
     _grid = "high"
 
