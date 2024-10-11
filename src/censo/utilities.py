@@ -161,7 +161,11 @@ class SolventHelper:
         Returns:
             dict: The solvent names mapping onto the solvent keyword in the model.
         """
-        return {name: sm_keys[sm] for name, sm_keys in cls._solv_dict if sm in sm_keys}
+        return {
+            name: sm_keys[sm]
+            for name, sm_keys in cls._solv_dict.items()
+            if sm in sm_keys
+        }
 
 
 def print(*args, **kwargs):
