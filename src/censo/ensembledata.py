@@ -86,10 +86,12 @@ class EnsembleData:
             data = json.load(file)
 
         # Check if all conformers from the current ensemble are also found in the output data
-        if not all(conf.name in data for conf in self.conformers):
-            raise RuntimeError(
-                "Not all conformers from the current ensemble are found in the output data."
-            )
+        for item in data.items():
+            # First level of json output is the part name (loop iterates through all parts in the json file)
+            if not all(conf.name in item for conf in self.conformers):
+                raise RuntimeError(
+                    "Not all conformers from the current ensemble are found in the output data."
+                )
 
         # Update results dict for the conformers
         for conf in self.conformers:
