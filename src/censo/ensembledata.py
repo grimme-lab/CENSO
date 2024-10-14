@@ -86,7 +86,7 @@ class EnsembleData:
             data = json.load(file)
 
         # Check if all conformers from the current ensemble are also found in the output data
-        for partname, results in data.values():
+        for partname, results in data.items():
             # First level of json output is the part name (loop iterates through all parts in the json file)
             # .values() are the results of each part
             if not all(conf.name in results for conf in self.conformers):
