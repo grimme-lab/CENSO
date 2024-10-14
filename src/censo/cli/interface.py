@@ -128,12 +128,12 @@ def cleanup_run(cwd, complete=False):
     # files containing these patterns are deleted
     to_delete = [
         "censo.log",
-        "prescreening",
-        "screening",
-        "optimization",
-        "refinement",
-        "nmr",
-        "uvvis",
+        "0_PRESCREENING",
+        "1_SCREENING",
+        "2_OPTIMIZATION",
+        "3_REFINEMENT",
+        "4_NMR",
+        "6_UVVIS",
     ]
 
     if complete:

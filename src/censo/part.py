@@ -328,7 +328,9 @@ class CensoPart:
             None
         """
         results = {
-            conf.name: conf.results[self._name] for conf in self.ensemble.conformers
+            self._name: {
+                conf.name: conf.results[self._name] for conf in self.ensemble.conformers
+            }
         }
         filename = f"{self._part_no}_{self._name.upper()}.json"
         with open(os.path.join(self.ensemble.workdir, filename), "w") as outfile:

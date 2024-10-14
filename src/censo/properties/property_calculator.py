@@ -88,9 +88,7 @@ class PropertyCalculator(CensoPart):
         using_part = None
         for partname in ["prescreening", "screening", "optimization", "refinement"]:
             # This way, the most high-level partname should get stuck in using_part
-            if all(
-                partname in conf.results.keys() for conf in self.ensemble.conformers
-            ):
+            if all(partname in conf.results for conf in self.ensemble.conformers):
                 using_part = partname
 
         if using_part is None:
