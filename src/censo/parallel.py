@@ -91,6 +91,30 @@ def execute(
     # NOTE: since parallelization in tm is controlled using environment variables we cannot use automatic load balancing
     if balance and not isinstance(processor, TmProc):
         set_omp_chunking(jobs)
+    elif balance and isinstance(processor, TmProc):
+        logger.warning(
+            "Load balancing 2.0 is not supported for TURBOMOLE. Falling back to old behaviour."
+        )
+
+        # If there are not enough cores to use omp = OMPMIN (to avoid unnecessary waiting)
+        if len(jobs) < ncores // OMPMIN:
+            omp = ncores // len(jobs)
+        # Otherwise try find the largest number of parallel processors p that
+        # is ncores // OMPMIN at most and ncores // OMPMAX at least
+        # such that at least 75% of processors still work for the remainder jobs
+        # or the number of jobs can be evenly distributed between the processors
+        else:
+            for o in range(OMPMIN, OMPMAX + 1):
+                p = ncores // o
+                if p == 1:
+                    break
+                if len(jobs) % p >= 0.75 * p or len(jobs) % p == 0:
+                    break
+            omp = o
+
+        # Configure environment variables
+        ENVIRON["PARA_ARCH"] = "SMP"
+        ENVIRON["PARNODES"] = str(omp)
     else:
         if omp < OMPMIN:
             logger.warning(
@@ -102,16 +126,6 @@ def execute(
                 f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
             )
             omp = ncores
-
-        if isinstance(processor, TmProc):
-            if balance:
-                logger.warning(
-                    f"Automatic load balancing is not supported for TURBOMOLE. Using OMP = {omp} for all jobs instead."
-                )
-
-            # Configure environment variables
-            ENVIRON["PARA_ARCH"] = "SMP"
-            ENVIRON["PARNODES"] = str(omp)
 
         for job in jobs:
             job.omp = omp
