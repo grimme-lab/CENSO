@@ -96,7 +96,7 @@ class EnsembleData:
 
             # Update results dict for the conformers
             for conf in self.conformers:
-                conf.results[partname].update(results[conf.name])
+                conf.results.setdefault(partname, {}).update(results[conf.name])
 
     def read_input(
         self,
