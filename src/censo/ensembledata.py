@@ -98,6 +98,8 @@ class EnsembleData:
             for conf in self.conformers:
                 conf.results.setdefault(partname, {}).update(results[conf.name])
 
+        logger.info(f"Reloaded results from {outpath}.")
+
     def read_input(
         self,
         ensemble_path: str,

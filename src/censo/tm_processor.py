@@ -1014,7 +1014,8 @@ class TmProc(QmProc):
         }
 
         # Run sp first
-        spres, spmeta = self._sp(job, jobdir)
+        self.__prep(job, "nmr", jobdir)
+        spres, spmeta = self._sp(job, jobdir, prep=False)
 
         if not spmeta["success"]:
             meta["success"] = False
