@@ -195,7 +195,7 @@ class NMR(PropertyCalculator):
                 "func_type": DfaHelper.get_type(self.get_settings()["func_s"]),
                 "disp": DfaHelper.get_disp(self.get_settings()["func_s"]),
                 "basis": self.get_settings()["basis_s"],
-                "grid": "high+",  # hardcoded grid settings
+                "grid": self._grid,  # hardcoded grid settings
                 "template": self.get_settings()["template"],
                 "gcp": False,  # GCP is not necessary for spectra calculations
                 "fc_only": self.get_settings()["fc_only"],
