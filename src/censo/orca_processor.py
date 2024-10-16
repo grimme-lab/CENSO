@@ -314,12 +314,14 @@ class OrcaProc(QmProc):
             "low+": ["grid4", "nofinalgrid", "scfconv6"],
             "high": ["grid4", "nofinalgrid", "scfconv7"],
             "high+": ["grid5", "nofinalgrid", "scfconv7"],
+            "nmr": ["grid5", "nofinalgrid", "scfconv7"],
         },
         True: {
             "low": ["DEFGRID1", "loosescf"],
             "low+": ["DEFGRID2", "scfconv6"],
             "high": ["DEFGRID2", "scfconv7"],
             "high+": ["DEFGRID2", "scfconv7"],
+            "nmr": ["DEFGRID2", "scfconv7"],
         },
     }
 

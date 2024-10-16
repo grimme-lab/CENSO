@@ -23,7 +23,7 @@ logger = setup_logger(__name__)
 class NMR(PropertyCalculator):
     _part_no = "4"
 
-    _grid = "high+"
+    _grid = "nmr"
 
     __solv_mods = {
         prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))

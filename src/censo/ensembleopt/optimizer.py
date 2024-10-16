@@ -146,11 +146,24 @@ class EnsembleOptimizer(CensoPart):
                 and prepinfo["sp"]["disp"] == "d4"
                 and prepinfo["sp"]["gcp"]
             ):
-                logger.warning(
-                    "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
-                    "together with the D4 correction. GCP will be disabled."
-                )
-                prepinfo["sp"]["gcp"] = False
+                # Basis sets including the following naming patterns should definitely use GCP
+                gcp_basis_patterns = ["sv", "dz", "tz", "mini", "6-31g(d)"]
+                if any(
+                    pattern in prepinfo["sp"]["basis"] for pattern in gcp_basis_patterns
+                ):
+                    logger.warning(
+                        "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
+                        "together with the D4 correction. Switching to D3."
+                    )
+                    prepinfo["sp"]["disp"] = DfaHelper.get_disp(
+                        self.get_settings["func"].replace("d4", "d3")
+                    )
+                else:
+                    logger.warning(
+                        "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
+                        "together with the D4 correction. Turning off GCP."
+                    )
+                    prepinfo["sp"]["gcp"] = False
 
         # TODO - this doesn't look very nice
         if "xtb_gsolv" in jobtype:
@@ -208,11 +221,25 @@ class EnsembleOptimizer(CensoPart):
                     and prepinfo[jt]["disp"] == "d4"
                     and prepinfo[jt]["gcp"]
                 ):
-                    logger.warning(
-                        "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
-                        "together with the D4 correction. GCP will be disabled."
-                    )
-                    prepinfo[jt]["gcp"] = False
+                    # Basis sets including the following naming patterns should definitely use GCP
+                    gcp_basis_patterns = ["sv", "dz", "tz", "mini", "6-31g(d)"]
+                    if any(
+                        pattern in prepinfo[jt]["basis"]
+                        for pattern in gcp_basis_patterns
+                    ):
+                        logger.warning(
+                            "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
+                            "together with the D4 correction. Switching to D3."
+                        )
+                        prepinfo[jt]["disp"] = DfaHelper.get_disp(
+                            self.get_settings["func"].replace("d4", "d3")
+                        )
+                    else:
+                        logger.warning(
+                            "Due to a bug in TURBOMOLE it is currently not possible to use GCP "
+                            "together with the D4 correction. Turning off GCP."
+                        )
+                        prepinfo[jt]["gcp"] = False
 
                 break
 

@@ -27,6 +27,7 @@ class TmProc(QmProc):
         "low+": ["-grid", "m4", "-scfconv", "6"],
         "high": ["-grid", "m4", "-scfconv", "7"],
         "high+": ["-grid", "m5", "-scfconv", "7"],
+        "nmr": ["-grid", "5", "-scfconv", "7"],
     }
 
     __returncode_to_err = {}
