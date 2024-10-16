@@ -360,12 +360,13 @@ class TmProc(QmProc):
         # Set NMR parameters
         if "nmr" in jobtype:
             # Determine the settings that need to be put into the input file for the NMR calculation
+            # $nucsel does not work properly with capital letters
             active_elements_map = {
-                '"H"': prepinfo[jobtype]["h_active"],
-                '"C"': prepinfo[jobtype]["c_active"],
-                '"F"': prepinfo[jobtype]["f_active"],
-                '"Si"': prepinfo[jobtype]["si_active"],
-                '"P"': prepinfo[jobtype]["p_active"],
+                '"h"': prepinfo[jobtype]["h_active"],
+                '"c"': prepinfo[jobtype]["c_active"],
+                '"f"': prepinfo[jobtype]["f_active"],
+                '"si"': prepinfo[jobtype]["si_active"],
+                '"p"': prepinfo[jobtype]["p_active"],
             }
 
             todo = [
