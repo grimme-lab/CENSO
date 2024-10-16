@@ -156,7 +156,7 @@ class EnsembleOptimizer(CensoPart):
                         "together with the D4 correction. Switching to D3."
                     )
                     prepinfo["sp"]["disp"] = DfaHelper.get_disp(
-                        self.get_settings["func"].replace("d4", "d3")
+                        self.get_settings()["func"].replace("d4", "d3")
                     )
                 else:
                     logger.warning(
@@ -232,7 +232,7 @@ class EnsembleOptimizer(CensoPart):
                             "together with the D4 correction. Switching to D3."
                         )
                         prepinfo[jt]["disp"] = DfaHelper.get_disp(
-                            self.get_settings["func"].replace("d4", "d3")
+                            self.get_settings()["func"].replace("d4", "d3")
                         )
                     else:
                         logger.warning(
