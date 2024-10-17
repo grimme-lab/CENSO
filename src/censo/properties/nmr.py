@@ -117,6 +117,14 @@ class NMR(PropertyCalculator):
                         "Please create an issue on GitHub if you think this is incorrect."
                     )
 
+                # dummy/template functionality not implemented yet for TM
+                if tovalidate["prog"] == "tm" and (
+                    func == "dummy" or tovalidate.get("template", False)
+                ):
+                    raise NotImplementedError(
+                        "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
+                    )
+
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
 

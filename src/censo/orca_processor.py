@@ -516,6 +516,8 @@ class OrcaProc(QmProc):
         elif "gga" in functype:
             indict["main"].append("RI")
 
+        # dummy type falls through every case, nothing is done in that case
+
         # use 'grid' setting from instructions to quickly configure the grid
         indict["main"].extend(self.__gridsettings[orca5][prepinfo[jobtype]["grid"]])
 

@@ -20,8 +20,8 @@
   "functionals": {
     "dummy": {
       "tm": null,
-      "orca": null,
-      "disp": null,
+      "orca": "dummy",
+      "disp": "dummy",
       "type": "dummy"
     },
     "pbeh-3c": {
