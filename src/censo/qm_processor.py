@@ -47,6 +47,7 @@ class QmProc:
         "crestpath": "",
         "cefinepath": "",
         "cosmorssetup": "",
+        "cosmothermpath": "",
         "dbpath": "",
         "cosmothermversion": "",
         "mpshiftpath": "",

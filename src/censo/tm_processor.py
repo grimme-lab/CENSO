@@ -618,6 +618,7 @@ class TmProc(QmProc):
 
             # Run gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
             job.prepinfo["sp"]["func_name"] = "b-p"
+            job.prepinfo["sp"]["func_type"] = "gga"
             job.prepinfo["sp"]["disp"] = "novdw"
 
             if job.prepinfo["sp"]["sm"] == "cosmors-fine":
@@ -654,7 +655,6 @@ class TmProc(QmProc):
                 f.truncate()
 
             # Run sp
-            # TODO - is prep=False correct here?
             spres, spmeta = self._sp(job, jobdir, prep=False)
 
             if not spmeta["success"]:
@@ -663,19 +663,32 @@ class TmProc(QmProc):
                 return result, meta
 
             # Prepare cosmotherm.inp
-            lines = [self._paths["cosmorssetup"] + "\n", "EFILE VPFILE\n", "!!\n"]
+            lines = [
+                f"ctd = {self._paths['cosmorssetup']} cdir = {os.path.join(self._paths['cosmothermpath'], 'CTDATA-FILES')}\n"
+                "EFILE VPFILE\n",
+                "!!\n",
+            ]
+            db = os.path.join(
+                self._paths["cosmothermpath"],
+                "DATABASE-COSMO",
+                (
+                    "BP-TZVP-COSMO"
+                    if job.prepinfo["sp"]["sm"] == "cosmors"
+                    else "BP-TZVPD-FINE"
+                ),
+            )
             if job.prepinfo["sp"]["solvent_key_prog"] == "woctanol":
                 lines.extend(
                     [
-                        f"f = h2o.cosmo fdir={self._paths['dbpath']} autoc\n",
-                        f"f = 1-octanol.cosmo fdir={self._paths['dbpath']} autoc\n",
+                        f"f = h2o.cosmo fdir={db} autoc\n",
+                        f"f = 1-octanol.cosmo fdir={db} autoc\n",
                     ]
                 )
                 mix = "0.27 0.73"
             else:
                 lines.append(
                     f"f = {job.prepinfo['sp']['solvent_key_prog']}.cosmo"
-                    + f" fdir={self._paths['dbpath']} autoc\n"
+                    + f" fdir={db} autoc\n"
                 )
                 mix = "1.0 0.0"
 

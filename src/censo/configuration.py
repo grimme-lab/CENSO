@@ -211,12 +211,12 @@ def find_program_paths() -> dict[str, str]:
     mapping = {
         "orcapath": "orca",
         "xtbpath": "xtb",
+        "mpshiftpath": "mpshift",
+        "escfpath": "escf",
         # "crestpath": "crest",
         # "cosmorssetup": None,
         # "dbpath": None,
         # "cosmothermversion": None,
-        # "mpshiftpath": None,
-        # "escfpath": None,
     }
     paths = {}
 
