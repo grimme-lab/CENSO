@@ -127,10 +127,7 @@ class Screening(Prescreening):
         """
         # If solvation contributions should be included and the solvation free enthalpy
         # should not be included in the single-point energy the 'gsolv' job should've been run
-        if (
-            not self.get_general_settings()["gas-phase"]
-            and not self.get_settings()["implicit"]
-        ):
+        if "gsolv" in conf.results[self._name]:
             return conf.results[self._name]["gsolv"]["energy_solv"]
         # Otherwise, return just the single-point energy
         else:
@@ -408,7 +405,9 @@ class Screening(Prescreening):
                 * conf.results[self._name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
             )
-            if all("sp" in conf.results for conf in self.ensemble.conformers)
+            if all(
+                "sp" in conf.results[self._name] for conf in self.ensemble.conformers
+            )
             else sum(
                 conf.results[self._name]["bmw"]
                 * conf.results[self._name]["gsolv"]["energy_gas"]
