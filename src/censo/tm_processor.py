@@ -501,6 +501,7 @@ class TmProc(QmProc):
         # check, if there is an existing mo/alpha,beta file and copy it if option
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
+        # NOTE: this HAS TO BE in this order, otherwise ridft fails to read mos
         if self.copy_mo:
             self.__copy_mo(jobdir, job.mo_guess)
 
@@ -626,6 +627,9 @@ class TmProc(QmProc):
             else:
                 job.prepinfo["sp"]["basis"] = "def2-tzvp"
 
+            # Turn off copying mos since this will lead to errors otherwise
+            # (due to incorrect order of prep/copy_mos)
+            self.copy_mo = False
             spres, spmeta = self._sp(job, jobdir, no_solv=True)
 
             if not spmeta["success"]:
@@ -634,7 +638,8 @@ class TmProc(QmProc):
                 return result, meta
 
             # Run special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
-            self.__prep(job, "sp", jobdir, no_solv=True)
+            # NOTE: should work w/o prepping another input
+            # self.__prep(job, "sp", jobdir, no_solv=True)
 
             # Write special settings for cosmo into control file
             with open(os.path.join(jobdir, "control"), "r+") as f:
@@ -656,6 +661,9 @@ class TmProc(QmProc):
 
             # Run sp
             spres, spmeta = self._sp(job, jobdir, prep=False)
+
+            # Turn on copy_mo again if required
+            self.copy_mo = job.prepinfo["general"]["copy_mo"]
 
             if not spmeta["success"]:
                 meta["success"] = False
