@@ -170,7 +170,7 @@ class Refinement(Screening):
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: (
                 f"{self.gtot(conf) - dft_energies[id(conf)]:.6f}"
-                if not self.get_settings().get("implicit", False)
+                if "gsolv" in conf.results[self._name]
                 else "---"
             ),
             "GmRRHO": lambda conf: (
