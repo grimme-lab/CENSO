@@ -402,12 +402,18 @@ class Screening(Prescreening):
         )
 
         # calculate averaged free energy
-        avE = sum(
-            [
+        avE = (
+            sum(
                 conf.results[self._name]["bmw"]
                 * conf.results[self._name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
-            ]
+            )
+            if all("sp" in conf.results for conf in self.ensemble.conformers)
+            else sum(
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["gsolv"]["energy_gas"]
+                for conf in self.ensemble.conformers
+            )
         )
 
         # append the lines for the free energy/enthalpy

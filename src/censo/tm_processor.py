@@ -714,10 +714,10 @@ class TmProc(QmProc):
 
                 # Write trange to the xcontrol file
                 for t in trange:
-                    lines.append(f"henry xh={{mix}} tc={t - 273.15} Gsolv\n")
+                    lines.append(f"henry xh={{{mix}}} tc={t - 273.15} Gsolv\n")
             else:
                 lines.append(
-                    f"henry xh={{mix}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
+                    f"henry xh={{{mix}}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
                 )
 
             with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
