@@ -156,8 +156,7 @@ class Refinement(Screening):
                 for conf in self.ensemble.conformers
             }
             if not all(
-                "gsolv" in conf.results[self._name].keys()
-                for conf in self.ensemble.conformers
+                "gsolv" in conf.results[self._name] for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
@@ -207,12 +206,20 @@ class Refinement(Screening):
         )
 
         # calculate averaged free energy
-        avE = sum(
-            [
+        avE = (
+            sum(
                 conf.results[self._name]["bmw"]
                 * conf.results[self._name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
-            ]
+            )
+            if all(
+                "sp" in conf.results[self._name] for conf in self.ensemble.conformers
+            )
+            else sum(
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["gsolv"]["energy_gas"]
+                for conf in self.ensemble.conformers
+            )
         )
 
         # append the lines for the free energy/enthalpy

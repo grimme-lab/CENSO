@@ -340,8 +340,7 @@ class Screening(Prescreening):
                 for conf in self.ensemble.conformers
             }
             if not all(
-                "gsolv" in conf.results[self._name].keys()
-                for conf in self.ensemble.conformers
+                "gsolv" in conf.results[self._name] for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
