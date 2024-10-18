@@ -379,7 +379,8 @@ class TmProc(QmProc):
             rpacor = rpacor if rpacor > 10000 else 10000
             lines[rpacor_line_index] = f"$rpacor {rpacor}\n"
 
-            lines[-1:-1] = ["$ncoupling\n", " simple\n", " thr=0.0\n"]
+            if prepinfo[jobtype]["fc_only"]:
+                lines[-1:-1] = ["$ncoupling\n", " simple\n", " thr=0.0\n"]
 
             # nucsel only required if not all elements are active
             if not all(element in todo for element in active_elements_map):
