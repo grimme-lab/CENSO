@@ -91,7 +91,18 @@ class Optimization(EnsembleOptimizer):
         else:
             stopcycle = 200
         """
-        jobtype = ["xtb_opt"] if self.get_settings()["xtb_opt"] else ["opt"]
+        # Set jobtype depending on program (tm has not tm-pure geom opt yet)
+        jobtype = None
+        if self.get_settings()["prog"] == "orca":
+            jobtype = ["xtb_opt"] if self.get_settings()["xtb_opt"] else ["opt"]
+        else:
+            if not self.get_settings()["xtb_opt"]:
+                logger.warning(
+                    "TURBOMOLE-driven geometry optimization not available yet. Switching back to ANCOPT as driver."
+                )
+            jobtype = ["xtb_opt"]
+        assert jobtype is not None
+
         # NOTE: (IMPORTANT) the following only uses xtb as driver (no native geometry optimizations)
         # Check for constraint file
         if self.get_settings()["constrain"]:

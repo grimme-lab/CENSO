@@ -69,7 +69,7 @@ def configure(rcpath: str = None, create_new: bool = False):
         # General settings should always be configured first
         CensoPart.set_general_settings({})
         for part in parts.values():
-            part.set_settings({})
+            part.set_settings({}, complete=True)
 
         # Read rcfile if it exists
         if censorc_path is not None:

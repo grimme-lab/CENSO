@@ -201,14 +201,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         help="Run calculation in gas-phase, overriding all solvation settings.",
     )
     groups[1].add_argument(
-        "--cosmorsparam",
-        dest="cosmorsparam",
-        type=str,
-        help="Choose a COSMO-RS parametrization for possible COSMO-RS G_solv "
-        "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
-        " 'BP_TZVPD_FINE_C30_1601.ctd'.",
-    )
-    groups[1].add_argument(
         "-O",
         "--omp",
         dest="omp",

@@ -103,7 +103,7 @@ class CensoPart:
         return cls._settings
 
     @classmethod
-    def set_settings(cls, settings: dict[str, any], complete: bool = True):
+    def set_settings(cls, settings: dict[str, any], complete: bool = False):
         """
         Set all part specific settings according to a settings dictionary. Will validate the dictionary and complete
         it if complete = True.
