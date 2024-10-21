@@ -12,7 +12,7 @@ from ..datastructure import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, GFNOPTIONS, GRIDOPTIONS, PLENGTH, PROGS, SOLV_MODS
-from ..utilities import format_data, h1, print
+from ..utilities import format_data, h1, print, DfaHelper
 from .prescreening import Prescreening
 
 logger = setup_logger(__name__)
@@ -23,18 +23,21 @@ class Screening(Prescreening):
 
     _grid = "low+"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
     # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 3.5},
-        "func": {"default": "r2scan-3c"},
+        "func": {
+            "default": "r2scan-3c",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+        },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "orca", "options": PROGS},
-        "sm": {"default": "smd", "options": __solv_mods},
+        "prog": {"default": "tm", "options": PROGS},
+        "sm": {"default": "cosmors", "options": __solv_mods},
         "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": True},
-        "implicit": {"default": True},
+        "implicit": {"default": False},
         "template": {"default": False},
     }
 
@@ -124,10 +127,7 @@ class Screening(Prescreening):
         """
         # If solvation contributions should be included and the solvation free enthalpy
         # should not be included in the single-point energy the 'gsolv' job should've been run
-        if (
-            not self.get_general_settings()["gas-phase"]
-            and not self.get_settings()["implicit"]
-        ):
+        if "gsolv" in conf.results[self._name]:
             return conf.results[self._name]["gsolv"]["energy_solv"]
         # Otherwise, return just the single-point energy
         else:
@@ -340,8 +340,7 @@ class Screening(Prescreening):
                 for conf in self.ensemble.conformers
             }
             if not all(
-                "gsolv" in conf.results[self._name].keys()
-                for conf in self.ensemble.conformers
+                "gsolv" in conf.results[self._name] for conf in self.ensemble.conformers
             )
             else {
                 id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
@@ -362,7 +361,7 @@ class Screening(Prescreening):
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: (
                 f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
-                if not self.get_settings().get("implicit", False)
+                if "gsolv" in conf.results[self._name]
                 else "---"
             ),
             "GmRRHO": lambda conf: (
@@ -399,12 +398,20 @@ class Screening(Prescreening):
         )
 
         # calculate averaged free energy
-        avE = sum(
-            [
+        avE = (
+            sum(
                 conf.results[self._name]["bmw"]
                 * conf.results[self._name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
-            ]
+            )
+            if all(
+                "sp" in conf.results[self._name] for conf in self.ensemble.conformers
+            )
+            else sum(
+                conf.results[self._name]["bmw"]
+                * conf.results[self._name]["gsolv"]["energy_gas"]
+                for conf in self.ensemble.conformers
+            )
         )
 
         # append the lines for the free energy/enthalpy

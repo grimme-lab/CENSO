@@ -2,6 +2,7 @@
 Utility functions which are used in the CENSO modules. From creating folders to
 printout routines.
 """
+
 import functools
 import hashlib
 import json
@@ -27,28 +28,21 @@ class DfaHelper:
             cls._dfa_dict = json.load(f)
 
     @classmethod
-    def find_func(cls, part: str, prog=None):
+    def get_funcs(cls, prog: str):
         """
-        Returns all functionals available for a given part and (optionally) qm program.
+        Returns all functionals available for a given qm program.
 
         Args:
-            part (str): The name of the part.
-            prog (str, optional): The qm program name. Defaults to None.
+            prog (str): The qm program name.
 
         Returns:
             list[str]: The list of functionals.
         """
-        if prog is None:
-            return [
-                func for func, v in cls._dfa_dict["functionals"].items()
-                if part in v["part"]
-            ]
-        else:
-            prog = prog.lower()
-            return [
-                func for func, v in cls._dfa_dict["functionals"].items()
-                if part in v["part"] and v[prog] != ""
-            ]
+        return [
+            func
+            for func, v in cls._dfa_dict["functionals"].items()
+            if v[prog.lower()] is not None
+        ]
 
     @classmethod
     def get_name(cls, func: str, prog: str):
@@ -151,10 +145,27 @@ class SolventHelper:
         Returns:
             str | None: The solvent model keyword or None if not found.
         """
-        for keyword, names in cls._solv_dict[sm.lower()].items():
-            if name.lower() in names:
-                return keyword
-        return None
+        available_solvent_names_dict = cls.get_solvents_dict(sm)
+        if name not in available_solvent_names_dict:
+            return None
+        return available_solvent_names_dict[name]
+
+    @classmethod
+    def get_solvents_dict(cls, sm: str) -> dict:
+        """
+        Get all available solvent names for a specified solvent model with the respective internal keyword.
+
+        Args:
+            sm (str): The solvent model.
+
+        Returns:
+            dict: The solvent names mapping onto the solvent keyword in the model.
+        """
+        return {
+            name: sm_keys[sm]
+            for name, sm_keys in cls._solv_dict.items()
+            if sm in sm_keys
+        }
 
 
 def print(*args, **kwargs):
@@ -177,11 +188,13 @@ def print(*args, **kwargs):
     print_orig(*args, sep=sep, end=end, file=file, flush=flush)
 
 
-def format_data(headers: list[str],
-                rows: list[list[str]],
-                units: list[str] = None,
-                sortby: int = 0,
-                padding: int = 6) -> list[str]:
+def format_data(
+    headers: list[str],
+    rows: list[list[str]],
+    units: list[str] = None,
+    sortby: int = 0,
+    padding: int = 6,
+) -> list[str]:
     """
     Generates a formatted table based on the given headers, rows, units, and sortby index.
 
@@ -201,10 +214,7 @@ def format_data(headers: list[str],
         """
         Natural sorting key for strings.
         """
-        return [
-            int(text) if text.isdigit() else text
-            for text in re.split(r"(\d+)", s)
-        ]
+        return [int(text) if text.isdigit() else text for text in re.split(r"(\d+)", s)]
 
     lines = []
 
@@ -212,27 +222,35 @@ def format_data(headers: list[str],
     ncols = len(headers)
     if units is not None:
         maxcolw = [
-            max([
-                len(headers[i]),
-                max(len(rows[j][i]) for j in range(len(rows))),
-                len(units[i])
-            ]) for i in range(ncols)
+            max(
+                [
+                    len(headers[i]),
+                    max(len(rows[j][i]) for j in range(len(rows))),
+                    len(units[i]),
+                ]
+            )
+            for i in range(ncols)
         ]
     else:
         maxcolw = [
-            max(len(headers[i]),
-                max(len(rows[j][i]) for j in range(len(rows))))
+            max(len(headers[i]), max(len(rows[j][i]) for j in range(len(rows))))
             for i in range(ncols)
         ]
 
     # add table header
-    lines.append(" ".join(f"{headers[i]:^{width + padding}}"
-                          for i, width in enumerate(maxcolw)) + "\n")
+    lines.append(
+        " ".join(f"{headers[i]:^{width + padding}}" for i, width in enumerate(maxcolw))
+        + "\n"
+    )
 
     # Add units
     if units is not None:
-        lines.append(" ".join(f"{units[i]:^{width + padding}}"
-                              for i, width in enumerate(maxcolw)) + "\n")
+        lines.append(
+            " ".join(
+                f"{units[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
+            )
+            + "\n"
+        )
 
     # TODO - draw an arrow if conformer is the best in current ranking
     # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
@@ -246,8 +264,10 @@ def format_data(headers: list[str],
 
     # add a line for every row
     for row in rows:
-        lines.append(" ".join(f"{row[i]:^{width + padding}}"
-                              for i, width in enumerate(maxcolw)) + "\n")
+        lines.append(
+            " ".join(f"{row[i]:^{width + padding}}" for i, width in enumerate(maxcolw))
+            + "\n"
+        )
 
     # Remove leading whitespace
     start = min(len(line) - len(line.lstrip()) for line in lines)
@@ -277,9 +297,9 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
     return result
 
 
-def t2x(path: str,
-        writexyz: bool = False,
-        outfile: str = "original.xyz") -> tuple[list, int, str]:
+def t2x(
+    path: str, writexyz: bool = False, outfile: str = "original.xyz"
+) -> tuple[list, int, str]:
     """
     convert TURBOMOLE coord file to xyz data and/or write *.xyz output
 
@@ -310,12 +330,14 @@ def t2x(path: str,
                     f"{float(line.split()[2]) * BOHR2ANG:.10f}",
                     f"{str(line.split()[3].lower()).capitalize()}",
                 ],
-            ))
+            )
+        )
 
     # get path from args without the filename of the ensemble (last element of path)
     if os.path.isfile(path):
-        outpath = functools.reduce(lambda x, y: os.path.join(x, y),
-                                   list(os.path.split(path))[::-1][1:][::-1])
+        outpath = functools.reduce(
+            lambda x, y: os.path.join(x, y), list(os.path.split(path))[::-1][1:][::-1]
+        )
     # or just use the given path if it is not a file path
     else:
         outpath = path
@@ -380,8 +402,9 @@ def timeit(f) -> Callable:
     return wrapper
 
 
-def od_insert(od: OrderedDict[str, any], key: str, value: any,
-              index: int) -> OrderedDict[str, any]:
+def od_insert(
+    od: OrderedDict[str, any], key: str, value: any, index: int
+) -> OrderedDict[str, any]:
     """
     Insert a new key/value pair into an OrderedDict at a specific position.
     If it was a normal dict:

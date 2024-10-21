@@ -33,10 +33,7 @@ class GeometryData:
         for line in xyz:
             spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
-            self.xyz.append({
-                "element": element,
-                "xyz": [float(i) for i in spl[1:]]
-            })
+            self.xyz.append({"element": element, "xyz": [float(i) for i in spl[1:]]})
 
         # Count atoms
         self.nat: int = len(self.xyz)
@@ -60,8 +57,10 @@ class GeometryData:
             coord.append(
                 reduce(
                     lambda x, y: f"{x} {y}",
-                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"])) +
-                    [f"{atom['element']}\n"]))
+                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"]))
+                    + [f"{atom['element']}\n"],
+                )
+            )
 
         coord.append("$end\n")
 
@@ -138,7 +137,8 @@ class MoleculeData:
         self.xtb_energy: float = None
 
         # list to store the paths to all MO-files from the jobs run for this conformer
-        self.mo_paths: list[str] = []
+        # might also include tuples if open shell and tm is used
+        self.mo_paths: list[str, tuple] = []
 
         # store all Boltzmann weights in order of calculation
         # TODO - this might not be the nicest way of doing this
@@ -172,6 +172,7 @@ class ParallelJob:
         self.omp = OMPMIN
 
         # stores path to an mo file which is supposed to be used as a guess
+        # In case of open shell tm calculation this can be a tuple of files
         self.mo_guess = None
 
         # Stores all the important information for preparation of the input files for every jobtype
@@ -185,7 +186,7 @@ class ParallelJob:
             "general": {},
             "partname": "",
             "charge": 0,
-            "unpaired": 0
+            "unpaired": 0,
         }
 
         # store metadata, is updated by the processor

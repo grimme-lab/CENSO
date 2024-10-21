@@ -118,6 +118,19 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
         "the maximum number available. For a default run this is REQUIRED.",
     )
+    groups[0].add_argument(
+        "--loglevel",
+        dest="loglevel",
+        help="Set the loglevel for all modules to a specified level.",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+    )
+    groups[0].add_argument(
+        "--reload",
+        dest="reload",
+        nargs="+",
+        help="Reload data from json output files. List all file names separated by spaces. "
+        "Note that all conformers from the current ensemble need to be included in the output data keys.",
+    )
 
     # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))
@@ -186,14 +199,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         action="store_const",
         const=True,
         help="Run calculation in gas-phase, overriding all solvation settings.",
-    )
-    groups[1].add_argument(
-        "--cosmorsparam",
-        dest="cosmorsparam",
-        type=str,
-        help="Choose a COSMO-RS parametrization for possible COSMO-RS G_solv "
-        "calculations: e.g. 19-normal for 'BP_TZVP_19.ctd' or 16-fine for"
-        " 'BP_TZVPD_FINE_C30_1601.ctd'.",
     )
     groups[1].add_argument(
         "-O",

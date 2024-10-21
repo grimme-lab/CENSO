@@ -1,6 +1,7 @@
 """
 Calculates the ensemble NMR spectrum for all active nuclei.
 """
+
 from functools import reduce
 import os
 
@@ -11,112 +12,139 @@ from ..params import (
     PROGS,
     GFNOPTIONS,
 )
-from ..datastructure import MoleculeData
-from ..part import CensoPart
-from ..utilities import print, timeit, DfaHelper, format_data, SolventHelper
+from .property_calculator import PropertyCalculator
+from ..utilities import print, DfaHelper, format_data, SolventHelper
 from ..logging import setup_logger
+from ..part import CensoPart
 
 logger = setup_logger(__name__)
 
 
-class NMR(CensoPart):
+class NMR(PropertyCalculator):
     _part_no = "4"
 
-    _grid = "high+"
+    _grid = "nmr"
 
-    __solv_mods = reduce(lambda x, y: x + y, SOLV_MODS.values())
+    __solv_mods = {
+        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
+        for prog in PROGS
+    }
 
     _options = {
-        "resonance_frequency": {
-            "default": 300.0
-        },
-        "ss_cutoff": {
-            "default": 8.0
-        },
-        "prog": {
-            "default": "orca",
-            "options": PROGS
-        },  # required
+        "resonance_frequency": {"default": 300.0},
+        "ss_cutoff": {"default": 8.0},
+        "prog": {"default": "orca", "options": PROGS},  # required
         "func_j": {
-            "default": "pbe0-d4"
+            "default": "pbe0-d4",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
-        "basis_j": {
-            "default": "def2-TZVP"
-        },
-        "sm_j": {
-            "default": "smd",
-            "options": __solv_mods
-        },
+        "basis_j": {"default": "def2-TZVP"},
+        "sm_j": {"default": "smd", "options": __solv_mods},
         "func_s": {
-            "default": "pbe0-d4"
+            "default": "pbe0-d4",
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
-        "basis_s": {
-            "default": "def2-TZVP"
-        },
-        "sm_s": {
-            "default": "smd",
-            "options": __solv_mods
-        },
-        "gfnv": {
-            "default": "gfn2",
-            "options": GFNOPTIONS
-        },
-        "run": {
-            "default": False
-        },  # required
-        "template": {
-            "default": False
-        },  # required
-        "couplings": {
-            "default": True
-        },
-        "fc_only": {
-            "default": True
-        },
-        "shieldings": {
-            "default": True
-        },
-        "h_active": {
-            "default": True
-        },
-        "c_active": {
-            "default": True
-        },
-        "f_active": {
-            "default": False
-        },
-        "si_active": {
-            "default": False
-        },
-        "p_active": {
-            "default": False
-        },
+        "basis_s": {"default": "def2-TZVP"},
+        "sm_s": {"default": "smd", "options": __solv_mods},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "run": {"default": False},  # required
+        "template": {"default": False},  # required
+        "couplings": {"default": True},
+        "fc_only": {"default": True},
+        "shieldings": {"default": True},
+        "h_active": {"default": True},
+        "c_active": {"default": True},
+        "f_active": {"default": False},
+        "si_active": {"default": False},
+        "p_active": {"default": False},
     }
 
     _settings = {}
 
+    @classmethod
+    def _validate(cls, tovalidate: dict[str, any]) -> None:
+        """
+        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by
+        checking with cls._options.
+        This is the part-specific version of the method. It will run the general validation first and then
+        check part-specific logic.
+
+        Args:
+            tovalidate (dict[str, any]): The dict containing the settings to be validated.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the setting is not allowed or the value is not within the allowed options.
+        """
+        # General validation
+        super()._validate(tovalidate)
+
+        # Part-specific validation
+        # NOTE: tovalidate is always complete
+        for ending in ["_s", "_j"]:
+            mapping = {"_s": "shieldings", "_j": "couplings"}
+
+            # Only check settings for shieldings/couplings calculations if they are actually turned on
+            if tovalidate[mapping[ending]]:
+                # Check availability of func for prog
+                func = tovalidate[f"func{ending}"]
+                if (
+                    func
+                    not in cls._options[f"func{ending}"]["options"][tovalidate["prog"]]
+                ):
+                    raise ValueError(
+                        f"Functional {func} is not available for {tovalidate['prog']}. "
+                        "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
+                    )
+
+                # Check sm availability for prog
+                # Remember: tovalidate is always complete so we don't need .get with default None here
+                sm = tovalidate[f"sm{ending}"]
+                if sm not in cls._options[f"sm{ending}"]["options"][tovalidate["prog"]]:
+                    raise ValueError(
+                        f"Solvent model {sm} not available for {tovalidate['prog']}."
+                    )
+
+                # Check solvent availability for sm
+                if (
+                    cls.get_general_settings()["solvent"]
+                    not in CensoPart._options["solvent"]["options"][sm]
+                ):
+                    raise ValueError(
+                        f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "
+                        "Please create an issue on GitHub if you think this is incorrect."
+                    )
+
+                # dummy/template functionality not implemented yet for TM
+                if tovalidate["prog"] == "tm" and (
+                    func == "dummy" or tovalidate.get("template", False)
+                ):
+                    raise NotImplementedError(
+                        "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
+                    )
+
     def __init__(self, ensemble: EnsembleData):
         super().__init__(ensemble)
 
-    @timeit
-    @CensoPart._create_dir
-    def run(self, ncores: int) -> None:
+    def property(self, ncores: int) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
         Note, that the ensemble will not be modified anymore.
         """
-
-        # print instructions
-        self.print_info()
-
         jobtype = ["nmr"]
-        if not self.get_settings()["couplings"] and not self.get_settings(
-        )["shieldings"]:
+        if (
+            not self.get_settings()["couplings"]
+            and not self.get_settings()["shieldings"]
+        ):
             # This case should basically never happen except for user input error
-            raise (RuntimeError(
-                "No jobtype selected. "
-                "Please select at least one of the following: couplings, shieldings"
-            ))
+            raise (
+                RuntimeError(
+                    "No jobtype selected. "
+                    "Please select at least one of the following: couplings, shieldings"
+                )
+            )
 
         # Compile all information required for the preparation of input files in parallel execution step
         prepinfo = self.setup_prepinfo()
@@ -139,24 +167,11 @@ class NMR(CensoPart):
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
-        # Set energy values to use later
-        self.__set_energy(ncores)
-        for conf in self.ensemble.conformers:
-            conf.results[self._name]["gtot"] = self.gtot(conf)
-
-        # Calculate Boltzmann populations
-        self.ensemble.calc_boltzmannweights(
-            self.get_general_settings()["temperature"], self._name)
-
         # Generate files for ANMR
         self.__generate_anmr()
 
         # Write data
         self.write_results()
-
-    def gtot(self, conformer: MoleculeData) -> float:
-        resdict = conformer.results[self._name]
-        return resdict["energy"] + resdict["gsolv"] + resdict["grrho"]
 
     def setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
@@ -169,8 +184,8 @@ class NMR(CensoPart):
         # The first condition checks if the settings are the same for shieldings and couplings calculations
         # The second and third check which one should be executed
         conds = (
-            self.get_settings()["func_s"] == self.get_settings()["func_j"] and
-            self.get_settings()["basis_s"] == self.get_settings()["basis_j"]
+            self.get_settings()["func_s"] == self.get_settings()["func_j"]
+            and self.get_settings()["basis_s"] == self.get_settings()["basis_j"]
             and self.get_settings()["sm_s"] == self.get_settings()["sm_j"],
             self.get_settings()["shieldings"],
             self.get_settings()["couplings"],
@@ -182,200 +197,68 @@ class NMR(CensoPart):
         # TODO - this doesn't look very nice
         if all(conds):
             prepinfo["nmr"] = {
-                "func_name":
-                DfaHelper.get_name(self.get_settings()["func_s"],
-                                   self.get_settings()["prog"]),
-                "func_type":
-                DfaHelper.get_type(self.get_settings()["func_s"]),
-                "disp":
-                DfaHelper.get_disp(self.get_settings()["func_s"]),
-                "basis":
-                self.get_settings()["basis_s"],
-                "grid":
-                "high+",  # hardcoded grid settings
-                "template":
-                self.get_settings()["template"],
-                # TODO - note that GCP will be messed up if you choose one func_s/j to be a composite
-                # while the other functional isn't
-                "gcp":
-                True,  # by default GCP should always be used if possible
-                "fc_only":
-                self.get_settings()["fc_only"],
-                "ss_cutoff":
-                self.get_settings()["ss_cutoff"],
-                "sm":
-                self.get_settings()["sm_s"],
-                "h_active":
-                self.get_settings()["h_active"],
-                "c_active":
-                self.get_settings()["c_active"],
-                "f_active":
-                self.get_settings()["f_active"],
-                "si_active":
-                self.get_settings()["si_active"],
-                "p_active":
-                self.get_settings()["p_active"],
+                "func_name": DfaHelper.get_name(
+                    self.get_settings()["func_s"], self.get_settings()["prog"]
+                ),
+                "func_type": DfaHelper.get_type(self.get_settings()["func_s"]),
+                "disp": DfaHelper.get_disp(self.get_settings()["func_s"]),
+                "basis": self.get_settings()["basis_s"],
+                "grid": self._grid,  # hardcoded grid settings
+                "template": self.get_settings()["template"],
+                "gcp": False,  # GCP is not necessary for spectra calculations
+                "fc_only": self.get_settings()["fc_only"],
+                "ss_cutoff": self.get_settings()["ss_cutoff"],
+                "h_active": self.get_settings()["h_active"],
+                "c_active": self.get_settings()["c_active"],
+                "f_active": self.get_settings()["f_active"],
+                "si_active": self.get_settings()["si_active"],
+                "p_active": self.get_settings()["p_active"],
             }
             # Only look up solvent if solvation is used
             if not self.get_general_settings()["gas-phase"]:
-                prepinfo["nmr"][
-                    "solvent_key_prog"] = SolventHelper.get_solvent(
-                        self.get_settings()["sm_s"],
-                        self.get_general_settings()["solvent"])
-                assert prepinfo["nmr"]["solvent_key_prog"] is not None
+                prepinfo["nmr"]["sm"] = self.get_settings()["sm_s"]
+                prepinfo["nmr"]["solvent_key_prog"] = SolventHelper.get_solvent(
+                    self.get_settings()["sm_s"], self.get_general_settings()["solvent"]
+                )
         else:
             todo = {
                 "_s": self.get_settings()["shieldings"],
-                "_j": self.get_settings()["couplings"]
+                "_j": self.get_settings()["couplings"],
             }
             endings = [ending for ending in todo.keys() if todo[ending]]
             for ending in endings:
                 prepinfo[f"nmr{ending}"] = {
-                    "func_name":
-                    DfaHelper.get_name(self.get_settings()[f"func{ending}"],
-                                       self.get_settings()["prog"]),
-                    "func_type":
-                    DfaHelper.get_type(self.get_settings()[f"func{ending}"]),
-                    "disp":
-                    DfaHelper.get_disp(self.get_settings()[f"func{ending}"]),
-                    "basis":
-                    self.get_settings()[f"basis{ending}"],
-                    "grid":
-                    "high+",
-                    "template":
-                    self.get_settings()["template"],
-                    "gcp":
-                    True,
-                    "sm":
-                    self.get_settings()[f"sm{ending}"],
-                    "fc_only":
-                    self.get_settings()["fc_only"],
-                    "ss_cutoff":
-                    self.get_settings()["ss_cutoff"],
-                    "h_active":
-                    self.get_settings()["h_active"],
-                    "c_active":
-                    self.get_settings()["c_active"],
-                    "f_active":
-                    self.get_settings()["f_active"],
-                    "si_active":
-                    self.get_settings()["si_active"],
-                    "p_active":
-                    self.get_settings()["p_active"],
+                    "func_name": DfaHelper.get_name(
+                        self.get_settings()[f"func{ending}"],
+                        self.get_settings()["prog"],
+                    ),
+                    "func_type": DfaHelper.get_type(
+                        self.get_settings()[f"func{ending}"]
+                    ),
+                    "disp": DfaHelper.get_disp(self.get_settings()[f"func{ending}"]),
+                    "basis": self.get_settings()[f"basis{ending}"],
+                    "grid": "high+",
+                    "template": self.get_settings()["template"],
+                    "gcp": False,  # GCP is not necessary for spectra calculations
+                    "fc_only": self.get_settings()["fc_only"],
+                    "ss_cutoff": self.get_settings()["ss_cutoff"],
+                    "h_active": self.get_settings()["h_active"],
+                    "c_active": self.get_settings()["c_active"],
+                    "f_active": self.get_settings()["f_active"],
+                    "si_active": self.get_settings()["si_active"],
+                    "p_active": self.get_settings()["p_active"],
                 }
             # Only look up solvent if solvation is used
             if not self.get_general_settings()["gas-phase"]:
-                prepinfo[f"nmr{ending}"][
-                    "solvent_key_prog"] = SolventHelper.get_solvent(
+                prepinfo[f"nmr{ending}"]["sm"] = self.get_settings()[f"sm{ending}"]
+                prepinfo[f"nmr{ending}"]["solvent_key_prog"] = (
+                    SolventHelper.get_solvent(
                         self.get_settings()[f"sm{ending}"],
-                        self.get_general_settings()["solvent"])
-                assert prepinfo[f"nmr{ending}"]["solvent_key_prog"] is not None
-
-        return prepinfo
-
-    def setup_prepinfo_rrho(self) -> dict[str, dict]:
-        prepinfo = {}
-
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
-        prepinfo["general"] = self.get_general_settings()
-
-        prepinfo["xtb_rrho"] = {
-            "gfnv": self.get_settings()["gfnv"],
-        }
-        # Only lookup solvent if solvation should be used
-        if not self.get_general_settings()["gas-phase"]:
-            prepinfo["xtb_rrho"][
-                "solvent_key_xtb"] = SolventHelper.get_solvent(
-                    self.get_general_settings()["sm_rrho"],
-                    self.get_general_settings()["solvent"])
-            assert prepinfo["xtb_rrho"]["solvent_key_xtb"] is not None
-
-        return prepinfo
-
-    def __set_energy(self, ncores: int):
-        """
-        Looks through results to set energy values.
-        Order of preference:
-            refinement -> optimization -> screening -> prescreening
-
-        If None of these are found, the energies of the NMR calculations will be used (couplings calculation energy first (lifo)).
-        """
-        using_part = None
-        for partname in [
-                "prescreening", "screening", "optimization", "refinement"
-        ]:
-            # This way, the most high-level partname should get stuck in using_part
-            if all(partname in conf.results.keys()
-                   for conf in self.ensemble.conformers):
-                using_part = partname
-
-        # If using_part stays None the NMR energies must be used and xtb_rrho might be necessary
-        # TODO - this is not nice, DRY
-        if using_part is None:
-            if self.get_general_settings()["evaluate_rrho"]:
-                jobtype = ["xtb_rrho"]
-                prepinfo = self.setup_prepinfo_rrho()
-
-                # Run RRHO calculation
-                success, _, failed = execute(
-                    self.ensemble.conformers,
-                    self.dir,
-                    self.get_settings()["prog"],
-                    prepinfo,
-                    jobtype,
-                    copy_mo=self.get_general_settings()["copy_mo"],
-                    balance=self.get_general_settings()["balance"],
-                    omp=self.get_general_settings()["omp"],
-                    maxcores=ncores,
-                    retry_failed=self.get_general_settings()["retry_failed"],
+                        self.get_general_settings()["solvent"],
+                    )
                 )
 
-                # Remove failed conformers
-                self.ensemble.remove_conformers(failed)
-            for conf in self.ensemble.conformers:
-                conf.results[self._name]["energy"] = conf.results[
-                    self._name]["nmr"]["energy"]
-                conf.results[self._name]["gsolv"] = 0.0
-                conf.results[self._name]["grrho"] = conf.results[
-                    self._name].get("xtb_rrho", {"energy": 0.0})["energy"]
-        elif using_part == "optimization":
-            for conf in self.ensemble.conformers:
-                conf.results[self._name]["energy"] = conf.results[using_part][
-                    "xtb_opt"]["energy"]
-                conf.results[self._name]["gsolv"] = 0.0
-                conf.results[
-                    self._name]["grrho"] = conf.results[using_part].get(
-                        "xtb_rrho", {"energy": 0.0})["energy"]
-        elif using_part in ["screening", "refinement"]:
-            if all("gsolv" in conf.results[using_part].keys()
-                   for conf in self.ensemble.conformers):
-                for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[
-                        using_part]["gsolv"]["energy_gas"]
-                    conf.results[self._name]["gsolv"] = conf.results[
-                        using_part]["gsolv"]["gsolv"]
-                    conf.results[
-                        self._name]["grrho"] = conf.results[using_part].get(
-                            "xtb_rrho", {"energy": 0.0})["energy"]
-            else:
-                for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[
-                        using_part]["sp"]["energy"]
-                    conf.results[self._name]["gsolv"] = 0.0
-                    conf.results[
-                        self._name]["grrho"] = conf.results[using_part].get(
-                            "xtb_rrho", {"energy": 0.0})["energy"]
-        elif using_part == "prescreening":
-            if all("xtb_gsolv" in conf.results[using_part].keys()
-                   for conf in self.ensemble.conformers):
-                for conf in self.ensemble.conformers:
-                    conf.results[self._name]["energy"] = conf.results[
-                        using_part]["sp"]["energy"]
-                    conf.results[self._name]["gsolv"] = conf.results[
-                        using_part]["xtb_gsolv"]["gsolv"]
-                    conf.results[self._name]["grrho"] = 0.0
+        return prepinfo
 
     def __generate_anmr(self):
         """
@@ -405,17 +288,18 @@ class NMR(CensoPart):
             "gi": lambda conf: f"{conf.degen}",
         }
 
-        rows = [[printmap[header](conf) for header in headers]
-                for conf in self.ensemble.conformers]
+        rows = [
+            [printmap[header](conf) for header in headers]
+            for conf in self.ensemble.conformers
+        ]
 
         lines = format_data(headers, rows)
 
         # Write lines to file
-        logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, 'anmr_enso')}.")
-        with open(os.path.join(self.ensemble.workdir, "anmr_enso"),
-                  "w",
-                  newline=None) as outfile:
+        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, 'anmr_enso')}.")
+        with open(
+            os.path.join(self.ensemble.workdir, "anmr_enso"), "w", newline=None
+        ) as outfile:
             outfile.writelines(lines)
 
         # Write 'anmrrc'
@@ -471,13 +355,13 @@ class NMR(CensoPart):
                 lines.append(f"{i + 1:4} {shielding:.3f}\n")
 
             # Fill in blank lines
-            for _ in range(conf.geom.nat -
-                           len(conf.results[self._name]["nmr"]["shieldings"])):
+            for _ in range(
+                conf.geom.nat - len(conf.results[self._name]["nmr"]["shieldings"])
+            ):
                 lines.append("\n")
 
             # then: atom no.1 | atom no.2 | J12
-            for (i,
-                 j), coupling in conf.results[self._name]["nmr"]["couplings"]:
+            for (i, j), coupling in conf.results[self._name]["nmr"]["couplings"]:
                 lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")

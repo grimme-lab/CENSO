@@ -1,13 +1,9 @@
 {
   "composite_method_basis": {
     "pbeh-3c": "def2-mSVP",
-    "pbeh3c": "def2-mSVP",
     "b97-3c": "def2-mTZVP",
-    "b973c": "def2-mTZVP",
-    "hf3c": "minix",
     "hf-3c": "minix",
-    "r2scan-3c": "def2-mTZVPP",
-    "r2scan3c": "def2-mTZVPP"
+    "r2scan-3c": "def2-mTZVPP"
   },
   "relay_functionals": {
     "pbe": "pbe-d4",
@@ -23,9 +19,9 @@
   },
   "functionals": {
     "dummy": {
-      "tm": "",
-      "orca": "",
-      "disp": "",
+      "tm": null,
+      "orca": "dummy",
+      "disp": "dummy",
       "type": "dummy"
     },
     "pbeh-3c": {
@@ -96,7 +92,7 @@
     },
     "pbe-nl": {
       "tm": "pbe",
-      "orca": "",
+      "orca": null,
       "disp": "nl",
       "type": "gga"
     },
@@ -126,7 +122,7 @@
     },
     "tpss-nl": {
       "tm": "tpss",
-      "orca": "",
+      "orca": null,
       "disp": "nl",
       "type": "mgga"
     },
@@ -137,25 +133,25 @@
       "type": "mgga"
     },
     "tpssh-novdw": {
-      "tm": "",
+      "tm": null,
       "orca": "tpssh",
       "disp": "novdw",
       "type": "global_hybrid"
     },
     "tpssh-d3": {
-      "tm": "",
+      "tm": null,
       "orca": "tpssh",
       "disp": "d3",
       "type": "global_hybrid"
     },
     "tpssh-d3(0)": {
-      "tm": "",
+      "tm": null,
       "orca": "tpssh",
       "disp": "d3(0)",
       "type": "global_hybrid"
     },
     "tpssh-d4": {
-      "tm": "",
+      "tm": null,
       "orca": "tpssh",
       "disp": "d4",
       "type": "global_hybrid"
@@ -168,13 +164,13 @@
     },
     "b97-d3(0)": {
       "tm": "b97-d",
-      "orca": "",
+      "orca": null,
       "disp": "d3(0)",
       "type": "gga"
     },
     "kt1-novdw": {
       "tm": "kt1",
-      "orca": "",
+      "orca": null,
       "disp": "novdw",
       "type": "gga"
     },
@@ -210,7 +206,7 @@
     },
     "pbe0-nl": {
       "tm": "pbe0",
-      "orca": "",
+      "orca": null,
       "disp": "nl",
       "type": "global_hybrid"
     },
@@ -275,40 +271,41 @@
       "type": "rs_hybrid"
     },
     "wb97x-d3": {
-      "tm": "",
+      "tm": null,
       "orca": "wb97x-d3",
       "disp": "included",
       "type": "rs_hybrid"
     },
     "wb97x-d3bj": {
-      "tm": "",
+      "tm": null,
       "orca": "wb97x-d3bj",
       "disp": "included",
       "type": "rs_hybrid"
     },
     "wb97x-d4": {
-      "tm": "",
+      "tm": null,
       "orca": "wb97x-d4",
       "disp": "included",
       "type": "rs_hybrid"
     },
     "wb97m-v": {
-      "tm": "",
+      "tm": null,
       "orca": "wb97m-v",
       "disp": "included",
       "type": "rs_hybrid"
     },
     "dsd-blyp-d3": {
-      "tm": "",
+      "tm": null,
       "orca": "ri-dsd-blyp",
       "disp": "d3bj",
       "type": "double"
     },
     "dsd-pbep86-d3": {
-      "tm": "",
+      "tm": null,
       "orca": "dsd-pbep86",
       "disp": "d3bj",
       "type": "double"
     }
   }
 }
+

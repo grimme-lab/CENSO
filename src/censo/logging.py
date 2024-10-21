@@ -5,6 +5,8 @@ import sys
 __logpath: str = os.path.join(os.getcwd(), "censo.log")
 __loglevel = logging.INFO
 
+__loggers = []
+
 # _loglevel = logging.DEBUG
 
 
@@ -19,8 +21,6 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     Returns:
         logging.Logger: The configured logger instance.
     """
-    global __logpath, __loglevel
-
     if not silent:
         print(f"LOGFILE CAN BE FOUND AT: {__logpath}")
 
@@ -35,15 +35,17 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
 
     # Define the log message format
     formatter = logging.Formatter(
-        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{")
-    stream_formatter = logging.Formatter("{levelname:^10s}- {message}",
-                                         style="{")
+        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
+    )
+    stream_formatter = logging.Formatter("{levelname:^10s}- {message}", style="{")
     handler.setFormatter(formatter)
     stream_handler.setFormatter(stream_formatter)
 
     # Add the FileHandler and StreamHandler to the logger
     logger.addHandler(handler)
     logger.addHandler(stream_handler)
+
+    __loggers.append(logger)
 
     return logger
 
@@ -60,3 +62,5 @@ def set_loglevel(loglevel: str) -> None:
     """
     global __loglevel
     __loglevel = getattr(logging, loglevel)
+    for logger in __loggers:
+        logger.setLevel(__loglevel)

@@ -61,11 +61,11 @@ def entry_point(argv: list[str] | None = None) -> int:
         print(f"Ran {p._name} in {runtime:.2f} seconds!")
         time += runtime
 
-    runtime = timedelta(seconds=int(runtime))
-    hours, r = divmod(runtime.seconds, 3600)
+    time = timedelta(seconds=int(time))
+    hours, r = divmod(time.seconds, 3600)
     minutes, seconds = divmod(r, 60)
-    if runtime.days:
-        hours += runtime.days * 24
+    if time.days:
+        hours += time.days * 24
 
     print(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d}")
 
@@ -105,8 +105,14 @@ def startup(args) -> EnsembleData | None:
     # read input and setup conformers
     ensemble.read_input(args.inp)
 
+    # if data should be reloaded, do it here
+    if args.reload:
+        for filename in args.reload:
+            ensemble.read_output(os.path.join(cwd, filename))
+
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
+    # -> output data is reloaded if wanted
 
     return ensemble
 
@@ -119,12 +125,12 @@ def cleanup_run(cwd, complete=False):
     # files containing these patterns are deleted
     to_delete = [
         "censo.log",
-        "prescreening",
-        "screening",
-        "optimization",
-        "refinement",
-        "nmr",
-        "uvvis",
+        "0_PRESCREENING",
+        "1_SCREENING",
+        "2_OPTIMIZATION",
+        "3_REFINEMENT",
+        "4_NMR",
+        "6_UVVIS",
     ]
 
     if complete:
