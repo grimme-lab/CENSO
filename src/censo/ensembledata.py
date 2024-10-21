@@ -141,12 +141,18 @@ class EnsembleData:
 
         # Set charge and unpaired via funtion args or cml args
         if self.args is not None:
-            self.runinfo["charge"] = charge or self.args.charge
-            self.runinfo["unpaired"] = unpaired or self.args.unpaired
+            self.runinfo["charge"] = charge if charge is not None else self.args.charge
+            self.runinfo["unpaired"] = (
+                unpaired if unpaired is not None else self.args.unpaired
+            )
         else:
             # Use arguments given for charge and unpaired, otherwise check if they were already set and use this value
-            self.runinfo["charge"] = charge or self.runinfo.get("charge", None)
-            self.runinfo["unpaired"] = unpaired or self.runinfo.get("unpaired", None)
+            self.runinfo["charge"] = (
+                charge if charge is not None else self.runinfo.get("charge", None)
+            )
+            self.runinfo["unpaired"] = (
+                unpaired if unpaired is not None else self.runinfo.get("unpaired", None)
+            )
 
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError("Charge or number of unpaired electrons not defined.")
