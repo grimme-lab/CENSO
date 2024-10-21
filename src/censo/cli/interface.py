@@ -96,9 +96,6 @@ def startup(args) -> EnsembleData | None:
     elif args.inprcpath is not None:
         configure(args.inprcpath)
 
-    if args.loglevel:
-        set_loglevel(args.loglevel)
-
     # Override settings with command line arguments
     override_rc(args)
 
