@@ -1,16 +1,9 @@
 from censo.cli.cml_parser import parse
 from censo.params import DESCR
-from censo.core import EnsembleData
+from censo.ensembledata import EnsembleData
 import shutil
 import unittest
 import os
-
-os.chdir(os.path.split(__file__)[0])
-
-
-test_args = parse(
-    DESCR, "-inp testfiles/crest_conformers.xyz -chrg 0 -u 0".split())
-test_dir = os.getcwd()
 
 
 def getconfcount(path: str) -> int:
@@ -21,22 +14,22 @@ def getconfcount(path: str) -> int:
     return len(lines) // nat
 
 
-class CoreTest(unittest.TestCase):
+class EnsembleDataTest(unittest.TestCase):
     def test_read_input_args(self):
-        core = EnsembleData(test_dir, args=test_args)
-        core.read_input(test_args.inp)
+        ensemble = EnsembleData(test_dir, args=test_args)
+        ensemble.read_input(test_args.inp)
         nconf = getconfcount("testfiles/crest_conformers.xyz")
-        self.assertEqual(nconf, len(core.__conformers))
-        self.assertEqual(0, core.runinfo["charge"])
-        self.assertEqual(0, core.runinfo["unpaired"])
+        self.assertEqual(nconf, len(ensemble.conformers))
+        self.assertEqual(0, ensemble.runinfo["charge"])
+        self.assertEqual(0, ensemble.runinfo["unpaired"])
 
     def test_read_input_script(self):
-        core = EnsembleData(test_dir)
-        core.read_input(test_args.inp, charge=2, unpaired=7)
+        ensemble = EnsembleData(test_dir)
+        ensemble.read_input(test_args.inp, charge=2, unpaired=7)
         nconf = getconfcount("testfiles/crest_conformers.xyz")
-        self.assertEqual(nconf, len(core.__conformers))
-        self.assertEqual(2, core.runinfo["charge"])
-        self.assertEqual(7, core.runinfo["unpaired"])
+        self.assertEqual(nconf, len(ensemble.conformers))
+        self.assertEqual(2, ensemble.runinfo["charge"])
+        self.assertEqual(7, ensemble.runinfo["unpaired"])
 
     def doCleanups(self):
         # perform cleanup

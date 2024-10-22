@@ -12,7 +12,7 @@ homepage = "https://github.com/grimme-lab/CENSO"
 documentation = "https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html"
 
 [project.optional-dependencies]
-dev = []
+dev = ["black", "pytest", "tox"]
 scripts = [
     "numpy",
     "matplotlip",
@@ -24,3 +24,7 @@ readme = {file = "README.md"}
 
 [tool.setuptools_scm]
 version_file = "src/censo/__version__.py"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+pythonpath = ["src"]
