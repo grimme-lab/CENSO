@@ -12,8 +12,6 @@ logger = setup_logger(__name__)
 
 
 class Prescreening(EnsembleOptimizer):
-    _part_no = "0"
-
     _grid = "low"
 
     _options = {
@@ -31,10 +29,7 @@ class Prescreening(EnsembleOptimizer):
 
     _settings = {}
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
-    def optimize(self, ncores: int, cut: bool = True) -> None:
+    def _optimize(self, cut: bool = True) -> None:
         """
         first screening of the ensemble by doing single-point calculation on the input geometries,
         using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
@@ -70,7 +65,7 @@ class Prescreening(EnsembleOptimizer):
 
                 # compute results
                 # for structure of results from handler.execute look there
-                success, _, failed = execute(
+                results, failed = execute(
                     self.ensemble.conformers,
                     self.dir,
                     self.get_settings()["prog"],
@@ -86,16 +81,19 @@ class Prescreening(EnsembleOptimizer):
                 # Remove failed conformers
                 self.ensemble.remove_conformers(failed)
 
+                # Update results
+                self.results.update(results)
+
                 jobtype = ["sp"]
             else:
                 jobtype = ["gsolv"]
 
         # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self.setup_prepinfo(jobtype)
+        prepinfo = self._setup_prepinfo(jobtype)
 
         # compute results
         # for structure of results from handler.execute look there
-        success, _, failed = execute(
+        results, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -111,34 +109,41 @@ class Prescreening(EnsembleOptimizer):
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
+        # Update results
+        self.results.update(results)
+
         # update results for each conformer
         for conf in self.ensemble.conformers:
-            # calculate free enthalpy values for every conformer
-            conf.results[self._name]["gtot"] = self.gsolv(conf)
+            # calculate free enthalpy
+            self.results[conf.name]["gtot"] = self._gsolv(conf)
 
         # sort conformers list with prescreening key (gtot)
         self.ensemble.conformers.sort(
-            key=lambda conf: conf.results[self._name]["gtot"],
+            key=lambda conf: self.results[conf.name]["gtot"],
         )
 
         # calculate boltzmann weights from gtot values calculated here
-        # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-        self.ensemble.calc_boltzmannweights(
-            self.get_general_settings().get("temperature", 298.15), self._name
-        )
+        self.results.update(self._calc_boltzmannweights())
 
-        self.write_results()
+        self._write_results()
 
         if cut:
             print("\n")
             # update conformers with threshold
             threshold = self.get_settings()["threshold"] / AU2KCAL
+            filtered = list(
+                filter(
+                    lambda conf: self.results[conf.name]["gtot"] > threshold,
+                    self.ensemble.conformers,
+                )
+            )
 
             # update the conformer list in ensemble (remove confs if below threshold)
-            for confname in self.ensemble.update_conformers(self.gsolv, threshold):
-                print(f"No longer considering {confname}.")
+            self.ensemble.remove_conformers([conf.name for conf in filtered])
+            for conf in filtered:
+                print(f"No longer considering {conf.name}.")
 
-    def gsolv(self, conf: MoleculeData) -> float:
+    def _gsolv(self, conf: MoleculeData) -> float:
         """
         Prescreening key for conformer sorting
         Calculates Gtot = E (DFT) + Gsolv (xtb) for a given conformer
@@ -155,7 +160,7 @@ class Prescreening(EnsembleOptimizer):
 
         return gtot
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         writes:
             E (xtb),
@@ -258,7 +263,7 @@ class Prescreening(EnsembleOptimizer):
                 )
 
         # minimal total free enthalpy
-        gtotmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(self._gsolv(conf) for conf in self.ensemble.conformers)
 
         # determines what to print for each conformer in each column
         printmap = {
@@ -280,11 +285,11 @@ class Prescreening(EnsembleOptimizer):
                 if "xtb_gsolv" in conf.results[self._name].keys()
                 else "---"
             ),
-            "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
+            "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
             # "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
             # if "xtb_gsolv" in conf.results[self._name].keys()
             # else "---",
-            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
         }
 
@@ -341,4 +346,4 @@ class Prescreening(EnsembleOptimizer):
             outfile.writelines(lines)
 
         # Additionally, write results in json format
-        self.write_json()
+        self._write_json()

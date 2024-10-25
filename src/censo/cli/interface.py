@@ -11,7 +11,7 @@ from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
 from ..properties import NMR, UVVis
-from ..params import START_DESCR, __version__
+from ..params import __version__
 from ..utilities import print
 from ..logging import setup_logger, set_loglevel
 
@@ -23,7 +23,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     Console entry point to execute CENSO from the command line.
     """
     try:
-        args = parse(START_DESCR, argv)
+        args = parse(argv=argv)
     except ArgumentError as e:
         print(e.message)
         return 1
@@ -43,22 +43,22 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
-    CensoPart(ensemble).print_info()
+    CensoPart.print_info()
 
     run = filter(
         lambda x: x.get_settings()["run"],
         [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
     )
 
+    # FIXME TODO
     ncores = 4
     if args.maxcores:
         ncores = args.maxcores
 
     time = 0.0
     for part in run:
-        p = part(ensemble)
-        runtime = p.run(ncores)
-        print(f"Ran {p._name} in {runtime:.2f} seconds!")
+        runtime = part.run(ensemble)
+        print(f"Ran {part._name} in {runtime:.2f} seconds!")
         time += runtime
 
     time = timedelta(seconds=int(time))
@@ -100,10 +100,12 @@ def startup(args) -> EnsembleData | None:
     override_rc(args)
 
     # initialize ensemble, constructor get runinfo from args
-    ensemble = EnsembleData(cwd, args=args)
+    ensemble = EnsembleData()
 
     # read input and setup conformers
-    ensemble.read_input(args.inp)
+    ensemble.read_input(
+        args.inp, charge=args.charge, unpaired=args.unpaired, nconf=args.nconf
+    )
 
     # if data should be reloaded, do it here
     if args.reload:

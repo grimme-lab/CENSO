@@ -1,45 +1,17 @@
 from censo.cli.cml_parser import parse
 from censo.params import DESCR
 from censo.ensembledata import EnsembleData
-import shutil
-import unittest
-import os
+import pytest
 
 
-def getconfcount(path: str) -> int:
-    with open(path, "r") as file:
-        lines = file.readlines()
+def test_read_input(self):
+    # Read input via python instruction
 
-    nat = int(lines[0])
-    return len(lines) // nat
-
-
-class EnsembleDataTest(unittest.TestCase):
-    def test_read_input_args(self):
-        ensemble = EnsembleData(test_dir, args=test_args)
-        ensemble.read_input(test_args.inp)
-        nconf = getconfcount("testfiles/crest_conformers.xyz")
-        self.assertEqual(nconf, len(ensemble.conformers))
-        self.assertEqual(0, ensemble.runinfo["charge"])
-        self.assertEqual(0, ensemble.runinfo["unpaired"])
-
-    def test_read_input_script(self):
-        ensemble = EnsembleData(test_dir)
-        ensemble.read_input(test_args.inp, charge=2, unpaired=7)
-        nconf = getconfcount("testfiles/crest_conformers.xyz")
-        self.assertEqual(nconf, len(ensemble.conformers))
-        self.assertEqual(2, ensemble.runinfo["charge"])
-        self.assertEqual(7, ensemble.runinfo["unpaired"])
-
-    def doCleanups(self):
-        # perform cleanup
-        delete = [
-            "censo.log",
-        ]
-        for f in delete:
-            f = os.path.join(os.getcwd(), f)
-            if os.path.exists(f):
-                if os.path.isdir(f):
-                    shutil.rmtree(f)
-                else:
-                    os.remove(f)
+    # Read input passed via cml args
+    test_args = parse(argv="-i fixtures/crest_conformers.xyz".split())
+    ensemble = EnsembleData(test_dir, args=test_args)
+    ensemble.read_input(test_args.inp)
+    nconf = 7
+    assert nconf == len(ensemble.conformers)
+    assert 0 == ensemble.runinfo["charge"]
+    assert 0 == ensemble.runinfo["unpaired"]

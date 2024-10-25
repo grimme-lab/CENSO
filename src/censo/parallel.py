@@ -32,7 +32,7 @@ def execute(
     maxcores: int = OMPMIN,
     omp: int = OMPMIN,
     update: bool = True,
-) -> tuple[bool, dict, list]:
+) -> tuple[dict, list]:
     """
     Manages parallel execution of external program calls. Sets cores used per job, checks requirements,
     can copy MO-files, and retry failed jobs.
@@ -49,8 +49,7 @@ def execute(
         update (bool, optional): Wether to update the results dict for each conformer.
 
     Returns:
-        tuple[bool, dict, list]: Whether the execution was successful, a dictionary containing the results, and a list
-            of conformers that could not be recovered.
+        tuple[dict, list]: Dictionary containing the results for each conformer and a list of unrecoverable conformers.
     """
 
     # Check first if there are any conformers at all
@@ -139,6 +138,7 @@ def execute(
         if mo_paths[conf.name] is not None:
             conf.mo_paths.append(mo_paths[conf.name])
 
+    failed_confs = []
     if retry_failed:
         retried, failed_confs = retry_failed_jobs(jobs, processor, balance)
 
@@ -150,9 +150,11 @@ def execute(
             if mo_paths.get(conf.name, None) is not None:
                 conf.mo_paths.append(mo_paths[conf.name])
 
-    # special warning if all jobs failed
+    # RuntimeError if all jobs failed
     if len(jobs) == len(failed_confs):
-        logger.warning("All jobs failed and could not be recovered!")
+        raise RuntimeError(
+            "Parallel execution of all jobs failed and could not be recovered!"
+        )
 
     # update results for all conformers (if enabled)
     if update:
@@ -161,11 +163,8 @@ def execute(
         for conf, job in zip(conformers, jobs):
             conf.results.setdefault(job.prepinfo["partname"], {}).update(job.results)
 
-    return (
-        len(conformers) != len(failed_confs),
-        {job.conf.name: job.results for job in jobs},
-        failed_confs,
-    )
+    # e.g. {"CONF23": {"sp": {"energy": 1231.5}, ...}}
+    return {job.conf.name: job.results for job in jobs}, failed_confs
 
 
 def prepare_jobs(

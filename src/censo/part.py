@@ -2,10 +2,11 @@ import functools
 import json
 import os
 import ast
+from math import exp
 from collections.abc import Callable
 
 from .ensembledata import EnsembleData
-from .params import PLENGTH, DIGILEN, OMPMIN, OMPMAX, SOLV_MODS
+from .params import PLENGTH, DIGILEN, OMPMIN, OMPMAX, SOLV_MODS, KB, AU2J
 from .logging import setup_logger
 from .utilities import print, h1, h2, SolventHelper
 
@@ -57,9 +58,16 @@ class CensoPart:
 
     _settings = {}
 
-    # this should contain the part number as a string
-    # in this case it's just a placeholder, for e.g. prescreening it would be "0"
-    _part_no = "NaN"
+    # Maps part names onto numbers
+    _part_nos = {
+        "prescreening": 0,
+        "screening": 1,
+        "optimization": 2,
+        "refinement": 3,
+        "nmr": 4,
+        "optrot": 5,
+        "uvvis": 6,
+    }
 
     @staticmethod
     def set_general_settings(settings: dict[str, any], complete: bool = True) -> None:
@@ -287,7 +295,11 @@ class CensoPart:
             None
         """
         # sets the name of the part (used for printing and folder creation)
-        self._name: str = self.__class__.__name__.lower()
+        self._name: str = (
+            self.__class__.__name__.lower()
+            if self.__class__ is not CensoPart
+            else "general settings"
+        )
 
         # every part instance depends on a ensemble instance to manage the conformers
         self.ensemble: EnsembleData = ensemble
@@ -296,23 +308,89 @@ class CensoPart:
         # It is set using the _create_dir method (intended to be used as wrapper for run)
         self.dir: str = None
 
-    def run(self, ncores: int) -> None:
+        # Store the run's results
+        self.results = {}
+
+        self.runtime = self._run()
+
+    def _run(self) -> None:
         """
         what gets executed if the part is run
         should be implemented for every part respectively
         """
         raise NotImplementedError
 
-    def print_info(self) -> None:
+    def _calc_boltzmannweights(self) -> None:
+        """
+        Calculate populations for boltzmann distribution of ensemble at given
+        temperature given values for free enthalpy.
+        """
+        temp = self.get_general_settings()["temperature"]
+        # find lowest gtot value
+        if all(
+            [
+                "gtot" in self.results[conf.name].keys()
+                for conf in self.ensemble.conformers
+            ]
+        ):
+            minfree: float = min(
+                [self.results[conf.name]["gtot"] for conf in self.ensemble.conformers]
+            )
+
+            # calculate boltzmann factors
+            bmfactors = {
+                conf.name: conf.degen
+                * exp(-(self.results[conf.name]["gtot"] - minfree) * AU2J / (KB * temp))
+                for conf in self.ensemble.conformers
+            }
+        else:
+            # NOTE: if anything went wrong in the single-point calculation ("success": False),
+            # this should be handled before coming to this step
+            # since then the energy might be 'None'
+            gtot_replacement = False
+            for jt in ["xtb_opt", "sp"]:
+                if all(
+                    jt in self.results[conf.name].keys()
+                    for conf in self.ensemble.conformers
+                ):
+                    minfree: float = min(
+                        self.results[conf.name][jt]["energy"]
+                        for conf in self.ensemble.conformers
+                    )
+
+                    # calculate boltzmann factors
+                    bmfactors = {
+                        conf.name: conf.degen
+                        * exp(
+                            -(self.results[conf.name][jt]["energy"] - minfree)
+                            * AU2J
+                            / (KB * temp)
+                        )
+                        for conf in self.ensemble.conformers
+                    }
+                    gtot_replacement = True
+                    break
+
+            if not gtot_replacement:
+                raise RuntimeError(
+                    f"Could not determine Boltzmann factors for {self._name}."
+                )
+
+        # calculate partition function from boltzmann factors
+        bsum: float = sum(bmfactors.values())
+
+        # Return Boltzmann populations
+        return {
+            conf.name: bmfactors[conf.name] / bsum for conf in self.ensemble.conformers
+        }
+
+    def _print_info(self) -> None:
         """
         formatted print for part instructions
         """
 
         # Print header with part name
-        if self.__class__ == CensoPart:
-            print(h2("GENERAL SETTINGS"))
-        else:
-            print(h2(f"{self._name.upper()}"))
+        print(h2(f"{self._name.upper()}"))
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
@@ -320,7 +398,7 @@ class CensoPart:
 
         print("\n")
 
-    def write_json(self) -> None:
+    def _write_json(self) -> None:
         """
         Writes the part's results to a json file.
 
@@ -332,6 +410,6 @@ class CensoPart:
                 conf.name: conf.results[self._name] for conf in self.ensemble.conformers
             }
         }
-        filename = f"{self._part_no}_{self._name.upper()}.json"
-        with open(os.path.join(self.ensemble.workdir, filename), "w") as outfile:
+        filename = f"{self._part_nos.get(self._name, "NaN")}_{self._name.upper()}.json"
+        with open(os.path.join(os.getcwd(), filename), "w") as outfile:
             json.dump(results, outfile, indent=4)

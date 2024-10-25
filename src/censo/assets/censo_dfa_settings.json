@@ -294,6 +294,24 @@
       "disp": "included",
       "type": "rs_hybrid"
     },
+    "chyf-b95-novdw": {
+      "tm": "chyf-b95",
+      "orca": null,
+      "disp": "novdw",
+      "type": "local_hybrid"
+    },
+    "chyf-b95-d3": {
+      "tm": "chyf-b95",
+      "orca": null,
+      "disp": "d3bj",
+      "type": "local_hybrid"
+    },
+    "chyf-b95-d4": {
+      "tm": "chyf-b95",
+      "orca": null,
+      "disp": "d4",
+      "type": "local_hybrid"
+    },
     "dsd-blyp-d3": {
       "tm": null,
       "orca": "ri-dsd-blyp",
@@ -308,4 +326,3 @@
     }
   }
 }
-

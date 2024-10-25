@@ -73,40 +73,88 @@ class EnsembleOptimizer(CensoPart):
                 "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
             )
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
     @timeit
     @CensoPart._create_dir
-    def run(self, ncores: int, cut: bool = True) -> None:
+    def _run(self, cut: bool = True) -> None:
         """
         Boilerplate run logic for any ensemble optimization step. The 'optimize' method should be implemented for every
         class respectively.
         """
         # print instructions
-        self.print_info()
+        self._print_info()
 
         # Print information about ensemble before optimization
-        self.print_update()
+        self._print_update()
 
         # Perform the actual optimization logic
-        self.optimize(ncores, cut=cut)
+        self._optimize(cut=cut)
 
         # Print comparison with previous parts
-        self.print_comparison()
+        self._print_comparison()
 
         # Print information about ensemble after optimization
-        self.print_update()
+        self._print_update()
 
         # dump ensemble
-        self.ensemble.dump_ensemble(f"{self._part_no}_{self._name.upper()}")
+        self.ensemble.dump(f"{self._part_nos[self._name]}_{self._name.upper()}")
 
         # DONE
 
-    def optimize(self, ncores: int, cut: bool = True):
+    def _optimize(self, cut: bool = True):
         raise NotImplementedError
 
-    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
+    def _cut_conformers(self) -> None:
+        """
+        Cut down the conformer ensemble based on a given threshold (and threshold type).
+        The threshold can be either a kcal/mol value if cutting by Gtot or a population
+        threshold when cutting based on populations.
+        """
+        filtered = []
+        threshold = self.get_settings()["threshold"]
+
+        # Refinement cuts based on Boltzmann population
+        if self._name == "refinement" and 0.0 <= threshold <= 1.0:
+            # Sort and iterate through the conformers by target (should be the Boltzmann population) in reverse order
+            # Therefore, the conformer with the highest population is first
+            s = 0.0
+            for conf in sorted(
+                self.ensemble.conformers,
+                key=lambda conf: self.results[conf.name]["bmw"],
+                reverse=True,
+            ):
+                if s > threshold:
+                    # The conformer is above the population threshold and should be removed
+                    filtered.append(conf)
+                else:
+                    # The population of the conformer is appended
+                    s += target(conf)
+        # The rest cuts based on gtot
+        else:
+            # pick the free enthalpy of the lowest conformer
+            limit = min(
+                self.results[conf.name]["gtot"] for conf in self.ensemble.conformers
+            )
+
+            # filter out all conformers above threshold
+            # so that 'filtered' contains all conformers that should not be considered any further
+            filtered = list(
+                filter(
+                    self.results[conf.name]["gtot"] - limit > threshold,
+                    self.ensemble.conformers,
+                )
+            )
+
+        # move the sorted out conformers to rem list
+        for conf in filtered:
+            # pop item from conformers and insert this item at index 0 in rem
+            self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
+
+            # Log removed conformers
+            logger.debug(f"Removed {conf.name}.")
+
+        self.ensemble.remove_conformers([conf.name for conf in filtered])
+
+    def _setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
         """
         Sets up lookup information to be used by the processor in parallel execution. Returns a dictionary
         containing all information for all jobtypes provided.
@@ -253,7 +301,7 @@ class EnsembleOptimizer(CensoPart):
 
         return prepinfo
 
-    def print_update(self) -> None:
+    def _print_update(self) -> None:
         print("\n")
         print(
             "Number of conformers:".ljust(DIGILEN // 2, " ")
@@ -265,7 +313,7 @@ class EnsembleOptimizer(CensoPart):
         )
         print("\n")
 
-    def print_comparison(self) -> None:
+    def _print_comparison(self) -> None:
         print(h1(f"{self._name.upper()} RANKING COMPARISON"))
 
         headers = ["CONF#"]

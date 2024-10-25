@@ -74,7 +74,7 @@ class Optimization(EnsembleOptimizer):
         # Attribute to store path to constraints file if used
         self.constraints = None
 
-    def optimize(self, ncores: int, cut: bool = True) -> None:
+    def _optimize(self, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -115,7 +115,7 @@ class Optimization(EnsembleOptimizer):
         # Use macrocycle optimization only if there is more than one conformer
         if self.get_settings()["macrocycles"] and len(self.ensemble.conformers) > 1:
             # ensembleopt using macrocycles with 'optcycles' microcycles
-            self.__macrocycle_opt(ncores, cut)
+            self.__macrocycle_opt(cut)
         else:
             # do complete geometry optimization
             if not len(self.ensemble.conformers) > 1:
@@ -127,10 +127,10 @@ class Optimization(EnsembleOptimizer):
             print("Macrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
 
-            prepinfo = self.setup_prepinfo(jobtype)
+            prepinfo = self._setup_prepinfo(jobtype)
 
-            # run optimizations using xtb as driver
-            success, results_opt, failed = execute(
+            # Run complete geometry optimization
+            results_opt, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -147,15 +147,16 @@ class Optimization(EnsembleOptimizer):
             self.ensemble.remove_conformers(failed)
 
             # update results for each conformer
+            self.results.update(results_opt)
             for conf in self.ensemble.conformers:
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
-        # Handle unconverged conformers (TODO)
+        # Handle unconverged conformers (WIP)
         unconverged = self.confs_nc or [
             conf
             for conf in self.ensemble.conformers
-            if not conf.results[self._name][jobtype[0]]["converged"]
+            if not self.results[conf.name][jobtype[0]]["converged"]
         ]
 
         if len(unconverged) == len(self.ensemble.conformers):
@@ -170,7 +171,7 @@ class Optimization(EnsembleOptimizer):
             print("Unconverged conformers:")
             for conf in unconverged:
                 print(
-                    f"{conf.name}, grad_norm: {conf.results[self._name][jobtype[0]]['grad_norm']}"
+                    f"{conf.name}, grad_norm: {self.results[conf.name][jobtype[0]]['grad_norm']}"
                 )
             print("The unconverged conformers will now be removed from consideration.")
             self.ensemble.remove_conformers([conf.name for conf in unconverged])
@@ -180,8 +181,8 @@ class Optimization(EnsembleOptimizer):
         # solvent model, since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
         jobtype = ["xtb_rrho"]
-        prepinfo = self.setup_prepinfo(jobtype)
-        success, _, failed = execute(
+        prepinfo = self._setup_prepinfo(jobtype)
+        results, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -197,23 +198,24 @@ class Optimization(EnsembleOptimizer):
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
+        # Update results
+        self.results.update(results)
+
         # TODO - Add the possibility to explicitely calculate solvation contributions
 
         for conf in self.ensemble.conformers:
-            conf.results[self._name]["gtot"] = self.grrho(conf)
+            self.results[conf.name]["gtot"] = self._grrho(conf)
 
         # sort conformers list with optimization key (gtot)
-        self.ensemble.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
+        self.ensemble.conformers.sort(key=lambda conf: self.results[conf.name]["gtot"])
 
         # calculate boltzmann weights from gtot values calculated here
-        self.ensemble.calc_boltzmannweights(
-            self.get_general_settings().get("temperature", 298.15), self._name
-        )
+        self.results.update(self._calc_boltzmannweights())
 
         # write final results
-        self.write_results()
+        self._write_results()
 
-    def grrho(self, conf: MoleculeData) -> float:
+    def _grrho(self, conf: MoleculeData) -> float:
         """
         Calculate Gtot from DFT energy (last step of running optimization) and Gmrrho
         If no GmRRHO is calculated only the most recent DFT energy is returned
@@ -228,13 +230,13 @@ class Optimization(EnsembleOptimizer):
 
         try:
             return (
-                conf.results[self._name][jobtype]["energy"]
-                + conf.results[self._name]["xtb_rrho"]["energy"]
+                self.results[conf.name][jobtype]["energy"]
+                + self.results[conf.name]["xtb_rrho"]["energy"]
             )
         except KeyError:
-            return conf.results[self._name][jobtype]["energy"]
+            return self.results[conf.name][jobtype]["energy"]
 
-    def __macrocycle_opt(self, ncores: int, cut: bool):
+    def __macrocycle_opt(self, cut: bool):
         """
         Macrocycle optimization using xtb as driver. Also calculates GmRRHO for finite temperature contributions
         and uses adaptive threshold based on mean trajectory similarity.
@@ -246,7 +248,7 @@ class Optimization(EnsembleOptimizer):
 
         jobtype = ["xtb_opt"] if self.get_settings()["xtb_opt"] else ["opt"]
 
-        prepinfo = self.setup_prepinfo(jobtype)
+        prepinfo = self._setup_prepinfo(jobtype)
 
         ncyc = 0
         rrho_done = False
@@ -259,7 +261,7 @@ class Optimization(EnsembleOptimizer):
             # NOTE: this loop works through confs_nc, so if the geometry optimization for a conformer is converged,
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
-            success, results_opt, failed = execute(
+            results_opt, failed = execute(
                 self.confs_nc,
                 self.dir,
                 self.get_settings()["prog"],
@@ -286,20 +288,23 @@ class Optimization(EnsembleOptimizer):
                 conf.results.setdefault(self._name, {}).setdefault(jobtype[0], {})
 
                 # Update the values for "energy", "grad_norm", "converged", "geom"
+                # NOTE: this replaces the default self.results.update, why see below
                 for key in ["energy", "grad_norm", "converged", "geom"]:
-                    conf.results[self._name][jobtype[0]][key] = results_opt[conf.name][
+                    self.results[conf.name][jobtype[0]][key] = results_opt[conf.name][
                         jobtype[0]
                     ][key]
 
+                # NOTE: Because of the following two steps it is necessary not to blindly call self.results.update,
+                # since values would be overwritten and information lost
                 # Add the number of cycles
-                conf.results[self._name][jobtype[0]].setdefault("cycles", 0)
-                conf.results[self._name][jobtype[0]]["cycles"] += results_opt[
-                    conf.name
-                ][jobtype[0]]["cycles"]
+                self.results[conf.name][jobtype[0]].setdefault("cycles", 0)
+                self.results[conf.name][jobtype[0]]["cycles"] += results_opt[conf.name][
+                    jobtype[0]
+                ]["cycles"]
 
                 # Extend the energy and grad_norm lists
                 for key in ["ecyc", "gncyc"]:
-                    conf.results[self._name][jobtype[0]].setdefault(key, []).extend(
+                    self.results[conf.name][jobtype[0]].setdefault(key, []).extend(
                         results_opt[conf.name][jobtype[0]][key]
                     )
 
@@ -313,11 +318,11 @@ class Optimization(EnsembleOptimizer):
                 tmp2 = jobtype
                 self.set_general_setting("bhess", True)
                 jobtype = ["xtb_rrho"]
-                success, _, failed = execute(
+                results, failed = execute(
                     self.confs_nc,
                     self.dir,
                     self.get_settings()["prog"],
-                    self.setup_prepinfo(jobtype),
+                    self._setup_prepinfo(jobtype),
                     jobtype,
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
@@ -326,23 +331,26 @@ class Optimization(EnsembleOptimizer):
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
-                # TODO - what to do about failed conformers?
+                # Remove failed conformers
+                self.ensemble.remove_conformers(failed)
 
                 # Reset
                 jobtype = tmp2
                 self.set_general_setting("bhess", tmp)
 
-                # put results into conformer objects
+                # Update results
+                self.results.update(results)
                 for conf in self.confs_nc:
-                    conf.results[self._name]["gtot"] = self.grrho(conf)
+                    self.results[conf.name]["gtot"] = self._grrho(conf)
 
                 # flag to make sure that rrho is only calculated once
                 rrho_done = True
 
             # TODO - crestcheck each iteration if ncyc >= 6
+            # => replace this with molbar later
 
             # sort conformers
-            self.ensemble.conformers.sort(key=lambda conf: self.grrho(conf))
+            self.ensemble.conformers.sort(key=lambda conf: self._grrho(conf))
 
             # remove converged conformers from 'todo-list'
             for conf in list(
@@ -380,35 +388,35 @@ class Optimization(EnsembleOptimizer):
                 # TODO - count removed conformers as converged?
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
-                for conf in self.ensemble.update_conformers(
-                    self.grrho,
-                    threshold,
-                    additional_filter=lambda x: all(
-                        gn < self.get_settings()["gradthr"]
-                        for gn in x.results[self._name][jobtype[0]]["gncyc"]
-                    ),
-                    # x.results[self._name]["xtb_opt"]["grad_norm"] < self.get_settings()["gradthr"]
-                ):
-                    print(f"No longer considering {conf}.")
-
-                # make sure that all the conformers, that are not converged but filtered out, are also removed
-                # from self.confs_nc
-                limit = min(self.grrho(conf) for conf in self.ensemble.conformers)
-                for conf in self.ensemble.rem:
-                    if conf in self.confs_nc:
-                        print(
-                            f"{conf.name} is no longer considered (gradient too small and"
-                            f" ΔG = {(self.grrho(conf) - limit) * AU2KCAL:.2f})."
-                        )
-                        self.confs_nc.remove(conf)
+                # NOTE: we need to look at results_opt here to look at only the current macrocycle
+                filtered = list(
+                    filter(
+                        lambda conf: all(
+                            gn < self.get_settings()["gradthr"]
+                            for gn in results_opt[conf.name][jobtype[0]]["gncyc"]
+                        ),
+                        self.ensemble.conformers,
+                    )
+                )
+                self.ensemble.remove_conformers([conf.name for conf in filtered])
+                limit = min(self._grrho(conf) for conf in self.ensemble.conformers)
+                for conf in filtered:
+                    # print(f"No longer considering {conf}.")
+                    print(
+                        f"No longer considering {conf.name} (gradient too small and"
+                        f" ΔG = {(self._grrho(conf) - limit) * AU2KCAL:.2f})."
+                    )
+                    # make sure that all the conformers, that are not converged but filtered out, are also removed
+                    # from self.confs_nc
+                    self.confs_nc.remove(conf)
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
 
             # Print out information about current state of the ensemble
-            self.print_opt_update(ncyc)
+            self.__print_opt_update(ncyc)
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         formatted write of part results (optional)
         """
@@ -437,27 +445,27 @@ class Optimization(EnsembleOptimizer):
         jobtype = "xtb_opt" if self.get_settings()["xtb_opt"] else "opt"
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(self.grrho(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(self._grrho(conf) for conf in self.ensemble.conformers)
 
         # Minimal pure DFT energy
         dftmin = min(
-            conf.results[self._name][jobtype]["energy"]
+            self.results[conf.name][jobtype]["energy"]
             for conf in self.ensemble.conformers
         )
 
         # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (DFT) (+ ΔGsolv)": lambda conf: f"{conf.results[self._name][jobtype]['energy']:.6f}",
-            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(conf.results[self._name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
+            "E (DFT) (+ ΔGsolv)": lambda conf: f"{self.results[conf.name][jobtype]['energy']:.6f}",
+            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(self.results[conf.name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf: (
-                f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+                f"{self.results[conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
-            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.grrho(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
+            "Gtot": lambda conf: f"{self._grrho(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self._grrho(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.results[conf.name]['bmw'] * 100:.2f}",
         }
 
         # Create rows via the printmap
@@ -480,7 +488,7 @@ class Optimization(EnsembleOptimizer):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                conf.results[self._name]["bmw"] * conf.results[self._name]["gtot"]
+                self.results[conf.name]["bmw"] * self.results[conf.name]["gtot"]
                 for conf in self.ensemble.conformers
             ]
         )
@@ -488,8 +496,8 @@ class Optimization(EnsembleOptimizer):
         # calculate averaged free energy
         avE = sum(
             [
-                conf.results[self._name]["bmw"]
-                * conf.results[self._name][jobtype]["energy"]
+                self.results[conf.name]["bmw"]
+                * self.results[conf.name][jobtype]["energy"]
                 for conf in self.ensemble.conformers
             ]
         )
@@ -513,9 +521,9 @@ class Optimization(EnsembleOptimizer):
             outfile.writelines(lines)
 
         # Additionally, write the results of this part to a json file
-        self.write_json()
+        self._write_json()
 
-    def print_opt_update(self, ncyc) -> None:
+    def __print_opt_update(self, ncyc) -> None:
         """
         writes information about the current state of the ensemble in form of a table
         """
@@ -540,15 +548,15 @@ class Optimization(EnsembleOptimizer):
         jobtype = "xtb_opt" if self.get_settings()["xtb_opt"] else "opt"
 
         # Lower limit for the free enthalpy
-        limit = min(self.grrho(conf) for conf in self.ensemble.conformers)
+        limit = min(self._grrho(conf) for conf in self.ensemble.conformers)
 
         # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "Gtot": lambda conf: f"{self.grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.grrho(conf) - limit) * AU2KCAL:.2f}",
-            "grad_norm": lambda conf: f"{conf.results[self._name][jobtype]['grad_norm']:.6f}",
-            "converged": lambda conf: f"{conf.results[self._name][jobtype]['converged']}",
+            "Gtot": lambda conf: f"{self._grrho(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self._grrho(conf) - limit) * AU2KCAL:.2f}",
+            "grad_norm": lambda conf: f"{self.results[conf.name][jobtype]['grad_norm']:.6f}",
+            "converged": lambda conf: f"{self.results[conf.name][jobtype]['converged']}",
         }
 
         # Create rows via the printmap

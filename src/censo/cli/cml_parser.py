@@ -3,6 +3,7 @@ defininition of internal defaults, checking of logic for parameter combinations,
 cml parsing
 """
 
+from ..params import START_DESCR
 import argparse
 
 
@@ -31,7 +32,7 @@ def check_soft_requirements(args: argparse.Namespace) -> bool:
         return True
 
 
-def parse(startup_description, argv=None) -> argparse.Namespace:
+def parse(argv=None) -> argparse.Namespace:
     """
     Process commandline arguments
 
@@ -40,7 +41,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     """
 
     parser = argparse.ArgumentParser(
-        description=startup_description,
+        description=START_DESCR,
         prog="censo",
     )
 

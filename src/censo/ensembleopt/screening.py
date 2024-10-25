@@ -43,7 +43,7 @@ class Screening(Prescreening):
 
     _settings = {}
 
-    def optimize(self, ncores: int, cut: bool = True) -> None:
+    def _optimize(self, cut: bool = True) -> None:
         """
         Advanced screening of the ensemble by doing single-point calculations on the input geometries,
         but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -52,7 +52,7 @@ class Screening(Prescreening):
             - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
             - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
         """
-        super().optimize(ncores, cut=False)
+        super()._optimize(cut=False)
 
         # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
@@ -61,10 +61,10 @@ class Screening(Prescreening):
             threshold = self.get_settings()["threshold"] / AU2KCAL
 
             jobtype = ["xtb_rrho"]
-            prepinfo = self.setup_prepinfo(jobtype)
+            prepinfo = self._setup_prepinfo(jobtype)
 
             # append results to previous results
-            success, _, failed = execute(
+            results, failed = execute(
                 self.ensemble.conformers,
                 self.dir,
                 self.get_settings()["prog"],
@@ -80,13 +80,16 @@ class Screening(Prescreening):
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
 
+            # Update results
+            self.results.update(results)
+
             for conf in self.ensemble.conformers:
                 # calculate new gtot including RRHO contribution
-                conf.results[self._name]["gtot"] = self.grrho(conf)
+                self.results[conf.name]["gtot"] = self._grrho(conf)
 
             # sort conformers list
             self.ensemble.conformers.sort(
-                key=lambda conf: conf.results[self._name]["gtot"]
+                key=lambda conf: self.results[conf.name]["gtot"]
             )
 
             if cut and len(self.ensemble.conformers) > 1:
@@ -97,7 +100,7 @@ class Screening(Prescreening):
                         -AU2KCAL
                         * stdev(
                             [
-                                conf.results[self._name]["xtb_rrho"]["energy"]
+                                self.results[conf.name]["xtb_rrho"]["energy"]
                                 for conf in self.ensemble.conformers
                             ]
                         )
@@ -106,34 +109,40 @@ class Screening(Prescreening):
                 threshold += fuzzy
                 print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
+                filtered = list(
+                    filter(
+                        lambda conf: self._grrho(conf) > threshold,
+                        self.ensemble.conformers,
+                    )
+                )
+
                 # update the conformer list in ensemble (remove confs if below threshold)
-                for confname in self.ensemble.update_conformers(self.grrho, threshold):
+                self.ensemble.remove_conformers([conf.name for conf in filtered])
+                for confname in filtered:
                     print(f"No longer considering {confname}.")
 
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-            self.ensemble.calc_boltzmannweights(
-                self.get_general_settings().get("temperature", 298.15), self._name
-            )
+            self.results.update(self._calc_boltzmannweights())
 
             # if no conformers are filtered basically nothing happens
 
             # second 'write_results' for the updated sorting with RRHO contributions
-            self.write_results2()
+            self._write_results2()
 
-    def gsolv(self, conf: MoleculeData) -> float:
+    def _gsolv(self, conf: MoleculeData) -> float:
         """
         Override of the function from Prescreening.
         """
         # If solvation contributions should be included and the solvation free enthalpy
         # should not be included in the single-point energy the 'gsolv' job should've been run
-        if "gsolv" in conf.results[self._name]:
-            return conf.results[self._name]["gsolv"]["energy_solv"]
+        if "gsolv" in self.results[conf.name]:
+            return self.results[conf.name]["gsolv"]["energy_solv"]
         # Otherwise, return just the single-point energy
         else:
-            return conf.results[self._name]["sp"]["energy"]
+            return self.results[conf.name]["sp"]["energy"]
 
-    def grrho(self, conf: MoleculeData) -> float:
+    def _grrho(self, conf: MoleculeData) -> float:
         """
         Calculate the total Gibbs free energy (Gtot) of a given molecule using DFT single-point and gsolv (if included) and RRHO contributions.
 
@@ -145,9 +154,9 @@ class Screening(Prescreening):
         """
         # Gtot = E(DFT) + Gsolv + Grrho
         # NOTE: grrho should only be called if evaluate_rrho is True
-        return self.gsolv(conf) + conf.results[self._name]["xtb_rrho"]["energy"]
+        return self._gsolv(conf) + self.results[conf.name]["xtb_rrho"]["energy"]
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         Overrides the write_results function of Prescreening.
         Write the results to a file in formatted way.
@@ -187,6 +196,7 @@ class Screening(Prescreening):
 
         # variables for printmap
         # minimal xtb single-point energy (taken from prescreening)
+        # FIXME TODO
         if (
             all(
                 "prescreening" in conf.results.keys()
@@ -203,20 +213,20 @@ class Screening(Prescreening):
             xtb_energies = None
 
         # minimal total free enthalpy (single-point and potentially gsolv)
-        gsolvmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
+        gsolvmin = min(self._gsolv(conf) for conf in self.ensemble.conformers)
 
         # collect all dft single point energies
         dft_energies = (
             {
-                id(conf): conf.results[self._name]["sp"]["energy"]
+                id(conf): self.results[conf.name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
             }
             if not all(
-                "gsolv" in conf.results[self._name].keys()
+                "gsolv" in self.results[conf.name].keys()
                 for conf in self.ensemble.conformers
             )
             else {
-                id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
+                id(conf): self.results[conf.name]["gsolv"]["energy_gas"]
                 for conf in self.ensemble.conformers
             }
         )
@@ -234,13 +244,13 @@ class Screening(Prescreening):
             ),
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: (
-                f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
-                if "xtb_gsolv" in conf.results[self._name].keys()
-                or "gsolv" in conf.results[self._name].keys()
+                f"{self._gsolv(conf) - dft_energies[id(conf)]:.6f}"
+                if "xtb_gsolv" in self.results[conf.name].keys()
+                or "gsolv" in self.results[conf.name].keys()
                 else "---"
             ),
-            "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
+            "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
+            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
         }
 
         rows = [
@@ -264,7 +274,7 @@ class Screening(Prescreening):
         ) as outfile:
             outfile.writelines(lines)
 
-    def write_results2(self) -> None:
+    def _write_results2(self) -> None:
         """
         Additional write function in case RRHO is used.
         Write the results to a file in formatted way. This is appended to the first file.
@@ -308,6 +318,7 @@ class Screening(Prescreening):
         ]
 
         # minimal xtb energy from single-point (and mRRHO)
+        # FIXME TODO
         if (
             all(
                 "prescreening" in conf.results.keys()
@@ -321,7 +332,7 @@ class Screening(Prescreening):
             }
             if self.get_general_settings()["evaluate_rrho"]:
                 for conf in self.ensemble.conformers:
-                    gxtb[id(conf)] += conf.results[self._name]["xtb_rrho"]["gibbs"][
+                    gxtb[id(conf)] += self.results[conf.name]["xtb_rrho"]["gibbs"][
                         self.get_general_settings()["temperature"]
                     ]
             gxtbmin = min(gxtb.values())
@@ -330,20 +341,20 @@ class Screening(Prescreening):
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
         gtotmin = min(
-            conf.results[self._name]["gtot"] for conf in self.ensemble.conformers
+            self.results[conf.name]["gtot"] for conf in self.ensemble.conformers
         )
 
         # collect all dft single point energies
         dft_energies = (
             {
-                id(conf): conf.results[self._name]["sp"]["energy"]
+                id(conf): self.results[conf.name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
             }
             if not all(
-                "gsolv" in conf.results[self._name] for conf in self.ensemble.conformers
+                "gsolv" in self.results[conf.name] for conf in self.ensemble.conformers
             )
             else {
-                id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
+                id(conf): self.results[conf.name]["gsolv"]["energy_gas"]
                 for conf in self.ensemble.conformers
             }
         )
@@ -361,17 +372,17 @@ class Screening(Prescreening):
             "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
             "ΔGsolv": lambda conf: (
                 f"{self.gsolv(conf) - dft_energies[id(conf)]:.6f}"
-                if "gsolv" in conf.results[self._name]
+                if "gsolv" in self.results[conf.name]
                 else "---"
             ),
             "GmRRHO": lambda conf: (
-                f"{conf.results[self._name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+                f"{self.results[conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
-            "Gtot": lambda conf: f"{conf.results[self._name]['gtot']:.6f}",
-            "ΔGtot": lambda conf: f"{(conf.results[self._name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
+            "Gtot": lambda conf: f"{self.results[conf.name]['gtot']:.6f}",
+            "ΔGtot": lambda conf: f"{(self.results[conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.results[conf.name]['bmw'] * 100:.2f}",
         }
 
         rows = [
@@ -392,7 +403,7 @@ class Screening(Prescreening):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                conf.results[self._name]["bmw"] * conf.results[self._name]["gtot"]
+                self.results[conf.name]["bmw"] * self.results[conf.name]["gtot"]
                 for conf in self.ensemble.conformers
             ]
         )
@@ -400,16 +411,13 @@ class Screening(Prescreening):
         # calculate averaged free energy
         avE = (
             sum(
-                conf.results[self._name]["bmw"]
-                * conf.results[self._name]["sp"]["energy"]
+                self.results[conf.name]["bmw"] * self.results[conf.name]["sp"]["energy"]
                 for conf in self.ensemble.conformers
             )
-            if all(
-                "sp" in conf.results[self._name] for conf in self.ensemble.conformers
-            )
+            if all("sp" in self.results[conf.name] for conf in self.ensemble.conformers)
             else sum(
-                conf.results[self._name]["bmw"]
-                * conf.results[self._name]["gsolv"]["energy_gas"]
+                self.results[conf.name]["bmw"]
+                * self.results[conf.name]["gsolv"]["energy_gas"]
                 for conf in self.ensemble.conformers
             )
         )
@@ -432,4 +440,4 @@ class Screening(Prescreening):
             outfile.writelines(lines)
 
         # Additionally, write the results to a json file
-        self.write_json()
+        self._write_json()
