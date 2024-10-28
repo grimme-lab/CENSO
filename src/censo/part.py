@@ -432,6 +432,6 @@ class CensoPart:
                 conf.name: self.results[conf.name] for conf in self.ensemble.conformers
             }
         }
-        filename = f"{self._part_nos.get(self._name, "NaN")}_{self._name.upper()}.json"
+        filename = f"{self._part_nos.get(self._name, 'NaN')}_{self._name.upper()}.json"
         with open(os.path.join(os.getcwd(), filename), "w") as outfile:
             json.dump(results, outfile, indent=4)
