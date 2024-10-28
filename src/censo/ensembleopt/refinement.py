@@ -3,7 +3,7 @@ from functools import reduce
 
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS, SOLV_MODS
+from ..params import Params
 from ..utilities import format_data, h1, print, DfaHelper
 from .prescreening import Prescreening
 from .screening import Screening
@@ -15,19 +15,19 @@ logger = setup_logger(__name__)
 class Refinement(Screening):
     _grid = "high+"
 
-    __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
-    # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
+    __solv_mods = {prog: Params.SOLV_MODS[prog] for prog in Params.PROGS}
+    # __gsolv_mods = reduce(lambda x, y: x + y, GParams.SOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 0.95},
         "func": {
             "default": "wb97x-v",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Params.PROGS},
         },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "tm", "options": PROGS},
+        "prog": {"default": "tm", "options": Params.PROGS},
         "sm": {"default": "cosmors", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": Params.GFNOPTIONS},
         "run": {"default": True},
         "implicit": {"default": False},
         "template": {"default": False},
@@ -188,7 +188,7 @@ class Refinement(Screening):
                 else "---"
             ),
             "Gtot": lambda conf: f"{self.results[conf.name]['gtot']:.6f}",
-            "ΔGtot": lambda conf: f"{(self.results[conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self.results[conf.name]['gtot'] - gtotmin) * Params.AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{self.results[conf.name]['bmw'] * 100:.2f}",
         }
 
@@ -233,7 +233,7 @@ class Refinement(Screening):
         lines.append(
             f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part3==\n"
         )
-        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
+        lines.append("".ljust(int(Params.PLENGTH), "-") + "\n\n")
 
         # Print everything
         for line in lines:
