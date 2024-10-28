@@ -19,8 +19,6 @@ logger = setup_logger(__name__)
 
 
 class Screening(Prescreening):
-    _part_no = "1"
-
     _grid = "low+"
 
     __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
@@ -267,7 +265,7 @@ class Screening(Prescreening):
         print("".ljust(PLENGTH, "-"))
 
         # write everything to a file
-        filename = f"{self._part_no}_{self._name.upper()}.out"
+        filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
         logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
         with open(
             os.path.join(self.ensemble.workdir, filename), "w", newline=None
@@ -433,7 +431,7 @@ class Screening(Prescreening):
             print(line, flush=True, end="")
 
         # append lines to already existing file
-        filename = f"{self._part_no}_{self._name.upper()}.out"
+        filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
         with open(
             os.path.join(self.ensemble.workdir, filename), "a", newline=None
         ) as outfile:

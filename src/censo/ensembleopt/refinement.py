@@ -12,8 +12,6 @@ logger = setup_logger(__name__)
 
 
 class Refinement(Screening):
-    _part_no = "3"
-
     _grid = "high+"
 
     __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
@@ -236,7 +234,7 @@ class Refinement(Screening):
             print(line, flush=True, end="")
 
         # append lines to already existing file
-        filename = f"{self._part_no}_{self._name.upper()}.out"
+        filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
         logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
         with open(
             os.path.join(self.ensemble.workdir, filename), "a", newline=None

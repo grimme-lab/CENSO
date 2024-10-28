@@ -270,7 +270,8 @@ class CensoPart:
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
             self.dir = os.path.join(
-                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}"
+                self.ensemble.workdir,
+                f"{self._part_nos[self._name]}_{self._name.upper()}",
             )
             if os.path.isdir(self.dir):
                 global logger

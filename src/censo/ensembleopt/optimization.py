@@ -18,8 +18,6 @@ logger = setup_logger(__name__)
 
 
 class Optimization(EnsembleOptimizer):
-    _part_no = "2"
-
     __solv_mods = {
         prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
         for prog in PROGS
@@ -513,7 +511,7 @@ class Optimization(EnsembleOptimizer):
             print(line, flush=True, end="")
 
         # write lines to file
-        filename = f"{self._part_no}_{self._name.upper()}.out"
+        filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
         logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
         with open(
             os.path.join(self.ensemble.workdir, filename), "w", newline=None

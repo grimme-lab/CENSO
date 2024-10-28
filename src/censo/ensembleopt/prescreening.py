@@ -338,7 +338,7 @@ class Prescreening(EnsembleOptimizer):
             print(line, flush=True, end="")
 
         # write everything to a file
-        filename = f"{self._part_no}_{self._name.upper()}.out"
+        filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
         logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
         with open(
             os.path.join(self.ensemble.workdir, filename), "w", newline=None

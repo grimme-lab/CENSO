@@ -21,8 +21,6 @@ logger = setup_logger(__name__)
 
 
 class NMR(PropertyCalculator):
-    _part_no = "4"
-
     _grid = "nmr"
 
     __solv_mods = {

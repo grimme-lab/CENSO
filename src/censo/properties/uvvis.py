@@ -18,8 +18,6 @@ logger = setup_logger(__name__)
 
 
 class UVVis(PropertyCalculator):
-    _part_no = "6"
-
     __solv_mods = {
         prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
         for prog in PROGS
@@ -196,11 +194,12 @@ class UVVis(PropertyCalculator):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_no}_{self._name.upper()}.out')}."
+            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_nos[self._name]}_{self._name.upper()}.out')}."
         )
         with open(
             os.path.join(
-                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}.out"
+                self.ensemble.workdir,
+                f"{self._part_nos[self._name]}_{self._name.upper()}.out",
             ),
             "w",
             newline=None,
