@@ -287,13 +287,14 @@ class CensoPart:
 
         return wrapper
 
-    def __init__(self, ensemble: EnsembleData):
+    def __init__(self, ensemble: EnsembleData, dry: bool = False):
         """
         Initializes a part instance. Also calls the new instance in a single step.
         Yields the instance after execution of itself.
 
         Args:
             ensemble: The ensemble instance that manages the conformers.
+            dry: If True, the part will not be executed.
 
         Returns:
             None
@@ -326,7 +327,8 @@ class CensoPart:
         #    to get the single-point energy: self.results["CONF3"]["sp"]["energy"]
         #    (refer to the results for each jobtype)
 
-        self.runtime = self()
+        if not dry:
+            self.runtime = self()
 
         # Attach a reference to this part to the ensemble
         self.ensemble.results.append(self)
@@ -338,7 +340,7 @@ class CensoPart:
         """
         pass
 
-    def _calc_boltzmannweights(self) -> dict:
+    def _calc_boltzmannweights(self) -> None:
         """
         Calculate populations for boltzmann distribution of ensemble at given
         temperature given values for free enthalpy.
@@ -402,9 +404,8 @@ class CensoPart:
         bsum: float = sum(bmfactors.values())
 
         # Return Boltzmann populations
-        return {
-            conf.name: bmfactors[conf.name] / bsum for conf in self.ensemble.conformers
-        }
+        for conf in self.ensemble.conformers:
+            self.results[conf.name]["bmw"] = bmfactors[conf.name] / bsum
 
     def _print_info(self) -> None:
         """

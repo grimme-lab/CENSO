@@ -78,9 +78,8 @@ class Screening(Prescreening):
             self.ensemble.remove_conformers(failed)
 
             # Update results
-            self.results.update(results)
-
             for conf in self.ensemble.conformers:
+                self.results[conf.name].update(results[conf.name])
                 # calculate new gtot including RRHO contribution
                 self.results[conf.name]["gtot"] = self._grrho(conf)
 
@@ -125,8 +124,7 @@ class Screening(Prescreening):
                     print(f"No longer considering {confname}.")
 
             # calculate boltzmann weights from gtot values calculated here
-            # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-            self.results.update(self._calc_boltzmannweights())
+            self._calc_boltzmannweights()
 
             # if no conformers are filtered basically nothing happens
 

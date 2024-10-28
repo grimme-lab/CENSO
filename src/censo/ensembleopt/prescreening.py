@@ -81,7 +81,8 @@ class Prescreening(EnsembleOptimizer):
                 self.ensemble.remove_conformers(failed)
 
                 # Update results
-                self.results.update(results)
+                for conf in self.ensemble.conformers:
+                    self.results[conf.name].update(results[conf.name])
 
                 jobtype = ["sp"]
             else:
@@ -108,10 +109,9 @@ class Prescreening(EnsembleOptimizer):
         self.ensemble.remove_conformers(failed)
 
         # Update results
-        self.results.update(results)
-
-        # update results for each conformer
         for conf in self.ensemble.conformers:
+            self.results[conf.name].update(results[conf.name])
+
             # calculate free enthalpy
             self.results[conf.name]["gtot"] = self._gsolv(conf)
 
@@ -121,14 +121,14 @@ class Prescreening(EnsembleOptimizer):
         )
 
         # calculate boltzmann weights from gtot values calculated here
-        self.results.update(self._calc_boltzmannweights())
+        self._calc_boltzmannweights()
 
         self._write_results()
 
         if cut:
             print("\n")
             # update conformers with threshold
-            threshold = self.get_settings()["threshold"] / Params.Params.AU2KCAL
+            threshold = self.get_settings()["threshold"] / Params.AU2KCAL
             limit = min(
                 self.results[conf.name]["gtot"] for conf in self.ensemble.conformers
             )

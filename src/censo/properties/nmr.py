@@ -158,7 +158,8 @@ class NMR(PropertyCalculator):
         self.ensemble.remove_conformers(failed)
 
         # Update results
-        self.results.update(results)
+        for conf in self.ensemble.conformers:
+            self.results[conf.name].update(results[conf.name])
 
         # Generate files for ANMR
         self.__generate_anmr()

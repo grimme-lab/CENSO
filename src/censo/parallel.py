@@ -228,7 +228,7 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
 
                 try:
                     # submit the job
-                    tasks.append(executor.submit(processor.run, jobs[i]))
+                    tasks.append(executor.submit(processor, jobs[i]))
                     # NOTE: explanation of the lambda: the first argument passed to the done_callback is always the future
                     # itself, it is not assigned (_), the second parameter is the number of openmp threads of the job (i.e.
                     # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
