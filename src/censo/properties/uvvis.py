@@ -193,11 +193,11 @@ class UVVis(PropertyCalculator):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(self.ensemble.workdir, f'{self._part_nos[self._name]}_{self._name.upper()}.out')}."
+            f"Writing to {os.path.join(os.getcwd(), f'{self._part_nos[self._name]}_{self._name.upper()}.out')}."
         )
         with open(
             os.path.join(
-                self.ensemble.workdir,
+                os.getcwd(),
                 f"{self._part_nos[self._name]}_{self._name.upper()}.out",
             ),
             "w",
@@ -206,7 +206,7 @@ class UVVis(PropertyCalculator):
             outfile.writelines(lines)
 
         # Dump data into json
-        with open(os.path.join(self.ensemble.workdir, "excitations.json"), "w") as f:
+        with open(os.path.join(os.getcwd(), "excitations.json"), "w") as f:
             json.dump(eps, f, indent=4)
 
     def _write_results(self) -> None:

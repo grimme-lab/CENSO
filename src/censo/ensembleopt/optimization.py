@@ -105,11 +105,9 @@ class Optimization(EnsembleOptimizer):
         # NOTE: (IMPORTANT) the following only uses xtb as driver (no native geometry optimizations)
         # Check for constraint file
         if self.get_settings()["constrain"]:
-            assert os.path.isfile(
-                os.path.join(self.ensemble.workdir, "constraints.xtb")
-            )
+            assert os.path.isfile(os.path.join(os.getcwd(), "constraints.xtb"))
             print("Found constraints-file constraints.xtb ...")
-            self.constraints = os.path.join(self.ensemble.workdir, "constraints.xtb")
+            self.constraints = os.path.join(os.getcwd(), "constraints.xtb")
 
         # Use macrocycle optimization only if there is more than one conformer
         if self.get_settings()["macrocycles"] and len(self.ensemble.conformers) > 1:
@@ -517,10 +515,8 @@ class Optimization(EnsembleOptimizer):
 
         # write lines to file
         filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
-        with open(
-            os.path.join(self.ensemble.workdir, filename), "w", newline=None
-        ) as outfile:
+        logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
+        with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results of this part to a json file

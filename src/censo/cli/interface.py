@@ -57,9 +57,9 @@ def entry_point(argv: list[str] | None = None) -> int:
 
     time = 0.0
     for part in run:
-        runtime = part.run(ensemble)
-        print(f"Ran {part._name} in {runtime:.2f} seconds!")
-        time += runtime
+        res = part(ensemble)
+        print(f"Ran {part._name} in {res.runtime:.2f} seconds!")
+        time += res.runtime
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)

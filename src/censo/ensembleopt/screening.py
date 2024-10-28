@@ -267,10 +267,8 @@ class Screening(Prescreening):
 
         # write everything to a file
         filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
-        with open(
-            os.path.join(self.ensemble.workdir, filename), "w", newline=None
-        ) as outfile:
+        logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
+        with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
     def _write_results2(self) -> None:
@@ -429,9 +427,7 @@ class Screening(Prescreening):
 
         # append lines to already existing file
         filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
-        with open(
-            os.path.join(self.ensemble.workdir, filename), "a", newline=None
-        ) as outfile:
+        with open(os.path.join(os.getcwd(), filename), "a", newline=None) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results to a json file

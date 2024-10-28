@@ -272,7 +272,7 @@ class CensoPart:
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
             self.dir = os.path.join(
-                self.ensemble.workdir,
+                os.getcwd(),
                 f"{self._part_nos[self._name]}_{self._name.upper()}",
             )
             if os.path.isdir(self.dir):
@@ -331,7 +331,7 @@ class CensoPart:
         # Attach a reference to this part to the ensemble
         self.ensemble.results.append(self)
 
-    def __call__(self, ensemble: EnsembleData) -> None:
+    def __call__(self) -> None:
         """
         what gets executed if the part is run
         should be implemented for every part respectively

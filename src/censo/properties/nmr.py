@@ -290,10 +290,8 @@ class NMR(PropertyCalculator):
         lines = format_data(headers, rows)
 
         # Write lines to file
-        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, 'anmr_enso')}.")
-        with open(
-            os.path.join(self.ensemble.workdir, "anmr_enso"), "w", newline=None
-        ) as outfile:
+        logger.debug(f"Writing to {os.path.join(os.getcwd(), 'anmr_enso')}.")
+        with open(os.path.join(os.getcwd(), "anmr_enso"), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
         # Write 'anmrrc'

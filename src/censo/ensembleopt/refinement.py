@@ -241,10 +241,8 @@ class Refinement(Screening):
 
         # append lines to already existing file
         filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
-        with open(
-            os.path.join(self.ensemble.workdir, filename), "a", newline=None
-        ) as outfile:
+        logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
+        with open(os.path.join(os.getcwd(), filename), "a", newline=None) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results to a json file
