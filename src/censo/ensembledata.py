@@ -186,7 +186,7 @@ class EnsembleData:
         # (every conf geometry is separated by a line with split length of 4 followed by a line of split length 1)
         split_indices = [
             i
-            for i in len(lines)
+            for i in range(len(lines))
             if i == 0 or (len(lines[i].split()) == 1 and len(lines[i - 1].split()) == 4)
         ]
 
