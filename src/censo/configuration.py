@@ -3,7 +3,7 @@ import shutil
 import configparser
 from argparse import Namespace
 
-from .params import CENSORCNAME, ASSETS_PATH, USER_ASSETS_PATH
+from .params import Params
 from .qm_processor import QmProc
 from .utilities import DfaHelper, SolventHelper, print
 
@@ -33,10 +33,12 @@ def configure(rcpath: str = None, create_new: bool = False):
         censorc_path = rcpath
 
     # Set up the DFAHelper
-    DfaHelper.set_dfa_dict(os.path.join(ASSETS_PATH, "censo_dfa_settings.json"))
+    DfaHelper.set_dfa_dict(os.path.join(Params.ASSETS_PATH, "censo_dfa_settings.json"))
 
     # Set up the SolventHelper
-    SolventHelper.set_solvent_dict(os.path.join(ASSETS_PATH, "censo_solvents_db.json"))
+    SolventHelper.set_solvent_dict(
+        os.path.join(Params.ASSETS_PATH, "censo_solvents_db.json")
+    )
 
     # map the part names to their respective classes
     # NOTE: the DFAHelper and the databases should be setup before the parts are imported,
@@ -94,8 +96,8 @@ def configure(rcpath: str = None, create_new: bool = False):
         QmProc._paths.update(paths)
 
     # create user assets folder if it does not exist
-    if not os.path.isdir(USER_ASSETS_PATH):
-        os.mkdir(USER_ASSETS_PATH)
+    if not os.path.isdir(Params.USER_ASSETS_PATH):
+        os.mkdir(Params.USER_ASSETS_PATH)
 
 
 def read_rcfile(path: str, silent: bool = True) -> dict[str, dict[str, any]]:
@@ -138,7 +140,7 @@ def write_rcfile(path: str) -> None:
     if os.path.isfile(path):
         print(
             f"An existing configuration file has been found at {path}.\n",
-            f"Renaming existing file to {CENSORCNAME}_OLD.\n",
+            f"Renaming existing file to {Params.CENSORCNAME}_OLD.\n",
         )
         # Read program paths from the existing configuration file
         print("Reading program paths from existing configuration file ...")
@@ -181,9 +183,9 @@ def write_rcfile(path: str) -> None:
         "Right now the settings are at their default values.\n"
     )
 
-    if CENSORCNAME not in path:
+    if Params.CENSORCNAME not in path:
         print(
-            f"Additionally make sure that the file name is '{CENSORCNAME}'.\n"
+            f"Additionally make sure that the file name is '{Params.CENSORCNAME}'.\n"
             f"Currently it is '{os.path.split(path)[-1]}'.\n"
         )
 
@@ -250,8 +252,8 @@ def find_rcfile() -> str | None:
 
     rcpath = None
     # check for .censorc in $home
-    if os.path.isfile(os.path.join(os.path.expanduser("~"), CENSORCNAME)):
-        rcpath = os.path.join(os.path.expanduser("~"), CENSORCNAME)
+    if os.path.isfile(os.path.join(os.path.expanduser("~"), Params.CENSORCNAME)):
+        rcpath = os.path.join(os.path.expanduser("~"), Params.CENSORCNAME)
 
     return rcpath
 

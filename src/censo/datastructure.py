@@ -2,7 +2,7 @@ from functools import reduce
 from collections import OrderedDict
 from typing import TypedDict
 
-from .params import BOHR2ANG, OMPMIN
+from .params import Params
 
 
 class Atom(TypedDict):
@@ -57,7 +57,7 @@ class GeometryData:
             coord.append(
                 reduce(
                     lambda x, y: f"{x} {y}",
-                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"]))
+                    list(map(lambda x: float(x) / Params.BOHR2ANG, atom["xyz"]))
                     + [f"{atom['element']}\n"],
                 )
             )
@@ -78,7 +78,7 @@ class GeometryData:
             if not line.startswith("$"):
                 coords = line.split()
                 element = coords[-1]
-                cartesian_coords = [float(x) * BOHR2ANG for x in coords[:-1]]
+                cartesian_coords = [float(x) * Params.BOHR2ANG for x in coords[:-1]]
                 self.xyz.append({"element": element, "xyz": cartesian_coords})
             elif line.startswith("$end"):
                 break
@@ -140,26 +140,12 @@ class MoleculeData:
         # might also include tuples if open shell and tm is used
         self.mo_paths: list[str, tuple] = []
 
-        # store all Boltzmann weights in order of calculation
-        # TODO - this might not be the nicest way of doing this
-        self.bmws: list[float] = []
-
-        # stores the results of the calculations
-        self.results = OrderedDict()
-        # should be structured like the following:
-        # 'part': <results from part jobs/in-part-calculations>
-        # => e.g. self.results["prescreening"]["gtot"]
-        #    would return the free enthalpy of the conformer calculated in prescreening
-        #    (not calculated with an external program)
-        #
-        #    self.results["prescreening"]["sp"]
-        #    returns the 'result' of the DFT single point in prescreening
-        #    (calculated by external program)
-        #    to get the single-point energy: self.results["prescreening"]["sp"]["energy"]
-        #    (confer to the results for each jobtype)
-
 
 class ParallelJob:
+    """
+    Data transfer class, compiles all information required for a job to be run using one of the processors.
+    Also carries the results for the calculations back to the executor.
+    """
 
     def __init__(self, conf: GeometryData, jobtype: list[str]):
         # conformer for the job
@@ -169,7 +155,7 @@ class ParallelJob:
         self.jobtype = jobtype
 
         # number of cores to use
-        self.omp = OMPMIN
+        self.omp = Params.OMPMIN
 
         # stores path to an mo file which is supposed to be used as a guess
         # In case of open shell tm calculation this can be a tuple of files

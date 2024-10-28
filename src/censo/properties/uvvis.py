@@ -2,13 +2,11 @@
 Calculates the ensemble UV/Vis spectrum.
 """
 
-from functools import reduce
 import json
 import os
 
-from ..ensembledata import EnsembleData
 from ..parallel import execute
-from ..params import SOLV_MODS, GFNOPTIONS, PROGS
+from ..params import Params
 from ..utilities import SolventHelper, DfaHelper, format_data, print
 from ..logging import setup_logger
 from .property_calculator import PropertyCalculator
@@ -19,19 +17,21 @@ logger = setup_logger(__name__)
 
 class UVVis(PropertyCalculator):
     __solv_mods = {
-        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
-        for prog in PROGS
+        prog: tuple(
+            t for t in Params.SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine")
+        )
+        for prog in Params.PROGS
     }
 
     _options = {
         "prog": {"default": "orca", "options": ["orca"]},  # required
         "func": {
             "default": "wb97x-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Params.PROGS},
         },
         "basis": {"default": "def2-TZVP"},
         "sm": {"default": "smd", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": Params.GFNOPTIONS},
         "nroots": {"default": 20},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
@@ -95,10 +95,7 @@ class UVVis(PropertyCalculator):
                 "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
             )
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
-    def property(self, ncores: int) -> None:
+    def _property(self) -> None:
         """
         Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
         Note, that the ensemble will not be modified anymore.
@@ -106,11 +103,11 @@ class UVVis(PropertyCalculator):
         jobtype = ["uvvis"]
 
         # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self.setup_prepinfo()
+        prepinfo = self._setup_prepinfo()
 
         # compute results
         # for structure of results from handler.execute look there
-        success, _, failed = execute(
+        results, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -119,20 +116,22 @@ class UVVis(PropertyCalculator):
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
-            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
+        # Update results
+        self.results.update(results)
+
         # Ensemble averaging of excitations
         self.__excitation_averaging()
 
         # Write data
-        self.write_results()
+        self._write_results()
 
-    def setup_prepinfo(self) -> dict[str, dict]:
+    def _setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
 
         prepinfo["partname"] = self._name
@@ -169,8 +168,8 @@ class UVVis(PropertyCalculator):
         # eps is a list of tuples that contain each excitation wavelength with the respective epsilon_max
         eps = []
         for conf in self.ensemble.conformers:
-            for excitation in conf.results[self._name]["uvvis"]["excitations"]:
-                epsilon_max = conf.bmws[-1] * excitation["osc_str"]
+            for excitation in self.results[conf.name]["uvvis"]["excitations"]:
+                epsilon_max = self.results[conf.name]["bmw"] * excitation["osc_str"]
                 eps.append((excitation["wavelength"], epsilon_max, conf.name))
 
         # Print table
@@ -210,9 +209,9 @@ class UVVis(PropertyCalculator):
         with open(os.path.join(self.ensemble.workdir, "excitations.json"), "w") as f:
             json.dump(eps, f, indent=4)
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         Write result excitations to files.
         """
         # Write results to json file
-        self.write_json()
+        self._write_json()

@@ -13,7 +13,7 @@ from builtins import print as print_orig
 from collections import OrderedDict
 from collections.abc import Callable
 
-from .params import CODING, BOHR2ANG, PLENGTH
+from .params import Params
 from .logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -312,7 +312,7 @@ def t2x(
      - number of atoms
     """
     # read lines from coord file
-    with open(path, "r", encoding=CODING, newline=None) as f:
+    with open(path, "r", encoding=Params.CODING, newline=None) as f:
         coord = f.readlines()
 
     # read coordinates with atom labels directly into a string
@@ -325,9 +325,9 @@ def t2x(
             functools.reduce(
                 lambda x, y: x + " " + y,
                 [
-                    f"{float(line.split()[0]) * BOHR2ANG:.10f}",
-                    f"{float(line.split()[1]) * BOHR2ANG:.10f}",
-                    f"{float(line.split()[2]) * BOHR2ANG:.10f}",
+                    f"{float(line.split()[0]) * Params.BOHR2ANG:.10f}",
+                    f"{float(line.split()[1]) * Params.BOHR2ANG:.10f}",
+                    f"{float(line.split()[2]) * Params.BOHR2ANG:.10f}",
                     f"{str(line.split()[3].lower()).capitalize()}",
                 ],
             )
@@ -344,7 +344,7 @@ def t2x(
 
     # write converted coordinates to xyz outfile if wanted
     if writexyz:
-        with open(os.path.join(outpath, outfile), "w", encoding=CODING) as out:
+        with open(os.path.join(outpath, outfile), "w", encoding=Params.CODING) as out:
             out.write(str(len(xyzatom)) + "\n")
             for line in xyzatom:
                 out.write(line)
@@ -436,7 +436,7 @@ def h1(text: str) -> str:
     Returns:
         The formatted header.
     """
-    return "\n" + f" {text} ".center(PLENGTH, "-") + "\n"
+    return "\n" + f" {text} ".center(Params.PLENGTH, "-") + "\n"
 
 
 def h2(text: str) -> str:
@@ -453,7 +453,7 @@ def h2(text: str) -> str:
         The formatted header.
     """
     return f"""
-{'-' * PLENGTH}
-{text.center(PLENGTH, " ")}
-{'-' * PLENGTH}
+{'-' * Params.PLENGTH}
+{text.center(Params.PLENGTH, " ")}
+{'-' * Params.PLENGTH}
     """

@@ -11,7 +11,7 @@ from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
 from ..properties import NMR, UVVis
-from ..params import __version__
+from ..params import __version__, Params
 from ..utilities import print
 from ..logging import setup_logger, set_loglevel
 
@@ -43,17 +43,17 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
-    CensoPart.print_info()
+    CensoPart._print_info()
 
     run = filter(
         lambda x: x.get_settings()["run"],
         [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
     )
 
-    # FIXME TODO
-    ncores = 4
+    # Set number of cores utilized by CENSO
+    # NOTE: by default this is the total number of CPUs available on the machine!
     if args.maxcores:
-        ncores = args.maxcores
+        Params.NCORES = args.maxcores
 
     time = 0.0
     for part in run:

@@ -27,25 +27,27 @@ from censo.ensembledata import EnsembleData
 from censo.configuration import configure
 from censo.ensembleopt import Prescreening, Screening, Optimization
 from censo.properties import NMR
+from censo.params import Params
 
 workdir = "/absolute/path/to/your/workdir" # CENSO will put all files in this directory
 input_path = "rel/path/to/your/inputfile" # path relative to the working directory
 ensemble = EnsembleData(workdir)
 ensemble.read_input(input_path, charge=0, unpaired=0)
-ncores = os.cpu_count() # Could be set to any other positive integer
+Params.NCORES = os.cpu_count() # Could be set to any other positive integer
 
 # If the user wants to use a specific rcfile:
 configure(rcpath="/abs/path/to/rcfile")
 
-# Setup all the parts that the user wants to run
-parts = [
+# Setup and execution of all parts the user wants to run
+# This is calling the constructor, which in hand calls the new instance
+results = [
     part(ensemble) for part in [Prescreening, Screening, Optimization, NMR]
 ]
 
 # Run all the parts and collect their runtimes
 part_timings = []
-for part in parts:
-    part_timings.append(part.run(ncores))
+for part in results:
+    part_timings.append(part.runtime)
 
 # If no Exceptions were raised, all the output can now be found in 'workdir'
 # Data is given in a formatted plain text format (*.out) and and json format

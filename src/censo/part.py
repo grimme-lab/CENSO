@@ -6,7 +6,7 @@ from math import exp
 from collections.abc import Callable
 
 from .ensembledata import EnsembleData
-from .params import PLENGTH, DIGILEN, OMPMIN, OMPMAX, SOLV_MODS, KB, AU2J
+from .params import Params
 from .logging import setup_logger
 from .utilities import print, h1, h2, SolventHelper
 
@@ -40,10 +40,12 @@ class CensoPart:
             "default": "h2o",
             "options": {
                 sm: list(SolventHelper.get_solvents_dict(sm).keys())
-                for sm in functools.reduce(lambda x, y: x + y, SOLV_MODS.values())
+                for sm in functools.reduce(
+                    lambda x, y: x + y, Params.SOLV_MODS.values()
+                )
             },
         },
-        "sm_rrho": {"default": "alpb", "options": SOLV_MODS["xtb"]},
+        "sm_rrho": {"default": "alpb", "options": Params.SOLV_MODS["xtb"]},
         "multitemp": {"default": True},
         "evaluate_rrho": {"default": True},
         "consider_sym": {"default": True},
@@ -287,7 +289,8 @@ class CensoPart:
 
     def __init__(self, ensemble: EnsembleData):
         """
-        Initializes a part instance.
+        Initializes a part instance. Also calls the new instance in a single step.
+        Yields the instance after execution of itself.
 
         Args:
             ensemble: The ensemble instance that manages the conformers.
@@ -305,23 +308,37 @@ class CensoPart:
         # every part instance depends on a ensemble instance to manage the conformers
         self.ensemble: EnsembleData = ensemble
 
-        # Directory where the part executes it's calculations
-        # It is set using the _create_dir method (intended to be used as wrapper for run)
+        # Directory where the part executes its calculations
+        # It is set using the _create_dir method (intended to be used as wrapper for __call__)
         self.dir: str = None
 
-        # Store the run's results
+        # Store the part's results
         self.results = {}
+        # should be structured like the following:
+        # 'CONFXX': <results from part jobs/in-part-calculations>
+        # => e.g. self.results["CONF2"]["gtot"]
+        #    would return the free enthalpy of the conformer CONF2
+        #    (not calculated with an external program)
+        #
+        #    self.results["CONF3"]["sp"]
+        #    returns the 'result' of a DFT single point
+        #    (calculated by external program)
+        #    to get the single-point energy: self.results["CONF3"]["sp"]["energy"]
+        #    (refer to the results for each jobtype)
 
-        self.runtime = self._run()
+        self.runtime = self()
 
-    def _run(self) -> None:
+        # Attach a reference to this part to the ensemble
+        self.ensemble.results.append(self)
+
+    def __call__(self, ensemble: EnsembleData) -> None:
         """
         what gets executed if the part is run
         should be implemented for every part respectively
         """
         raise NotImplementedError
 
-    def _calc_boltzmannweights(self) -> None:
+    def _calc_boltzmannweights(self) -> dict:
         """
         Calculate populations for boltzmann distribution of ensemble at given
         temperature given values for free enthalpy.
@@ -341,7 +358,11 @@ class CensoPart:
             # calculate boltzmann factors
             bmfactors = {
                 conf.name: conf.degen
-                * exp(-(self.results[conf.name]["gtot"] - minfree) * AU2J / (KB * temp))
+                * exp(
+                    -(self.results[conf.name]["gtot"] - minfree)
+                    * Params.AU2J
+                    / (Params.KB * temp)
+                )
                 for conf in self.ensemble.conformers
             }
         else:
@@ -364,8 +385,8 @@ class CensoPart:
                         conf.name: conf.degen
                         * exp(
                             -(self.results[conf.name][jt]["energy"] - minfree)
-                            * AU2J
-                            / (KB * temp)
+                            * Params.AU2J
+                            / (Params.KB * temp)
                         )
                         for conf in self.ensemble.conformers
                     }
@@ -395,7 +416,7 @@ class CensoPart:
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
-            print(f"{setting}:".ljust(DIGILEN // 2, " ") + f"{val}")
+            print(f"{setting}:".ljust(Params.DIGILEN // 2, " ") + f"{val}")
 
         print("\n")
 
@@ -408,7 +429,7 @@ class CensoPart:
         """
         results = {
             self._name: {
-                conf.name: conf.results[self._name] for conf in self.ensemble.conformers
+                conf.name: self.results[conf.name] for conf in self.ensemble.conformers
             }
         }
         filename = f"{self._part_nos.get(self._name, "NaN")}_{self._name.upper()}.json"

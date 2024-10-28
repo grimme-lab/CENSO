@@ -9,15 +9,12 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from .datastructure import MoleculeData, ParallelJob
 from .logging import setup_logger
-from .params import OMPMAX, OMPMIN, ENVIRON
+from .params import Params
 from .procfact import ProcessorFactory
 from .qm_processor import QmProc
 from .tm_processor import TmProc
 
 logger = setup_logger(__name__)
-
-# get number of cores
-ncores = os.cpu_count()
 
 
 def execute(
@@ -29,9 +26,7 @@ def execute(
     copy_mo: bool = False,
     retry_failed: bool = False,
     balance: bool = True,
-    maxcores: int = OMPMIN,
-    omp: int = OMPMIN,
-    update: bool = True,
+    omp: int = Params.OMPMIN,
 ) -> tuple[dict, list]:
     """
     Manages parallel execution of external program calls. Sets cores used per job, checks requirements,
@@ -46,7 +41,6 @@ def execute(
         balance (bool, optional): Whether to balance the number of cores used per job.
         maxcores (int, optional): Maximum number of cores to be used.
         omp (int, optional): Number of cores to be used per job.
-        update (bool, optional): Wether to update the results dict for each conformer.
 
     Returns:
         tuple[dict, list]: Dictionary containing the results for each conformer and a list of unrecoverable conformers.
@@ -66,10 +60,6 @@ def execute(
         prog,
         workdir,
     )
-
-    # Adjust value for the number of available cores
-    global ncores
-    ncores = min(ncores, maxcores)
 
     # processor.check_requirements(jobs)
 
@@ -95,16 +85,16 @@ def execute(
             "Load balancing 2.0 is not supported for TURBOMOLE. Falling back to old behaviour."
         )
 
-        # If there are not enough cores to use omp = OMPMIN (to avoid unnecessary waiting)
-        if len(jobs) < ncores // OMPMIN:
-            omp = ncores // len(jobs)
+        # If there are not enough cores to use omp = Params.OMPMIN (to avoid unnecessary waiting)
+        if len(jobs) < Params.NCORES // Params.OMPMIN:
+            omp = Params.NCORES // len(jobs)
         # Otherwise try find the largest number of parallel processors p that
-        # is ncores // OMPMIN at most and ncores // OMPMAX at least
+        # is Params.NCORES // Params.OMPMIN at most and Params.NCORES // Params.OMPMAX at least
         # such that at least 75% of processors still work for the remainder jobs
         # or the number of jobs can be evenly distributed between the processors
         else:
-            for o in range(OMPMIN, OMPMAX + 1):
-                p = ncores // o
+            for o in range(Params.OMPMIN, Params.OMPMAX + 1):
+                p = Params.NCORES // o
                 if p == 1:
                     break
                 if len(jobs) % p >= 0.75 * p or len(jobs) % p == 0:
@@ -112,19 +102,19 @@ def execute(
             omp = o
 
         # Configure environment variables
-        ENVIRON["PARA_ARCH"] = "SMP"
-        ENVIRON["PARNODES"] = str(omp)
+        Params.ENVIRON["PARA_ARCH"] = "SMP"
+        Params.ENVIRON["PARNODES"] = str(omp)
     else:
-        if omp < OMPMIN:
+        if omp < Params.OMPMIN:
             logger.warning(
-                f"User OMP setting is below the minimum value of {OMPMIN}. Using {OMPMIN} instead."
+                f"User OMP setting is below the minimum value of {Params.OMPMIN}. Using {Params.OMPMIN} instead."
             )
-            omp = OMPMIN
-        elif omp > ncores:
+            omp = Params.OMPMIN
+        elif omp > Params.NCORES:
             logger.warning(
-                f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
+                f"Value of {omp} for OMP is larger than the number of available cores {Params.NCORES}. Using OMP = {Params.NCORES}."
             )
-            omp = ncores
+            omp = Params.NCORES
 
         for job in jobs:
             job.omp = omp
@@ -155,13 +145,6 @@ def execute(
         raise RuntimeError(
             "Parallel execution of all jobs failed and could not be recovered!"
         )
-
-    # update results for all conformers (if enabled)
-    if update:
-        conformers = sorted(conformers, key=lambda x: x.name)
-        jobs = sorted(jobs, key=lambda x: x.conf.name)
-        for conf, job in zip(conformers, jobs):
-            conf.results.setdefault(job.prepinfo["partname"], {}).update(job.results)
 
     # e.g. {"CONF23": {"sp": {"energy": 1231.5}, ...}}
     return {job.conf.name: job.results for job in jobs}, failed_confs
@@ -214,12 +197,10 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
     D ynamic Q ueue P rocessing
     """
 
-    global ncores
-
     with multiprocessing.Manager() as manager:
         # execute calculations for given list of conformers
         with ProcessPoolExecutor(
-            max_workers=ncores // min(job.omp for job in jobs)
+            max_workers=Params.NCORES // min(job.omp for job in jobs)
         ) as executor:
             # make sure that the executor exits gracefully on termination
             # TODO - is using wait=False a good option here?
@@ -232,7 +213,7 @@ def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
             )
 
             # define shared variables that can be safely asynchronously accessed
-            free_cores = manager.Value(int, ncores)
+            free_cores = manager.Value(int, Params.NCORES)
             enough_cores = manager.Condition()
 
             # sort the jobs by the number of cores used
@@ -275,17 +256,17 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
     """
     Determines and sets the number of cores that are supposed to be used for every job.
     This method is efficient if it can be assumed that the jobs take roughly the same amount of time each.
-    Each job shouldn't use less than OMPMIN cores.
+    Each job shouldn't use less than Params.OMPMIN cores.
     """
-    global ncores  # Access the global variable ncores
-
     # Get the total number of jobs
     jobs_left, tot_jobs = len(jobs), len(jobs)
 
     # Calculate the maximum and minimum number of processes (number of jobs that can be executed simultaneously)
-    maxprocs = ncores // OMPMIN  # Calculate the maximum number of processes
+    maxprocs = (
+        Params.NCORES // Params.OMPMIN
+    )  # Calculate the maximum number of processes
     # Calculate the minimum number of processes
-    minprocs = max(1, ncores // OMPMAX)
+    minprocs = max(1, Params.NCORES // Params.OMPMAX)
 
     # Loop until all jobs are distributed
     while jobs_left > 0:
@@ -297,14 +278,14 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
                 [
                     j
                     for j in range(minprocs, maxprocs)
-                    if ncores % j == 0 and j <= jobs_left
+                    if Params.NCORES % j == 0 and j <= jobs_left
                 ]
             )
         else:
             # There are not enough jobs left for at least minprocs processes
             for job in jobs[tot_jobs - jobs_left : tot_jobs]:
                 job.omp = (
-                    ncores // minprocs
+                    Params.NCORES // minprocs
                 )  # Set the number of cores for each job to the maximum value
             jobs_left -= jobs_left
             continue
@@ -312,7 +293,7 @@ def set_omp_chunking(jobs: list[ParallelJob]) -> None:
         # Set the number of cores for each job for as many jobs as possible before moving onto the next omp value
         while jobs_left - p >= 0:
             for job in jobs[tot_jobs - jobs_left : tot_jobs - jobs_left + p]:
-                job.omp = ncores // p  # Set the number of cores for each job
+                job.omp = Params.NCORES // p  # Set the number of cores for each job
             jobs_left -= p  # Decrement the number of remaining jobs
 
 

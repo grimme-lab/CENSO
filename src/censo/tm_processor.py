@@ -9,7 +9,7 @@ import math
 from .qm_processor import QmProc
 from .logging import setup_logger
 from .parallel import ParallelJob
-from .params import ASSETS_PATH, WARNLEN, R, AU2KCAL
+from .params import Params
 from .utilities import frange, DfaHelper
 
 logger = setup_logger(__name__)
@@ -345,7 +345,7 @@ class TmProc(QmProc):
                 # TODO - this opens the possibility to insert your own potential files
                 lines.insert(
                     -1,
-                    f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot\n",
+                    f"$dcosmo_rs file={os.path.join(Params.ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot\n",
                 )
 
         if jobtype == "rot":
@@ -422,7 +422,7 @@ class TmProc(QmProc):
                     # Copy MO files
                     for g in ["alpha", "beta"]:
                         logger.debug(
-                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {guess_file}."
+                            f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Copying {g} file from {guess_file}."
                         )
                         shutil.copy(guess_file, os.path.join(jobdir, g))
             else:
@@ -434,7 +434,7 @@ class TmProc(QmProc):
                 ):
                     # Copy MO file
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying mos file from {guess_file}."
+                        f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Copying mos file from {guess_file}."
                     )
                     shutil.copy(guess_file, os.path.join(jobdir, "mos"))
 
@@ -751,10 +751,13 @@ class TmProc(QmProc):
                     T = float(line.split()[5])
 
                     # Add volume work
-                    vwork = R * T * math.log(videal * T)
+                    vwork = Params.R * T * math.log(videal * T)
                 elif " out " in line:
                     # Add volume work
-                    gsolvt[T] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
+                    gsolvt[T] = (
+                        float(line.split()[-1]) / Params.AU2KCAL
+                        + vwork / Params.AU2KCAL
+                    )
 
             result["gsolvt"] = gsolvt
             result["gsolv"] = gsolvt[job.prepinfo["general"]["temperature"]]
@@ -763,7 +766,7 @@ class TmProc(QmProc):
             # cosmothermd
             with open(os.path.join(jobdir, "cosmors.out"), "w") as out:
                 T = job.prepinfo["general"]["temperature"]
-                vwork = R * T * math.log(videal * T)
+                vwork = Params.R * T * math.log(videal * T)
 
                 out.writelines(
                     [
@@ -771,13 +774,13 @@ class TmProc(QmProc):
                         "final thermochemical solvation properties in kcal/mol\n"
                         "----------------------------------------------------------\n",
                         " Gsolv({} K)= {:10.3f}\n".format(
-                            T, result["gsolv"] * AU2KCAL - vwork
+                            T, result["gsolv"] * Params.AU2KCAL - vwork
                         ),
                         " VWork({} K)= {:10.3f}\n".format(T, vwork),
                         " Gsolv+VWork({} K)= {:10.3f}\n".format(
                             # volwork already included!
                             T,
-                            result["gsolv"] * AU2KCAL,
+                            result["gsolv"] * Params.AU2KCAL,
                         ),
                     ]
                 )
