@@ -326,11 +326,10 @@ class CensoPart:
         #    to get the single-point energy: self.results["CONF3"]["sp"]["energy"]
         #    (refer to the results for each jobtype)
 
-        if not self._name == "general settings":
-            self.runtime = self()
+        self.runtime = self()
 
-            # Attach this part's results to the ensemble results
-            self.ensemble.results.setdefault(self._name, []).append(self.results)
+        # Attach this part's results to the ensemble results
+        self.ensemble.results[self._name].append(self.results)
 
     def __call__(self) -> None:
         """

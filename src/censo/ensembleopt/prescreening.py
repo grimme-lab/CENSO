@@ -82,7 +82,7 @@ class Prescreening(EnsembleOptimizer):
 
                 # Update results
                 for conf in self.ensemble.conformers:
-                    self.results.setdefault(conf.name, {}).update(results[conf.name])
+                    self.results[conf.name].update(results[conf.name])
 
                 jobtype = ["sp"]
             else:
@@ -110,7 +110,7 @@ class Prescreening(EnsembleOptimizer):
 
         # Update results
         for conf in self.ensemble.conformers:
-            self.results.setdefault(conf.name, {}).update(results[conf.name])
+            self.results[conf.name].update(results[conf.name])
 
             # calculate free enthalpy
             self.results[conf.name]["gtot"] = self._gsolv(conf)

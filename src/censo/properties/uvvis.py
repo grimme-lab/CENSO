@@ -124,7 +124,7 @@ class UVVis(PropertyCalculator):
 
         # Update results
         for conf in self.ensemble.conformers:
-            self.results.setdefault(conf.name, {}).update(results[conf.name])
+            self.results[conf.name].update(results[conf.name])
 
         # Ensemble averaging of excitations
         self.__excitation_averaging()

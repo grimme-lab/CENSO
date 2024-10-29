@@ -63,6 +63,16 @@ class Optimization(EnsembleOptimizer):
 
     _settings = {}
 
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
+
+        # Special 'todo-list' for optimization part, contains all unconverged conformers,
+        # used in macrocycle optimization
+        self.confs_nc: list = None
+
+        # Attribute to store path to constraints file if used
+        self.constraints = None
+
     def _optimize(self, cut: bool = True) -> None:
         """
         Optimization of the ensemble at DFT level (possibly with implicit solvation)
@@ -72,13 +82,6 @@ class Optimization(EnsembleOptimizer):
 
         Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'macrocycles')
         """
-        # Special 'todo-list' for optimization part, contains all unconverged conformers,
-        # used in macrocycle optimization
-        self.confs_nc: list = None
-
-        # Attribute to store path to constraints file if used
-        self.constraints = None
-
         """
         don't use this for now, use new keyword 'maxcyc' instead
         if config.nat > 200:
@@ -87,7 +90,6 @@ class Optimization(EnsembleOptimizer):
         else:
             stopcycle = 200
         """
-
         # Set jobtype depending on program (tm has not tm-pure geom opt yet)
         jobtype = None
         if self.get_settings()["prog"] == "orca":
