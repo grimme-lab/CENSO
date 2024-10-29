@@ -287,14 +287,13 @@ class CensoPart:
 
         return wrapper
 
-    def __init__(self, ensemble: EnsembleData, dry: bool = False):
+    def __init__(self, ensemble: EnsembleData):
         """
         Initializes a part instance. Also calls the new instance in a single step.
         Yields the instance after execution of itself.
 
         Args:
             ensemble: The ensemble instance that manages the conformers.
-            dry: If True, the part will not be executed.
 
         Returns:
             None
@@ -327,11 +326,10 @@ class CensoPart:
         #    to get the single-point energy: self.results["CONF3"]["sp"]["energy"]
         #    (refer to the results for each jobtype)
 
-        if not dry:
-            self.runtime = self()
+        self.runtime = self()
 
-        # Attach a reference to this part to the ensemble
-        self.ensemble.results.append(self)
+        # Attach this part's results to the ensemble results
+        self.ensemble.results[self._name].append(self.results)
 
     def __call__(self) -> None:
         """
