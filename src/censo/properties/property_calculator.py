@@ -7,6 +7,11 @@ from ..logging import setup_logger
 from ..part import CensoPart
 from ..utilities import timeit, SolventHelper
 from ..datastructure import MoleculeData
+from ..ensembleopt.optimizer import EnsembleOptimizer
+from ..ensembleopt.prescreening import Prescreening
+from ..ensembleopt.screening import Screening
+from ..ensembleopt.optimization import Optimization
+from ..ensembleopt.refinement import Refinement
 
 logger = setup_logger(__name__)
 
@@ -80,25 +85,29 @@ class PropertyCalculator(CensoPart):
 
         If None are found, raise RuntimeError.
         """
-        # Select the part to use the energy values from by going through the list backwards and checking
-        # if the part has been calculated
-        partnames = ["prescreening", "screening", "optimization", "refinement"]
-        included = [p for p in partnames[::-1] if p in self.ensemble.results]
-        using_part = included[0] if len(included) > 0 else None
+        using_part = next(
+            (
+                p
+                for p in self.ensemble.results[::-1]
+                if issubclass(type(p), EnsembleOptimizer)
+            ),
+            (None, None),
+        )
+
         if using_part is None:
             raise RuntimeError(
                 "Calculating an ensemble property requires some kind of energetic ensemble ranking performed beforehand."
             )
 
         energy_values = {
-            "optimization": lambda conf: {
+            Optimization: lambda conf: {
                 "energy": using_part.results[conf.name]["xtb_opt"]["energy"],
                 "gsolv": 0.0,
                 "grrho": using_part.results[conf.name].get("xtb_rrho", {"energy": 0.0})[
                     "energy"
                 ],
             },
-            "screening": lambda conf: {
+            Screening: lambda conf: {
                 "energy": (
                     using_part.results[conf.name]["gsolv"]["energy_gas"]
                     if "gsolv" in using_part.results[conf.name]
@@ -113,7 +122,7 @@ class PropertyCalculator(CensoPart):
                     "energy"
                 ],
             },
-            "refinement": lambda conf: {
+            Refinement: lambda conf: {
                 "energy": (
                     using_part.results[conf.name]["gsolv"]["energy_gas"]
                     if "gsolv" in using_part.results[conf.name]
@@ -128,7 +137,7 @@ class PropertyCalculator(CensoPart):
                     "energy"
                 ],
             },
-            "prescreening": lambda conf: {
+            Prescreening: lambda conf: {
                 "energy": using_part.results[conf.name]["sp"]["energy"],
                 "gsolv": (
                     using_part.results[conf.name]["xtb_gsolv"]["gsolv"]
@@ -140,4 +149,4 @@ class PropertyCalculator(CensoPart):
         }
 
         for conf in self.ensemble.conformers:
-            self.results.setdefault(conf.name, energy_values[using_part](conf))
+            self.results.setdefault(conf.name, energy_values[type(using_part)](conf))
