@@ -49,7 +49,7 @@ class EnsembleData:
 
         # A list containing all parts run using this ensemble
         # Maps the part names onto a list of results from these parts
-        self.results: dict[str, list] = []
+        self.results: dict[str, list] = {}
 
     @property
     def conformers(self):
