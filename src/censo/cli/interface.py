@@ -43,7 +43,7 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
-    CensoPart(ensemble)._print_info()
+    CensoPart._print_info()
 
     run = filter(
         lambda x: x.get_settings()["run"],
