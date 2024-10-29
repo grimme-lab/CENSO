@@ -336,7 +336,7 @@ class CensoPart:
         what gets executed if the part is run
         should be implemented for every part respectively
         """
-        pass
+        raise NotImplementedError
 
     def _calc_boltzmannweights(self) -> dict:
         """
