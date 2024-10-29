@@ -48,8 +48,7 @@ class EnsembleData:
             self.read_input(input_file, charge=0, unpaired=0)
 
         # A list containing all parts run using this ensemble
-        # Maps the part names onto a list of results from these parts
-        self.results: dict[str, list] = []
+        self.results: list = []
 
     @property
     def conformers(self):
@@ -89,9 +88,9 @@ class EnsembleData:
                     "Not all conformers from the current ensemble are found in the output data."
                 )
 
-            # Update results with data read from the output
+            # Update results dict for the conformers
             for conf in self.conformers:
-                conf.results.setdefault(partname, []).append(results)
+                conf.results.setdefault(partname, {}).update(results[conf.name])
 
         logger.info(f"Reloaded results from {outpath}.")
 
