@@ -9,7 +9,7 @@ from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
-from ..params import Params
+from ..params import SOLV_MODS, PROGS, GFNOPTIONS, AU2KCAL, PLENGTH
 from ..utilities import print, format_data, h1, DfaHelper
 from ..logging import setup_logger
 
@@ -18,10 +18,8 @@ logger = setup_logger(__name__)
 
 class Optimization(EnsembleOptimizer):
     __solv_mods = {
-        prog: tuple(
-            t for t in Params.SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine")
-        )
-        for prog in Params.PROGS
+        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
+        for prog in PROGS
     }
 
     _grid = "high"
@@ -34,12 +32,12 @@ class Optimization(EnsembleOptimizer):
         "gradthr": {"default": 0.01},
         "func": {
             "default": "r2scan-3c",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Params.PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "tm", "options": Params.PROGS},
+        "prog": {"default": "tm", "options": PROGS},
         "sm": {"default": "dcosmors", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": Params.GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "optlevel": {
             "default": "normal",
             "options": [
@@ -270,6 +268,7 @@ class Optimization(EnsembleOptimizer):
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
                 retry_failed=self.get_general_settings()["retry_failed"],
+                update=False,
             )
 
             # Remove failed conformers
@@ -366,7 +365,7 @@ class Optimization(EnsembleOptimizer):
                 nconv += 1
 
             if cut:
-                threshold = self.get_settings()["threshold"] / Params.AU2KCAL
+                threshold = self.get_settings()["threshold"] / AU2KCAL
 
                 # threshold increase based on number of converged conformers
                 # NOTE: it is important to work with the results of the current macrocycle,
@@ -380,10 +379,10 @@ class Optimization(EnsembleOptimizer):
                             self.get_settings()["threshold"]
                             - self.get_settings()["threshold"] * nconv / ninit
                         )
-                        / Params.AU2KCAL
+                        / AU2KCAL
                     )
 
-                logger.info(f"Threshold: {threshold * Params.AU2KCAL:.2f} kcal/mol")
+                logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
                 # TODO - count removed conformers as converged?
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
@@ -405,7 +404,7 @@ class Optimization(EnsembleOptimizer):
                     # print(f"No longer considering {conf}.")
                     print(
                         f"No longer considering {conf.name} (gradient too small and"
-                        f" ΔG = {(self._grrho(conf) - limit) * Params.AU2KCAL:.2f})."
+                        f" ΔG = {(self._grrho(conf) - limit) * AU2KCAL:.2f})."
                     )
                     # make sure that all the conformers, that are not converged but filtered out, are also removed
                     # from self.confs_nc
@@ -458,14 +457,14 @@ class Optimization(EnsembleOptimizer):
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (DFT) (+ ΔGsolv)": lambda conf: f"{self.results[conf.name][jobtype]['energy']:.6f}",
-            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(self.results[conf.name][jobtype]['energy'] - dftmin) * Params.AU2KCAL:.2f}",
+            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(self.results[conf.name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf: (
                 f"{self.results[conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
             "Gtot": lambda conf: f"{self._grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self._grrho(conf) - gtotmin) * Params.AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self._grrho(conf) - gtotmin) * AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{self.results[conf.name]['bmw'] * 100:.2f}",
         }
 
@@ -507,7 +506,7 @@ class Optimization(EnsembleOptimizer):
         lines.append(
             f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2==\n"
         )
-        lines.append("".ljust(int(Params.PLENGTH), "-") + "\n\n")
+        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # Print everything
         for line in lines:
@@ -553,7 +552,7 @@ class Optimization(EnsembleOptimizer):
         printmap = {
             "CONF#": lambda conf: conf.name,
             "Gtot": lambda conf: f"{self._grrho(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self._grrho(conf) - limit) * Params.AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self._grrho(conf) - limit) * AU2KCAL:.2f}",
             "grad_norm": lambda conf: f"{self.results[conf.name][jobtype]['grad_norm']:.6f}",
             "converged": lambda conf: f"{self.results[conf.name][jobtype]['converged']}",
         }
@@ -571,4 +570,4 @@ class Optimization(EnsembleOptimizer):
         for line in lines:
             print(line, end="")
 
-        print("".ljust(Params.PLENGTH, "-"))
+        print("".ljust(PLENGTH, "-"))

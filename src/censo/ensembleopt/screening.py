@@ -11,7 +11,7 @@ from statistics import stdev
 from ..datastructure import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import Params
+from ..params import AU2KCAL, GFNOPTIONS, GRIDOPTIONS, PLENGTH, PROGS, SOLV_MODS
 from ..utilities import format_data, h1, print, DfaHelper
 from .prescreening import Prescreening
 
@@ -21,19 +21,19 @@ logger = setup_logger(__name__)
 class Screening(Prescreening):
     _grid = "low+"
 
-    __solv_mods = {prog: Params.SOLV_MODS[prog] for prog in Params.PROGS}
-    # __gsolv_mods = reduce(lambda x, y: x + y, GParams.SOLV_MODS.values())
+    __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
+    # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 3.5},
         "func": {
             "default": "r2scan-3c",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Params.PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "tm", "options": Params.PROGS},
+        "prog": {"default": "tm", "options": PROGS},
         "sm": {"default": "cosmors", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": Params.GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": True},
         "implicit": {"default": False},
         "template": {"default": False},
@@ -56,7 +56,7 @@ class Screening(Prescreening):
         # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
         if self.get_general_settings()["evaluate_rrho"]:
             # PART (2)
-            threshold = self.get_settings()["threshold"] / Params.AU2KCAL
+            threshold = self.get_settings()["threshold"] / AU2KCAL
 
             jobtype = ["xtb_rrho"]
             prepinfo = self._setup_prepinfo(jobtype)
@@ -91,10 +91,10 @@ class Screening(Prescreening):
 
             if cut and len(self.ensemble.conformers) > 1:
                 # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-                fuzzy = (1 / Params.AU2KCAL) * (
+                fuzzy = (1 / AU2KCAL) * (
                     1
                     - exp(
-                        -Params.AU2KCAL
+                        -AU2KCAL
                         * stdev(
                             [
                                 self.results[conf.name]["xtb_rrho"]["energy"]
@@ -104,9 +104,7 @@ class Screening(Prescreening):
                     )
                 )
                 threshold += fuzzy
-                print(
-                    f"Updated fuzzy threshold: {threshold * Params.AU2KCAL:.2f} kcal/mol."
-                )
+                print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
                 limit = min(
                     self.results[conf.name]["gtot"] for conf in self.ensemble.conformers
@@ -237,7 +235,7 @@ class Screening(Prescreening):
                 f"{xtb_energies[id(conf)]:.6f}" if xtb_energies is not None else "---"
             ),
             "ΔE (xTB)": lambda conf: (
-                f"{(xtb_energies[id(conf)] - xtbmin) * Params.AU2KCAL:.2f}"
+                f"{(xtb_energies[id(conf)] - xtbmin) * AU2KCAL:.2f}"
                 if xtb_energies is not None
                 else "---"
             ),
@@ -249,7 +247,7 @@ class Screening(Prescreening):
                 else "---"
             ),
             "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gsolvmin) * Params.AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
         }
 
         rows = [
@@ -263,7 +261,7 @@ class Screening(Prescreening):
         for line in lines:
             print(line, flush=True, end="")
 
-        print("".ljust(Params.PLENGTH, "-"))
+        print("".ljust(PLENGTH, "-"))
 
         # write everything to a file
         filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
@@ -358,7 +356,7 @@ class Screening(Prescreening):
                 f"{gxtb[id(conf)]:.6f}" if gxtb is not None else "---"
             ),
             "ΔG (xTB)": lambda conf: (
-                f"{(gxtb[id(conf)] - gxtbmin) * Params.AU2KCAL:.2f}"
+                f"{(gxtb[id(conf)] - gxtbmin) * AU2KCAL:.2f}"
                 if gxtb is not None
                 else "---"
             ),
@@ -374,7 +372,7 @@ class Screening(Prescreening):
                 else "---"
             ),
             "Gtot": lambda conf: f"{self.results[conf.name]['gtot']:.6f}",
-            "ΔGtot": lambda conf: f"{(self.results[conf.name]['gtot'] - gtotmin) * Params.AU2KCAL:.2f}",
+            "ΔGtot": lambda conf: f"{(self.results[conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
             "Boltzmann weight": lambda conf: f"{self.results[conf.name]['bmw'] * 100:.2f}",
         }
 
@@ -419,7 +417,7 @@ class Screening(Prescreening):
         lines.append(
             f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1==\n"
         )
-        lines.append("".ljust(int(Params.PLENGTH), "-") + "\n\n")
+        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
         # Print everything
         for line in lines:
