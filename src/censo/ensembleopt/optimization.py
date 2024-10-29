@@ -4,6 +4,7 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 
 import os
+from functools import reduce
 
 from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
@@ -66,7 +67,7 @@ class Optimization(EnsembleOptimizer):
 
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
-        self.confs_nc: list = None
+        self.confs_nc: list[MoleculeData] = None
 
         # Attribute to store path to constraints file if used
         self.constraints = None
@@ -134,6 +135,7 @@ class Optimization(EnsembleOptimizer):
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
+                maxcores=ncores,
                 retry_failed=self.get_general_settings()["retry_failed"],
             )
 
@@ -148,7 +150,7 @@ class Optimization(EnsembleOptimizer):
 
         # Handle unconverged conformers (WIP)
         unconverged = self.confs_nc or [
-            conf.name
+            conf
             for conf in self.ensemble.conformers
             if not self.results[conf.name][jobtype[0]]["converged"]
         ]
@@ -163,12 +165,12 @@ class Optimization(EnsembleOptimizer):
                 "The geometry optimization of at least one conformer did not converge."
             )
             print("Unconverged conformers:")
-            for confname in unconverged:
+            for conf in unconverged:
                 print(
-                    f"{confname}, grad_norm: {self.results[confname][jobtype[0]]['grad_norm']}"
+                    f"{conf.name}, grad_norm: {self.results[conf.name][jobtype[0]]['grad_norm']}"
                 )
             print("The unconverged conformers will now be removed from consideration.")
-            self.ensemble.remove_conformers(unconverged)
+            self.ensemble.remove_conformers([conf.name for conf in unconverged])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
@@ -185,6 +187,7 @@ class Optimization(EnsembleOptimizer):
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
+            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
@@ -237,7 +240,7 @@ class Optimization(EnsembleOptimizer):
         # make a separate list of conformers that only includes (considered) conformers that are not converged
         # NOTE: this is a special step only necessary for macrocycle optimization
         # at this point it's just self.ensemble.conformers, it is basically a todo-list
-        self.confs_nc = [conf.name for conf in self.ensemble.conformers]
+        self.confs_nc = self.ensemble.conformers.copy()
 
         jobtype = ["xtb_opt"] if self.get_settings()["xtb_opt"] else ["opt"]
 
@@ -255,11 +258,7 @@ class Optimization(EnsembleOptimizer):
             # and therefore removed from our 'todo-list', all the following steps will not consider it anymore
             # run optimizations for 'optcycles' steps
             results_opt, failed = execute(
-                [
-                    conf
-                    for conf in self.ensemble.conformers
-                    if conf.name in self.confs_nc
-                ],
+                self.confs_nc,
                 self.dir,
                 self.get_settings()["prog"],
                 prepinfo,
@@ -267,23 +266,22 @@ class Optimization(EnsembleOptimizer):
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
                 omp=self.get_general_settings()["omp"],
+                maxcores=ncores,
                 retry_failed=self.get_general_settings()["retry_failed"],
                 update=False,
             )
 
             # Remove failed conformers
             self.ensemble.remove_conformers(failed)
-            for conf in failed:
-                self.confs_nc.remove(conf.name)
+            for conf in filter(lambda x: x.name in failed, self.confs_nc):
+                self.confs_nc.remove(conf)
 
             # put geometry optimization results into conformer objects
-            for conf in filter(
-                lambda x: x.name in self.confs_nc, self.ensemble.conformers
-            ):
+            for conf in self.confs_nc:
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
-                self.results.setdefault(conf.name, {}).setdefault(jobtype[0], {})
+                conf.results.setdefault(self._name, {}).setdefault(jobtype[0], {})
 
                 # Update the values for "energy", "grad_norm", "converged", "geom"
                 # NOTE: this replaces the default self.results.update, why see below
@@ -325,6 +323,7 @@ class Optimization(EnsembleOptimizer):
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],
+                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
@@ -337,9 +336,7 @@ class Optimization(EnsembleOptimizer):
 
                 # Update results
                 self.results.update(results)
-                for conf in filter(
-                    lambda x: x.name in self.confs_nc, self.ensemble.conformers
-                ):
+                for conf in self.confs_nc:
                     self.results[conf.name]["gtot"] = self._grrho(conf)
 
                 # flag to make sure that rrho is only calculated once
@@ -349,19 +346,19 @@ class Optimization(EnsembleOptimizer):
             # => replace this with molbar later
 
             # sort conformers
-            self.ensemble.conformers.sort(self._grrho)
+            self.ensemble.conformers.sort(key=lambda conf: self._grrho(conf))
 
             # remove converged conformers from 'todo-list'
-            for confname in list(
+            for conf in list(
                 filter(
-                    lambda x: self.results[x][jobtype[0]]["converged"],
+                    lambda x: x.results[self._name][jobtype[0]]["converged"],
                     self.confs_nc,
                 )
             ):
                 print(
-                    f"{confname} converged after {ncyc + results_opt[confname][jobtype[0]]['cycles']} steps."
+                    f"{conf.name} converged after {ncyc + results_opt[conf.name][jobtype[0]]['cycles']} steps."
                 )
-                self.confs_nc.remove(confname)
+                self.confs_nc.remove(conf)
                 nconv += 1
 
             if cut:
@@ -388,18 +385,17 @@ class Optimization(EnsembleOptimizer):
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
                 # NOTE: we need to look at results_opt here to look at only the current macrocycle
-                limit = min(self._grrho(conf) for conf in self.ensemble.conformers)
                 filtered = list(
                     filter(
                         lambda conf: all(
                             gn < self.get_settings()["gradthr"]
                             for gn in results_opt[conf.name][jobtype[0]]["gncyc"]
-                        )
-                        and self._grrho(conf) - limit < threshold,
+                        ),
                         self.ensemble.conformers,
                     )
                 )
                 self.ensemble.remove_conformers([conf.name for conf in filtered])
+                limit = min(self._grrho(conf) for conf in self.ensemble.conformers)
                 for conf in filtered:
                     # print(f"No longer considering {conf}.")
                     print(
@@ -408,7 +404,7 @@ class Optimization(EnsembleOptimizer):
                     )
                     # make sure that all the conformers, that are not converged but filtered out, are also removed
                     # from self.confs_nc
-                    self.confs_nc.remove(conf.name)
+                    self.confs_nc.remove(conf)
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]

@@ -10,7 +10,11 @@ from functools import reduce
 from .utilities import od_insert
 from .logging import setup_logger
 from .datastructure import GeometryData, ParallelJob
-from .params import Params
+from .params import (
+    CODING,
+    USER_ASSETS_PATH,
+    WARNLEN,
+)
 from .qm_processor import QmProc
 
 logger = setup_logger(__name__)
@@ -421,7 +425,7 @@ class OrcaProc(QmProc):
             try:
                 indict = OrcaParser().read_input(
                     os.path.join(
-                        Params.USER_ASSETS_PATH,
+                        USER_ASSETS_PATH,
                         f"{job.prepinfo['partname']}.orca.template",
                     )
                 )
@@ -549,7 +553,7 @@ class OrcaProc(QmProc):
                     indict["main"].append(f"GCP(DFT/{gcp_keywords[basis.lower()]})")
                 else:
                     logger.warning(
-                        f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Selected basis not available for GCP. GCP not employed."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Selected basis not available for GCP. GCP not employed."
                     )
 
         # add job keyword for geometry optimizations
@@ -798,7 +802,7 @@ class OrcaProc(QmProc):
             if os.path.isfile(guess_file) and ".gbw" in os.path.split(guess_file)[1]:
                 if os.path.join(jobdir, f"{filename}.gbw") != guess_file:
                     logger.debug(
-                        f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Copying .gbw file from {guess_file}."
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Copying .gbw file from {guess_file}."
                     )
                     shutil.copy(guess_file, os.path.join(jobdir, f"{filename}.gbw"))
 
@@ -872,7 +876,7 @@ class OrcaProc(QmProc):
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         # read output
-        with open(outputpath, "r", encoding=Params.CODING, newline=None) as out:
+        with open(outputpath, "r", encoding=CODING, newline=None) as out:
             lines = out.readlines()
 
         # Get final energy

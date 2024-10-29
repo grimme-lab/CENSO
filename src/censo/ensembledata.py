@@ -11,7 +11,7 @@ from math import exp
 
 from .datastructure import MoleculeData
 from .logging import setup_logger
-from .params import Params
+from .params import AU2J, DIGILEN, KB
 from .utilities import check_for_float, print, t2x
 
 logger = setup_logger(__name__)
@@ -46,9 +46,6 @@ class EnsembleData:
 
         if input_file is not None:
             self.read_input(input_file, charge=0, unpaired=0)
-
-        # A list containing all parts run using this ensemble
-        self.results: list = []
 
     @property
     def conformers(self):
@@ -142,11 +139,9 @@ class EnsembleData:
         # Print information about read ensemble
         print(
             f"Read {len(self.conformers)} conformers.\n",
-            "Number of atoms:".ljust(Params.DIGILEN // 2, " ") + f"{nat}" + "\n",
-            "Charge:".ljust(Params.DIGILEN // 2, " ")
-            + f"{self.runinfo['charge']}"
-            + "\n",
-            "Unpaired electrons:".ljust(Params.DIGILEN // 2, " ")
+            "Number of atoms:".ljust(DIGILEN // 2, " ") + f"{nat}" + "\n",
+            "Charge:".ljust(DIGILEN // 2, " ") + f"{self.runinfo['charge']}" + "\n",
+            "Unpaired electrons:".ljust(DIGILEN // 2, " ")
             + f"{self.runinfo['unpaired']}"
             + "\n",
             sep="",
@@ -240,14 +235,15 @@ class EnsembleData:
         Returns:
             None
         """
-        for confname in confnames:
-            remove = next(c for c in self.conformers if c.name == confname)
+        if len(confnames) > 0:
+            for confname in confnames:
+                remove = next(c for c in self.conformers if c.name == confname)
 
-            # pop item from conformers and insert this item at index 0 in rem
-            self.rem.insert(0, self.conformers.pop(self.conformers.index(remove)))
+                # pop item from conformers and insert this item at index 0 in rem
+                self.rem.insert(0, self.conformers.pop(self.conformers.index(remove)))
 
-            # Log removed conformers
-            logger.debug(f"Removed {remove.name}.")
+                # Log removed conformers
+                logger.debug(f"Removed {remove.name}.")
 
     def dump(self, filename: str) -> None:
         """

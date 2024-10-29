@@ -2,10 +2,16 @@
 Calculates the ensemble NMR spectrum for all active nuclei.
 """
 
+from functools import reduce
 import os
 
+from ..ensembledata import EnsembleData
 from ..parallel import execute
-from ..params import Params
+from ..params import (
+    SOLV_MODS,
+    PROGS,
+    GFNOPTIONS,
+)
 from .property_calculator import PropertyCalculator
 from ..utilities import print, DfaHelper, format_data, SolventHelper
 from ..logging import setup_logger
@@ -18,29 +24,27 @@ class NMR(PropertyCalculator):
     _grid = "nmr"
 
     __solv_mods = {
-        prog: tuple(
-            t for t in Params.SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine")
-        )
-        for prog in Params.PROGS
+        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
+        for prog in PROGS
     }
 
     _options = {
         "resonance_frequency": {"default": 300.0},
         "ss_cutoff": {"default": 8.0},
-        "prog": {"default": "orca", "options": Params.PROGS},  # required
+        "prog": {"default": "orca", "options": PROGS},  # required
         "func_j": {
             "default": "pbe0-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Params.PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
         "basis_j": {"default": "def2-TZVP"},
         "sm_j": {"default": "smd", "options": __solv_mods},
         "func_s": {
             "default": "pbe0-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Params.PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
         },
         "basis_s": {"default": "def2-TZVP"},
         "sm_s": {"default": "smd", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": Params.GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "couplings": {"default": True},
@@ -119,7 +123,10 @@ class NMR(PropertyCalculator):
                         "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
                     )
 
-    def _property(self) -> None:
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
+
+    def property(self, ncores: int) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
         Note, that the ensemble will not be modified anymore.
@@ -138,11 +145,11 @@ class NMR(PropertyCalculator):
             )
 
         # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self._setup_prepinfo()
+        prepinfo = self.setup_prepinfo()
 
         # compute results
         # for structure of results from handler.execute look there
-        results, failed = execute(
+        success, _, failed = execute(
             self.ensemble.conformers,
             self.dir,
             self.get_settings()["prog"],
@@ -151,22 +158,20 @@ class NMR(PropertyCalculator):
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
             omp=self.get_general_settings()["omp"],
+            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
-        # Update results
-        self.results.update(results)
-
         # Generate files for ANMR
         self.__generate_anmr()
 
         # Write data
-        self._write_results()
+        self.write_results()
 
-    def _setup_prepinfo(self) -> dict[str, dict]:
+    def setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
 
         prepinfo["partname"] = self._name
@@ -218,7 +223,7 @@ class NMR(PropertyCalculator):
                 "_s": self.get_settings()["shieldings"],
                 "_j": self.get_settings()["couplings"],
             }
-            endings = [ending for ending in todo if todo[ending]]
+            endings = [ending for ending in todo.keys() if todo[ending]]
             for ending in endings:
                 prepinfo[f"nmr{ending}"] = {
                     "func_name": DfaHelper.get_name(
@@ -241,16 +246,15 @@ class NMR(PropertyCalculator):
                     "si_active": self.get_settings()["si_active"],
                     "p_active": self.get_settings()["p_active"],
                 }
-
-                # Only look up solvent if solvation is used
-                if not self.get_general_settings()["gas-phase"]:
-                    prepinfo[f"nmr{ending}"]["sm"] = self.get_settings()[f"sm{ending}"]
-                    prepinfo[f"nmr{ending}"]["solvent_key_prog"] = (
-                        SolventHelper.get_solvent(
-                            self.get_settings()[f"sm{ending}"],
-                            self.get_general_settings()["solvent"],
-                        )
+            # Only look up solvent if solvation is used
+            if not self.get_general_settings()["gas-phase"]:
+                prepinfo[f"nmr{ending}"]["sm"] = self.get_settings()[f"sm{ending}"]
+                prepinfo[f"nmr{ending}"]["solvent_key_prog"] = (
+                    SolventHelper.get_solvent(
+                        self.get_settings()[f"sm{ending}"],
+                        self.get_general_settings()["solvent"],
                     )
+                )
 
         return prepinfo
 
@@ -275,10 +279,10 @@ class NMR(PropertyCalculator):
             "ONOFF": lambda conf: "1",
             "NMR": lambda conf: f"{conf.name[4:]}",
             "CONF": lambda conf: f"{conf.name[4:]}",
-            "BW": lambda conf: f"{self.results[conf.name]['bmw']:.4f}",
-            "Energy": lambda conf: f"{self.results[conf.name]['energy']:.6f}",
-            "Gsolv": lambda conf: f"{self.results[conf.name]['gsolv']:.6f}",
-            "mRRHO": lambda conf: f"{self.results[conf.name]['grrho']:.6f}",
+            "BW": lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
+            "Energy": lambda conf: f"{conf.results[self._name]['energy']:.6f}",
+            "Gsolv": lambda conf: f"{conf.results[self._name]['gsolv']:.6f}",
+            "mRRHO": lambda conf: f"{conf.results[self._name]['grrho']:.6f}",
             "gi": lambda conf: f"{conf.degen}",
         }
 
@@ -343,17 +347,17 @@ class NMR(PropertyCalculator):
             # first: atom no. | sigma(iso)
             # atom no.s according to their appearance in the xyz-file
             # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
-            for i, shielding in self.results[conf.name]["nmr"]["shieldings"]:
+            for i, shielding in conf.results[self._name]["nmr"]["shieldings"]:
                 lines.append(f"{i + 1:4} {shielding:.3f}\n")
 
             # Fill in blank lines
             for _ in range(
-                conf.geom.nat - len(self.results[conf.name]["nmr"]["shieldings"])
+                conf.geom.nat - len(conf.results[self._name]["nmr"]["shieldings"])
             ):
                 lines.append("\n")
 
             # then: atom no.1 | atom no.2 | J12
-            for (i, j), coupling in self.results[conf.name]["nmr"]["couplings"]:
+            for (i, j), coupling in conf.results[self._name]["nmr"]["couplings"]:
                 lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
@@ -370,7 +374,7 @@ class NMR(PropertyCalculator):
             "\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file."
         )
 
-    def _shieldings_averaging(self):
+    def shieldings_averaging(self):
         """
         Calculate the population weighted shielding constants for the ensemble NMR spectrum.
         """
@@ -378,9 +382,9 @@ class NMR(PropertyCalculator):
         # add shift shielding value multiplied by bmw to a list
         pass
 
-    def _write_results(self) -> None:
+    def write_results(self) -> None:
         """
         Write result shieldings and/or couplings to files.
         """
         # Write results to json file
-        self._write_json()
+        self.write_json()

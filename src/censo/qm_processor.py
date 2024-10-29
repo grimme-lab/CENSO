@@ -12,7 +12,14 @@ from time import perf_counter
 from collections.abc import Callable
 
 from .datastructure import ParallelJob
-from .params import Params
+from .params import (
+    ENVIRON,
+    CODING,
+    rot_sym_num,
+    PLENGTH,
+    DIGILEN,
+    WARNLEN,
+)
 from .utilities import print, frange
 from .logging import setup_logger
 
@@ -21,7 +28,7 @@ logger = setup_logger(__name__)
 
 def handle_sigterm(signum, frame, sub):
     logger.critical(
-        f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Received SIGTERM. Terminating."
+        f"{f'worker{os.getpid()}:':{WARNLEN}}Received SIGTERM. Terminating."
     )
     sub.send_signal(signal.SIGTERM)
 
@@ -68,18 +75,18 @@ class QmProc:
         lines = []
 
         # Append a separator line to the output.
-        lines.append("\n" + "".ljust(Params.PLENGTH, "-") + "\n")
+        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
 
         # Append the title of the section to the output, centered.
-        lines.append("PATHS of external QM programs".center(Params.PLENGTH, " ") + "\n")
+        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
 
         # Append a separator line to the output.
-        lines.append("".ljust(Params.PLENGTH, "-") + "\n")
+        lines.append("".ljust(PLENGTH, "-") + "\n")
 
         # Iterate over each program and its path in the settings.
         for program, path in cls._paths.items():
             # Append a line with the program and its path to the output.
-            lines.append(f"{program}:".ljust(Params.DIGILEN, " ") + f"{path}\n")
+            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
 
         # Print each line of the output.
         for line in lines:
@@ -106,9 +113,7 @@ class QmProc:
         Returns:
             job (ParallelJob): job with results
         """
-        logger.debug(
-            f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Running on {job.omp} cores."
-        )
+        logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
         # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
         # list containing the types of computations to do
         if not all(t in self._jobtypes.keys() for t in job.jobtype):
@@ -127,7 +132,7 @@ class QmProc:
             start = perf_counter()
 
             logger.info(
-                f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Running "
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
                 + f"{j} calculation in {jobdir}."
             )
             print(f"Running {j} calculation for {job.conf.name}.")
@@ -193,7 +198,7 @@ class QmProc:
 
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
-            logger.debug(f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Running {call}...")
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
 
             # create subprocess for external program
             sub = subprocess.Popen(
@@ -204,11 +209,11 @@ class QmProc:
                 stderr=subprocess.PIPE,
                 cwd=jobdir,
                 stdout=outputfile,
-                env=Params.ENVIRON,
+                env=ENVIRON,
             )
 
             logger.debug(
-                f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Started (PID: {sub.pid})."
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid})."
             )
 
             # make sure to send SIGTERM to subprocess if program is quit
@@ -220,7 +225,7 @@ class QmProc:
             _, errors = sub.communicate()
             returncode = sub.returncode
 
-            logger.debug(f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Done.")
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
         return returncode, errors
 
@@ -235,7 +240,7 @@ class QmProc:
             os.makedirs(jobdir)
         except FileExistsError:
             # logger.warning(
-            #    f"{f'worker{os.getpid()}:':{Params.WARNLEN}}Jobdir {jobdir} already exists!"
+            #    f"{f'worker{os.getpid()}:':{WARNLEN}}Jobdir {jobdir} already exists!"
             #    " Files will be overwritten."
             # )
             pass
@@ -256,9 +261,9 @@ class QmProc:
         elif linear and "d" in sym.lower()[0]:
             symnum = 2
             return symnum
-        for key in Params.rot_sym_num.keys():
+        for key in rot_sym_num.keys():
             if key in sym.lower():
-                symnum = Params.rot_sym_num.get(key, 1)
+                symnum = rot_sym_num.get(key, 1)
                 break
         return symnum
 
@@ -367,7 +372,7 @@ class QmProc:
             return result, meta
 
         # read energy from outputfile
-        with open(outputpath, "r", encoding=Params.CODING, newline=None) as outputfile:
+        with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
             for line in outputfile.readlines():
                 if "| TOTAL ENERGY" in line:
                     result["energy"] = float(line.split()[3])
@@ -595,7 +600,7 @@ class QmProc:
             return result, meta
 
         # read output and store lines
-        with open(outputpath, "r", encoding=Params.CODING, newline=None) as outputfile:
+        with open(outputpath, "r", encoding=CODING, newline=None) as outputfile:
             lines = outputfile.readlines()
 
         if job.prepinfo["general"]["multitemp"]:
@@ -678,7 +683,7 @@ class QmProc:
         with open(
             os.path.join(jobdir, "xtb_enso.json"),
             "r",
-            encoding=Params.CODING,
+            encoding=CODING,
             newline=None,
         ) as f:
             data = json.load(f)

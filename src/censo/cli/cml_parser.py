@@ -3,7 +3,7 @@ defininition of internal defaults, checking of logic for parameter combinations,
 cml parsing
 """
 
-from ..params import Params
+from ..params import START_DESCR
 import argparse
 
 
@@ -41,7 +41,7 @@ def parse(argv=None) -> argparse.Namespace:
     """
 
     parser = argparse.ArgumentParser(
-        description=Params.START_DESCR,
+        description=START_DESCR,
         prog="censo",
     )
 

@@ -7,7 +7,6 @@ from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS, SOLV_MODS
 from ..utilities import format_data, h1, print, DfaHelper
 from .prescreening import Prescreening
 from .screening import Screening
-from .optimization import Optimization
 
 logger = setup_logger(__name__)
 
@@ -43,8 +42,10 @@ class Refinement(Screening):
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
-            if not any(
-                isinstance(part, Optimization) for part in self.ensemble.results
+            # TODO FIXME
+            if not all(
+                "optimization" in conf.results.keys()
+                for conf in self.ensemble.conformers
             ):
                 jobtype = ["xtb_rrho"]
                 prepinfo = self._setup_prepinfo(jobtype)
@@ -59,6 +60,7 @@ class Refinement(Screening):
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
                     omp=self.get_general_settings()["omp"],
+                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
@@ -72,14 +74,10 @@ class Refinement(Screening):
                     # calculate new gtot including RRHO contribution
                     self.results[conf.name]["gtot"] = self._grrho(conf)
             else:
-                # Use values from (the most recent) optimization rrho
-                part = next(
-                    p
-                    for p in self.ensemble.results[::-1]
-                    if isinstance(p, Optimization)
-                )
+                # Use values from optimization rrho
+                # TODO FIXME
                 for conf in self.ensemble.conformers:
-                    self.results[conf.name]["xtb_rrho"] = part.results[conf.name][
+                    self.results[conf.name]["xtb_rrho"] = conf.results["optimization"][
                         "xtb_rrho"
                     ]
                     self.results[conf.name]["gtot"] = self._grrho(conf)
@@ -96,19 +94,15 @@ class Refinement(Screening):
             threshold = self.get_settings()["threshold"]
 
             # Update ensemble using Boltzman population threshold
+            confiter = iter(self.ensemble.conformers)
             filtered = []
-            bmws = 0
-            for conf in self.ensemble.conformers:
-                if bmws < threshold:
-                    bmws += self.results[conf.name]["bmw"]
-                else:
-                    # Start filtering out conformers as soon as bmw sum crosses over threshold
-                    filtered.append(conf.name)
+            while sum(self.results[conf.name]["bmw"] for conf in filtered) < threshold:
+                filtered.append(next(confiter))
 
             # Remove conformers
-            self.ensemble.remove_conformers(filtered)
-            for confname in filtered:
-                print(f"No longer considering {confname}.")
+            self.ensemble.remove_conformers([conf.name for conf in filtered])
+            for conf in filtered:
+                print(f"No longer considering {conf.name}.")
 
             # Recalculate boltzmann weights after cutting down the ensemble
             self.results.update(self._calc_boltzmannweights())
