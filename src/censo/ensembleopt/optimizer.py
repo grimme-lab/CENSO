@@ -75,7 +75,7 @@ class EnsembleOptimizer(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def __call__(self, cut: bool = True) -> None:
+    def __call__(self, ensemble: EnsembleData, cut: bool = True) -> None:
         """
         Boilerplate run logic for any ensemble optimization step. The 'optimize' method should be implemented for every
         class respectively.

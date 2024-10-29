@@ -95,7 +95,7 @@ class QmProc:
 
         self.workdir = workdir
 
-    def __call__(self, job: ParallelJob) -> ParallelJob:
+    def run(self, job: ParallelJob) -> ParallelJob:
         """
         Run methods depending on jobtype.
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. censo.parallel.execute

@@ -66,9 +66,9 @@ class Refinement(Screening):
                 self.ensemble.remove_conformers(failed)
 
                 # Update results
-                for conf in self.ensemble.conformers:
-                    self.results[conf.name].update(results[conf.name])
+                self.results.update(results)
 
+                for conf in self.ensemble.conformers:
                     # calculate new gtot including RRHO contribution
                     self.results[conf.name]["gtot"] = self._grrho(conf)
             else:
@@ -88,7 +88,8 @@ class Refinement(Screening):
         self.ensemble.conformers.sort(key=lambda conf: self.results[conf.name]["gtot"])
 
         # calculate boltzmann weights from gtot values calculated here
-        self._calc_boltzmannweights()
+        # trying to get temperature from instructions, set it to room temperature if that fails for some reason
+        self.results.update(self._calc_boltzmannweights())
 
         if cut:
             # Get Boltzmann population threshold from settings
@@ -110,7 +111,7 @@ class Refinement(Screening):
                 print(f"No longer considering {confname}.")
 
             # Recalculate boltzmann weights after cutting down the ensemble
-            self._calc_boltzmannweights()
+            self.results.update(self._calc_boltzmannweights())
 
         # second 'write_results' for the updated sorting with RRHO contributions
         self._write_results2()

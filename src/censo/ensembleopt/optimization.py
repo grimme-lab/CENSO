@@ -143,8 +143,8 @@ class Optimization(EnsembleOptimizer):
             self.ensemble.remove_conformers(failed)
 
             # update results for each conformer
+            self.results.update(results_opt)
             for conf in self.ensemble.conformers:
-                self.results[conf.name].update(results_opt[conf.name])
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
@@ -193,18 +193,19 @@ class Optimization(EnsembleOptimizer):
         # Remove failed conformers
         self.ensemble.remove_conformers(failed)
 
+        # Update results
+        self.results.update(results)
+
         # TODO - Add the possibility to explicitely calculate solvation contributions
 
-        # Update results
         for conf in self.ensemble.conformers:
-            self.results[conf.name].update(results[conf.name])
             self.results[conf.name]["gtot"] = self._grrho(conf)
 
         # sort conformers list with optimization key (gtot)
         self.ensemble.conformers.sort(key=lambda conf: self.results[conf.name]["gtot"])
 
         # calculate boltzmann weights from gtot values calculated here
-        self._calc_boltzmannweights()
+        self.results.update(self._calc_boltzmannweights())
 
         # write final results
         self._write_results()
@@ -336,10 +337,10 @@ class Optimization(EnsembleOptimizer):
                 self.set_general_setting("bhess", tmp)
 
                 # Update results
+                self.results.update(results)
                 for conf in filter(
                     lambda x: x.name in self.confs_nc, self.ensemble.conformers
                 ):
-                    self.results[conf.name].update(results[conf.name])
                     self.results[conf.name]["gtot"] = self._grrho(conf)
 
                 # flag to make sure that rrho is only calculated once

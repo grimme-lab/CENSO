@@ -41,7 +41,7 @@ class PropertyCalculator(CensoPart):
             self.results[conf.name]["gtot"] = self._gtot(conf)
 
         # Calculate Boltzmann populations
-        self._calc_boltzmannweights()
+        self.results.update(self._calc_boltzmannweights())
 
         # Perform the property calculations
         self._property()
