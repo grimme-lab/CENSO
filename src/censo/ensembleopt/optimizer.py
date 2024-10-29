@@ -277,7 +277,7 @@ class EnsembleOptimizer(CensoPart):
 
         headers = ["CONF#"]
 
-        parts = list(self.ensemble.conformers[0].results.keys())
+        parts = list(self.ensemble.results.keys())
 
         headers.extend([f"ΔGtot {part}" for part in parts])
 
@@ -292,7 +292,8 @@ class EnsembleOptimizer(CensoPart):
         gtotmin = {part: 0.0 for part in parts}
         for part in parts:
             gtotmin[part] = min(
-                conf.results[part]["gtot"] for conf in self.ensemble.conformers
+                self.ensemble.results[part][0]["gtot"]
+                for conf in self.ensemble.conformers
             )
 
         # determines what to print for each conformer in each column
@@ -303,7 +304,7 @@ class EnsembleOptimizer(CensoPart):
             # Same lambda bullshittery as in parallel.py/dqp, python needs the lambda kwargs or it will
             # use the same values for every lambda call
             printmap[header] = (
-                lambda conf, partl=part, headerl=header: f"{(conf.results[partl]['gtot'] - gtotmin[partl]) * Params.AU2KCAL:.2f}"
+                lambda conf, partl=part, headerl=header: f"{(self.ensemble.results[partl][0][conf.name]['gtot'] - gtotmin[partl]) * Params.AU2KCAL:.2f}"
             )
 
         rows = [
