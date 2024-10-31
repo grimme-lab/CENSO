@@ -13,7 +13,6 @@ from . import (
     orca_processor,
     parallel,
     part,
-    procfact,
     qm_processor,
     utilities,
     ensembleopt,

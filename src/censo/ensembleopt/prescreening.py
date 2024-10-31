@@ -70,7 +70,7 @@ class Prescreening(EnsembleOptimizer):
                 # for structure of results from handler.execute look there
                 results, failed = execute(
                     self._ensemble.conformers,
-                    self.dir,
+                    self._dir,
                     self.get_settings()["prog"],
                     prepinfo,
                     jobtype,
