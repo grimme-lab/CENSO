@@ -144,6 +144,8 @@ class Optimization(EnsembleOptimizer):
             # update results for each conformer
             self._update_results(results_opt)
 
+        # NOTE: this needs to be done anyways, although through self._ensemble.conformers.copy() in
+        # __macrocycle_opt the geometries should have already been updated through self.__confs_nc
         for conf in self._ensemble.conformers:
             # update geometry of the conformer
             conf.geom.xyz = self.data["results"][conf.name][jobtype[0]]["geom"]
@@ -279,7 +281,9 @@ class Optimization(EnsembleOptimizer):
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
-                self.data.setdefault(conf.name, {}).setdefault(jobtype[0], {})
+                self.data["results"].setdefault(conf.name, {}).setdefault(
+                    jobtype[0], {}
+                )
 
                 # Update the values for "energy", "grad_norm", "converged", "geom"
                 # NOTE: this replaces the default self._update_results, why see below
