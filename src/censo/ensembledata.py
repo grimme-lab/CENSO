@@ -213,7 +213,7 @@ class EnsembleData:
             self.__conformers.append(
                 MoleculeData(
                     confname,
-                    lines[conf_index:conf_end_index],
+                    lines[conf_index + 2 : conf_end_index],
                 )
             )
 
