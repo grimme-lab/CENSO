@@ -109,9 +109,10 @@ class Screening(Prescreening):
                 threshold += fuzzy
                 print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
 
+                limit = min(self._grrho(conf) for conf in self._ensemble.conformers)
                 filtered = list(
                     filter(
-                        lambda conf: self._grrho(conf) > threshold,
+                        lambda conf: self._grrho(conf) - limit > threshold,
                         self._ensemble.conformers,
                     )
                 )

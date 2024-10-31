@@ -130,9 +130,14 @@ class Prescreening(EnsembleOptimizer):
             print("\n")
             # update conformers with threshold
             threshold = self.get_settings()["threshold"] / AU2KCAL
+            limit = min(
+                self.results["data"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
+            )
             filtered = list(
                 filter(
-                    lambda conf: self.results["data"][conf.name]["gtot"] > threshold,
+                    lambda conf: self.results["data"][conf.name]["gtot"] - limit
+                    > threshold,
                     self._ensemble.conformers,
                 )
             )
