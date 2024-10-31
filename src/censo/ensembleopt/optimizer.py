@@ -91,7 +91,7 @@ class EnsembleOptimizer(CensoPart):
 
         # Print information about ensemble before optimization
         self._print_update()
-        self.results["nconf_in"] = len(self._ensemble.conformers)
+        self.data["nconf_in"] = len(self._ensemble.conformers)
 
         # Perform the actual optimization logic
         self._optimize(cut=cut)
@@ -101,7 +101,7 @@ class EnsembleOptimizer(CensoPart):
 
         # Print information about ensemble after optimization
         self._print_update()
-        self.results["nconf_out"] = len(self._ensemble.conformers)
+        self.data["nconf_out"] = len(self._ensemble.conformers)
 
         # dump ensemble
         self._ensemble.dump(f"{self._part_nos[self.name]}_{self.name.upper()}")

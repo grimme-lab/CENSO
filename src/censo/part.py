@@ -313,24 +313,24 @@ class CensoPart:
         self._dir: str = None
 
         # Store the run's results as well as some metadata
-        self._results = {
+        self._data = {
             "partname": self.name,
             "runtime": 0.0,
-            "data": {},
+            "results": {},
             "settings": self.get_settings(),
             "nconf_in": None,  # these two are only used in ensemble optimizations
             "nconf_out": None,
         }
         # 'data' should be structured like the following:
         # 'CONFxx': <results from part jobs/in-part-calculations>
-        # => e.g. self.results["data"]["CONF3"]["gtot"]
+        # => e.g. self.data["results"]["CONF3"]["gtot"]
         #    would return the free enthalpy of the conformer
         #    (not calculated with an external program)
         #
-        #    self.results["data"]["CONF4"]["sp"]
+        #    self.data["results"]["CONF4"]["sp"]
         #    returns the 'result' of the DFT single point
         #    (calculated by external program)
-        #    to get the single-point energy: self.results["data"]["CONF4"]["sp"]["energy"]
+        #    to get the single-point energy: self.data["results"]["CONF4"]["sp"]["energy"]
         #    (refer to the results for each jobtype)
 
         # Print out settings if requested
@@ -364,18 +364,18 @@ class CensoPart:
         instance = cls(ensemble)
 
         runtime = instance(**kwargs)
-        instance.results["runtime"] = runtime
+        instance.data["runtime"] = runtime
 
         # Return the instance in the final state and the runtime
         return instance, runtime
 
     @property
-    def results(self) -> dict:
-        return self._results
+    def data(self) -> dict:
+        return self._data
 
-    @results.setter
-    def results(self, results: dict) -> None:
-        self._results = results
+    @data.setter
+    def data(self, data: dict) -> None:
+        self._data = data
 
     def _update_results(self, results: dict) -> None:
         """
@@ -387,10 +387,10 @@ class CensoPart:
         Args:
             results (dict): The results dict to be added to the current results.
         """
-        # This is different from just calling self._results["data"].update(results)
+        # This is different from just calling self._data["results"].update(results)
         # because it doesn't overwrite the preexisting data
         for conf in results:
-            self._results["data"].setdefault(conf, {}).update(results[conf])
+            self._data["results"].setdefault(conf, {}).update(results[conf])
 
     def _calc_boltzmannweights(self) -> dict:
         """
@@ -400,11 +400,11 @@ class CensoPart:
         temp = self.get_general_settings()["temperature"]
         # find lowest gtot value
         if all(
-            "gtot" in self.results["data"][conf.name]
+            "gtot" in self.data["results"][conf.name]
             for conf in self._ensemble.conformers
         ):
             minfree: float = min(
-                self.results["data"][conf.name]["gtot"]
+                self.data["results"][conf.name]["gtot"]
                 for conf in self._ensemble.conformers
             )
 
@@ -412,7 +412,7 @@ class CensoPart:
             bmfactors = {
                 conf.name: conf.degen
                 * exp(
-                    -(self.results["data"][conf.name]["gtot"] - minfree)
+                    -(self.data["results"][conf.name]["gtot"] - minfree)
                     * AU2J
                     / (KB * temp)
                 )
@@ -425,11 +425,11 @@ class CensoPart:
             gtot_replacement = False
             for jt in ["xtb_opt", "sp"]:
                 if all(
-                    jt in self.results["data"][conf.name].keys()
+                    jt in self.data["results"][conf.name]
                     for conf in self._ensemble.conformers
                 ):
                     minfree: float = min(
-                        self.results["data"][conf.name][jt]["energy"]
+                        self.data["results"][conf.name][jt]["energy"]
                         for conf in self._ensemble.conformers
                     )
 
@@ -437,7 +437,7 @@ class CensoPart:
                     bmfactors = {
                         conf.name: conf.degen
                         * exp(
-                            -(self.results["data"][conf.name][jt]["energy"] - minfree)
+                            -(self.data["results"][conf.name][jt]["energy"] - minfree)
                             * AU2J
                             / (KB * temp)
                         )
@@ -485,4 +485,4 @@ class CensoPart:
         """
         filename = f"{self._part_nos.get(self.name, 'NaN')}_{self.name.upper()}.json"
         with open(os.path.join(os.getcwd(), filename), "w") as outfile:
-            json.dump(self.results, outfile, indent=4)
+            json.dump(self.data, outfile, indent=4)

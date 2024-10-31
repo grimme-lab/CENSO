@@ -114,11 +114,11 @@ class Prescreening(EnsembleOptimizer):
         # update results for each conformer
         for conf in self._ensemble.conformers:
             # calculate free enthalpy
-            self.results["data"][conf.name]["gtot"] = self._gsolv(conf)
+            self.data["results"][conf.name]["gtot"] = self._gsolv(conf)
 
         # sort conformers list with prescreening key (gtot)
         self._ensemble.conformers.sort(
-            key=lambda conf: self.results["data"][conf.name]["gtot"],
+            key=lambda conf: self.data["results"][conf.name]["gtot"],
         )
 
         # calculate boltzmann weights from gtot values calculated here
@@ -131,12 +131,12 @@ class Prescreening(EnsembleOptimizer):
             # update conformers with threshold
             threshold = self.get_settings()["threshold"] / AU2KCAL
             limit = min(
-                self.results["data"][conf.name]["gtot"]
+                self.data["results"][conf.name]["gtot"]
                 for conf in self._ensemble.conformers
             )
             filtered = list(
                 filter(
-                    lambda conf: self.results["data"][conf.name]["gtot"] - limit
+                    lambda conf: self.data["results"][conf.name]["gtot"] - limit
                     > threshold,
                     self._ensemble.conformers,
                 )
@@ -156,11 +156,11 @@ class Prescreening(EnsembleOptimizer):
         # Gtot = E (DFT) + Gsolv (xtb)
         if not self.get_general_settings()["gas-phase"]:
             gtot = (
-                self.results["data"][conf.name]["sp"]["energy"]
-                + self.results["data"][conf.name]["xtb_gsolv"]["gsolv"]
+                self.data["results"][conf.name]["sp"]["energy"]
+                + self.data["results"][conf.name]["xtb_gsolv"]["gsolv"]
             )
         else:
-            gtot = self.results["data"][conf.name]["sp"]["energy"]
+            gtot = self.data["results"][conf.name]["sp"]["energy"]
 
         return gtot
 
@@ -213,26 +213,26 @@ class Prescreening(EnsembleOptimizer):
         # variables for printmap
         # minimal xtb single-point energy
         if all(
-            "xtb_gsolv" in self.results["data"][conf.name]
+            "xtb_gsolv" in self.data["results"][conf.name]
             for conf in self._ensemble.conformers
         ):
             xtbmin = min(
-                self.results["data"][conf.name]["xtb_gsolv"]["energy_xtb_gas"]
+                self.data["results"][conf.name]["xtb_gsolv"]["energy_xtb_gas"]
                 for conf in self._ensemble.conformers
             )
 
         # minimal dft single-point energy
         dft_energies = (
             {
-                conf.name: self.results["data"][conf.name]["sp"]["energy"]
+                conf.name: self.data["results"][conf.name]["sp"]["energy"]
                 for conf in self._ensemble.conformers
             }
             if not all(
-                "gsolv" in self.results["data"][conf.name]
+                "gsolv" in self.data["results"][conf.name]
                 for conf in self._ensemble.conformers
             )
             else {
-                conf.name: self.results["data"][conf.name]["gsolv"]["energy_gas"]
+                conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
                 for conf in self._ensemble.conformers
             }
         )
@@ -245,19 +245,19 @@ class Prescreening(EnsembleOptimizer):
         else:
             # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
             if all(
-                "xtb_gsolv" in self.results["data"][conf.name]
+                "xtb_gsolv" in self.data["results"][conf.name]
                 for conf in self._ensemble.conformers
             ):
                 gsolvmin = min(
-                    self.results["data"][conf.name]["xtb_gsolv"]["gsolv"]
+                    self.data["results"][conf.name]["xtb_gsolv"]["gsolv"]
                     for conf in self._ensemble.conformers
                 )
             elif all(
-                "gsolv" in self.results["data"][conf.name]
+                "gsolv" in self.data["results"][conf.name]
                 for conf in self._ensemble.conformers
             ):
                 gsolvmin = min(
-                    self.results["data"][conf.name]["gsolv"]["gsolv"]
+                    self.data["results"][conf.name]["gsolv"]["gsolv"]
                     for conf in self._ensemble.conformers
                 )
             else:
@@ -273,28 +273,28 @@ class Prescreening(EnsembleOptimizer):
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (xTB)": lambda conf: (
-                f"{self.results['data'][conf.name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
-                if "xtb_gsolv" in self.results["data"][conf.name]
+                f"{self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
+                if "xtb_gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
             "ΔE (xTB)": lambda conf: (
-                f"{(self.results['data'][conf.name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
-                if "xtb_gsolv" in self.results["data"][conf.name]
+                f"{(self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+                if "xtb_gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
             "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
             "ΔE (DFT)": lambda conf: f"{(dft_energies[conf.name] - dftmin) * AU2KCAL:.2f}",
             "ΔGsolv (xTB)": lambda conf: (
-                f"{self.results['data'][conf.name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
-                if "xtb_gsolv" in self.results["data"][conf.name]
+                f"{self.data['results'][conf.name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
+                if "xtb_gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
             "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
-            # "δΔGsolv": lambda conf: f"{(self.results["data"][conf.name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
-            # if "xtb_gsolv" in self.results["data"][conf.name].keys()
+            # "δΔGsolv": lambda conf: f"{(self.data["results"][conf.name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
+            # if "xtb_gsolv" in self.data["results"][conf.name].keys()
             # else "---",
             "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{self.results['data'][conf.name]['bmw'] * 100:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.data['results'][conf.name]['bmw'] * 100:.2f}",
         }
 
         rows = [
@@ -315,8 +315,8 @@ class Prescreening(EnsembleOptimizer):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                self.results["data"][conf.name]["bmw"]
-                * self.results["data"][conf.name]["gtot"]
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["gtot"]
                 for conf in self._ensemble.conformers
             ]
         )
@@ -324,8 +324,8 @@ class Prescreening(EnsembleOptimizer):
         # calculate averaged free energy
         avE = sum(
             [
-                self.results["data"][conf.name]["bmw"]
-                * self.results["data"][conf.name]["sp"]["energy"]
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["sp"]["energy"]
                 for conf in self._ensemble.conformers
             ]
         )

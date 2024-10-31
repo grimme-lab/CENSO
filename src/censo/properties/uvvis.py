@@ -170,7 +170,7 @@ class UVVis(PropertyCalculator):
         for conf in self._ensemble.conformers:
             for excitation in conf.results[self.name]["uvvis"]["excitations"]:
                 epsilon_max = (
-                    self.results["data"][conf.name]["bmw"] * excitation["osc_str"]
+                    self.data["results"][conf.name]["bmw"] * excitation["osc_str"]
                 )
                 eps.append((excitation["wavelength"], epsilon_max, conf.name))
 

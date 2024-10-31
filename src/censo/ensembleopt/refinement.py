@@ -66,7 +66,7 @@ class Refinement(Screening):
 
                 for conf in self._ensemble.conformers:
                     # calculate new gtot including RRHO contribution
-                    self.results["data"][conf.name]["gtot"] = self._grrho(conf)
+                    self.data["results"][conf.name]["gtot"] = self._grrho(conf)
             else:
                 # Use values from most recent optimization rrho
                 using_part = [
@@ -74,14 +74,14 @@ class Refinement(Screening):
                 ][-1]
 
                 for conf in self._ensemble.conformers:
-                    self.results["data"][conf.name]["xtb_rrho"] = using_part.results[
+                    self.data["results"][conf.name]["xtb_rrho"] = using_part.results[
                         "data"
                     ][conf.name]["xtb_rrho"]
-                    self.results["data"][conf.name]["gtot"] = self._grrho(conf)
+                    self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
         # sort conformers list
         self._ensemble.conformers.sort(
-            key=lambda conf: self.results["data"][conf.name]["gtot"]
+            key=lambda conf: self.data["results"][conf.name]["gtot"]
         )
 
         # calculate boltzmann weights from gtot values calculated here
@@ -96,7 +96,7 @@ class Refinement(Screening):
             confiter = iter(self._ensemble.conformers)
             filtered = []
             while (
-                sum(self.results["data"][conf.name]["bmw"] for conf in filtered)
+                sum(self.data["results"][conf.name]["bmw"] for conf in filtered)
                 < threshold
             ):
                 filtered.append(next(confiter))
@@ -152,22 +152,22 @@ class Refinement(Screening):
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
         gtotmin = min(
-            self.results["data"][conf.name]["gtot"]
+            self.data["results"][conf.name]["gtot"]
             for conf in self._ensemble.conformers
         )
 
         # collect all dft single point energies
         dft_energies = (
             {
-                conf.name: self.results["data"][conf.name]["sp"]["energy"]
+                conf.name: self.data["results"][conf.name]["sp"]["energy"]
                 for conf in self._ensemble.conformers
             }
             if not all(
-                "gsolv" in self.results["data"][conf.name]
+                "gsolv" in self.data["results"][conf.name]
                 for conf in self._ensemble.conformers
             )
             else {
-                conf.name: self.results["data"][conf.name]["gsolv"]["energy_gas"]
+                conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
                 for conf in self._ensemble.conformers
             }
         )
@@ -177,17 +177,17 @@ class Refinement(Screening):
             "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
             "ΔGsolv": lambda conf: (
                 f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
-                if "gsolv" in self.results["data"][conf.name]
+                if "gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
             "GmRRHO": lambda conf: (
-                f"{self.results['data'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+                f"{self.data['results'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
-            "Gtot": lambda conf: f"{self.results['data'][conf.name]['gtot']:.6f}",
-            "ΔGtot": lambda conf: f"{(self.results['data'][conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{self.results['data'][conf.name]['bmw'] * 100:.2f}",
+            "Gtot": lambda conf: f"{self.data['results'][conf.name]['gtot']:.6f}",
+            "ΔGtot": lambda conf: f"{(self.data['results'][conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.data['results'][conf.name]['bmw'] * 100:.2f}",
         }
 
         rows = [
@@ -208,8 +208,8 @@ class Refinement(Screening):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                self.results["data"][conf.name]["bmw"]
-                * self.results["data"][conf.name]["gtot"]
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["gtot"]
                 for conf in self._ensemble.conformers
             ]
         )
@@ -217,17 +217,17 @@ class Refinement(Screening):
         # calculate averaged free energy
         avE = (
             sum(
-                self.results["data"][conf.name]["bmw"]
-                * self.results["data"][conf.name]["sp"]["energy"]
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["sp"]["energy"]
                 for conf in self._ensemble.conformers
             )
             if all(
-                "sp" in self.results["data"][conf.name]
+                "sp" in self.data["results"][conf.name]
                 for conf in self._ensemble.conformers
             )
             else sum(
-                self.results["data"][conf.name]["bmw"]
-                * self.results["data"][conf.name]["gsolv"]["energy_gas"]
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["gsolv"]["energy_gas"]
                 for conf in self._ensemble.conformers
             )
         )

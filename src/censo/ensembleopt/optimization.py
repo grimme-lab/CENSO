@@ -143,15 +143,16 @@ class Optimization(EnsembleOptimizer):
 
             # update results for each conformer
             self._update_results(results_opt)
-            for conf in self._ensemble.conformers:
-                # update geometry of the conformer
-                conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
+
+        for conf in self._ensemble.conformers:
+            # update geometry of the conformer
+            conf.geom.xyz = self.data["results"][conf.name][jobtype[0]]["geom"]
 
         # Handle unconverged conformers (WIP)
         unconverged = self.__confs_nc or [
             conf
             for conf in self._ensemble.conformers
-            if not self.results["data"][conf.name][jobtype[0]]["converged"]
+            if not self.data["results"][conf.name][jobtype[0]]["converged"]
         ]
 
         if len(unconverged) == len(self._ensemble.conformers):
@@ -167,7 +168,7 @@ class Optimization(EnsembleOptimizer):
             print("Unconverged conformers:")
             for conf in unconverged:
                 print(
-                    f"{conf.name}, grad_norm: {self.results['data'][conf.name][jobtype[0]]['grad_norm']}"
+                    f"{conf.name}, grad_norm: {self.data['results'][conf.name][jobtype[0]]['grad_norm']}"
                 )
             print("The unconverged conformers will now be removed from consideration.")
             self._ensemble.remove_conformers([conf.name for conf in unconverged])
@@ -198,11 +199,11 @@ class Optimization(EnsembleOptimizer):
         # TODO - Add the possibility to explicitely calculate solvation contributions
 
         for conf in self._ensemble.conformers:
-            self.results["data"][conf.name]["gtot"] = self._grrho(conf)
+            self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
         # sort conformers list with optimization key (gtot)
         self._ensemble.conformers.sort(
-            key=lambda conf: self.results["data"][conf.name]["gtot"]
+            key=lambda conf: self.data["results"][conf.name]["gtot"]
         )
 
         # calculate boltzmann weights from gtot values calculated here
@@ -226,11 +227,11 @@ class Optimization(EnsembleOptimizer):
 
         try:
             return (
-                self.results["data"][conf.name][jobtype]["energy"]
-                + self.results["data"][conf.name]["xtb_rrho"]["energy"]
+                self.data["results"][conf.name][jobtype]["energy"]
+                + self.data["results"][conf.name]["xtb_rrho"]["energy"]
             )
         except KeyError:
-            return self.results["data"][conf.name][jobtype]["energy"]
+            return self.data["results"][conf.name][jobtype]["energy"]
 
     def __macrocycle_opt(self, cut: bool):
         """
@@ -278,26 +279,26 @@ class Optimization(EnsembleOptimizer):
                 # update geometry of the conformer
                 conf.geom.xyz = results_opt[conf.name][jobtype[0]]["geom"]
 
-                conf.results.setdefault(self.name, {}).setdefault(jobtype[0], {})
+                self.data.setdefault(conf.name, {}).setdefault(jobtype[0], {})
 
                 # Update the values for "energy", "grad_norm", "converged", "geom"
                 # NOTE: this replaces the default self._update_results, why see below
                 for key in ["energy", "grad_norm", "converged", "geom"]:
-                    self.results["data"][conf.name][jobtype[0]][key] = results_opt[
+                    self.data["results"][conf.name][jobtype[0]][key] = results_opt[
                         conf.name
                     ][jobtype[0]][key]
 
                 # NOTE: Because of the following two steps it is necessary not to blindly call self.results.update,
                 # since values would be overwritten and information lost
                 # Add the number of cycles
-                self.results["data"][conf.name][jobtype[0]].setdefault("cycles", 0)
-                self.results["data"][conf.name][jobtype[0]]["cycles"] += results_opt[
+                self.data["results"][conf.name][jobtype[0]].setdefault("cycles", 0)
+                self.data["results"][conf.name][jobtype[0]]["cycles"] += results_opt[
                     conf.name
                 ][jobtype[0]]["cycles"]
 
                 # Extend the energy and grad_norm lists
                 for key in ["ecyc", "gncyc"]:
-                    self.results["data"][conf.name][jobtype[0]].setdefault(
+                    self.data["results"][conf.name][jobtype[0]].setdefault(
                         key, []
                     ).extend(results_opt[conf.name][jobtype[0]][key])
 
@@ -330,9 +331,9 @@ class Optimization(EnsembleOptimizer):
                 self.set_general_setting("bhess", tmp)
 
                 # Update results
-                self.results.update(results)
+                self._update_results(results)
                 for conf in self.__confs_nc:
-                    self.results["data"][conf.name]["gtot"] = self._grrho(conf)
+                    self.data["data"][conf.name]["gtot"] = self._grrho(conf)
 
                 # flag to make sure that rrho is only calculated once
                 rrho_done = True
@@ -351,7 +352,7 @@ class Optimization(EnsembleOptimizer):
                 )
             ):
                 print(
-                    f"{conf.name} converged after {ncyc + self.results['data'][conf.name][jobtype[0]]['cycles']} steps."
+                    f"{conf.name} converged after {ncyc + self.data['results'][conf.name][jobtype[0]]['cycles']} steps."
                 )
                 self.__confs_nc.remove(conf)
                 nconv += 1
@@ -441,23 +442,23 @@ class Optimization(EnsembleOptimizer):
 
         # Minimal pure DFT energy
         dftmin = min(
-            self.results["data"][conf.name][jobtype]["energy"]
+            self.data["results"][conf.name][jobtype]["energy"]
             for conf in self._ensemble.conformers
         )
 
         # Define what gets printed for which header
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (DFT) (+ ΔGsolv)": lambda conf: f"{self.results['data'][conf.name][jobtype]['energy']:.6f}",
-            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(self.results['data'][conf.name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
+            "E (DFT) (+ ΔGsolv)": lambda conf: f"{self.data['results'][conf.name][jobtype]['energy']:.6f}",
+            "ΔE (DFT) (+ δΔGsolv)": lambda conf: f"{(self.data['results'][conf.name][jobtype]['energy'] - dftmin) * AU2KCAL:.2f}",
             "GmRRHO": lambda conf: (
-                f"{self.results['data'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+                f"{self.data['results'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
             "Gtot": lambda conf: f"{self._grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self._grrho(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{self.results['data'][conf.name]['bmw'] * 100:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.data['results'][conf.name]['bmw'] * 100:.2f}",
         }
 
         # Create rows via the printmap
@@ -479,15 +480,15 @@ class Optimization(EnsembleOptimizer):
 
         # calculate averaged free enthalpy
         avG = sum(
-            self.results["data"][conf.name]["bmw"]
-            * self.results["data"][conf.name]["gtot"]
+            self.data["results"][conf.name]["bmw"]
+            * self.data["results"][conf.name]["gtot"]
             for conf in self._ensemble.conformers
         )
 
         # calculate averaged free energy
         avE = sum(
-            self.results["data"][conf.name]["bmw"]
-            * self.results["data"][conf.name][jobtype]["energy"]
+            self.data["results"][conf.name]["bmw"]
+            * self.data["results"][conf.name][jobtype]["energy"]
             for conf in self._ensemble.conformers
         )
 
@@ -542,8 +543,8 @@ class Optimization(EnsembleOptimizer):
             "CONF#": lambda conf: conf.name,
             "Gtot": lambda conf: f"{self._grrho(conf):.6f}",
             "ΔGtot": lambda conf: f"{(self._grrho(conf) - limit) * AU2KCAL:.2f}",
-            "grad_norm": lambda conf: f"{self.results['data'][conf.name][jobtype]['grad_norm']:.6f}",
-            "converged": lambda conf: f"{self.results['data'][conf.name][jobtype]['converged']}",
+            "grad_norm": lambda conf: f"{self.data['results'][conf.name][jobtype]['grad_norm']:.6f}",
+            "converged": lambda conf: f"{self.data['results'][conf.name][jobtype]['converged']}",
         }
 
         # Create rows via the printmap

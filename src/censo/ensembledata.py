@@ -65,7 +65,7 @@ class EnsembleData:
 
     def read_output(self, outpath: str) -> None:
         """
-        Read json output file of a previous execution. Will try to load results into current conformer ensemble, matching
+        Read json output file of a previous execution. Will try to load data into current conformer ensemble, matching
         based on names. If a conformer name does not exist in the current ensemble it will be ignored. If a conformer
         does not exist in the output data RuntimeError will be raised.
 
@@ -77,17 +77,17 @@ class EnsembleData:
         """
 
         with open(outpath, "r") as file:
-            results = json.load(file)
+            data = json.load(file)
 
         # Check if all conformers from the current ensemble are also found in the output data
-        if not all(conf.name in results["data"] for conf in self.conformers):
+        if not all(conf.name in data["results"] for conf in self.conformers):
             raise RuntimeError(
                 "Not all conformers from the current ensemble are found in the output data."
             )
 
         # Create a part instance and load in the results
-        part = Factory.create(results["partname"], self)
-        part.results.update(results)
+        part = Factory.create(data["partname"], self)
+        part.data.update(data)
 
         logger.info(f"Reloaded results from {outpath}.")
 

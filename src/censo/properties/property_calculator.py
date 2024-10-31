@@ -35,7 +35,7 @@ class PropertyCalculator(CensoPart):
         # Set energy values to use later
         self._set_energy(using_part=using_part)
         for conf in self._ensemble.conformers:
-            self.results["data"][conf.name]["gtot"] = self._gtot(conf)
+            self.data["results"][conf.name]["gtot"] = self._gtot(conf)
 
         # Calculate Boltzmann populations
         self._update_results(self._calc_boltzmannweights())
@@ -50,9 +50,9 @@ class PropertyCalculator(CensoPart):
 
     def _gtot(self, conf: MoleculeData) -> float:
         return (
-            self.results["data"][conf.name]["energy"]
-            + self.results["data"][conf.name]["gsolv"]
-            + self.results["data"][conf.name]["grrho"]
+            self.data["results"][conf.name]["energy"]
+            + self.data["results"][conf.name]["gsolv"]
+            + self.data["results"][conf.name]["grrho"]
         )
 
     def _setup_prepinfo_rrho(self) -> dict[str, dict]:
@@ -191,4 +191,4 @@ class PropertyCalculator(CensoPart):
         }
 
         for conf in self._ensemble.conformers:
-            self.results["data"].setdefault(conf.name, energy_values[using_part](conf))
+            self.data["results"].setdefault(conf.name, energy_values[using_part](conf))
