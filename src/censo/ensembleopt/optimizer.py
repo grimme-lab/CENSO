@@ -275,7 +275,9 @@ class EnsembleOptimizer(CensoPart):
 
         headers = ["CONF#"]
 
-        parts = [p for p in self._ensemble.results if issubclass(p, EnsembleOptimizer)]
+        parts = [
+            p for p in self._ensemble.results if issubclass(type(p), EnsembleOptimizer)
+        ]
 
         headers.extend([f"ΔGtot {part.name}" for part in parts])
 

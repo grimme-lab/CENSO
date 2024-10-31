@@ -87,7 +87,8 @@ class PropertyCalculator(CensoPart):
             # Determine the smallest usable optimization results
             # First filter ensemble optimizations
             opts = filter(
-                lambda part: issubclass(part, EnsembleOptimizer), self._ensemble.results
+                lambda part: issubclass(type(part), EnsembleOptimizer),
+                self._ensemble.results,
             )
             opts = sorted(opts, lambda part: part.results["nconf_out"])
 
