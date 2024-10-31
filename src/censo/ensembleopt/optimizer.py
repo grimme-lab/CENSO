@@ -1,8 +1,14 @@
-from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..params import AU2KCAL, DIGILEN, PLENGTH
 from ..part import CensoPart
-from ..utilities import DfaHelper, SolventHelper, format_data, h1, print, timeit
+from ..utilities import (
+    DfaHelper,
+    SolventHelper,
+    format_data,
+    h1,
+    print,
+    timeit,
+)
 
 logger = setup_logger(__name__)
 
@@ -75,7 +81,7 @@ class EnsembleOptimizer(CensoPart):
 
     @timeit
     @CensoPart._create_dir
-    def _run(self, cut: bool = True) -> None:
+    def __call__(self, cut: bool = True) -> None:
         """
         Boilerplate run logic for any ensemble optimization step. The 'optimize' method should be implemented for every
         class respectively.
@@ -85,6 +91,7 @@ class EnsembleOptimizer(CensoPart):
 
         # Print information about ensemble before optimization
         self._print_update()
+        self.results["nconf_in"] = len(self._ensemble.conformers)
 
         # Perform the actual optimization logic
         self._optimize(cut=cut)
@@ -94,65 +101,15 @@ class EnsembleOptimizer(CensoPart):
 
         # Print information about ensemble after optimization
         self._print_update()
+        self.results["nconf_out"] = len(self._ensemble.conformers)
 
         # dump ensemble
-        self.ensemble.dump(f"{self._part_nos[self._name]}_{self._name.upper()}")
+        self._ensemble.dump(f"{self._part_nos[self.name]}_{self.name.upper()}")
 
         # DONE
 
     def _optimize(self, cut: bool = True):
         raise NotImplementedError
-
-    def _cut_conformers(self) -> None:
-        """
-        Cut down the conformer ensemble based on a given threshold (and threshold type).
-        The threshold can be either a kcal/mol value if cutting by Gtot or a population
-        threshold when cutting based on populations.
-        """
-        filtered = []
-        threshold = self.get_settings()["threshold"]
-
-        # Refinement cuts based on Boltzmann population
-        if self._name == "refinement" and 0.0 <= threshold <= 1.0:
-            # Sort and iterate through the conformers by target (should be the Boltzmann population) in reverse order
-            # Therefore, the conformer with the highest population is first
-            s = 0.0
-            for conf in sorted(
-                self.ensemble.conformers,
-                key=lambda conf: self.results[conf.name]["bmw"],
-                reverse=True,
-            ):
-                if s > threshold:
-                    # The conformer is above the population threshold and should be removed
-                    filtered.append(conf)
-                else:
-                    # The population of the conformer is appended
-                    s += target(conf)
-        # The rest cuts based on gtot
-        else:
-            # pick the free enthalpy of the lowest conformer
-            limit = min(
-                self.results[conf.name]["gtot"] for conf in self.ensemble.conformers
-            )
-
-            # filter out all conformers above threshold
-            # so that 'filtered' contains all conformers that should not be considered any further
-            filtered = list(
-                filter(
-                    self.results[conf.name]["gtot"] - limit > threshold,
-                    self.ensemble.conformers,
-                )
-            )
-
-        # move the sorted out conformers to rem list
-        for conf in filtered:
-            # pop item from conformers and insert this item at index 0 in rem
-            self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
-
-            # Log removed conformers
-            logger.debug(f"Removed {conf.name}.")
-
-        self.ensemble.remove_conformers([conf.name for conf in filtered])
 
     def _setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
         """
@@ -167,9 +124,9 @@ class EnsembleOptimizer(CensoPart):
         """
         prepinfo = {jt: {} for jt in jobtype}
 
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["partname"] = self.name
+        prepinfo["charge"] = self._ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self._ensemble.runinfo.get("unpaired")
         prepinfo["general"] = self.get_general_settings()
 
         if "sp" in jobtype or "gsolv" in jobtype:
@@ -305,22 +262,22 @@ class EnsembleOptimizer(CensoPart):
         print("\n")
         print(
             "Number of conformers:".ljust(DIGILEN // 2, " ")
-            + f"{len(self.ensemble.conformers)}"
+            + f"{len(self._ensemble.conformers)}"
         )
         print(
             "Highest ranked conformer:".ljust(DIGILEN // 2, " ")
-            + f"{self.ensemble.conformers[0].name}"
+            + f"{self._ensemble.conformers[0].name}"
         )
         print("\n")
 
     def _print_comparison(self) -> None:
-        print(h1(f"{self._name.upper()} RANKING COMPARISON"))
+        print(h1(f"{self.name.upper()} RANKING COMPARISON"))
 
         headers = ["CONF#"]
 
-        parts = list(self.ensemble.conformers[0].results.keys())
+        parts = [p for p in self._ensemble.results if issubclass(p, EnsembleOptimizer)]
 
-        headers.extend([f"ΔGtot {part}" for part in parts])
+        headers.extend([f"ΔGtot {part.name}" for part in parts])
 
         # column units
         units = [
@@ -333,7 +290,8 @@ class EnsembleOptimizer(CensoPart):
         gtotmin = {part: 0.0 for part in parts}
         for part in parts:
             gtotmin[part] = min(
-                conf.results[part]["gtot"] for conf in self.ensemble.conformers
+                part.results["data"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
             )
 
         # determines what to print for each conformer in each column
@@ -344,12 +302,12 @@ class EnsembleOptimizer(CensoPart):
             # Same lambda bullshittery as in parallel.py/dqp, python needs the lambda kwargs or it will
             # use the same values for every lambda call
             printmap[header] = (
-                lambda conf, partl=part, headerl=header: f"{(conf.results[partl]['gtot'] - gtotmin[partl]) * AU2KCAL:.2f}"
+                lambda conf, partl=part, headerl=header: f"{(partl.results['data'][conf.name]['gtot'] - gtotmin[partl.name]) * AU2KCAL:.2f}"
             )
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.ensemble.conformers
+            for conf in self._ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)

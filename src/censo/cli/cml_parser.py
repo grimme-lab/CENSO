@@ -120,6 +120,14 @@ def parse(argv=None) -> argparse.Namespace:
         "the maximum number available. For a default run this is REQUIRED.",
     )
     groups[0].add_argument(
+        "-O",
+        "--omp",
+        dest="omp",
+        type=int,
+        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
+        "if load balancing is disabled.",
+    )
+    groups[0].add_argument(
         "--loglevel",
         dest="loglevel",
         help="Set the loglevel for all modules to a specified level.",
@@ -200,14 +208,6 @@ def parse(argv=None) -> argparse.Namespace:
         action="store_const",
         const=True,
         help="Run calculation in gas-phase, overriding all solvation settings.",
-    )
-    groups[1].add_argument(
-        "-O",
-        "--omp",
-        dest="omp",
-        type=int,
-        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
-        "if load balancing is disabled.",
     )
     groups[1].add_argument(
         "--imagthr",

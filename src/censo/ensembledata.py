@@ -6,19 +6,19 @@ functionality for program setup
 import os
 import re
 import json
-from collections.abc import Callable
-from math import exp
 
 from .datastructure import MoleculeData
 from .logging import setup_logger
-from .params import AU2J, DIGILEN, KB
-from .utilities import check_for_float, print, t2x
+from .params import DIGILEN
+from .utilities import check_for_float, print, t2x, Factory
 
 logger = setup_logger(__name__)
 
 
 class EnsembleData:
-    """ """
+    """
+    Class to store conformer rotamer ensembles for use in CENSO.
+    """
 
     def __init__(self, input_file: str = None):
         """
@@ -43,6 +43,9 @@ class EnsembleData:
 
         # stores the conformers which were sorted out
         self.rem: list[MoleculeData] = []
+
+        # A list containing all part references in order of execution or loading
+        self.results = []
 
         if input_file is not None:
             self.read_input(input_file, charge=0, unpaired=0)
@@ -74,22 +77,21 @@ class EnsembleData:
         """
 
         with open(outpath, "r") as file:
-            data = json.load(file)
+            results = json.load(file)
 
         # Check if all conformers from the current ensemble are also found in the output data
-        for partname, results in data.items():
-            # First level of json output is the part name (loop iterates through all parts in the json file)
-            # .values() are the results of each part
-            if not all(conf.name in results for conf in self.conformers):
-                raise RuntimeError(
-                    "Not all conformers from the current ensemble are found in the output data."
-                )
+        if not all(conf.name in results["data"] for conf in self.conformers):
+            raise RuntimeError(
+                "Not all conformers from the current ensemble are found in the output data."
+            )
 
-            # Update results dict for the conformers
-            for conf in self.conformers:
-                conf.results.setdefault(partname, {}).update(results[conf.name])
+        # Create a part instance and load in the results
+        part = Factory.create(results["partname"], self)
+        part.results.update(results)
 
         logger.info(f"Reloaded results from {outpath}.")
+
+        self.results.append(part)
 
     def read_input(
         self,
@@ -181,7 +183,7 @@ class EnsembleData:
         # (every conf geometry is separated by a line with split length of 4 followed by a line of split length 1)
         split_indices = [
             i
-            for i in len(lines)
+            for i in range(len(lines))
             if i == 0 or (len(lines[i].split()) == 1 and len(lines[i - 1].split()) == 4)
         ]
 

@@ -2,7 +2,6 @@
 Calculates the ensemble NMR spectrum for all active nuclei.
 """
 
-from functools import reduce
 import os
 
 from ..ensembledata import EnsembleData
@@ -13,7 +12,7 @@ from ..params import (
     GFNOPTIONS,
 )
 from .property_calculator import PropertyCalculator
-from ..utilities import print, DfaHelper, format_data, SolventHelper
+from ..utilities import print, DfaHelper, format_data, SolventHelper, Factory
 from ..logging import setup_logger
 from ..part import CensoPart
 
@@ -123,10 +122,7 @@ class NMR(PropertyCalculator):
                         "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
                     )
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
-    def property(self, ncores: int) -> None:
+    def _property(self) -> None:
         """
         Calculation of the ensemble NMR of a (previously) optimized ensemble.
         Note, that the ensemble will not be modified anymore.
@@ -145,38 +141,39 @@ class NMR(PropertyCalculator):
             )
 
         # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self.setup_prepinfo()
+        prepinfo = self._setup_prepinfo()
 
         # compute results
         # for structure of results from handler.execute look there
-        success, _, failed = execute(
-            self.ensemble.conformers,
-            self.dir,
+        results, failed = execute(
+            self._ensemble.conformers,
+            self._dir,
             self.get_settings()["prog"],
             prepinfo,
             jobtype,
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
-            omp=self.get_general_settings()["omp"],
-            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
         # Remove failed conformers
-        self.ensemble.remove_conformers(failed)
+        self._ensemble.remove_conformers(failed)
+
+        # Update results
+        self._update_results(results)
 
         # Generate files for ANMR
         self.__generate_anmr()
 
         # Write data
-        self.write_results()
+        self._write_results()
 
-    def setup_prepinfo(self) -> dict[str, dict]:
+    def _setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
 
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["partname"] = self.name
+        prepinfo["charge"] = self._ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self._ensemble.runinfo.get("unpaired")
         prepinfo["general"] = self.get_general_settings()
 
         # The first condition checks if the settings are the same for shieldings and couplings calculations
@@ -279,16 +276,16 @@ class NMR(PropertyCalculator):
             "ONOFF": lambda conf: "1",
             "NMR": lambda conf: f"{conf.name[4:]}",
             "CONF": lambda conf: f"{conf.name[4:]}",
-            "BW": lambda conf: f"{conf.results[self._name]['bmw']:.4f}",
-            "Energy": lambda conf: f"{conf.results[self._name]['energy']:.6f}",
-            "Gsolv": lambda conf: f"{conf.results[self._name]['gsolv']:.6f}",
-            "mRRHO": lambda conf: f"{conf.results[self._name]['grrho']:.6f}",
+            "BW": lambda conf: f"{self.results['data'][conf.name]['bmw']:.4f}",
+            "Energy": lambda conf: f"{self.results['data'][conf.name]['energy']:.6f}",
+            "Gsolv": lambda conf: f"{self.results['data'][conf.name]['gsolv']:.6f}",
+            "mRRHO": lambda conf: f"{self.results['data'][conf.name]['grrho']:.6f}",
             "gi": lambda conf: f"{conf.degen}",
         }
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.ensemble.conformers
+            for conf in self._ensemble.conformers
         ]
 
         lines = format_data(headers, rows)
@@ -316,8 +313,8 @@ class NMR(PropertyCalculator):
 
         # TODO - since the only program right now is ORCA, the reference solvent model is always SMD
         # Check, if a geometry optimization has been done before
-        if all("optimization" in conf.results.keys() for conf in self.ensemble.conformers):
-            from ..ensembleopt.optimization import Optimization
+        if all("optimization" in conf.results.keys() for conf in self._ensemble.conformers):
+            from .._ensembleopt.optimization import Optimization
             func_geomopt = Optimization.get_settings()["func"]
             basis_geomopt = Optimization.get_setting()["basis"]
         # Otherwise, warn the user
@@ -340,41 +337,36 @@ class NMR(PropertyCalculator):
                 )
         """
         # Write 'nmrprop.dat's and coord files
-        for conf in self.ensemble.conformers:
-            confdir = os.path.join(self.dir, conf.name)
+        for conf in self._ensemble.conformers:
+            confdir = os.path.join(self._dir, conf.name)
             lines = []
 
             # first: atom no. | sigma(iso)
             # atom no.s according to their appearance in the xyz-file
             # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
-            for i, shielding in conf.results[self._name]["nmr"]["shieldings"]:
+            for i, shielding in self.results["data"][conf.name]["nmr"]["shieldings"]:
                 lines.append(f"{i + 1:4} {shielding:.3f}\n")
 
             # Fill in blank lines
             for _ in range(
-                conf.geom.nat - len(conf.results[self._name]["nmr"]["shieldings"])
+                conf.geom.nat
+                - len(self.results["data"][conf.name]["nmr"]["shieldings"])
             ):
                 lines.append("\n")
 
             # then: atom no.1 | atom no.2 | J12
-            for (i, j), coupling in conf.results[self._name]["nmr"]["couplings"]:
+            for (i, j), coupling in self.results["data"][conf.name]["nmr"]["couplings"]:
                 lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
                 f.writelines(lines)
 
-            # Write coord files
-            lines = conf.geom.tocoord()
-            logger.debug(f"Writing to {os.path.join(confdir, 'coord')}.")
-            with open(os.path.join(confdir, "coord"), "w") as f:
-                f.writelines(lines)
-
         print(
             "\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file."
         )
 
-    def shieldings_averaging(self):
+    def _shieldings_averaging(self):
         """
         Calculate the population weighted shielding constants for the ensemble NMR spectrum.
         """
@@ -382,9 +374,12 @@ class NMR(PropertyCalculator):
         # add shift shielding value multiplied by bmw to a list
         pass
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         Write result shieldings and/or couplings to files.
         """
         # Write results to json file
-        self.write_json()
+        self._write_json()
+
+
+Factory.register_builder("nmr", NMR)

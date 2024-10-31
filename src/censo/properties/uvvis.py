@@ -2,14 +2,12 @@
 Calculates the ensemble UV/Vis spectrum.
 """
 
-from functools import reduce
 import json
 import os
 
-from ..ensembledata import EnsembleData
 from ..parallel import execute
 from ..params import SOLV_MODS, GFNOPTIONS, PROGS
-from ..utilities import SolventHelper, DfaHelper, format_data, print
+from ..utilities import SolventHelper, DfaHelper, format_data, print, Factory
 from ..logging import setup_logger
 from .property_calculator import PropertyCalculator
 from ..part import CensoPart
@@ -18,6 +16,11 @@ logger = setup_logger(__name__)
 
 
 class UVVis(PropertyCalculator):
+    """
+    Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
+    Note, that the ensemble will not be modified anymore.
+    """
+
     __solv_mods = {
         prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
         for prog in PROGS
@@ -95,49 +98,43 @@ class UVVis(PropertyCalculator):
                 "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
             )
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
-    def property(self, ncores: int) -> None:
-        """
-        Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
-        Note, that the ensemble will not be modified anymore.
-        """
+    def _property(self) -> None:
         jobtype = ["uvvis"]
 
         # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self.setup_prepinfo()
+        prepinfo = self._setup_prepinfo()
 
         # compute results
         # for structure of results from handler.execute look there
-        success, _, failed = execute(
-            self.ensemble.conformers,
-            self.dir,
+        results, failed = execute(
+            self._ensemble.conformers,
+            self._dir,
             self.get_settings()["prog"],
             prepinfo,
             jobtype,
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
-            omp=self.get_general_settings()["omp"],
-            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
         # Remove failed conformers
-        self.ensemble.remove_conformers(failed)
+        self._ensemble.remove_conformers(failed)
+
+        # Update results
+        self._update_results(results)
 
         # Ensemble averaging of excitations
         self.__excitation_averaging()
 
         # Write data
-        self.write_results()
+        self._write_results()
 
-    def setup_prepinfo(self) -> dict[str, dict]:
+    def _setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
 
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["partname"] = self.name
+        prepinfo["charge"] = self._ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self._ensemble.runinfo.get("unpaired")
         prepinfo["general"] = self.get_general_settings()
 
         prepinfo["uvvis"] = {
@@ -168,9 +165,11 @@ class UVVis(PropertyCalculator):
         # Calculate epsilon_max (maximum extinctions) for each excitation, weighted by population
         # eps is a list of tuples that contain each excitation wavelength with the respective epsilon_max
         eps = []
-        for conf in self.ensemble.conformers:
-            for excitation in conf.results[self._name]["uvvis"]["excitations"]:
-                epsilon_max = conf.bmws[-1] * excitation["osc_str"]
+        for conf in self._ensemble.conformers:
+            for excitation in conf.results[self.name]["uvvis"]["excitations"]:
+                epsilon_max = (
+                    self.results["data"][conf.name]["bmw"] * excitation["osc_str"]
+                )
                 eps.append((excitation["wavelength"], epsilon_max, conf.name))
 
         # Print table
@@ -194,12 +193,12 @@ class UVVis(PropertyCalculator):
 
         # write lines to file
         logger.debug(
-            f"Writing to {os.path.join(os.getcwd(), f'{self._part_nos[self._name]}_{self._name.upper()}.out')}."
+            f"Writing to {os.path.join(os.getcwd(), f'{self._part_nos[self.name]}_{self.name.upper()}.out')}."
         )
         with open(
             os.path.join(
                 os.getcwd(),
-                f"{self._part_nos[self._name]}_{self._name.upper()}.out",
+                f"{self._part_nos[self.name]}_{self.name.upper()}.out",
             ),
             "w",
             newline=None,
@@ -210,9 +209,12 @@ class UVVis(PropertyCalculator):
         with open(os.path.join(os.getcwd(), "excitations.json"), "w") as f:
             json.dump(eps, f, indent=4)
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         Write result excitations to files.
         """
         # Write results to json file
-        self.write_json()
+        self._write_json()
+
+
+Factory.register_builder("uvvis", UVVis)

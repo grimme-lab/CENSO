@@ -1,32 +1,35 @@
 import os
-from functools import reduce
-
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS, SOLV_MODS
-from ..utilities import format_data, h1, print, DfaHelper
+from ..params import AU2KCAL, PLENGTH, Config
+from ..utilities import format_data, h1, print, DfaHelper, Factory
 from .prescreening import Prescreening
 from .screening import Screening
+from .optimization import Optimization
 
 logger = setup_logger(__name__)
 
 
 class Refinement(Screening):
+    """
+    Similar to Screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
+    """
+
     _grid = "high+"
 
-    __solv_mods = {prog: SOLV_MODS[prog] for prog in PROGS}
-    # __gsolv_mods = reduce(lambda x, y: x + y, GSOLV_MODS.values())
+    __solv_mods = {prog: Config.SOLV_MODS[prog] for prog in Config.PROGS}
+    # __gsolv_mods = reduce(lambda x, y: x + y, GConfig.SOLV_MODS.values())
 
     _options = {
         "threshold": {"default": 0.95},
         "func": {
             "default": "wb97x-v",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
         },
         "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "tm", "options": PROGS},
+        "prog": {"default": "tm", "options": Config.PROGS},
         "sm": {"default": "cosmors", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
         "run": {"default": True},
         "implicit": {"default": False},
         "template": {"default": False},
@@ -35,77 +38,76 @@ class Refinement(Screening):
     _settings = {}
 
     def _optimize(self, cut: bool = True) -> None:
-        """
-        Similar to Screening.optimize, however here we use a Boltzmann population cutoff instead of kcal cutoff.
-        """
         Prescreening._optimize(self, cut=False)
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
-            # TODO FIXME
-            if not all(
-                "optimization" in conf.results.keys()
-                for conf in self.ensemble.conformers
-            ):
+            if not any(isinstance(p, Optimization) for p in self._ensemble.results):
                 jobtype = ["xtb_rrho"]
                 prepinfo = self._setup_prepinfo(jobtype)
 
                 # append results to previous results
                 results, failed = execute(
-                    self.ensemble.conformers,
-                    self.dir,
+                    self._ensemble.conformers,
+                    self._dir,
                     self.get_settings()["prog"],
                     prepinfo,
                     jobtype,
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
-                    omp=self.get_general_settings()["omp"],
-                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
                 # Remove failed conformers
-                self.ensemble.remove_conformers(failed)
+                self._ensemble.remove_conformers(failed)
 
                 # Update results
-                self.results.update(results)
+                self._update_results(results)
 
-                for conf in self.ensemble.conformers:
+                for conf in self._ensemble.conformers:
                     # calculate new gtot including RRHO contribution
-                    self.results[conf.name]["gtot"] = self._grrho(conf)
+                    self.results["data"][conf.name]["gtot"] = self._grrho(conf)
             else:
-                # Use values from optimization rrho
-                # TODO FIXME
-                for conf in self.ensemble.conformers:
-                    self.results[conf.name]["xtb_rrho"] = conf.results["optimization"][
-                        "xtb_rrho"
-                    ]
-                    self.results[conf.name]["gtot"] = self._grrho(conf)
+                # Use values from most recent optimization rrho
+                using_part = [
+                    p for p in self._ensemble.results if isinstance(p, Optimization)
+                ][-1]
+
+                for conf in self._ensemble.conformers:
+                    self.results["data"][conf.name]["xtb_rrho"] = using_part.results[
+                        "data"
+                    ][conf.name]["xtb_rrho"]
+                    self.results["data"][conf.name]["gtot"] = self._grrho(conf)
 
         # sort conformers list
-        self.ensemble.conformers.sort(key=lambda conf: self.results[conf.name]["gtot"])
+        self._ensemble.conformers.sort(
+            key=lambda conf: self.results["data"][conf.name]["gtot"]
+        )
 
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-        self.results.update(self._calc_boltzmannweights())
+        self._update_results(self._calc_boltzmannweights())
 
         if cut:
             # Get Boltzmann population threshold from settings
             threshold = self.get_settings()["threshold"]
 
             # Update ensemble using Boltzman population threshold
-            confiter = iter(self.ensemble.conformers)
+            confiter = iter(self._ensemble.conformers)
             filtered = []
-            while sum(self.results[conf.name]["bmw"] for conf in filtered) < threshold:
+            while (
+                sum(self.results["data"][conf.name]["bmw"] for conf in filtered)
+                < threshold
+            ):
                 filtered.append(next(confiter))
 
             # Remove conformers
-            self.ensemble.remove_conformers([conf.name for conf in filtered])
+            self._ensemble.remove_conformers([conf.name for conf in filtered])
             for conf in filtered:
                 print(f"No longer considering {conf.name}.")
 
             # Recalculate boltzmann weights after cutting down the ensemble
-            self.results.update(self._calc_boltzmannweights())
+            self._update_results(self._calc_boltzmannweights())
 
         # second 'write_results' for the updated sorting with RRHO contributions
         self._write_results2()
@@ -125,7 +127,7 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
-        print(h1(f"{self._name.upper()} RRHO RESULTS"))
+        print(h1(f"{self.name.upper()} RRHO RESULTS"))
         # column headers
         headers = [
             "CONF#",
@@ -150,45 +152,47 @@ class Refinement(Screening):
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO
         gtotmin = min(
-            self.results[conf.name]["gtot"] for conf in self.ensemble.conformers
+            self.results["data"][conf.name]["gtot"]
+            for conf in self._ensemble.conformers
         )
 
         # collect all dft single point energies
         dft_energies = (
             {
-                id(conf): self.results[conf.name]["sp"]["energy"]
-                for conf in self.ensemble.conformers
+                conf.name: self.results["data"][conf.name]["sp"]["energy"]
+                for conf in self._ensemble.conformers
             }
             if not all(
-                "gsolv" in self.results[conf.name] for conf in self.ensemble.conformers
+                "gsolv" in self.results["data"][conf.name]
+                for conf in self._ensemble.conformers
             )
             else {
-                id(conf): self.results[conf.name]["gsolv"]["energy_gas"]
-                for conf in self.ensemble.conformers
+                conf.name: self.results["data"][conf.name]["gsolv"]["energy_gas"]
+                for conf in self._ensemble.conformers
             }
         )
 
         printmap = {
             "CONF#": lambda conf: conf.name,
-            "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
+            "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
             "ΔGsolv": lambda conf: (
-                f"{self._gsolv(conf) - dft_energies[id(conf)]:.6f}"
-                if "gsolv" in self.results[conf.name]
+                f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
+                if "gsolv" in self.results["data"][conf.name]
                 else "---"
             ),
             "GmRRHO": lambda conf: (
-                f"{self.results[conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+                f"{self.results['data'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
-            "Gtot": lambda conf: f"{self.results[conf.name]['gtot']:.6f}",
-            "ΔGtot": lambda conf: f"{(self.results[conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{self.results[conf.name]['bmw'] * 100:.2f}",
+            "Gtot": lambda conf: f"{self.results['data'][conf.name]['gtot']:.6f}",
+            "ΔGtot": lambda conf: f"{(self.results['data'][conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.results['data'][conf.name]['bmw'] * 100:.2f}",
         }
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.ensemble.conformers
+            for conf in self._ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
@@ -204,22 +208,27 @@ class Refinement(Screening):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                self.results[conf.name]["bmw"] * self.results[conf.name]["gtot"]
-                for conf in self.ensemble.conformers
+                self.results["data"][conf.name]["bmw"]
+                * self.results["data"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
             ]
         )
 
         # calculate averaged free energy
         avE = (
             sum(
-                self.results[conf.name]["bmw"] * self.results[conf.name]["sp"]["energy"]
-                for conf in self.ensemble.conformers
+                self.results["data"][conf.name]["bmw"]
+                * self.results["data"][conf.name]["sp"]["energy"]
+                for conf in self._ensemble.conformers
             )
-            if all("sp" in self.results[conf.name] for conf in self.ensemble.conformers)
+            if all(
+                "sp" in self.results["data"][conf.name]
+                for conf in self._ensemble.conformers
+            )
             else sum(
-                self.results[conf.name]["bmw"]
-                * self.results[conf.name]["gsolv"]["energy_gas"]
-                for conf in self.ensemble.conformers
+                self.results["data"][conf.name]["bmw"]
+                * self.results["data"][conf.name]["gsolv"]["energy_gas"]
+                for conf in self._ensemble.conformers
             )
         )
 
@@ -234,10 +243,13 @@ class Refinement(Screening):
             print(line, flush=True, end="")
 
         # append lines to already existing file
-        filename = f"{self._part_nos[self._name]}_{self._name.upper()}.out"
+        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
         logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
         with open(os.path.join(os.getcwd(), filename), "a", newline=None) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write the results to a json file
         self._write_json()
+
+
+Factory.register_builder("refinement", Refinement)

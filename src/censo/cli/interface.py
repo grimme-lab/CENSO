@@ -11,9 +11,9 @@ from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
 from ..properties import NMR, UVVis
-from ..params import __version__
+from ..params import __version__, Config
 from ..utilities import print
-from ..logging import setup_logger, set_loglevel
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -43,23 +43,18 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
-    CensoPart.print_info()
+    CensoPart(ensemble, print_info=True)
 
     run = filter(
         lambda x: x.get_settings()["run"],
         [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
     )
 
-    # FIXME TODO
-    ncores = 4
-    if args.maxcores:
-        ncores = args.maxcores
-
     time = 0.0
     for part in run:
-        res = part(ensemble)
-        print(f"Ran {part._name} in {res.runtime:.2f} seconds!")
-        time += res.runtime
+        res, runtime = part.run(ensemble)
+        print(f"Ran {res.name} in {runtime:.2f} seconds!")
+        time += runtime
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
@@ -111,6 +106,12 @@ def startup(args) -> EnsembleData | None:
     if args.reload:
         for filename in args.reload:
             ensemble.read_output(os.path.join(cwd, filename))
+
+    if args.maxcores:
+        Config.NCORES = args.maxcores
+
+    if args.omp:
+        Config.OMP = args.omp
 
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)

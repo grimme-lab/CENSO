@@ -7,12 +7,11 @@ import shutil
 from collections import OrderedDict
 from functools import reduce
 
-from .utilities import od_insert
+from .utilities import od_insert, Factory
 from .logging import setup_logger
 from .datastructure import GeometryData, ParallelJob
 from .params import (
-    CODING,
-    USER_ASSETS_PATH,
+    Config,
     WARNLEN,
 )
 from .qm_processor import QmProc
@@ -1608,3 +1607,6 @@ class OrcaProc(QmProc):
                     indict = od_insert(indict, key, value, 1)
 
         return indict
+
+
+Factory.register_builder("orca", OrcaProc)
