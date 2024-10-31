@@ -6,7 +6,7 @@ import json
 import os
 
 from ..parallel import execute
-from ..params import SOLV_MODS, GFNOPTIONS, PROGS
+from ..params import Config
 from ..utilities import SolventHelper, DfaHelper, format_data, print, Factory
 from ..logging import setup_logger
 from .property_calculator import PropertyCalculator
@@ -22,19 +22,21 @@ class UVVis(PropertyCalculator):
     """
 
     __solv_mods = {
-        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
-        for prog in PROGS
+        prog: tuple(
+            t for t in Config.SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine")
+        )
+        for prog in Config.PROGS
     }
 
     _options = {
         "prog": {"default": "orca", "options": ["orca"]},  # required
         "func": {
             "default": "wb97x-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
         },
         "basis": {"default": "def2-TZVP"},
         "sm": {"default": "smd", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
         "nroots": {"default": 20},
         "run": {"default": False},  # required
         "template": {"default": False},  # required

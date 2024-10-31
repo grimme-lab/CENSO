@@ -4,13 +4,8 @@ Calculates the ensemble NMR spectrum for all active nuclei.
 
 import os
 
-from ..ensembledata import EnsembleData
 from ..parallel import execute
-from ..params import (
-    SOLV_MODS,
-    PROGS,
-    GFNOPTIONS,
-)
+from ..params import Config
 from .property_calculator import PropertyCalculator
 from ..utilities import print, DfaHelper, format_data, SolventHelper, Factory
 from ..logging import setup_logger
@@ -23,27 +18,29 @@ class NMR(PropertyCalculator):
     _grid = "nmr"
 
     __solv_mods = {
-        prog: tuple(t for t in SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine"))
-        for prog in PROGS
+        prog: tuple(
+            t for t in Config.SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine")
+        )
+        for prog in Config.PROGS
     }
 
     _options = {
         "resonance_frequency": {"default": 300.0},
         "ss_cutoff": {"default": 8.0},
-        "prog": {"default": "orca", "options": PROGS},  # required
+        "prog": {"default": "orca", "options": Config.PROGS},  # required
         "func_j": {
             "default": "pbe0-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
         },
         "basis_j": {"default": "def2-TZVP"},
         "sm_j": {"default": "smd", "options": __solv_mods},
         "func_s": {
             "default": "pbe0-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
         },
         "basis_s": {"default": "def2-TZVP"},
         "sm_s": {"default": "smd", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
         "run": {"default": False},  # required
         "template": {"default": False},  # required
         "couplings": {"default": True},
@@ -220,7 +217,7 @@ class NMR(PropertyCalculator):
                 "_s": self.get_settings()["shieldings"],
                 "_j": self.get_settings()["couplings"],
             }
-            endings = [ending for ending in todo.keys() if todo[ending]]
+            endings = [ending for ending, active in todo.items() if active]
             for ending in endings:
                 prepinfo[f"nmr{ending}"] = {
                     "func_name": DfaHelper.get_name(
