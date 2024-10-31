@@ -400,17 +400,22 @@ class CensoPart:
         temp = self.get_general_settings()["temperature"]
         # find lowest gtot value
         if all(
-            "gtot" in self.results[conf.name].keys()
+            "gtot" in self.results["data"][conf.name]
             for conf in self._ensemble.conformers
         ):
             minfree: float = min(
-                self.results[conf.name]["gtot"] for conf in self._ensemble.conformers
+                self.results["data"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
             )
 
             # calculate boltzmann factors
             bmfactors = {
                 conf.name: conf.degen
-                * exp(-(self.results[conf.name]["gtot"] - minfree) * AU2J / (KB * temp))
+                * exp(
+                    -(self.results["data"][conf.name]["gtot"] - minfree)
+                    * AU2J
+                    / (KB * temp)
+                )
                 for conf in self._ensemble.conformers
             }
         else:
@@ -420,11 +425,11 @@ class CensoPart:
             gtot_replacement = False
             for jt in ["xtb_opt", "sp"]:
                 if all(
-                    jt in self.results[conf.name].keys()
+                    jt in self.results["data"][conf.name].keys()
                     for conf in self._ensemble.conformers
                 ):
                     minfree: float = min(
-                        self.results[conf.name][jt]["energy"]
+                        self.results["data"][conf.name][jt]["energy"]
                         for conf in self._ensemble.conformers
                     )
 
@@ -432,7 +437,7 @@ class CensoPart:
                     bmfactors = {
                         conf.name: conf.degen
                         * exp(
-                            -(self.results[conf.name][jt]["energy"] - minfree)
+                            -(self.results["data"][conf.name][jt]["energy"] - minfree)
                             * AU2J
                             / (KB * temp)
                         )
