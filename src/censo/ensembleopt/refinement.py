@@ -74,8 +74,8 @@ class Refinement(Screening):
                 ][-1]
 
                 for conf in self._ensemble.conformers:
-                    self.data["results"][conf.name]["xtb_rrho"] = using_part.results[
-                        "data"
+                    self.data["results"][conf.name]["xtb_rrho"] = using_part.data[
+                        "results"
                     ][conf.name]["xtb_rrho"]
                     self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 

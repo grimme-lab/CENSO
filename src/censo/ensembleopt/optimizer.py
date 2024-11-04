@@ -114,7 +114,7 @@ class EnsembleOptimizer(CensoPart):
         self._write_results()
 
         # Print comparison with previous parts
-        if len(self._ensemble.results) > 0:
+        if len(self._ensemble.results) > 1:
             self._print_comparison()
 
         # Print information about ensemble after optimization
