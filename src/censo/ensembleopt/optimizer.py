@@ -316,7 +316,7 @@ class EnsembleOptimizer(CensoPart):
             # Same lambda bullshittery as in parallel.py/dqp, python needs the lambda kwargs or it will
             # use the same values for every lambda call
             printmap[header] = (
-                lambda conf, partl=part, headerl=header: f"{(partl.data['results'][conf.name]['gtot'] - gtotmin[part.name]) * AU2KCAL:.2f}"
+                lambda conf, partl=part, headerl=header: f"{(partl.data['results'][conf.name]['gtot'] - gtotmin[partl.name]) * AU2KCAL:.2f}"
             )
 
         rows = [
