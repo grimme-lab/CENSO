@@ -351,7 +351,7 @@ class Optimization(EnsembleOptimizer):
             # remove converged conformers from 'todo-list'
             for conf in list(
                 filter(
-                    lambda x: x.results[self.name][jobtype[0]]["converged"],
+                    lambda x: self.data["results"][x.name][jobtype[0]]["converged"],
                     self.__confs_nc,
                 )
             ):

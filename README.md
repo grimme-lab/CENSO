@@ -1,5 +1,5 @@
 # NEW: CENSO 2.0
-This is the updated version of the former CENSO 1.3 program. New features include the possibility to use ``CENSO`` as a package from within Python, template files, dummy functionals, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
+This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, dummy functionals, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
 
 # Installation
 Can be installed using `pip` by running
