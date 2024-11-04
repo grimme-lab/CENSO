@@ -298,7 +298,7 @@ class EnsembleOptimizer(CensoPart):
         gtotmin = {part: 0.0 for part in parts}
         for part in parts:
             gtotmin[part] = min(
-                part.results["data"][conf.name]["gtot"]
+                part.data["results"][conf.name]["gtot"]
                 for conf in self._ensemble.conformers
             )
 
