@@ -155,6 +155,7 @@ class EnsembleData:
         split into conformers
         create MoleculeData objects out of coord input
         read out energy from xyz file if possible
+        In principle this can also read xyz-files with molecules of different sizes.
 
         Args:
             input_path (str): Path to the ensemble input file.
@@ -219,9 +220,7 @@ class EnsembleData:
 
             # get precalculated energies if possible
             # precalculated energy set to 0.0 if it cannot be found
-            self.conformers[i].xtb_energy = (
-                check_for_float(lines[conf_index + 1]) or 0.0
-            )
+            self.conformers[i].xtb_energy = check_for_float(lines[conf_index + 1])
 
             # also works if xtb_energy is None for some reason (None is put first)
             self.conformers.sort(key=lambda x: x.xtb_energy)

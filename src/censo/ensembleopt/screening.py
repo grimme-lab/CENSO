@@ -329,15 +329,18 @@ class Screening(Prescreening):
 
             gxtb = {
                 conf.name: using_part.data["results"][conf.name]["xtb_gsolv"][
-                    "energy_xtb_gas"
+                    "energy_xtb_solv"
                 ]
                 for conf in self._ensemble.conformers
             }
-            if self.get_general_settings()["evaluate_rrho"]:
-                for conf in self._ensemble.conformers:
-                    gxtb[conf.name] += using_part.data["results"][conf.name][
-                        "xtb_rrho"
-                    ]["gibbs"][self.get_general_settings()["temperature"]]
+        elif all(conf.xtb_energy is not None for conf in self._ensemble.conformers):
+            gxtb = {conf.name: conf.xtb_energy for conf in self._ensemble.conformers}
+
+        if self.get_general_settings()["evaluate_rrho"] and gxtb is not None:
+            for conf in self._ensemble.conformers:
+                gxtb[conf.name] += self.data["results"][conf.name]["xtb_rrho"]["gibbs"][
+                    self.get_general_settings()["temperature"]
+                ]
             gxtbmin = min(gxtb.values())
 
         # minimal gtot from E(DFT), Gsolv and GmRRHO

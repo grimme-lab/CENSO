@@ -132,7 +132,7 @@ class MoleculeData:
         # stores the degeneration factor of the conformer
         self.degen: int = 1
 
-        # stores the initial xtb energy from CREST (or whatever was used before)
+        # stores the initial (biased) xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float = None
 
         # list to store the paths to all MO-files from the jobs run for this conformer
