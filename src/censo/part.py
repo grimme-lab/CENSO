@@ -350,7 +350,8 @@ class CensoPart:
         """
         Run part logic by creating a new instance of the part. Returns a part object,
         which serves the purpose of having a storage location for all information
-        (i.e. which settings were used, results).
+        (i.e. which settings were used, results). Will also attach a reference to
+        the instance to the EnsembleData.results.
 
         Do not override!
 
@@ -365,6 +366,10 @@ class CensoPart:
 
         runtime = instance(**kwargs)
         instance.data["runtime"] = runtime
+
+        # Append a reference to the run instance to the ensemble results for
+        # book keeping
+        ensemble.results.append(instance)
 
         # Return the instance in the final state and the runtime
         return instance, runtime
