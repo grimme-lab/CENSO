@@ -126,9 +126,6 @@ class Screening(Prescreening):
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
             self._update_results(self._calc_boltzmannweights())
 
-            # second 'write_results' for the updated sorting with RRHO contributions
-            self._write_results2()
-
     def _gsolv(self, conf: MoleculeData) -> float:
         """
         Override of the function from Prescreening.
@@ -155,126 +152,127 @@ class Screening(Prescreening):
         # NOTE: grrho should only be called if evaluate_rrho is True
         return self._gsolv(conf) + self.data["results"][conf.name]["xtb_rrho"]["energy"]
 
+    # Unused atm
+    # def _write_results(self) -> None:
+    #    """
+    #    Similar to the _write_results from prescreening.
+    #    Write the results to a file in formatted way.
+    #    writes (1):
+    #        E (xtb),
+    #        δE (xtb),
+    #        E (DFT),
+    #        δGsolv (DFT),
+    #        Gtot,
+    #        δGtot
+
+    #    Generates NO csv file. All info is included in the file written in write_results2.
+    #    """
+    #    print(h1(f"{self.name.upper()} SINGLE-POINT RESULTS"))
+    #    # PART (1) of writing
+    #    # column headers
+    #    headers = [
+    #        "CONF#",
+    #        "E (xTB)",
+    #        "ΔE (xTB)",
+    #        "E (DFT)",
+    #        "ΔGsolv",
+    #        "Gtot",
+    #        "ΔGtot",
+    #    ]
+
+    #    # column units
+    #    units = [
+    #        "",
+    #        "[Eh]",
+    #        "[kcal/mol]",
+    #        "[Eh]",
+    #        "[Eh]",
+    #        "[Eh]",
+    #        "[kcal/mol]",
+    #    ]
+
+    #    # variables for printmap
+    #    # minimum xtb single-point energy (taken from prescreening)
+    #    xtb_energies = None
+    #    xtbmin = None
+    #    if (
+    #        any(isinstance(p, Prescreening) for p in self._ensemble.results)
+    #        and not self.get_general_settings()["gas-phase"]
+    #    ):
+    #        # Get the most recent prescreening part
+    #        using_part = [
+    #            p for p in self._ensemble.results if isinstance(p, Prescreening)
+    #        ][-1]
+
+    #        xtb_energies = {
+    #            conf.name: using_part.results["data"][conf.name]["xtb_gsolv"][
+    #                "energy_xtb_gas"
+    #            ]
+    #            for conf in self._ensemble.conformers
+    #        }
+    #        xtbmin = min(xtb_energies.values())
+
+    #    # minimum total free enthalpy (single-point and potentially gsolv)
+    #    gsolvmin = min(self._gsolv(conf) for conf in self._ensemble.conformers)
+
+    #    # collect all dft single point energies
+    #    dft_energies = (
+    #        {
+    #            conf.name: self.data["results"][conf.name]["sp"]["energy"]
+    #            for conf in self._ensemble.conformers
+    #        }
+    #        if not all(
+    #            "gsolv" in self.data["results"][conf.name].keys()
+    #            for conf in self._ensemble.conformers
+    #        )
+    #        else {
+    #            conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
+    #            for conf in self._ensemble.conformers
+    #        }
+    #    )
+
+    #    # determines what to print for each conformer in each column
+    #    printmap = {
+    #        "CONF#": lambda conf: conf.name,
+    #        "E (xTB)": lambda conf: (
+    #            f"{xtb_energies[conf.name]:.6f}" if xtb_energies is not None else "---"
+    #        ),
+    #        "ΔE (xTB)": lambda conf: (
+    #            f"{(xtb_energies[conf.name] - xtbmin) * AU2KCAL:.2f}"
+    #            if xtb_energies is not None
+    #            else "---"
+    #        ),
+    #        "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
+    #        "ΔGsolv": lambda conf: (
+    #            f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
+    #            if "xtb_gsolv" in self.data["results"][conf.name].keys()
+    #            or "gsolv" in self.data["results"][conf.name].keys()
+    #            else "---"
+    #        ),
+    #        "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
+    #        "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
+    #    }
+
+    #    rows = [
+    #        [printmap[header](conf) for header in headers]
+    #        for conf in self._ensemble.conformers
+    #    ]
+
+    #    lines = format_data(headers, rows, units=units)
+
+    #    # Print everything
+    #    for line in lines:
+    #        print(line, flush=True, end="")
+
+    #    print("".ljust(PLENGTH, "-"))
+
+    #    # write everything to a file
+    #    filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
+    #    logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
+    #    with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
+    #        outfile.writelines(lines)
+
     def _write_results(self) -> None:
-        """
-        Overrides the write_results function of Prescreening.
-        Write the results to a file in formatted way.
-        writes (1):
-            E (xtb),
-            δE (xtb),
-            E (DFT),
-            δGsolv (DFT),
-            Gtot,
-            δGtot
-
-        Generates NO csv file. All info is included in the file written in write_results2.
-        """
-        print(h1(f"{self.name.upper()} SINGLE-POINT RESULTS"))
-        # PART (1) of writing
-        # column headers
-        headers = [
-            "CONF#",
-            "E (xTB)",
-            "ΔE (xTB)",
-            "E (DFT)",
-            "ΔGsolv",
-            "Gtot",
-            "ΔGtot",
-        ]
-
-        # column units
-        units = [
-            "",
-            "[Eh]",
-            "[kcal/mol]",
-            "[Eh]",
-            "[Eh]",
-            "[Eh]",
-            "[kcal/mol]",
-        ]
-
-        # variables for printmap
-        # minimum xtb single-point energy (taken from prescreening)
-        xtb_energies = None
-        xtbmin = None
-        if (
-            any(isinstance(p, Prescreening) for p in self._ensemble.results)
-            and not self.get_general_settings()["gas-phase"]
-        ):
-            # Get the most recent prescreening part
-            using_part = [
-                p for p in self._ensemble.results if isinstance(p, Prescreening)
-            ][-1]
-
-            xtb_energies = {
-                conf.name: using_part.results["data"][conf.name]["xtb_gsolv"][
-                    "energy_xtb_gas"
-                ]
-                for conf in self._ensemble.conformers
-            }
-            xtbmin = min(xtb_energies.values())
-
-        # minimum total free enthalpy (single-point and potentially gsolv)
-        gsolvmin = min(self._gsolv(conf) for conf in self._ensemble.conformers)
-
-        # collect all dft single point energies
-        dft_energies = (
-            {
-                conf.name: self.data["results"][conf.name]["sp"]["energy"]
-                for conf in self._ensemble.conformers
-            }
-            if not all(
-                "gsolv" in self.data["results"][conf.name].keys()
-                for conf in self._ensemble.conformers
-            )
-            else {
-                conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
-                for conf in self._ensemble.conformers
-            }
-        )
-
-        # determines what to print for each conformer in each column
-        printmap = {
-            "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: (
-                f"{xtb_energies[conf.name]:.6f}" if xtb_energies is not None else "---"
-            ),
-            "ΔE (xTB)": lambda conf: (
-                f"{(xtb_energies[conf.name] - xtbmin) * AU2KCAL:.2f}"
-                if xtb_energies is not None
-                else "---"
-            ),
-            "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
-            "ΔGsolv": lambda conf: (
-                f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
-                if "xtb_gsolv" in self.data["results"][conf.name].keys()
-                or "gsolv" in self.data["results"][conf.name].keys()
-                else "---"
-            ),
-            "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
-            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
-        }
-
-        rows = [
-            [printmap[header](conf) for header in headers]
-            for conf in self._ensemble.conformers
-        ]
-
-        lines = format_data(headers, rows, units=units)
-
-        # Print everything
-        for line in lines:
-            print(line, flush=True, end="")
-
-        print("".ljust(PLENGTH, "-"))
-
-        # write everything to a file
-        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
-        with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
-            outfile.writelines(lines)
-
-    def _write_results2(self) -> None:
         """
         Additional write function in case RRHO is used.
         Write the results to a file in formatted way. This is appended to the first file.

@@ -128,9 +128,6 @@ class UVVis(PropertyCalculator):
         # Ensemble averaging of excitations
         self.__excitation_averaging()
 
-        # Write data
-        self._write_results()
-
     def _setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
 

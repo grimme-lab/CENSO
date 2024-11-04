@@ -162,9 +162,6 @@ class NMR(PropertyCalculator):
         # Generate files for ANMR
         self.__generate_anmr()
 
-        # Write data
-        self._write_results()
-
     def _setup_prepinfo(self) -> dict[str, dict]:
         prepinfo = {}
 
@@ -273,10 +270,10 @@ class NMR(PropertyCalculator):
             "ONOFF": lambda conf: "1",
             "NMR": lambda conf: f"{conf.name[4:]}",
             "CONF": lambda conf: f"{conf.name[4:]}",
-            "BW": lambda conf: f"{self.results['data'][conf.name]['bmw']:.4f}",
-            "Energy": lambda conf: f"{self.results['data'][conf.name]['energy']:.6f}",
-            "Gsolv": lambda conf: f"{self.results['data'][conf.name]['gsolv']:.6f}",
-            "mRRHO": lambda conf: f"{self.results['data'][conf.name]['grrho']:.6f}",
+            "BW": lambda conf: f"{self.data['results'][conf.name]['bmw']:.4f}",
+            "Energy": lambda conf: f"{self.data['results'][conf.name]['energy']:.6f}",
+            "Gsolv": lambda conf: f"{self.data['results'][conf.name]['gsolv']:.6f}",
+            "mRRHO": lambda conf: f"{self.data['results'][conf.name]['grrho']:.6f}",
             "gi": lambda conf: f"{conf.degen}",
         }
 
@@ -341,18 +338,18 @@ class NMR(PropertyCalculator):
             # first: atom no. | sigma(iso)
             # atom no.s according to their appearance in the xyz-file
             # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
-            for i, shielding in self.results["data"][conf.name]["nmr"]["shieldings"]:
+            for i, shielding in self.data["results"][conf.name]["nmr"]["shieldings"]:
                 lines.append(f"{i + 1:4} {shielding:.3f}\n")
 
             # Fill in blank lines
             for _ in range(
                 conf.geom.nat
-                - len(self.results["data"][conf.name]["nmr"]["shieldings"])
+                - len(self.data["results"][conf.name]["nmr"]["shieldings"])
             ):
                 lines.append("\n")
 
             # then: atom no.1 | atom no.2 | J12
-            for (i, j), coupling in self.results["data"][conf.name]["nmr"]["couplings"]:
+            for (i, j), coupling in self.data["results"][conf.name]["nmr"]["couplings"]:
                 lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")

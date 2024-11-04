@@ -109,10 +109,7 @@ class Refinement(Screening):
             # Recalculate boltzmann weights after cutting down the ensemble
             self._update_results(self._calc_boltzmannweights())
 
-        # second 'write_results' for the updated sorting with RRHO contributions
-        self._write_results2()
-
-    def _write_results2(self) -> None:
+    def _write_results(self) -> None:
         """
         Additional write function in case RRHO is used.
         Write the results to a file in formatted way. This is appended to the first file.

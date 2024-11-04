@@ -95,13 +95,16 @@ class EnsembleOptimizer(CensoPart):
 
         # Perform the actual optimization logic
         self._optimize(cut=cut)
+        self.data["nconf_out"] = len(self._ensemble.conformers)
+
+        # Write out results
+        self._write_results()
 
         # Print comparison with previous parts
         self._print_comparison()
 
         # Print information about ensemble after optimization
         self._print_update()
-        self.data["nconf_out"] = len(self._ensemble.conformers)
 
         # dump ensemble
         self._ensemble.dump(f"{self._part_nos[self.name]}_{self.name.upper()}")
@@ -109,6 +112,9 @@ class EnsembleOptimizer(CensoPart):
         # DONE
 
     def _optimize(self, cut: bool = True):
+        raise NotImplementedError
+
+    def _write_results(self):
         raise NotImplementedError
 
     def _setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:

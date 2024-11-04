@@ -124,8 +124,6 @@ class Prescreening(EnsembleOptimizer):
         # calculate boltzmann weights from gtot values calculated here
         self._update_results(self._calc_boltzmannweights())
 
-        self._write_results()
-
         if cut:
             print("\n")
             # update conformers with threshold
