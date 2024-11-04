@@ -13,7 +13,7 @@ from ..part import CensoPart
 from ..properties import NMR, UVVis
 from ..params import __version__, Config
 from ..utilities import print
-from ..logging import setup_logger
+from ..logging import setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
 
@@ -90,6 +90,9 @@ def startup(args) -> EnsembleData | None:
         return None
     elif args.inprcpath is not None:
         configure(args.inprcpath)
+
+    if args.loglevel:
+        set_loglevel(args.loglevel)
 
     # Override settings with command line arguments
     override_rc(args)

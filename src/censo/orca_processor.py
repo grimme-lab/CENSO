@@ -424,7 +424,7 @@ class OrcaProc(QmProc):
             try:
                 indict = OrcaParser().read_input(
                     os.path.join(
-                        USER_ASSETS_PATH,
+                        Config.USER_ASSETS_PATH,
                         f"{job.prepinfo['partname']}.orca.template",
                     )
                 )
@@ -875,7 +875,7 @@ class OrcaProc(QmProc):
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         # read output
-        with open(outputpath, "r", encoding=CODING, newline=None) as out:
+        with open(outputpath, "r", encoding=Config.CODING, newline=None) as out:
             lines = out.readlines()
 
         # Get final energy
@@ -1034,7 +1034,7 @@ class OrcaProc(QmProc):
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         # read output
-        with open(outputpath, "r", encoding=CODING, newline=None) as out:
+        with open(outputpath, "r", encoding=Config.CODING, newline=None) as out:
             lines = out.readlines()
 
         # Get final energy
@@ -1266,7 +1266,7 @@ class OrcaProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath, "r", encoding=CODING, newline=None) as file:
+        with open(outputpath, "r", encoding=Config.CODING, newline=None) as file:
             lines = file.readlines()
 
         result["ecyc"] = []
