@@ -424,6 +424,7 @@ class Optimization(EnsembleOptimizer):
         formatted write of part results (optional)
         """
         print(h1(f"{self.name.upper()} RESULTS"))
+
         # column headers
         headers = [
             "CONF#",

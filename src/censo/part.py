@@ -343,6 +343,13 @@ class CensoPart:
         """
         raise NotImplementedError
 
+    def _output(self) -> None:
+        """
+        Implements printouts and writes for any output data.
+        Necessary to implement for each part.
+        """
+        raise NotImplementedError
+
     @classmethod
     def run(cls, ensemble: EnsembleData, **kwargs) -> tuple[object, float]:
         """
@@ -368,6 +375,9 @@ class CensoPart:
         # Append a reference to the run instance to the ensemble results for
         # book keeping
         ensemble.results.append(instance)
+
+        # Output the results
+        instance._output()
 
         # Return the instance in the final state and the runtime
         return instance, runtime

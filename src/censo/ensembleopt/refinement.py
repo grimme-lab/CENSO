@@ -124,7 +124,8 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
-        print(h1(f"{self.name.upper()} RRHO RESULTS"))
+        print(h1(f"{self.name.upper()} SINGLE-POINT (+ mRRHO) RESULTS"))
+
         # column headers
         headers = [
             "CONF#",
