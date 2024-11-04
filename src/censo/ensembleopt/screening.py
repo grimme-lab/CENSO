@@ -196,12 +196,12 @@ class Screening(Prescreening):
     #    xtb_energies = None
     #    xtbmin = None
     #    if (
-    #        any(isinstance(p, Prescreening) for p in self._ensemble.results)
+    #        any(type(p) is Prescreening for p in self._ensemble.results)
     #        and not self.get_general_settings()["gas-phase"]
     #    ):
     #        # Get the most recent prescreening part
     #        using_part = [
-    #            p for p in self._ensemble.results if isinstance(p, Prescreening)
+    #            p for p in self._ensemble.results if type(p) is Prescreening
     #        ][-1]
 
     #        xtb_energies = {
@@ -319,13 +319,13 @@ class Screening(Prescreening):
         gxtb = None
         gxtbmin = None
         if (
-            any(isinstance(p, Prescreening) for p in self._ensemble.results)
+            any(type(p) is Prescreening for p in self._ensemble.results)
             and not self.get_general_settings()["gas-phase"]
         ):
             # Get the most recent prescreening part
-            using_part = [
-                p for p in self._ensemble.results if isinstance(p, Prescreening)
-            ][-1]
+            using_part = [p for p in self._ensemble.results if type(p) is Prescreening][
+                -1
+            ]
 
             gxtb = {
                 conf.name: using_part.data["results"][conf.name]["xtb_gsolv"][

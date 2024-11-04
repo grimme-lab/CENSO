@@ -42,7 +42,7 @@ class Refinement(Screening):
 
         if self.get_general_settings()["evaluate_rrho"]:
             # Check if evaluate_rrho, then check if optimization was run and use that value, otherwise do xtb_rrho
-            if not any(isinstance(p, Optimization) for p in self._ensemble.results):
+            if not any(type(p) is Optimization for p in self._ensemble.results):
                 jobtype = ["xtb_rrho"]
                 prepinfo = self._setup_prepinfo(jobtype)
 
@@ -70,7 +70,7 @@ class Refinement(Screening):
             else:
                 # Use values from most recent optimization rrho
                 using_part = [
-                    p for p in self._ensemble.results if isinstance(p, Optimization)
+                    p for p in self._ensemble.results if type(p) is Optimization
                 ][-1]
 
                 for conf in self._ensemble.conformers:
