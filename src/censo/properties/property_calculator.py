@@ -130,69 +130,72 @@ class PropertyCalculator(CensoPart):
 
         energy_values = {
             "prescreening": lambda conf: {
-                "energy": self._ensemble.results[using_part]["data"][conf.name]["sp"][
-                    "energy"
-                ],
+                "energy": self._ensemble.results[using_part].data["results"][conf.name][
+                    "sp"
+                ]["energy"],
                 "gsolv": (
-                    self._ensemble.results[using_part]["data"][conf.name]["xtb_gsolv"][
-                        "gsolv"
-                    ]
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "xtb_gsolv"
+                    ]["gsolv"]
                     if "xtb_gsolv"
-                    in self._ensemble.results[using_part]["data"][conf.name]
+                    in self._ensemble.results[using_part].data["results"][conf.name]
                     else 0.0
                 ),
                 "grrho": 0.0,
             },
             "screening": lambda conf: {
                 "energy": (
-                    self._ensemble.results[using_part]["data"][conf.name]["gsolv"][
-                        "energy_gas"
-                    ]
-                    if "gsolv" in self._ensemble.results[using_part]["data"][conf.name]
-                    else self._ensemble.results[using_part]["data"][conf.name]["sp"][
-                        "energy"
-                    ]
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "gsolv"
+                    ]["energy_gas"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
+                    else self._ensemble.results[using_part].data["results"][conf.name][
+                        "sp"
+                    ]["energy"]
                 ),
                 "gsolv": (
-                    self._ensemble.results[using_part]["data"][conf.name]["gsolv"][
+                    self._ensemble.results[using_part].data["results"][conf.name][
                         "gsolv"
-                    ]
-                    if "gsolv" in self._ensemble.results[using_part]["data"][conf.name]
+                    ]["gsolv"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
                     else 0.0
                 ),
-                "grrho": self._ensemble.results[using_part]["data"][conf.name].get(
-                    "xtb_rrho", {"energy": 0.0}
-                )["energy"],
+                "grrho": self._ensemble.results[using_part]
+                .data["results"][conf.name]
+                .get("xtb_rrho", {"energy": 0.0})["energy"],
             },
             "optimization": lambda conf: {
-                "energy": self._ensemble.results[using_part]["data"][conf.name][
+                "energy": self._ensemble.results[using_part].data["results"][conf.name][
                     "xtb_opt"
                 ]["energy"],
                 "gsolv": 0.0,
-                "grrho": self._ensemble.results[using_part]["data"][conf.name].get(
-                    "xtb_rrho", {"energy": 0.0}
-                )["energy"],
+                "grrho": self._ensemble.results[using_part]
+                .data["results"][conf.name]
+                .get("xtb_rrho", {"energy": 0.0})["energy"],
             },
             "refinement": lambda conf: {
                 "energy": (
-                    self._ensemble.results[using_part]["data"][conf.name]["gsolv"][
-                        "energy_gas"
-                    ]
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "gsolv"
+                    ]["energy_gas"]
                     if "gsolv" in self._ensemble.results[using_part]
-                    else self._ensemble.results[using_part]["data"][conf.name]["sp"][
-                        "energy"
-                    ]
+                    else self._ensemble.results[using_part].data["results"][conf.name][
+                        "sp"
+                    ]["energy"]
                 ),
                 "gsolv": (
-                    self._ensemble.results[using_part]["data"][conf.name]["gsolv"][
+                    self._ensemble.results[using_part].data["results"][conf.name][
                         "gsolv"
-                    ]
-                    if "gsolv" in self._ensemble.results[using_part]["data"][conf.name]
+                    ]["gsolv"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
                     else 0.0
                 ),
-                "grrho": self._ensemble.results[using_part]["data"][conf.name].get(
-                    "xtb_rrho", {"energy": 0.0}
-                )["energy"],
+                "grrho": self._ensemble.results[using_part]
+                .data["results"][conf.name]
+                .get("xtb_rrho", {"energy": 0.0})["energy"],
             },
         }
 

@@ -205,7 +205,7 @@ class Screening(Prescreening):
     #        ][-1]
 
     #        xtb_energies = {
-    #            conf.name: using_part.results["data"][conf.name]["xtb_gsolv"][
+    #            conf.name: using_part.data["results"][conf.name]["xtb_gsolv"][
     #                "energy_xtb_gas"
     #            ]
     #            for conf in self._ensemble.conformers
@@ -328,14 +328,14 @@ class Screening(Prescreening):
             ][-1]
 
             gxtb = {
-                conf.name: using_part.results["data"][conf.name]["xtb_gsolv"][
+                conf.name: using_part.data["results"][conf.name]["xtb_gsolv"][
                     "energy_xtb_gas"
                 ]
                 for conf in self._ensemble.conformers
             }
             if self.get_general_settings()["evaluate_rrho"]:
                 for conf in self._ensemble.conformers:
-                    gxtb[conf.name] += using_part.results["data"][conf.name][
+                    gxtb[conf.name] += using_part.data["results"][conf.name][
                         "xtb_rrho"
                     ]["gibbs"][self.get_general_settings()["temperature"]]
             gxtbmin = min(gxtb.values())

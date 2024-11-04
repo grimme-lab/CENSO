@@ -318,8 +318,6 @@ class CensoPart:
             "runtime": 0.0,
             "results": {},
             "settings": self.get_settings(),
-            "nconf_in": None,  # these two are only used in ensemble optimizations
-            "nconf_out": None,
         }
         # 'data' should be structured like the following:
         # 'CONFxx': <results from part jobs/in-part-calculations>
