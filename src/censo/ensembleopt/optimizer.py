@@ -101,7 +101,8 @@ class EnsembleOptimizer(CensoPart):
         self._write_results()
 
         # Print comparison with previous parts
-        self._print_comparison()
+        if len(self._ensemble.results) > 0:
+            self._print_comparison()
 
         # Print information about ensemble after optimization
         self._print_update()
@@ -297,7 +298,7 @@ class EnsembleOptimizer(CensoPart):
         # variables for printmap
         gtotmin = {part: 0.0 for part in parts}
         for part in parts:
-            gtotmin[part] = min(
+            gtotmin[part.name] = min(
                 part.data["results"][conf.name]["gtot"]
                 for conf in self._ensemble.conformers
             )
@@ -310,7 +311,7 @@ class EnsembleOptimizer(CensoPart):
             # Same lambda bullshittery as in parallel.py/dqp, python needs the lambda kwargs or it will
             # use the same values for every lambda call
             printmap[header] = (
-                lambda conf, partl=part, headerl=header: f"{(partl.data['results'][conf.name]['gtot'] - gtotmin[partl.name]) * AU2KCAL:.2f}"
+                lambda conf, partl=part, headerl=header: f"{(partl.data['results'][conf.name]['gtot'] - gtotmin[part.name]) * AU2KCAL:.2f}"
             )
 
         rows = [
