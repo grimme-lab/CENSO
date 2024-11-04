@@ -337,7 +337,7 @@ class Optimization(EnsembleOptimizer):
                 # Update results
                 self._update_results(results)
                 for conf in self.__confs_nc:
-                    self.data["data"][conf.name]["gtot"] = self._grrho(conf)
+                    self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
                 # flag to make sure that rrho is only calculated once
                 rrho_done = True
