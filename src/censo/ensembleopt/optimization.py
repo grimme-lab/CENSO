@@ -386,26 +386,32 @@ class Optimization(EnsembleOptimizer):
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
                 # NOTE: we need to look at results_opt here to look at only the current macrocycle
+                limit = min(self._grrho(conf) for conf in self._ensemble.conformers)
                 filtered = list(
                     filter(
-                        lambda conf: all(
-                            gn < self.get_settings()["gradthr"]
-                            for gn in results_opt[conf.name][jobtype[0]]["gncyc"]
+                        lambda conf: (
+                            all(
+                                gn < self.get_settings()["gradthr"]
+                                for gn in results_opt[conf.name][jobtype[0]]["gncyc"]
+                            )
+                            and self._grrho(conf) - limit > threshold
+                            if conf.name in results_opt
+                            else self._grrho(conf) - limit > threshold
                         ),
                         self._ensemble.conformers,
                     )
                 )
                 self._ensemble.remove_conformers([conf.name for conf in filtered])
-                limit = min(self._grrho(conf) for conf in self._ensemble.conformers)
                 for conf in filtered:
                     # print(f"No longer considering {conf}.")
                     print(
                         f"No longer considering {conf.name} (gradient too small and"
                         f" ΔG = {(self._grrho(conf) - limit) * AU2KCAL:.2f})."
                     )
-                    # make sure that all the conformers, that are not converged but filtered out, are also removed
+                    # make sure that all the conformers that are converged but filtered out are also removed
                     # from self.__confs_nc
-                    self.__confs_nc.remove(conf)
+                    if conf.name in self.__confs_nc:
+                        self.__confs_nc.remove(conf)
 
             # update number of cycles
             ncyc += self.get_settings()["optcycles"]
