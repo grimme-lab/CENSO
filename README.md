@@ -29,10 +29,13 @@ from censo.ensembleopt import Prescreening, Screening, Optimization
 from censo.properties import NMR
 from censo.params import Config
 
-workdir = "/absolute/path/to/your/workdir" # CENSO will put all files in this directory
+# CENSO will put all files in the current working directory (os.getcwd())
 input_path = "rel/path/to/your/inputfile" # path relative to the working directory
-ensemble = EnsembleData(workdir)
-ensemble.read_input(input_path, charge=0, unpaired=0)
+ensemble = EnsembleData(input_file=input_path) 
+# the above can be used if you molecule is neutral and closed shell, otherwise
+# it is necessary to proceed with e.g.
+# ensemble = EnsembleData()
+# ensemble.read_input(input_path, charge=-1, unpaired=1)
 
 # If the user wants to use a specific rcfile:
 configure("/abs/path/to/rcfile")
@@ -74,7 +77,7 @@ results, timings = zip(*[part.run(ensemble) for part in [Prescreening, Screening
 
 # You access the results using the ensemble object
 # You can also find all the results the <part>.json output files
-print(ensemble.results[0].results["data"]["CONF5"]["sp"]["energy"])
+print(ensemble.results[0].data["results"]["CONF5"]["sp"]["energy"])
 ```
 
 # License
