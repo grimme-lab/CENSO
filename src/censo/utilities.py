@@ -390,7 +390,7 @@ def check_for_float(line: str) -> float | None:
             value = float(element)
         except ValueError:
             value = None
-        if value:
+        if value is not None:
             break
     return value
 

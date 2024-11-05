@@ -136,7 +136,16 @@ class EnsembleData:
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError("Charge or number of unpaired electrons not defined.")
 
-        self.__setup_conformers(input_path, maxconf=nconf)
+        self.__setup_conformers(input_path)
+
+        if nconf is not None:
+            self.conformers = self.conformers[:nconf]
+
+        try:
+            self.conformers.sort(key=lambda x: x.xtb_energy)
+        except TypeError:
+            # Only sort if all conformers have a defined precalculated energy
+            pass
 
         # Print information about read ensemble
         print(
@@ -149,7 +158,7 @@ class EnsembleData:
             sep="",
         )
 
-    def __setup_conformers(self, input_path: str, maxconf: int = None) -> None:
+    def __setup_conformers(self, input_path: str) -> None:
         """
         open ensemble input
         split into conformers
@@ -159,7 +168,6 @@ class EnsembleData:
 
         Args:
             input_path (str): Path to the ensemble input file.
-            maxconf (int, optional): Maximum number of conformers to consider. Defaults to None, so all conformers are read.
 
         Returns:
             None
@@ -182,23 +190,24 @@ class EnsembleData:
 
         # assuming consecutive xyz-file format
         # (every conf geometry is separated by a line with split length of 4 followed by a line of split length 1)
+        #
+        # 14                               <-- split_index refers to this line (this is line 0 for the first conf)
+        # CONF12 -22.521386
+        # H x.xxxxxxxx x.xxxxxxx x.xxxxxx
+        # ...
         split_indices = [
             i
             for i in range(len(lines))
             if i == 0 or (len(lines[i].split()) == 1 and len(lines[i - 1].split()) == 4)
         ]
 
-        # Check the number of conformers found in the input file with the max number of conformers to be read
-        nconf = len(split_indices)
-        if maxconf is not None and maxconf < len(split_indices):
-            nconf = maxconf
-
-        for i in range(nconf):
+        for i, split_index in enumerate(split_indices):
             # Check whether the names are stored in the ensemble file,
             # use those if possible because of crest rotamer files
-            conf_index = split_indices[i]
-            if "CONF" in lines[conf_index + 1]:
-                confname = next(s for s in lines[conf_index + 1].split() if "CONF" in s)
+            if "CONF" in lines[split_index + 1]:
+                confname = next(
+                    s for s in lines[split_index + 1].split() if "CONF" in s
+                )
             else:
                 # Start counting from 1
                 confname = f"CONF{i + 1}"
@@ -206,25 +215,22 @@ class EnsembleData:
             # Determine end of geometry definition for this conf
             # which is either the next conf definition or EOF
             conf_end_index = (
-                split_indices[i + 1] if i + 1 < len(split_indices) else len(lines)
+                split_indices[i + 1] if i + 1 < len(split_indices) else len(lines) + 1
             )
 
-            # Don't use the property here, instead access the attribute directly
             # Create a new conformer object and append it to the ensemble
-            self.__conformers.append(
+            self.conformers.append(
                 MoleculeData(
                     confname,
-                    lines[conf_index + 2 : conf_end_index],
+                    lines[split_index + 2 : conf_end_index],
                 )
             )
 
             # get precalculated energies if possible
             # precalculated energy set to 0.0 if it cannot be found
             self.conformers[i].xtb_energy = (
-                check_for_float(lines[conf_index + 1]) or 0.0
+                check_for_float(lines[split_index + 1]) or 0.0
             )
-
-        self.conformers.sort(key=lambda x: x.xtb_energy)
 
     def remove_conformers(self, confnames: list[str]) -> None:
         """
