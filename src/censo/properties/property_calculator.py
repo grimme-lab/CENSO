@@ -180,7 +180,8 @@ class PropertyCalculator(CensoPart):
                     self._ensemble.results[using_part].data["results"][conf.name][
                         "gsolv"
                     ]["energy_gas"]
-                    if "gsolv" in self._ensemble.results[using_part]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
                     else self._ensemble.results[using_part].data["results"][conf.name][
                         "sp"
                     ]["energy"]
