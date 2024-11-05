@@ -9,6 +9,78 @@ import sys
 
 from .__version__ import __version__
 
+
+class Config:
+    ENVIRON = os.environ.copy()
+    if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
+        # workaround for LD_LIBRARY_PATH pyinstaller and suse
+        LP_KEY = "LD_LIBRARY_PATH"  # for GNU/Linux and *BSD.
+        lp_orig = ENVIRON.get(LP_KEY + "_ORIG")
+        if lp_orig is not None:
+            ENVIRON[LP_KEY] = lp_orig  # restore the original, unmodified value
+        else:
+            # This happens when LD_LIBRARY_PATH was not set.
+            # Remove the env var as a last resort:
+            ENVIRON.pop(LP_KEY, None)
+        # end workaround
+
+    CODING = "ISO-8859-1"
+
+    ASSETS_PATH = __file__.replace("params.py", "assets")
+
+    USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
+
+    PROGS = ("orca", "tm")
+
+    SOLV_MODS: dict[str, tuple] = {
+        "orca": ("cpcm", "smd"),
+        "tm": ("cosmo", "dcosmors", "cosmors", "cosmors-fine"),
+        "xtb": ("alpb", "gbsa"),
+    }
+
+    GRIDOPTIONS = (
+        "low",
+        "low+",
+        "high",
+        "high+",
+    )
+
+    GFNOPTIONS = (
+        "gfnff",
+        "gfn1",
+        "gfn2",
+    )
+
+    CENSORCNAME = ".censo2rc"
+
+    OMPMIN = 4
+
+    OMPMAX = 32
+
+    OMP = OMPMIN
+
+    NCORES = os.cpu_count()
+
+    COSMORS_PARAM = {
+        "12-normal": "BP_TZVP_C30_1201.ctd",
+        "13-normal": "BP_TZVP_C30_1301.ctd",
+        "14-normal": "BP_TZVP_C30_1401.ctd",
+        "15-normal": "BP_TZVP_C30_1501.ctd",
+        "16-normal": "BP_TZVP_C30_1601.ctd",
+        "17-normal": "BP_TZVP_C30_1701.ctd",
+        "18-normal": "BP_TZVP_18.ctd",
+        "19-normal": "BP_TZVP_19.ctd",
+        "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
+        "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
+        "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
+        "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
+        "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
+        "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
+        "18-fine": "BP_TZVPD_FINE_18.ctd",
+        "19-fine": "BP_TZVPD_FINE_19.ctd",
+    }
+
+
 DESCR = f"""
          ______________________________________________________________
         |                                                              |
@@ -36,21 +108,6 @@ DESCR = f"""
 
 START_DESCR = "Energetic sorting of Conformer Rotamer Ensembles (command line version)."
 
-ENVIRON = os.environ.copy()
-if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
-    # workaround for LD_LIBRARY_PATH pyinstaller and suse
-    LP_KEY = "LD_LIBRARY_PATH"  # for GNU/Linux and *BSD.
-    lp_orig = ENVIRON.get(LP_KEY + "_ORIG")
-    if lp_orig is not None:
-        ENVIRON[LP_KEY] = lp_orig  # restore the original, unmodified value
-    else:
-        # This happens when LD_LIBRARY_PATH was not set.
-        # Remove the env var as a last resort:
-        ENVIRON.pop(LP_KEY, None)
-    # end workaround
-
-CODING = "ISO-8859-1"
-
 DIGILEN = 60
 
 PLENGTH = 100
@@ -62,109 +119,7 @@ AU2KCAL = 627.50947428
 BOHR2ANG = 0.52917721067
 PLANCK = 6.62607015e-34
 C = 2.998e8
-WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
-
-ASSETS_PATH = __file__.replace("params.py", "assets")
-
-USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
-
-PROGS = ("orca", "tm")
-
-SOLV_MODS: dict[str, tuple] = {
-    "orca": ("cpcm", "smd"),
-    "tm": ("cosmo", "dcosmors", "cosmors", "cosmors-fine"),
-    "xtb": ("alpb", "gbsa"),
-}
-
-GRIDOPTIONS = (
-    "low",
-    "low+",
-    "high",
-    "high+",
-)
-
-GFNOPTIONS = (
-    "gfnff",
-    "gfn1",
-    "gfn2",
-)
-
-CENSORCNAME = ".censo2rc"
-
-OMPMIN = 4
-
-OMPMAX = 32
-
-COSMORS_PARAM = {
-    "12-normal": "BP_TZVP_C30_1201.ctd",
-    "13-normal": "BP_TZVP_C30_1301.ctd",
-    "14-normal": "BP_TZVP_C30_1401.ctd",
-    "15-normal": "BP_TZVP_C30_1501.ctd",
-    "16-normal": "BP_TZVP_C30_1601.ctd",
-    "17-normal": "BP_TZVP_C30_1701.ctd",
-    "18-normal": "BP_TZVP_18.ctd",
-    "19-normal": "BP_TZVP_19.ctd",
-    "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
-    "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
-    "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
-    "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
-    "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
-    "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
-    "18-fine": "BP_TZVPD_FINE_18.ctd",
-    "19-fine": "BP_TZVPD_FINE_19.ctd",
-}
-
-# qm_prepinfo: grid and scfconv settings for ORCA and TM
-qm_prepinfo = {
-    "orca": {
-        "low": ["grid4 nofinalgrid", "loosescf"],
-        "low+": ["grid4 nofinalgrid", "scfconv6"],
-        "high": ["grid4 nofinalgrid", "scfconv7"],
-        "high+": ["grid5 nofinalgrid", "scfconv7"],
-    },
-    "tm": {
-        "low": ["-grid", "m3", "-scfconv", "6"],
-        "low+": ["-grid", "m4", "-scfconv", "6"],
-        "high": ["-grid", "m4", "-scfconv", "7"],
-        "high+": ["-grid", "m5", "-scfconv", "7"],
-    },
-}
-
-# rotational entropy from symmetry
-# https://cccbdb.nist.gov/thermo.asp
-rot_sym_num = {
-    "c1": 1,
-    "ci": 1,
-    "cs": 1,
-    "c2": 2,
-    "c3": 3,
-    "c4": 4,
-    "c5": 5,
-    "c6": 6,
-    "c7": 7,
-    "c8": 8,
-    "c9": 9,
-    "c10": 10,
-    "c11": 11,
-    "s4": 2,
-    "s6": 3,
-    "s8": 4,
-    "d2": 4,
-    "d3": 6,
-    "d4": 8,
-    "d5": 10,
-    "d6": 12,
-    "d7": 14,
-    "d8": 16,
-    "d9": 18,
-    "d10": 20,
-    "t": 12,
-    "th": 12,
-    "td": 12,
-    "o": 24,
-    "oh": 24,
-    "ih": 60,
-}
+WARNLEN = max(len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]) + 1
 
 si_bib = {
     "tm": [

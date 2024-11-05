@@ -2,12 +2,11 @@
 Contains boilerplate class for calculating ensemble properties.
 """
 
-from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..part import CensoPart
 from ..utilities import timeit, SolventHelper
 from ..datastructure import MoleculeData
-from ..parallel import execute
+from ..ensembleopt import EnsembleOptimizer
 
 logger = setup_logger(__name__)
 
@@ -19,50 +18,63 @@ class PropertyCalculator(CensoPart):
 
     _grid = ""
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
     @timeit
     @CensoPart._create_dir
-    def run(self, ncores: int) -> None:
+    def __call__(self, using_part: CensoPart = None) -> None:
         """
         Boilerplate run logic for any ensemble property calculation. The 'property' method should be implemented for every
         class respectively.
 
         Running a property calculation requires some kind of ensemble energetic ranking beforehand.
-        TODO - maybe add option to turn that behaviour off?
+
+        It is possible to pass a specific part output to determine the Boltzmann populations
         """
         # print instructions
-        self.print_info()
+        self._print_info()
 
         # Set energy values to use later
-        self._set_energy()
-        for conf in self.ensemble.conformers:
-            conf.results[self._name]["gtot"] = self.gtot(conf)
+        self._set_energy(using_part=using_part)
+        for conf in self._ensemble.conformers:
+            self.data["results"][conf.name]["gtot"] = self._gtot(conf)
 
         # Calculate Boltzmann populations
-        self.ensemble.calc_boltzmannweights(
-            self.get_general_settings()["temperature"], self._name
-        )
+        self._update_results(self._calc_boltzmannweights())
 
         # Perform the property calculations
-        self.property(ncores)
+        self._property()
+
+        # Write out the results
+        self._write_results()
 
         # DONE
 
-    def property(self, ncores: int):
+    def _output(self) -> None:
+        """
+        Implements printouts and writes for any output data.
+        Necessary to implement for each part.
+        """
+        # Write out results
+        self._write_results()
+
+    def _property(self):
         raise NotImplementedError
 
-    def gtot(self, conformer: MoleculeData) -> float:
-        resdict = conformer.results[self._name]
-        return resdict["energy"] + resdict["gsolv"] + resdict["grrho"]
+    def _write_results(self):
+        raise NotImplementedError
 
-    def setup_prepinfo_rrho(self) -> dict[str, dict]:
+    def _gtot(self, conf: MoleculeData) -> float:
+        return (
+            self.data["results"][conf.name]["energy"]
+            + self.data["results"][conf.name]["gsolv"]
+            + self.data["results"][conf.name]["grrho"]
+        )
+
+    def _setup_prepinfo_rrho(self) -> dict[str, dict]:
         prepinfo = {}
 
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["partname"] = self.name
+        prepinfo["charge"] = self._ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self._ensemble.runinfo.get("unpaired")
         prepinfo["general"] = self.get_general_settings()
 
         prepinfo["xtb_rrho"] = {
@@ -77,7 +89,7 @@ class PropertyCalculator(CensoPart):
 
         return prepinfo
 
-    def _set_energy(self):
+    def _set_energy(self, using_part: CensoPart = None):
         """
         Looks through results to set energy values.
         Order of preference:
@@ -85,73 +97,118 @@ class PropertyCalculator(CensoPart):
 
         If None of these are found, raise RuntimeError.
         """
-        using_part = next(
-            (
-                partname
-                for partname in [
-                    "refinement",
-                    "optimization",
-                    "screening",
-                    "prescreening",
-                ]
-                if all(partname in conf.results for conf in self.ensemble.conformers)
-            ),
-            None,
-        )
-
         if using_part is None:
-            raise RuntimeError(
-                "Calculating an ensemble property requires some kind of energetic ensemble ranking performed beforehand."
+            # Determine the smallest usable optimization results
+            # First filter ensemble optimizations
+            opts = filter(
+                lambda part: issubclass(type(part), EnsembleOptimizer),
+                self._ensemble.results,
             )
+            opts = sorted(opts, key=lambda part: part.data["nconf_out"])
+
+            # Get the results with the smallest outputs
+            opts_iter = iter(opts)
+            res = next(opts_iter, None)
+            if res is None:
+                raise RuntimeError(
+                    "Calculating an ensemble property requires some kind of energetic ensemble ranking performed beforehand."
+                )
+
+            smallest_results = []
+            while res.data["nconf_out"] == opts[0].data["nconf_out"]:
+                smallest_results.append(res)
+                try:
+                    res = next(opts_iter)
+                except StopIteration:
+                    break
+
+            # Get the highest (assumed) quality part from those
+            if len(smallest_results) == 1:
+                using_part = smallest_results[0]
+            else:
+                # This will put the highest quality part at the top (highest part number)
+                smallest_results.sort(
+                    lambda part: self._part_nos[part.name], reverse=True
+                )
+                using_part = smallest_results[0]
+
+        # Get the index of this results from the ensemble results
+        assert using_part is not None
+        using_part = self._ensemble.results.index(using_part)
 
         energy_values = {
-            "optimization": lambda conf: {
-                "energy": conf.results[using_part]["xtb_opt"]["energy"],
-                "gsolv": 0.0,
-                "grrho": conf.results[using_part].get("xtb_rrho", {"energy": 0.0})[
-                    "energy"
-                ],
-            },
-            "screening": lambda conf: {
-                "energy": (
-                    conf.results[using_part]["gsolv"]["energy_gas"]
-                    if "gsolv" in conf.results[using_part]
-                    else conf.results[using_part]["sp"]["energy"]
-                ),
-                "gsolv": (
-                    conf.results[using_part]["gsolv"]["gsolv"]
-                    if "gsolv" in conf.results[using_part]
-                    else 0.0
-                ),
-                "grrho": conf.results[using_part].get("xtb_rrho", {"energy": 0.0})[
-                    "energy"
-                ],
-            },
-            "refinement": lambda conf: {
-                "energy": (
-                    conf.results[using_part]["gsolv"]["energy_gas"]
-                    if "gsolv" in conf.results[using_part]
-                    else conf.results[using_part]["sp"]["energy"]
-                ),
-                "gsolv": (
-                    conf.results[using_part]["gsolv"]["gsolv"]
-                    if "gsolv" in conf.results[using_part]
-                    else 0.0
-                ),
-                "grrho": conf.results[using_part].get("xtb_rrho", {"energy": 0.0})[
-                    "energy"
-                ],
-            },
             "prescreening": lambda conf: {
-                "energy": conf.results[using_part]["sp"]["energy"],
+                "energy": self._ensemble.results[using_part].data["results"][conf.name][
+                    "sp"
+                ]["energy"],
                 "gsolv": (
-                    conf.results[using_part]["xtb_gsolv"]["gsolv"]
-                    if "xtb_gsolv" in conf.results[using_part]
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "xtb_gsolv"
+                    ]["gsolv"]
+                    if "xtb_gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
                     else 0.0
                 ),
                 "grrho": 0.0,
             },
+            "screening": lambda conf: {
+                "energy": (
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "gsolv"
+                    ]["energy_gas"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
+                    else self._ensemble.results[using_part].data["results"][conf.name][
+                        "sp"
+                    ]["energy"]
+                ),
+                "gsolv": (
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "gsolv"
+                    ]["gsolv"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
+                    else 0.0
+                ),
+                "grrho": self._ensemble.results[using_part]
+                .data["results"][conf.name]
+                .get("xtb_rrho", {"energy": 0.0})["energy"],
+            },
+            "optimization": lambda conf: {
+                "energy": self._ensemble.results[using_part].data["results"][conf.name][
+                    "xtb_opt"
+                ]["energy"],
+                "gsolv": 0.0,
+                "grrho": self._ensemble.results[using_part]
+                .data["results"][conf.name]
+                .get("xtb_rrho", {"energy": 0.0})["energy"],
+            },
+            "refinement": lambda conf: {
+                "energy": (
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "gsolv"
+                    ]["energy_gas"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
+                    else self._ensemble.results[using_part].data["results"][conf.name][
+                        "sp"
+                    ]["energy"]
+                ),
+                "gsolv": (
+                    self._ensemble.results[using_part].data["results"][conf.name][
+                        "gsolv"
+                    ]["gsolv"]
+                    if "gsolv"
+                    in self._ensemble.results[using_part].data["results"][conf.name]
+                    else 0.0
+                ),
+                "grrho": self._ensemble.results[using_part]
+                .data["results"][conf.name]
+                .get("xtb_rrho", {"energy": 0.0})["energy"],
+            },
         }
 
-        for conf in self.ensemble.conformers:
-            conf.results.setdefault(self._name, energy_values[using_part](conf))
+        for conf in self._ensemble.conformers:
+            self.data["results"].setdefault(
+                conf.name, energy_values[self._ensemble.results[using_part].name](conf)
+            )

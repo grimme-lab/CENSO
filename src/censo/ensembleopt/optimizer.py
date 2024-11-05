@@ -1,8 +1,14 @@
-from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..params import AU2KCAL, DIGILEN, PLENGTH
 from ..part import CensoPart
-from ..utilities import DfaHelper, SolventHelper, format_data, h1, print, timeit
+from ..utilities import (
+    DfaHelper,
+    SolventHelper,
+    format_data,
+    h1,
+    print,
+    timeit,
+)
 
 logger = setup_logger(__name__)
 
@@ -73,40 +79,51 @@ class EnsembleOptimizer(CensoPart):
                 "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
             )
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
     @timeit
     @CensoPart._create_dir
-    def run(self, ncores: int, cut: bool = True) -> None:
+    def __call__(self, cut: bool = True) -> None:
         """
         Boilerplate run logic for any ensemble optimization step. The 'optimize' method should be implemented for every
         class respectively.
         """
         # print instructions
-        self.print_info()
+        self._print_info()
 
         # Print information about ensemble before optimization
-        self.print_update()
+        self._print_update()
+        self.data["nconf_in"] = len(self._ensemble.conformers)
 
         # Perform the actual optimization logic
-        self.optimize(ncores, cut=cut)
-
-        # Print comparison with previous parts
-        self.print_comparison()
-
-        # Print information about ensemble after optimization
-        self.print_update()
-
-        # dump ensemble
-        self.ensemble.dump_ensemble(f"{self._part_no}_{self._name.upper()}")
+        self._optimize(cut=cut)
+        self.data["nconf_out"] = len(self._ensemble.conformers)
 
         # DONE
 
-    def optimize(self, ncores: int, cut: bool = True):
+    def _optimize(self, cut: bool = True):
         raise NotImplementedError
 
-    def setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
+    def _write_results(self):
+        raise NotImplementedError
+
+    def _output(self) -> None:
+        """
+        Implements printouts and writes for any output data.
+        Necessary to implement for each part.
+        """
+        # Write out results
+        self._write_results()
+
+        # Print comparison with previous parts
+        if len(self._ensemble.results) > 1:
+            self._print_comparison()
+
+        # Print information about ensemble after optimization
+        self._print_update()
+
+        # dump ensemble
+        self._ensemble.dump(f"{self._part_nos[self.name]}_{self.name.upper()}")
+
+    def _setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
         """
         Sets up lookup information to be used by the processor in parallel execution. Returns a dictionary
         containing all information for all jobtypes provided.
@@ -119,9 +136,9 @@ class EnsembleOptimizer(CensoPart):
         """
         prepinfo = {jt: {} for jt in jobtype}
 
-        prepinfo["partname"] = self._name
-        prepinfo["charge"] = self.ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self.ensemble.runinfo.get("unpaired")
+        prepinfo["partname"] = self.name
+        prepinfo["charge"] = self._ensemble.runinfo.get("charge")
+        prepinfo["unpaired"] = self._ensemble.runinfo.get("unpaired")
         prepinfo["general"] = self.get_general_settings()
 
         if "sp" in jobtype or "gsolv" in jobtype:
@@ -253,26 +270,34 @@ class EnsembleOptimizer(CensoPart):
 
         return prepinfo
 
-    def print_update(self) -> None:
+    def _print_update(self) -> None:
         print("\n")
         print(
             "Number of conformers:".ljust(DIGILEN // 2, " ")
-            + f"{len(self.ensemble.conformers)}"
+            + f"{len(self._ensemble.conformers)}"
         )
+
+        # Make sure that the sorting is correct
+        self._ensemble.conformers.sort(
+            lambda conf: self.data["results"][conf.name]["gtot"]
+        )
+
         print(
             "Highest ranked conformer:".ljust(DIGILEN // 2, " ")
-            + f"{self.ensemble.conformers[0].name}"
+            + f"{self._ensemble.conformers[0].name}"
         )
         print("\n")
 
-    def print_comparison(self) -> None:
-        print(h1(f"{self._name.upper()} RANKING COMPARISON"))
+    def _print_comparison(self) -> None:
+        print(h1(f"{self.name.upper()} RANKING COMPARISON"))
 
         headers = ["CONF#"]
 
-        parts = list(self.ensemble.conformers[0].results.keys())
+        parts = [
+            p for p in self._ensemble.results if issubclass(type(p), EnsembleOptimizer)
+        ]
 
-        headers.extend([f"ΔGtot {part}" for part in parts])
+        headers.extend([f"ΔGtot {part.name}" for part in parts])
 
         # column units
         units = [
@@ -284,8 +309,9 @@ class EnsembleOptimizer(CensoPart):
         # variables for printmap
         gtotmin = {part: 0.0 for part in parts}
         for part in parts:
-            gtotmin[part] = min(
-                conf.results[part]["gtot"] for conf in self.ensemble.conformers
+            gtotmin[part.name] = min(
+                part.data["results"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
             )
 
         # determines what to print for each conformer in each column
@@ -296,12 +322,12 @@ class EnsembleOptimizer(CensoPart):
             # Same lambda bullshittery as in parallel.py/dqp, python needs the lambda kwargs or it will
             # use the same values for every lambda call
             printmap[header] = (
-                lambda conf, partl=part, headerl=header: f"{(conf.results[partl]['gtot'] - gtotmin[partl]) * AU2KCAL:.2f}"
+                lambda conf, partl=part, headerl=header: f"{(partl.data['results'][conf.name]['gtot'] - gtotmin[partl.name]) * AU2KCAL:.2f}"
             )
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.ensemble.conformers
+            for conf in self._ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)

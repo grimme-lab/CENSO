@@ -9,8 +9,8 @@ import math
 from .qm_processor import QmProc
 from .logging import setup_logger
 from .parallel import ParallelJob
-from .params import ASSETS_PATH, WARNLEN, R, AU2KCAL
-from .utilities import frange, DfaHelper
+from .params import WARNLEN, R, AU2KCAL, Config
+from .utilities import frange, Factory
 
 logger = setup_logger(__name__)
 
@@ -345,7 +345,7 @@ class TmProc(QmProc):
                 # TODO - this opens the possibility to insert your own potential files
                 lines.insert(
                     -1,
-                    f"$dcosmo_rs file={os.path.join(ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot\n",
+                    f"$dcosmo_rs file={os.path.join(Config.ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot\n",
                 )
 
         if jobtype == "rot":
@@ -379,8 +379,10 @@ class TmProc(QmProc):
             rpacor = rpacor if rpacor > 10000 else 10000
             lines[rpacor_line_index] = f"$rpacor {rpacor}\n"
 
+            lines[-1:-1] = ["$ncoupling\n"]
+
             if prepinfo[jobtype]["fc_only"]:
-                lines[-1:-1] = ["$ncoupling\n", " simple\n", " thr=0.0\n"]
+                lines[-1:-1] = [" simple\n", " thr=0.0\n"]
 
             # nucsel only required if not all elements are active
             if not all(element in todo for element in active_elements_map):
@@ -1153,3 +1155,6 @@ class TmProc(QmProc):
 
     def _rot(self):
         pass
+
+
+Factory.register_builder("tm", TmProc)

@@ -13,10 +13,40 @@ from builtins import print as print_orig
 from collections import OrderedDict
 from collections.abc import Callable
 
-from .params import CODING, BOHR2ANG, PLENGTH
+from .params import BOHR2ANG, PLENGTH, Config
 from .logging import setup_logger
 
 logger = setup_logger(__name__)
+
+
+class Factory:
+    """
+    Generic object factory class.
+    """
+
+    __builders: dict[str, type] = {}
+
+    @classmethod
+    def register_builder(cls, name: str, builder: type) -> None:
+        """
+        Registers a builder.
+
+        Args:
+            name (str): name of the builder.
+            builder (type): type of the builder.
+        """
+        cls.__builders[name] = builder
+
+    @classmethod
+    def create(cls, name: str, *args, **kwargs) -> object:
+        """
+        Generic factory method
+        """
+        builder = cls.__builders.get(name, None)
+
+        if builder is not None:
+            return builder(*args, **kwargs)
+        raise TypeError(f"No type was found for '{name}' in {list(cls.__builders)}.")
 
 
 class DfaHelper:
@@ -312,7 +342,7 @@ def t2x(
      - number of atoms
     """
     # read lines from coord file
-    with open(path, "r", encoding=CODING, newline=None) as f:
+    with open(path, "r", encoding=Config.CODING, newline=None) as f:
         coord = f.readlines()
 
     # read coordinates with atom labels directly into a string
@@ -344,7 +374,7 @@ def t2x(
 
     # write converted coordinates to xyz outfile if wanted
     if writexyz:
-        with open(os.path.join(outpath, outfile), "w", encoding=CODING) as out:
+        with open(os.path.join(outpath, outfile), "w", encoding=Config.CODING) as out:
             out.write(str(len(xyzatom)) + "\n")
             for line in xyzatom:
                 out.write(line)
@@ -360,7 +390,7 @@ def check_for_float(line: str) -> float | None:
             value = float(element)
         except ValueError:
             value = None
-        if value:
+        if value is not None:
             break
     return value
 

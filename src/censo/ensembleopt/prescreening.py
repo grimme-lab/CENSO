@@ -4,15 +4,20 @@ from ..datastructure import MoleculeData
 from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, GFNOPTIONS, PLENGTH, PROGS
-from ..utilities import format_data, h1, print, DfaHelper
+from ..params import AU2KCAL, PLENGTH, Config
+from ..utilities import format_data, h1, print, DfaHelper, Factory
 from .optimizer import EnsembleOptimizer
 
 logger = setup_logger(__name__)
 
 
 class Prescreening(EnsembleOptimizer):
-    _part_no = "0"
+    """
+    This is supposed to implement a cheap prescreening step using low-cost DFT and possibly
+    solvation contributions calculated using xtb.
+
+    The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
+    """
 
     _grid = "low"
 
@@ -20,27 +25,20 @@ class Prescreening(EnsembleOptimizer):
         "threshold": {"default": 4.0},
         "func": {
             "default": "pbe-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in PROGS},
+            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
         },
         "basis": {"default": "def2-SV(P)"},
-        "prog": {"default": "tm", "options": PROGS},
-        "gfnv": {"default": "gfn2", "options": GFNOPTIONS},
+        "prog": {"default": "tm", "options": Config.PROGS},
+        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
         "run": {"default": True},
         "template": {"default": False},
     }
 
     _settings = {}
 
-    def __init__(self, ensemble: EnsembleData):
-        super().__init__(ensemble)
-
-    def optimize(self, ncores: int, cut: bool = True) -> None:
+    def _optimize(self, cut: bool = True) -> None:
         """
-        first screening of the ensemble by doing single-point calculation on the input geometries,
-        using a (cheap) DFT method. if the ensemble ensembleopt is not taking place in the gas-phase,
-        the gsolv contribution is calculated using xtb.
-
-        The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
+        TODO
         """
         # set jobtype to pass to handler
         # TODO - it is not very nice to partially handle 'Screening' settings here
@@ -62,83 +60,92 @@ class Prescreening(EnsembleOptimizer):
                 jobtype = ["sp"]
         elif not self.get_settings().get("implicit", False):
             # Only for prescreening the solvation should be calculated with xtb
-            if self._name == "prescreening":
+            if self.name == "prescreening":
                 jobtype = ["xtb_gsolv"]
 
                 # Compile all information required for the preparation of input files in parallel execution step
-                prepinfo = self.setup_prepinfo(jobtype)
+                prepinfo = self._setup_prepinfo(jobtype)
 
                 # compute results
                 # for structure of results from handler.execute look there
-                success, _, failed = execute(
-                    self.ensemble.conformers,
-                    self.dir,
+                results, failed = execute(
+                    self._ensemble.conformers,
+                    self._dir,
                     self.get_settings()["prog"],
                     prepinfo,
                     jobtype,
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
-                    omp=self.get_general_settings()["omp"],
-                    maxcores=ncores,
                     retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
                 # Remove failed conformers
-                self.ensemble.remove_conformers(failed)
+                self._ensemble.remove_conformers(failed)
+
+                # Update results
+                self._update_results(results)
 
                 jobtype = ["sp"]
             else:
                 jobtype = ["gsolv"]
 
         # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self.setup_prepinfo(jobtype)
+        prepinfo = self._setup_prepinfo(jobtype)
 
         # compute results
         # for structure of results from handler.execute look there
-        success, _, failed = execute(
-            self.ensemble.conformers,
-            self.dir,
+        results, failed = execute(
+            self._ensemble.conformers,
+            self._dir,
             self.get_settings()["prog"],
             prepinfo,
             jobtype,
             copy_mo=self.get_general_settings()["copy_mo"],
             balance=self.get_general_settings()["balance"],
-            omp=self.get_general_settings()["omp"],
-            maxcores=ncores,
             retry_failed=self.get_general_settings()["retry_failed"],
         )
 
         # Remove failed conformers
-        self.ensemble.remove_conformers(failed)
+        self._ensemble.remove_conformers(failed)
+
+        # Update results
+        self._update_results(results)
 
         # update results for each conformer
-        for conf in self.ensemble.conformers:
-            # calculate free enthalpy values for every conformer
-            conf.results[self._name]["gtot"] = self.gsolv(conf)
+        for conf in self._ensemble.conformers:
+            # calculate free enthalpy
+            self.data["results"][conf.name]["gtot"] = self._gsolv(conf)
 
         # sort conformers list with prescreening key (gtot)
-        self.ensemble.conformers.sort(
-            key=lambda conf: conf.results[self._name]["gtot"],
+        self._ensemble.conformers.sort(
+            key=lambda conf: self.data["results"][conf.name]["gtot"],
         )
 
         # calculate boltzmann weights from gtot values calculated here
-        # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-        self.ensemble.calc_boltzmannweights(
-            self.get_general_settings().get("temperature", 298.15), self._name
-        )
-
-        self.write_results()
+        self._update_results(self._calc_boltzmannweights())
 
         if cut:
             print("\n")
             # update conformers with threshold
             threshold = self.get_settings()["threshold"] / AU2KCAL
+            limit = min(
+                self.data["results"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
+            )
+            filtered = list(
+                filter(
+                    lambda conf: self.data["results"][conf.name]["gtot"] - limit
+                    > threshold,
+                    self._ensemble.conformers,
+                )
+            )
 
             # update the conformer list in ensemble (remove confs if below threshold)
-            for confname in self.ensemble.update_conformers(self.gsolv, threshold):
-                print(f"No longer considering {confname}.")
+            self._ensemble.remove_conformers([conf.name for conf in filtered])
+            for conf in filtered:
+                print(f"No longer considering {conf.name}.")
 
-    def gsolv(self, conf: MoleculeData) -> float:
+    def _gsolv(self, conf: MoleculeData) -> float:
         """
         Prescreening key for conformer sorting
         Calculates Gtot = E (DFT) + Gsolv (xtb) for a given conformer
@@ -147,15 +154,15 @@ class Prescreening(EnsembleOptimizer):
         # Gtot = E (DFT) + Gsolv (xtb)
         if not self.get_general_settings()["gas-phase"]:
             gtot = (
-                conf.results[self._name]["sp"]["energy"]
-                + conf.results[self._name]["xtb_gsolv"]["gsolv"]
+                self.data["results"][conf.name]["sp"]["energy"]
+                + self.data["results"][conf.name]["xtb_gsolv"]["gsolv"]
             )
         else:
-            gtot = conf.results[self._name]["sp"]["energy"]
+            gtot = self.data["results"][conf.name]["sp"]["energy"]
 
         return gtot
 
-    def write_results(self) -> None:
+    def _write_results(self) -> None:
         """
         writes:
             E (xtb),
@@ -171,7 +178,7 @@ class Prescreening(EnsembleOptimizer):
 
         also writes data in easily digestible format
         """
-        print(h1(f"{self._name.upper()} SINGLE-POINT RESULTS"))
+        print(h1(f"{self.name.upper()} SINGLE-POINT RESULTS"))
 
         # column headers
         headers = [
@@ -204,27 +211,27 @@ class Prescreening(EnsembleOptimizer):
         # variables for printmap
         # minimal xtb single-point energy
         if all(
-            "xtb_gsolv" in conf.results[self._name].keys()
-            for conf in self.ensemble.conformers
+            "xtb_gsolv" in self.data["results"][conf.name]
+            for conf in self._ensemble.conformers
         ):
             xtbmin = min(
-                conf.results[self._name]["xtb_gsolv"]["energy_xtb_gas"]
-                for conf in self.ensemble.conformers
+                self.data["results"][conf.name]["xtb_gsolv"]["energy_xtb_gas"]
+                for conf in self._ensemble.conformers
             )
 
         # minimal dft single-point energy
         dft_energies = (
             {
-                id(conf): conf.results[self._name]["sp"]["energy"]
-                for conf in self.ensemble.conformers
+                conf.name: self.data["results"][conf.name]["sp"]["energy"]
+                for conf in self._ensemble.conformers
             }
             if not all(
-                "gsolv" in conf.results[self._name].keys()
-                for conf in self.ensemble.conformers
+                "gsolv" in self.data["results"][conf.name]
+                for conf in self._ensemble.conformers
             )
             else {
-                id(conf): conf.results[self._name]["gsolv"]["energy_gas"]
-                for conf in self.ensemble.conformers
+                conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
+                for conf in self._ensemble.conformers
             }
         )
 
@@ -236,20 +243,20 @@ class Prescreening(EnsembleOptimizer):
         else:
             # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
             if all(
-                "xtb_gsolv" in conf.results[self._name].keys()
-                for conf in self.ensemble.conformers
+                "xtb_gsolv" in self.data["results"][conf.name]
+                for conf in self._ensemble.conformers
             ):
                 gsolvmin = min(
-                    conf.results[self._name]["xtb_gsolv"]["gsolv"]
-                    for conf in self.ensemble.conformers
+                    self.data["results"][conf.name]["xtb_gsolv"]["gsolv"]
+                    for conf in self._ensemble.conformers
                 )
             elif all(
-                "gsolv" in conf.results[self._name].keys()
-                for conf in self.ensemble.conformers
+                "gsolv" in self.data["results"][conf.name]
+                for conf in self._ensemble.conformers
             ):
                 gsolvmin = min(
-                    conf.results[self._name]["gsolv"]["gsolv"]
-                    for conf in self.ensemble.conformers
+                    self.data["results"][conf.name]["gsolv"]["gsolv"]
+                    for conf in self._ensemble.conformers
                 )
             else:
                 raise RuntimeError(
@@ -258,39 +265,39 @@ class Prescreening(EnsembleOptimizer):
                 )
 
         # minimal total free enthalpy
-        gtotmin = min(self.gsolv(conf) for conf in self.ensemble.conformers)
+        gtotmin = min(self._gsolv(conf) for conf in self._ensemble.conformers)
 
         # determines what to print for each conformer in each column
         printmap = {
             "CONF#": lambda conf: conf.name,
             "E (xTB)": lambda conf: (
-                f"{conf.results[self._name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
-                if "xtb_gsolv" in conf.results[self._name].keys()
+                f"{self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
+                if "xtb_gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
             "ΔE (xTB)": lambda conf: (
-                f"{(conf.results[self._name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
-                if "xtb_gsolv" in conf.results[self._name].keys()
+                f"{(self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+                if "xtb_gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
-            "E (DFT)": lambda conf: f"{dft_energies[id(conf)]:.6f}",
-            "ΔE (DFT)": lambda conf: f"{(dft_energies[id(conf)] - dftmin) * AU2KCAL:.2f}",
+            "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
+            "ΔE (DFT)": lambda conf: f"{(dft_energies[conf.name] - dftmin) * AU2KCAL:.2f}",
             "ΔGsolv (xTB)": lambda conf: (
-                f"{conf.results[self._name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
-                if "xtb_gsolv" in conf.results[self._name].keys()
+                f"{self.data['results'][conf.name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
+                if "xtb_gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
-            "Gtot": lambda conf: f"{self.gsolv(conf):.6f}",
-            # "δΔGsolv": lambda conf: f"{(conf.results[self._name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
-            # if "xtb_gsolv" in conf.results[self._name].keys()
+            "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
+            # "δΔGsolv": lambda conf: f"{(self.data["results"][conf.name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
+            # if "xtb_gsolv" in self.data["results"][conf.name].keys()
             # else "---",
-            "ΔGtot": lambda conf: f"{(self.gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{conf.results[self._name]['bmw'] * 100:.2f}",
+            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
+            "Boltzmann weight": lambda conf: f"{self.data['results'][conf.name]['bmw'] * 100:.2f}",
         }
 
         rows = [
             [printmap[header](conf) for header in headers]
-            for conf in self.ensemble.conformers
+            for conf in self._ensemble.conformers
         ]
 
         lines = format_data(headers, rows, units=units)
@@ -306,17 +313,18 @@ class Prescreening(EnsembleOptimizer):
         # calculate averaged free enthalpy
         avG = sum(
             [
-                conf.results[self._name]["bmw"] * conf.results[self._name]["gtot"]
-                for conf in self.ensemble.conformers
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
             ]
         )
 
         # calculate averaged free energy
         avE = sum(
             [
-                conf.results[self._name]["bmw"]
-                * conf.results[self._name]["sp"]["energy"]
-                for conf in self.ensemble.conformers
+                self.data["results"][conf.name]["bmw"]
+                * self.data["results"][conf.name]["sp"]["energy"]
+                for conf in self._ensemble.conformers
             ]
         )
 
@@ -333,12 +341,13 @@ class Prescreening(EnsembleOptimizer):
             print(line, flush=True, end="")
 
         # write everything to a file
-        filename = f"{self._part_no}_{self._name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(self.ensemble.workdir, filename)}.")
-        with open(
-            os.path.join(self.ensemble.workdir, filename), "w", newline=None
-        ) as outfile:
+        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
+        logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
+        with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
             outfile.writelines(lines)
 
         # Additionally, write results in json format
-        self.write_json()
+        self._write_json()
+
+
+Factory.register_builder("prescreening", Prescreening)

@@ -11,7 +11,7 @@ from ..ensembledata import EnsembleData
 from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
 from ..part import CensoPart
 from ..properties import NMR, UVVis
-from ..params import START_DESCR, __version__
+from ..params import __version__, Config
 from ..utilities import print
 from ..logging import setup_logger, set_loglevel
 
@@ -23,7 +23,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     Console entry point to execute CENSO from the command line.
     """
     try:
-        args = parse(START_DESCR, argv)
+        args = parse(argv=argv)
     except ArgumentError as e:
         print(e.message)
         return 1
@@ -43,22 +43,17 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
-    CensoPart(ensemble).print_info()
+    CensoPart(ensemble, print_info=True)
 
     run = filter(
         lambda x: x.get_settings()["run"],
         [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
     )
 
-    ncores = 4
-    if args.maxcores:
-        ncores = args.maxcores
-
     time = 0.0
     for part in run:
-        p = part(ensemble)
-        runtime = p.run(ncores)
-        print(f"Ran {p._name} in {runtime:.2f} seconds!")
+        res, runtime = part.run(ensemble)
+        print(f"Ran {res.name} in {runtime:.2f} seconds!")
         time += runtime
 
     time = timedelta(seconds=int(time))
@@ -96,14 +91,30 @@ def startup(args) -> EnsembleData | None:
     elif args.inprcpath is not None:
         configure(args.inprcpath)
 
+    if args.loglevel:
+        set_loglevel(args.loglevel)
+
     # Override settings with command line arguments
     override_rc(args)
 
     # initialize ensemble, constructor get runinfo from args
-    ensemble = EnsembleData(cwd, args=args)
+    ensemble = EnsembleData()
 
     # read input and setup conformers
-    ensemble.read_input(args.inp)
+    ensemble.read_input(
+        args.inp, charge=args.charge, unpaired=args.unpaired, nconf=args.nconf
+    )
+
+    # if data should be reloaded, do it here
+    if args.reload:
+        for filename in args.reload:
+            ensemble.read_output(os.path.join(cwd, filename))
+
+    if args.maxcores:
+        Config.NCORES = args.maxcores
+
+    if args.omp:
+        Config.OMP = args.omp
 
     # if data should be reloaded, do it here
     if args.reload:

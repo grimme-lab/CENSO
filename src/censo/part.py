@@ -2,12 +2,13 @@ import functools
 import json
 import os
 import ast
+from math import exp
 from collections.abc import Callable
 
 from .ensembledata import EnsembleData
-from .params import PLENGTH, DIGILEN, OMPMIN, OMPMAX, SOLV_MODS
+from .params import DIGILEN, KB, AU2J, Config
 from .logging import setup_logger
-from .utilities import print, h1, h2, SolventHelper
+from .utilities import print, h2, SolventHelper
 
 logger = setup_logger(__name__)
 
@@ -30,7 +31,6 @@ class CensoPart:
     """
 
     _options = {
-        "omp": {"default": 4},
         "imagthr": {"default": -100.0},
         "sthr": {"default": 0.0},
         "scale": {"default": 1.0},
@@ -39,10 +39,12 @@ class CensoPart:
             "default": "h2o",
             "options": {
                 sm: list(SolventHelper.get_solvents_dict(sm).keys())
-                for sm in functools.reduce(lambda x, y: x + y, SOLV_MODS.values())
+                for sm in functools.reduce(
+                    lambda x, y: x + y, Config.SOLV_MODS.values()
+                )
             },
         },
-        "sm_rrho": {"default": "alpb", "options": SOLV_MODS["xtb"]},
+        "sm_rrho": {"default": "alpb", "options": Config.SOLV_MODS["xtb"]},
         "multitemp": {"default": True},
         "evaluate_rrho": {"default": True},
         "consider_sym": {"default": True},
@@ -57,9 +59,16 @@ class CensoPart:
 
     _settings = {}
 
-    # this should contain the part number as a string
-    # in this case it's just a placeholder, for e.g. prescreening it would be "0"
-    _part_no = "NaN"
+    # Maps part names onto numbers
+    _part_nos = {
+        "prescreening": 0,
+        "screening": 1,
+        "optimization": 2,
+        "refinement": 3,
+        "nmr": 4,
+        "optrot": 5,
+        "uvvis": 6,
+    }
 
     @staticmethod
     def set_general_settings(settings: dict[str, any], complete: bool = True) -> None:
@@ -134,10 +143,10 @@ class CensoPart:
         """
         # Case insensitive check
         setting_name = setting_name.lower()
-        if type(setting_value) is str:
+        if isinstance(setting_value, str):
             setting_value = setting_value.lower()
 
-        assert type(setting_value) is type(cls._settings[setting_name])
+        assert isinstance(setting_value, type(cls._settings[setting_name]))
         cls._settings[setting_name] = setting_value
         cls._validate(cls._settings)
 
@@ -258,25 +267,28 @@ class CensoPart:
             Callable: The decorated function.
         """
 
+        # NOTE: this is a bit hacky since it is a static method but still accesses self
         @functools.wraps(runner)
         def wrapper(self, *args, **kwargs):
             # create/set folder to do the calculations in
-            self.dir = os.path.join(
-                self.ensemble.workdir, f"{self._part_no}_{self._name.upper()}"
+            self._dir = os.path.join(
+                os.getcwd(),
+                f"{self._part_nos[self.name]}_{self.name.upper()}",
             )
-            if os.path.isdir(self.dir):
-                global logger
+            if os.path.isdir(self._dir):
                 # logger.warning(
                 #    f"Folder {self.dir} already exists. Potentially overwriting files."
                 # )
-            elif os.system(f"mkdir {self.dir}") != 0 and not os.path.isdir(self.dir):
-                raise RuntimeError(f"Could not create directory for {self._name}.")
+                # muted this warning for now
+                pass
+            elif os.system(f"mkdir {self._dir}") != 0 and not os.path.isdir(self._dir):
+                raise RuntimeError(f"Could not create directory for {self.name}.")
 
             return runner(self, *args, **kwargs)
 
         return wrapper
 
-    def __init__(self, ensemble: EnsembleData):
+    def __init__(self, ensemble: EnsembleData, print_info: bool = False):
         """
         Initializes a part instance.
 
@@ -287,32 +299,189 @@ class CensoPart:
             None
         """
         # sets the name of the part (used for printing and folder creation)
-        self._name: str = self.__class__.__name__.lower()
+        self.name: str = (
+            self.__class__.__name__.lower()
+            if self.__class__ is not CensoPart
+            else "general settings"
+        )
 
         # every part instance depends on a ensemble instance to manage the conformers
-        self.ensemble: EnsembleData = ensemble
+        self._ensemble: EnsembleData = ensemble
 
         # Directory where the part executes it's calculations
         # It is set using the _create_dir method (intended to be used as wrapper for run)
-        self.dir: str = None
+        self._dir: str = None
 
-    def run(self, ncores: int) -> None:
+        # Store the run's results as well as some metadata
+        self._data = {
+            "partname": self.name,
+            "runtime": 0.0,
+            "results": {},
+            "settings": self.get_settings(),
+        }
+        # 'data' should be structured like the following:
+        # 'CONFxx': <results from part jobs/in-part-calculations>
+        # => e.g. self.data["results"]["CONF3"]["gtot"]
+        #    would return the free enthalpy of the conformer
+        #    (not calculated with an external program)
+        #
+        #    self.data["results"]["CONF4"]["sp"]
+        #    returns the 'result' of the DFT single point
+        #    (calculated by external program)
+        #    to get the single-point energy: self.data["results"]["CONF4"]["sp"]["energy"]
+        #    (refer to the results for each jobtype)
+
+        # Print out settings if requested
+        if print_info:
+            self._print_info()
+
+    def __call__(self, **kwargs) -> None:
         """
-        what gets executed if the part is run
-        should be implemented for every part respectively
+        This implements the actual part logic. This should always return None if using the
+        @timeit decorator.
+        Do override this.
         """
         raise NotImplementedError
 
-    def print_info(self) -> None:
+    def _output(self) -> None:
+        """
+        Implements printouts and writes for any output data.
+        Necessary to implement for each part.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def run(cls, ensemble: EnsembleData, **kwargs) -> tuple[object, float]:
+        """
+        Run part logic by creating a new instance of the part. Returns a part object,
+        which serves the purpose of having a storage location for all information
+        (i.e. which settings were used, results). Will also attach a reference to
+        the instance to the EnsembleData.results.
+
+        Do not override!
+
+        Args:
+            ensemble: The ensemble instance that manages the conformers.
+
+        Returns:
+            object: The part instance.
+        """
+        # Create the instance
+        instance = cls(ensemble)
+
+        runtime = instance(**kwargs)
+        instance.data["runtime"] = runtime
+
+        # Append a reference to the run instance to the ensemble results for
+        # book keeping
+        ensemble.results.append(instance)
+
+        # Output the results
+        instance._output()
+
+        # Return the instance in the final state and the runtime
+        return instance, runtime
+
+    @property
+    def data(self) -> dict:
+        return self._data
+
+    @data.setter
+    def data(self, data: dict) -> None:
+        self._data = data
+
+    def _update_results(self, results: dict) -> None:
+        """
+        Update the results data using new results from a calculation.
+        The results dict has the form:
+            "CONFXX": {"sp": ...}
+        (refer to QmProc.run)
+
+        Args:
+            results (dict): The results dict to be added to the current results.
+        """
+        # This is different from just calling self._data["results"].update(results)
+        # because it doesn't overwrite the preexisting data
+        for conf in results:
+            self._data["results"].setdefault(conf, {}).update(results[conf])
+
+    def _calc_boltzmannweights(self) -> dict:
+        """
+        Calculate populations for boltzmann distribution of ensemble at given
+        temperature given values for free enthalpy.
+        """
+        temp = self.get_general_settings()["temperature"]
+        # find lowest gtot value
+        if all(
+            "gtot" in self.data["results"][conf.name]
+            for conf in self._ensemble.conformers
+        ):
+            minfree: float = min(
+                self.data["results"][conf.name]["gtot"]
+                for conf in self._ensemble.conformers
+            )
+
+            # calculate boltzmann factors
+            bmfactors = {
+                conf.name: conf.degen
+                * exp(
+                    -(self.data["results"][conf.name]["gtot"] - minfree)
+                    * AU2J
+                    / (KB * temp)
+                )
+                for conf in self._ensemble.conformers
+            }
+        else:
+            # NOTE: if anything went wrong in the single-point calculation ("success": False),
+            # this should be handled before coming to this step
+            # since then the energy might be 'None'
+            gtot_replacement = False
+            for jt in ["xtb_opt", "sp"]:
+                if all(
+                    jt in self.data["results"][conf.name]
+                    for conf in self._ensemble.conformers
+                ):
+                    minfree: float = min(
+                        self.data["results"][conf.name][jt]["energy"]
+                        for conf in self._ensemble.conformers
+                    )
+
+                    # calculate boltzmann factors
+                    bmfactors = {
+                        conf.name: conf.degen
+                        * exp(
+                            -(self.data["results"][conf.name][jt]["energy"] - minfree)
+                            * AU2J
+                            / (KB * temp)
+                        )
+                        for conf in self._ensemble.conformers
+                    }
+                    gtot_replacement = True
+                    break
+
+            if not gtot_replacement:
+                raise RuntimeError(
+                    f"Could not determine Boltzmann factors for {self.name}."
+                )
+
+        # calculate partition function from boltzmann factors
+        bsum: float = sum(bmfactors.values())
+
+        # Return Boltzmann populations
+        # NOTE: the second level of nesting in the dict is in principle unnecessary, but there
+        # for convenience in using _update_results
+        return {
+            conf.name: {"bmw": bmfactors[conf.name] / bsum}
+            for conf in self._ensemble.conformers
+        }
+
+    def _print_info(self) -> None:
         """
         formatted print for part instructions
         """
 
         # Print header with part name
-        if self.__class__ == CensoPart:
-            print(h2("GENERAL SETTINGS"))
-        else:
-            print(h2(f"{self._name.upper()}"))
+        print(h2(f"{self.name.upper()}"))
 
         # Print all settings with name and value
         for setting, val in self._settings.items():
@@ -320,18 +489,13 @@ class CensoPart:
 
         print("\n")
 
-    def write_json(self) -> None:
+    def _write_json(self) -> None:
         """
         Writes the part's results to a json file.
 
         Returns:
             None
         """
-        results = {
-            self._name: {
-                conf.name: conf.results[self._name] for conf in self.ensemble.conformers
-            }
-        }
-        filename = f"{self._part_no}_{self._name.upper()}.json"
-        with open(os.path.join(self.ensemble.workdir, filename), "w") as outfile:
-            json.dump(results, outfile, indent=4)
+        filename = f"{self._part_nos.get(self.name, 'NaN')}_{self.name.upper()}.json"
+        with open(os.path.join(os.getcwd(), filename), "w") as outfile:
+            json.dump(self.data, outfile, indent=4)

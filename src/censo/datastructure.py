@@ -1,8 +1,7 @@
 from functools import reduce
-from collections import OrderedDict
 from typing import TypedDict
 
-from .params import BOHR2ANG, OMPMIN
+from .params import BOHR2ANG, Config
 
 
 class Atom(TypedDict):
@@ -133,30 +132,12 @@ class MoleculeData:
         # stores the degeneration factor of the conformer
         self.degen: int = 1
 
-        # stores the initial xtb energy from CREST (or whatever was used before)
+        # stores the initial (biased) xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float = None
 
         # list to store the paths to all MO-files from the jobs run for this conformer
         # might also include tuples if open shell and tm is used
         self.mo_paths: list[str, tuple] = []
-
-        # store all Boltzmann weights in order of calculation
-        # TODO - this might not be the nicest way of doing this
-        self.bmws: list[float] = []
-
-        # stores the results of the calculations
-        self.results = OrderedDict()
-        # should be structured like the following:
-        # 'part': <results from part jobs/in-part-calculations>
-        # => e.g. self.results["prescreening"]["gtot"]
-        #    would return the free enthalpy of the conformer calculated in prescreening
-        #    (not calculated with an external program)
-        #
-        #    self.results["prescreening"]["sp"]
-        #    returns the 'result' of the DFT single point in prescreening
-        #    (calculated by external program)
-        #    to get the single-point energy: self.results["prescreening"]["sp"]["energy"]
-        #    (confer to the results for each jobtype)
 
 
 class ParallelJob:
@@ -169,7 +150,7 @@ class ParallelJob:
         self.jobtype = jobtype
 
         # number of cores to use
-        self.omp = OMPMIN
+        self.omp = Config.OMPMIN
 
         # stores path to an mo file which is supposed to be used as a guess
         # In case of open shell tm calculation this can be a tuple of files

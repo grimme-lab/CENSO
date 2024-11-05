@@ -3,6 +3,7 @@ defininition of internal defaults, checking of logic for parameter combinations,
 cml parsing
 """
 
+from ..params import START_DESCR
 import argparse
 
 
@@ -31,7 +32,7 @@ def check_soft_requirements(args: argparse.Namespace) -> bool:
         return True
 
 
-def parse(startup_description, argv=None) -> argparse.Namespace:
+def parse(argv=None) -> argparse.Namespace:
     """
     Process commandline arguments
 
@@ -40,7 +41,7 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
     """
 
     parser = argparse.ArgumentParser(
-        description=startup_description,
+        description=START_DESCR,
         prog="censo",
     )
 
@@ -117,6 +118,14 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
         "the maximum number available. For a default run this is REQUIRED.",
+    )
+    groups[0].add_argument(
+        "-O",
+        "--omp",
+        dest="omp",
+        type=int,
+        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
+        "if load balancing is disabled.",
     )
     groups[0].add_argument(
         "--loglevel",
@@ -199,14 +208,6 @@ def parse(startup_description, argv=None) -> argparse.Namespace:
         action="store_const",
         const=True,
         help="Run calculation in gas-phase, overriding all solvation settings.",
-    )
-    groups[1].add_argument(
-        "-O",
-        "--omp",
-        dest="omp",
-        type=int,
-        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
-        "if load balancing is disabled.",
     )
     groups[1].add_argument(
         "--imagthr",

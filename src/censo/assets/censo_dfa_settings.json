@@ -159,13 +159,13 @@
     "b97-d3": {
       "tm": "b97-d",
       "orca": "b97-d3",
-      "disp": "d3bj",
+      "disp": "included",
       "type": "gga"
     },
-    "b97-d3(0)": {
-      "tm": "b97-d",
-      "orca": null,
-      "disp": "d3(0)",
+    "b97-d4": {
+      "tm": null,
+      "orca": "b97",
+      "disp": "d4",
       "type": "gga"
     },
     "kt1-novdw": {
@@ -294,6 +294,24 @@
       "disp": "included",
       "type": "rs_hybrid"
     },
+    "chyf-b95-novdw": {
+      "tm": "chyf-b95",
+      "orca": null,
+      "disp": "novdw",
+      "type": "local_hybrid"
+    },
+    "chyf-b95-d3": {
+      "tm": "chyf-b95",
+      "orca": null,
+      "disp": "d3bj",
+      "type": "local_hybrid"
+    },
+    "chyf-b95-d4": {
+      "tm": "chyf-b95",
+      "orca": null,
+      "disp": "d4",
+      "type": "local_hybrid"
+    },
     "dsd-blyp-d3": {
       "tm": null,
       "orca": "ri-dsd-blyp",
@@ -308,4 +326,3 @@
     }
   }
 }
-
