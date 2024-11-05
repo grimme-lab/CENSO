@@ -220,7 +220,9 @@ class EnsembleData:
 
             # get precalculated energies if possible
             # precalculated energy set to 0.0 if it cannot be found
-            self.conformers[i].xtb_energy = check_for_float(lines[conf_index + 1])
+            self.conformers[i].xtb_energy = (
+                check_for_float(lines[conf_index + 1]) or 0.0
+            )
 
             # also works if xtb_energy is None for some reason (None is put first)
             self.conformers.sort(key=lambda x: x.xtb_energy)
