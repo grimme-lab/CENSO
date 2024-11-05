@@ -99,19 +99,17 @@ class EnsembleData:
         charge: int = None,
         unpaired: int = None,
         nconf: int = None,
+        append: bool = False,
     ) -> None:
         """
         Read ensemble input file. Should be a file in xyz-file format with all the conformers in consecutive order.
-        If command line arguments are given, the priorities of parameters will be:
-            1. method arguments,
-            2. cml arguments,
-            3. defaults.
 
         Args:
             input_path (str): Path to the ensemble input file.
             charge (int, optional): Charge of the system. Defaults to None. Overwrites preexisting values.
             unpaired (int, optional): Number of unpaired electrons. Defaults to None. Overwrites preexisting values.
             nconf (int, optional): Number of conformers to consider. Defaults to None, so all conformers are read.
+            append (bool, optional): If True, the conformers will be appended to the existing ensemble. Defaults to False.
 
         Returns:
             None
@@ -136,10 +134,17 @@ class EnsembleData:
         if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
             raise RuntimeError("Charge or number of unpaired electrons not defined.")
 
-        self.__setup_conformers(input_path)
+        confs = self.__setup_conformers(input_path)
+        if len(confs) == 0:
+            logger.warning("Input file is empty!")
 
-        if nconf is not None:
-            self.conformers = self.conformers[:nconf]
+        if nconf is None:
+            nconf = len(confs)
+
+        if append:
+            self.conformers.append(confs[:nconf])
+        else:
+            self.conformers = confs[:nconf]
 
         try:
             self.conformers.sort(key=lambda x: x.xtb_energy)
@@ -158,7 +163,7 @@ class EnsembleData:
             sep="",
         )
 
-    def __setup_conformers(self, input_path: str) -> None:
+    def __setup_conformers(self, input_path: str) -> list[MoleculeData]:
         """
         open ensemble input
         split into conformers
@@ -170,7 +175,7 @@ class EnsembleData:
             input_path (str): Path to the ensemble input file.
 
         Returns:
-            None
+            list[MoleculeData]: A list of MoleculeData objects.
         """
         # open ensemble input
         with open(input_path, "r") as file:
@@ -201,6 +206,7 @@ class EnsembleData:
             if i == 0 or (len(lines[i].split()) == 1 and len(lines[i - 1].split()) == 4)
         ]
 
+        conformers = []
         for i, split_index in enumerate(split_indices):
             # Check whether the names are stored in the ensemble file,
             # use those if possible because of crest rotamer files
@@ -215,11 +221,11 @@ class EnsembleData:
             # Determine end of geometry definition for this conf
             # which is either the next conf definition or EOF
             conf_end_index = (
-                split_indices[i + 1] if i + 1 < len(split_indices) else len(lines) + 1
+                split_indices[i + 1] if i + 1 < len(split_indices) else len(lines)
             )
 
             # Create a new conformer object and append it to the ensemble
-            self.conformers.append(
+            conformers.append(
                 MoleculeData(
                     confname,
                     lines[split_index + 2 : conf_end_index],
@@ -228,9 +234,9 @@ class EnsembleData:
 
             # get precalculated energies if possible
             # precalculated energy set to 0.0 if it cannot be found
-            self.conformers[i].xtb_energy = (
-                check_for_float(lines[split_index + 1]) or 0.0
-            )
+            conformers[i].xtb_energy = check_for_float(lines[split_index + 1]) or 0.0
+
+        return conformers
 
     def remove_conformers(self, confnames: list[str]) -> None:
         """
