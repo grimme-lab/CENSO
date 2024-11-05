@@ -116,6 +116,11 @@ def startup(args) -> EnsembleData | None:
     if args.omp:
         Config.OMP = args.omp
 
+    # if data should be reloaded, do it here
+    if args.reload:
+        for filename in args.reload:
+            ensemble.read_output(os.path.join(cwd, filename))
+
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
     # -> output data is reloaded if wanted

@@ -163,10 +163,10 @@
       "type": "gga"
     },
     "b97-d4": {
-        "tm": null,
-        "orca": "b97",
-        "disp": "d4",
-        "type": "gga"
+      "tm": null,
+      "orca": "b97",
+      "disp": "d4",
+      "type": "gga"
     },
     "kt1-novdw": {
       "tm": "kt1",

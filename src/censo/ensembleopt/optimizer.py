@@ -276,6 +276,12 @@ class EnsembleOptimizer(CensoPart):
             "Number of conformers:".ljust(DIGILEN // 2, " ")
             + f"{len(self._ensemble.conformers)}"
         )
+
+        # Make sure that the sorting is correct
+        self._ensemble.conformers.sort(
+            lambda conf: self.data["results"][conf.name]["gtot"]
+        )
+
         print(
             "Highest ranked conformer:".ljust(DIGILEN // 2, " ")
             + f"{self._ensemble.conformers[0].name}"

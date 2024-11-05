@@ -119,7 +119,7 @@ AU2KCAL = 627.50947428
 BOHR2ANG = 0.52917721067
 PLANCK = 6.62607015e-34
 C = 2.998e8
-WARNLEN = max([len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]]) + 1
+WARNLEN = max(len(i) for i in ["WARNING:", "ERROR:", "INFORMATION:"]) + 1
 
 si_bib = {
     "tm": [
