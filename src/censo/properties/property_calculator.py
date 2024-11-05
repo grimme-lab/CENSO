@@ -48,6 +48,14 @@ class PropertyCalculator(CensoPart):
 
         # DONE
 
+    def _output(self) -> None:
+        """
+        Implements printouts and writes for any output data.
+        Necessary to implement for each part.
+        """
+        # Write out results
+        self._write_results()
+
     def _property(self):
         raise NotImplementedError
 
