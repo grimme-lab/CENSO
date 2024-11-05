@@ -96,7 +96,7 @@ class PropertyCalculator(CensoPart):
                 lambda part: issubclass(type(part), EnsembleOptimizer),
                 self._ensemble.results,
             )
-            opts = sorted(opts, key=lambda part: part.results["nconf_out"])
+            opts = sorted(opts, key=lambda part: part.data["nconf_out"])
 
             # Get the results with the smallest outputs
             opts_iter = iter(opts)
@@ -107,7 +107,7 @@ class PropertyCalculator(CensoPart):
                 )
 
             smallest_results = []
-            while res.results["nconf_out"] == opts[0].results["nconf_out"]:
+            while res.data["nconf_out"] == opts[0].data["nconf_out"]:
                 smallest_results.append(res)
                 try:
                     res = next(opts_iter)
