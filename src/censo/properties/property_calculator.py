@@ -200,4 +200,6 @@ class PropertyCalculator(CensoPart):
         }
 
         for conf in self._ensemble.conformers:
-            self.data["results"].setdefault(conf.name, energy_values[using_part](conf))
+            self.data["results"].setdefault(
+                conf.name, energy_values[self._ensemble.results[using_part].name](conf)
+            )
