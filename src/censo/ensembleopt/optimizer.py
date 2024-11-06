@@ -279,7 +279,7 @@ class EnsembleOptimizer(CensoPart):
 
         # Make sure that the sorting is correct
         self._ensemble.conformers.sort(
-            lambda conf: self.data["results"][conf.name]["gtot"]
+            key=lambda conf: self.data["results"][conf.name]["gtot"]
         )
 
         print(
