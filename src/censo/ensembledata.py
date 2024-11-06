@@ -6,6 +6,7 @@ functionality for program setup
 import os
 import re
 import json
+from collections import abc
 
 from .datastructure import MoleculeData
 from .logging import setup_logger
@@ -20,17 +21,11 @@ class EnsembleData:
     Class to store conformer rotamer ensembles for use in CENSO.
     """
 
-    def __init__(self, input_file: str = None):
+    def __init__(self):
         """
-        Setup an EnsembleData object, which contains a list of conformers, read from
-        input_file. If input_file is not passed here, conformers can be read using
-        read_input.
-
-        Args:
-            input_file (str, optional): Path to the ensemble input file. Defaults to None.
-            If this is provided, the charge and unpaired electron count will be assumed to be 0 and all conformers will be read from the input file.
+        Setup an EnsembleData object. Conformers can be read using read_input.
         """
-        # contains run-specific info that may change during runtime
+        # contains run-specific info
         # initialized in EnsembleData.read_input
         self.runinfo = {
             "charge": None,
@@ -46,9 +41,6 @@ class EnsembleData:
 
         # A list containing all part references in order of execution or loading
         self.results = []
-
-        if input_file is not None:
-            self.read_input(input_file, charge=0, unpaired=0)
 
     @property
     def conformers(self):
@@ -96,8 +88,8 @@ class EnsembleData:
     def read_input(
         self,
         input_path: str,
-        charge: int = None,
-        unpaired: int = None,
+        charge: int = 0,
+        unpaired: int = 0,
         nconf: int = None,
         append: bool = False,
     ) -> None:
@@ -106,16 +98,13 @@ class EnsembleData:
 
         Args:
             input_path (str): Path to the ensemble input file.
-            charge (int, optional): Charge of the system. Defaults to None. Overwrites preexisting values.
-            unpaired (int, optional): Number of unpaired electrons. Defaults to None. Overwrites preexisting values.
+            charge (int, optional): Charge of the system. Defaults to 0.
+            unpaired (int, optional): Number of unpaired electrons. Defaults to 0.
             nconf (int, optional): Number of conformers to consider. Defaults to None, so all conformers are read.
             append (bool, optional): If True, the conformers will be appended to the existing ensemble. Defaults to False.
 
         Returns:
             None
-
-        Raises:
-            RuntimeError: If the charge or the number of unpaired electrons is not defined.
         """
         # If $coord in file => tm format, needs to be converted to xyz
         with open(input_path, "r") as inp:
@@ -131,9 +120,6 @@ class EnsembleData:
         self.runinfo["charge"] = charge
         self.runinfo["unpaired"] = unpaired
 
-        if self.runinfo["charge"] is None or self.runinfo["unpaired"] is None:
-            raise RuntimeError("Charge or number of unpaired electrons not defined.")
-
         confs = self.__setup_conformers(input_path)
         if len(confs) == 0:
             logger.warning("Input file is empty!")
@@ -142,7 +128,7 @@ class EnsembleData:
             nconf = len(confs)
 
         if append:
-            self.conformers.append(confs[:nconf])
+            self.conformers.extend(confs[:nconf])
         else:
             self.conformers = confs[:nconf]
 
@@ -251,13 +237,27 @@ class EnsembleData:
         """
         if len(confnames) > 0:
             for confname in confnames:
-                remove = next(c for c in self.conformers if c.name == confname)
+                # Skip any non-str items
+                if not isinstance(confname, str):
+                    logger.warning(
+                        f"Cannot remove {confname} from ensemble (invalid type)."
+                    )
+                    continue
 
-                # pop item from conformers and insert this item at index 0 in rem
-                self.rem.insert(0, self.conformers.pop(self.conformers.index(remove)))
+                remove = next((c for c in self.conformers if c.name == confname), None)
 
-                # Log removed conformers
-                logger.debug(f"Removed {remove.name}.")
+                if remove is not None:
+                    # pop item from conformers and insert this item at index 0 in rem
+                    self.rem.insert(
+                        0, self.conformers.pop(self.conformers.index(remove))
+                    )
+
+                    # Log removed conformers
+                    logger.debug(f"Removed {remove.name}.")
+                else:
+                    logger.warning(
+                        f"Cannot remove {confname} from ensemble (not found)."
+                    )
 
     def dump(self, filename: str) -> None:
         """

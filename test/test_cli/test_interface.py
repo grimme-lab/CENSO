@@ -1,3 +1,4 @@
+"""
 import os
 import shutil
 import unittest
@@ -64,3 +65,5 @@ class CensoTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+"""

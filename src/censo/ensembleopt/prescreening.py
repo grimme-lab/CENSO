@@ -1,7 +1,6 @@
 import os
 
 from ..datastructure import MoleculeData
-from ..ensembledata import EnsembleData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, Config
@@ -312,20 +311,16 @@ class Prescreening(EnsembleOptimizer):
 
         # calculate averaged free enthalpy
         avG = sum(
-            [
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["gtot"]
-                for conf in self._ensemble.conformers
-            ]
+            self.data["results"][conf.name]["bmw"]
+            * self.data["results"][conf.name]["gtot"]
+            for conf in self._ensemble.conformers
         )
 
         # calculate averaged free energy
         avE = sum(
-            [
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["sp"]["energy"]
-                for conf in self._ensemble.conformers
-            ]
+            self.data["results"][conf.name]["bmw"]
+            * self.data["results"][conf.name]["sp"]["energy"]
+            for conf in self._ensemble.conformers
         )
 
         # append the lines for the free energy/enthalpy

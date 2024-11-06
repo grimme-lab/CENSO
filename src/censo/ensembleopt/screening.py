@@ -308,7 +308,7 @@ class Screening(Prescreening):
             "[Eh]",
             "[kcal/mol]",
             "[Eh]",
-            "[Eh]",
+            "[kcal/mol]",
             "[Eh]",
             "[Eh]",
             "[kcal/mol]",
@@ -377,7 +377,7 @@ class Screening(Prescreening):
             ),
             "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
             "ΔGsolv": lambda conf: (
-                f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
+                f"{(self._gsolv(conf) - dft_energies[conf.name]) * AU2KCAL:.6f}"
                 if "gsolv" in self.data["results"][conf.name]
                 else "---"
             ),
