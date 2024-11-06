@@ -79,11 +79,6 @@ class Refinement(Screening):
                     ][conf.name]["xtb_rrho"]
                     self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
-        # sort conformers list
-        self._ensemble.conformers.sort(
-            key=lambda conf: self.data["results"][conf.name]["gtot"]
-        )
-
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
         self._update_results(self._calc_boltzmannweights())

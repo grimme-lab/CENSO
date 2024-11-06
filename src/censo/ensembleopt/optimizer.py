@@ -89,13 +89,17 @@ class EnsembleOptimizer(CensoPart):
         # print instructions
         self._print_info()
 
-        # Print information about ensemble before optimization
-        self._print_update()
+        # Store number of conformer put in
         self.data["nconf_in"] = len(self._ensemble.conformers)
 
         # Perform the actual optimization logic
         self._optimize(cut=cut)
         self.data["nconf_out"] = len(self._ensemble.conformers)
+
+        # Resort the ensemble
+        self._ensemble.conformers.sort(
+            key=lambda conf: self.data["results"][conf.name]["gtot"],
+        )
 
         # DONE
 
@@ -275,11 +279,6 @@ class EnsembleOptimizer(CensoPart):
         print(
             "Number of conformers:".ljust(DIGILEN // 2, " ")
             + f"{len(self._ensemble.conformers)}"
-        )
-
-        # Make sure that the sorting is correct
-        self._ensemble.conformers.sort(
-            key=lambda conf: self.data["results"][conf.name]["gtot"]
         )
 
         print(

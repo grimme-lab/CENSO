@@ -203,14 +203,6 @@ class Optimization(EnsembleOptimizer):
         for conf in self._ensemble.conformers:
             self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
-        # sort conformers list with optimization key (gtot)
-        self._ensemble.conformers.sort(
-            key=lambda conf: self.data["results"][conf.name]["gtot"]
-        )
-
-        # sort conformers list with optimization key (gtot)
-        self.ensemble.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
-
         # calculate boltzmann weights from gtot values calculated here
         self._update_results(self._calc_boltzmannweights())
 
@@ -347,9 +339,6 @@ class Optimization(EnsembleOptimizer):
 
             # TODO - crestcheck each iteration if ncyc >= 6
             # => replace this with molbar later
-
-            # sort conformers
-            self._ensemble.conformers.sort(key=self._grrho)
 
             # remove converged conformers from 'todo-list'
             for conf in list(

@@ -87,11 +87,6 @@ class Screening(Prescreening):
                 # calculate new gtot including RRHO contribution
                 self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
-            # sort conformers list
-            self._ensemble.conformers.sort(
-                key=lambda conf: self.data["results"][conf.name]["gtot"]
-            )
-
             if cut and len(self._ensemble.conformers) > 1:
                 # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
                 fuzzy = (1 / AU2KCAL) * (

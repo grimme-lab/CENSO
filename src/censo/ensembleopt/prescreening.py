@@ -116,11 +116,6 @@ class Prescreening(EnsembleOptimizer):
             # calculate free enthalpy
             self.data["results"][conf.name]["gtot"] = self._gsolv(conf)
 
-        # sort conformers list with prescreening key (gtot)
-        self._ensemble.conformers.sort(
-            key=lambda conf: self.data["results"][conf.name]["gtot"],
-        )
-
         # calculate boltzmann weights from gtot values calculated here
         self._update_results(self._calc_boltzmannweights())
 
