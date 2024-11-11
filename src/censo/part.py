@@ -288,7 +288,7 @@ class CensoPart:
 
         return wrapper
 
-    def __init__(self, ensemble: EnsembleData, print_info: bool = False):
+    def __init__(self, ensemble: EnsembleData, print_info: bool = True):
         """
         Initializes a part instance.
 
@@ -339,14 +339,6 @@ class CensoPart:
         """
         This implements the actual part logic. This should always return None if using the
         @timeit decorator.
-        Do override this.
-        """
-        raise NotImplementedError
-
-    def _output(self) -> None:
-        """
-        Implements printouts and writes for any output data.
-        Necessary to implement for each part.
         """
         raise NotImplementedError
 
@@ -367,7 +359,7 @@ class CensoPart:
             object: The part instance.
         """
         # Create the instance
-        instance = cls(ensemble)
+        instance = cls(ensemble, **kwargs)
 
         runtime = instance(**kwargs)
         instance.data["runtime"] = runtime
@@ -375,9 +367,6 @@ class CensoPart:
         # Append a reference to the run instance to the ensemble results for
         # book keeping
         ensemble.results.append(instance)
-
-        # Output the results
-        instance._output()
 
         # Return the instance in the final state and the runtime
         return instance, runtime

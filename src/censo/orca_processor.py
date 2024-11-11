@@ -479,8 +479,6 @@ class OrcaProc(QmProc):
 
         # settings for double hybrids
         if "double" in functype:
-            indict["main"].extend(["RIJCOSX"])
-
             if "nmr" in jobtype:
                 indict["main"].append("NOFROZENCORE")
                 indict = od_insert(
@@ -501,19 +499,16 @@ class OrcaProc(QmProc):
             def2cbasis = ("def2-svp", "def2-tzvp", "def2-tzvpp", "def2-qzvpp")
             if basis.lower() in def2cbasis:
                 indict["main"].append(f"{basis}/C")
+            else:
+                indict["main"].append("def2-tzvpp/C")
 
             if not orca5:
                 indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
 
         # settings for hybrids
         elif "hybrid" in functype:
-            indict["main"].append("RIJCOSX")
             if not orca5:
                 indict["main"].extend(["GRIDX6", "NOFINALGRIDX"])
-
-        # settings for (m)ggas
-        elif "gga" in functype:
-            indict["main"].append("RI")
 
         # dummy type falls through every case, nothing is done in that case
 

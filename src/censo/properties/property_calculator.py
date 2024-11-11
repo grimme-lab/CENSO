@@ -29,9 +29,6 @@ class PropertyCalculator(CensoPart):
 
         It is possible to pass a specific part output to determine the Boltzmann populations
         """
-        # print instructions
-        self._print_info()
-
         # Set energy values to use later
         self._set_energy(using_part=using_part)
         for conf in self._ensemble.conformers:
@@ -47,14 +44,6 @@ class PropertyCalculator(CensoPart):
         self._write_results()
 
         # DONE
-
-    def _output(self) -> None:
-        """
-        Implements printouts and writes for any output data.
-        Necessary to implement for each part.
-        """
-        # Write out results
-        self._write_results()
 
     def _property(self):
         raise NotImplementedError

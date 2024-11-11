@@ -86,9 +86,6 @@ class EnsembleOptimizer(CensoPart):
         Boilerplate run logic for any ensemble optimization step. The 'optimize' method should be implemented for every
         class respectively.
         """
-        # print instructions
-        self._print_info()
-
         # Print information about ensemble before optimization
         self._print_update()
         self.data["nconf_in"] = len(self._ensemble.conformers)
@@ -97,19 +94,6 @@ class EnsembleOptimizer(CensoPart):
         self._optimize(cut=cut)
         self.data["nconf_out"] = len(self._ensemble.conformers)
 
-        # DONE
-
-    def _optimize(self, cut: bool = True):
-        raise NotImplementedError
-
-    def _write_results(self):
-        raise NotImplementedError
-
-    def _output(self) -> None:
-        """
-        Implements printouts and writes for any output data.
-        Necessary to implement for each part.
-        """
         # Write out results
         self._write_results()
 
@@ -122,6 +106,12 @@ class EnsembleOptimizer(CensoPart):
 
         # dump ensemble
         self._ensemble.dump(f"{self._part_nos[self.name]}_{self.name.upper()}")
+
+    def _optimize(self, cut: bool = True):
+        raise NotImplementedError
+
+    def _write_results(self):
+        raise NotImplementedError
 
     def _setup_prepinfo(self, jobtype: list[str]) -> dict[str, dict]:
         """

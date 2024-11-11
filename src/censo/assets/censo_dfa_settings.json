@@ -164,8 +164,8 @@
     },
     "b97-d4": {
         "tm": null,
-        "orca": "b97",
-        "disp": "d4",
+        "orca": "b97-d4",
+        "disp": "included",
         "type": "gga"
     },
     "kt1-novdw": {

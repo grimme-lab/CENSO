@@ -43,7 +43,7 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
-    CensoPart(ensemble, print_info=True)
+    CensoPart(ensemble)
 
     run = filter(
         lambda x: x.get_settings()["run"],
@@ -110,11 +110,15 @@ def startup(args) -> EnsembleData | None:
         for filename in args.reload:
             ensemble.read_output(os.path.join(cwd, filename))
 
+    # Set multiprocessing variables
     if args.maxcores:
         Config.NCORES = args.maxcores
 
     if args.omp:
         Config.OMP = args.omp
+
+    if args.ompmin:
+        Config.OMPMIN = args.ompmin
 
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
