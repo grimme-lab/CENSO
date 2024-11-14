@@ -88,13 +88,14 @@ class Refinement(Screening):
             threshold = self.get_settings()["threshold"]
 
             # Update ensemble using Boltzman population threshold
-            confiter = iter(self._ensemble.conformers)
             filtered = []
-            while (
-                sum(self.data["results"][conf.name]["bmw"] for conf in filtered)
-                < threshold
-            ):
-                filtered.append(next(confiter))
+            total_bmw = 0
+
+            for conf in self._ensemble.conformers:
+                total_bmw += self.data["results"][conf.name]["bmw"]
+                filtered.append(conf)
+                if total_bmw >= threshold:
+                    break
 
             # Remove conformers
             self._ensemble.remove_conformers([conf.name for conf in filtered])
@@ -174,7 +175,8 @@ class Refinement(Screening):
                 else "---"
             ),
             "GmRRHO": lambda conf: (
-                f"{self.data['results'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
+                f"{self.data['results'][conf.name]['xtb_rrho']['gibbs']
+                    [self.get_general_settings()['temperature']]:.6f}"
                 if self.get_general_settings()["evaluate_rrho"]
                 else "---"
             ),
@@ -195,7 +197,8 @@ class Refinement(Screening):
             "\nBoltzmann averaged free energy/enthalpy of ensemble (high level single-points):\n"
         )
         lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {
+                'avG(T) /a.u.':>14}\n"
         )
 
         # calculate averaged free enthalpy
@@ -227,7 +230,8 @@ class Refinement(Screening):
 
         # append the lines for the free energy/enthalpy
         lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part3==\n"
+            f"{self.get_general_settings().get('temperature', 298.15):^15} {
+                avE:>14.7f}  {avG:>14.7f}     <<==part3==\n"
         )
         lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
 
