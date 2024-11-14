@@ -84,26 +84,27 @@ class Refinement(Screening):
         self._update_results(self._calc_boltzmannweights())
 
         if cut:
-            # Sort conformers
-            self._ensemble.conformers.sort(
-                key=lambda conf: self.data["results"][conf.name]["gtot"]
-            )
-
             # Get Boltzmann population threshold from settings
             threshold = self.get_settings()["threshold"]
 
             # Update ensemble using Boltzman population threshold
-            filtered = [conf.name for conf in self._ensemble.conformers]
+            filtered = [
+                conf.name
+                for conf in sorted(
+                    self._ensemble.conformers,
+                    key=lambda x: self.data["results"][x.name]["gtot"],
+                )
+            ]
             total_bmw = 0
 
-            for conf in self._ensemble.conformers:
-                total_bmw += self.data["results"][conf.name]["bmw"]
-                filtered.remove(conf.name)
+            for confname in filtered:
+                total_bmw += self.data["results"][confname]["bmw"]
+                filtered.remove(confname)
                 if total_bmw >= threshold:
                     break
 
             # Remove conformers
-            self._ensemble.remove_conformers([conf.name for conf in filtered])
+            self._ensemble.remove_conformers(filtered)
             for conf in filtered:
                 print(f"No longer considering {conf.name}.")
 
