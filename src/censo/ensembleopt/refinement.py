@@ -105,8 +105,8 @@ class Refinement(Screening):
 
             # Remove conformers
             self._ensemble.remove_conformers(filtered)
-            for conf in filtered:
-                print(f"No longer considering {conf.name}.")
+            for confname in filtered:
+                print(f"No longer considering {confname}.")
 
             # Recalculate boltzmann weights after cutting down the ensemble
             self._update_results(self._calc_boltzmannweights())
