@@ -179,26 +179,27 @@ class Optimization(EnsembleOptimizer):
         # we don't do that anymore and just use the final energies from the optimizations, which are done using a
         # solvent model, since this basically makes no difference in comp time
         # do rrho on converged geometries (overwrites previous rrho calculations)
-        jobtype = ["xtb_rrho"]
-        prepinfo = self._setup_prepinfo(jobtype)
-        results, failed = execute(
-            self._ensemble.conformers,
-            self._dir,
-            self.get_settings()["prog"],
-            prepinfo,
-            jobtype,
-            copy_mo=self.get_general_settings()["copy_mo"],
-            balance=self.get_general_settings()["balance"],
-            retry_failed=self.get_general_settings()["retry_failed"],
-        )
+        if self.get_general_settings()["evaluate_rrho"]:
+            jobtype = ["xtb_rrho"]
+            prepinfo = self._setup_prepinfo(jobtype)
+            results, failed = execute(
+                self._ensemble.conformers,
+                self._dir,
+                self.get_settings()["prog"],
+                prepinfo,
+                jobtype,
+                copy_mo=self.get_general_settings()["copy_mo"],
+                balance=self.get_general_settings()["balance"],
+                retry_failed=self.get_general_settings()["retry_failed"],
+            )
 
-        # Remove failed conformers
-        self._ensemble.remove_conformers(failed)
+            # Remove failed conformers
+            self._ensemble.remove_conformers(failed)
 
-        # Update results
-        self._update_results(results)
+            # Update results
+            self._update_results(results)
 
-        # TODO - Add the possibility to explicitely calculate solvation contributions
+        # TODO - Add the possibility to explicitly calculate solvation contributions
 
         for conf in self._ensemble.conformers:
             self.data["results"][conf.name]["gtot"] = self._grrho(conf)
@@ -222,13 +223,10 @@ class Optimization(EnsembleOptimizer):
         """
         jobtype = "xtb_opt" if self.get_settings()["xtb_opt"] else "opt"
 
-        try:
-            return (
-                self.data["results"][conf.name][jobtype]["energy"]
-                + self.data["results"][conf.name]["xtb_rrho"]["energy"]
-            )
-        except KeyError:
-            return self.data["results"][conf.name][jobtype]["energy"]
+        return (
+            self.data["results"][conf.name][jobtype]["energy"]
+            + self.data["results"][conf.name].get("xtb_rrho", {"energy": 0.0})["energy"]
+        )
 
     def __macrocycle_opt(self, cut: bool):
         """
@@ -304,7 +302,11 @@ class Optimization(EnsembleOptimizer):
             # run xtb_rrho for finite temperature contributions
             # for now only after the first 'optcycles' steps or after at least 6 cycles are done
             # TODO - make this better
-            if ncyc + self.get_settings()["optcycles"] >= 6 and not rrho_done:
+            if (
+                ncyc + self.get_settings()["optcycles"] >= 6
+                and self.get_general_settings()["evaluate_rrho"]
+                and not rrho_done
+            ):
                 # evaluate rrho using bhess flag (reset after this)
                 # TODO - this smells a bit
                 tmp = self.get_general_settings()["bhess"]
