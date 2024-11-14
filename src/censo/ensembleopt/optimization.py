@@ -208,6 +208,9 @@ class Optimization(EnsembleOptimizer):
             key=lambda conf: self.data["results"][conf.name]["gtot"]
         )
 
+        # sort conformers list with optimization key (gtot)
+        self.ensemble.conformers.sort(key=lambda conf: conf.results[self._name]["gtot"])
+
         # calculate boltzmann weights from gtot values calculated here
         self._update_results(self._calc_boltzmannweights())
 
