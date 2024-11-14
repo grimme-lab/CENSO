@@ -1,6 +1,5 @@
 import multiprocessing
 import signal
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from .datastructure import ParallelJob, MoleculeData
 from .logging import setup_logger
@@ -19,36 +18,49 @@ class ParallelExecutor:
 
     def __init__(
         self,
-        workdir,
-        prog,
+        ncores: int,
+        prog: str,
+        workdir: str,
     ):
         """
         Initializes the ParallelExecutor with the given parameters.
 
         Args:
+            ncores (int): Number of available cores.
             workdir (str): Working directory.
             prog (str): Name of the program to be used.
         """
+        self.__MAXCORES = ncores
         self.__workdir = workdir
         self.__prog = prog
 
-        self.__jobs: list[ParallelJob]
-        self.__processor: QmProc
+        self.__jobs: list[ParallelJob] = []
+        self.__processor: QmProc = Factory.create(self.__prog, self.__workdir)
 
-    def __enter__(self):
-        """
-        Initializes the processor.
-        """
-        self.__processor = Factory.create(self.__prog, self.__workdir)
+        self.__free_cores = multiprocessing.Value("i", ncores)
 
-        return self
+    def __call__(self) -> None:
+        """
+        Executes the parallel tasks.
+        """
+        with multiprocessing.Pool(
+            processes=self.__free_cores.value
+            // min([job.omp for job in self.__jobs] + [1])
+        ) as pool:
+            # Make sure SIGTERM is propagated
+            # FIXME: will this raise an exception an break the context manager?
+            signal.signal(
+                signal.SIGTERM,
+                lambda sig, frame: self.__handle_sigterm(sig, frame, pool),
+            )
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Cleans up resources.
-        """
-        if exc_type is not None:
-            raise exc_val
+            # Register tasks in the pool
+            # NOTE: this processes tasks synchronously so that the caller is blocked until execution is completed for all tasks (async would continue)
+            pool.starmap(
+                self.__processor.run, [(job, self.__free_cores) for job in self.__jobs]
+            )
+
+        logger.debug(f"Finished execution of {len(self.__jobs)} jobs.")
 
     @property
     def jobs(self) -> list[ParallelJob]:
@@ -58,6 +70,14 @@ class ParallelExecutor:
     def jobs(self, jobs: list[ParallelJob]):
         assert all(isinstance(job, ParallelJob) for job in jobs)
         self.__jobs = jobs
+
+    @property
+    def failed_jobs(self) -> list[ParallelJob]:
+        return [
+            job
+            for job in self.__jobs
+            if any(not job.meta[jt]["success"] for jt in job.jobtype)
+        ]
 
     def prepare_jobs(
         self,
@@ -72,7 +92,7 @@ class ParallelExecutor:
         """
         self.__processor.copy_mo = copy_mo
 
-        # Create ParallelJob instances from the conformers, copying the prepinfo dict
+        # Create ParallelJob instances from the conformers, sharing the prepinfo dict
         jobs = [ParallelJob(conf.geom, jobtype) for conf in conformers]
         for job in jobs:
             job.prepinfo.update(prepinfo)
@@ -100,14 +120,14 @@ class ParallelExecutor:
                     None,
                 )
 
+        self.__jobs = jobs
+
         # Check if the the execution uses TM, because here OMP cannot be assigned on a job-variable basis
         if balance and not isinstance(self.__processor, TmProc):
             self.__set_omp_chunking()
         # Similar steps will be taken if balancing 2.0 is disabled
         else:
             self.__set_omp_tmproc()
-
-        return jobs
 
     def __set_omp_tmproc(self):
         """
@@ -172,75 +192,17 @@ class ParallelExecutor:
                     job.omp = Config.NCORES // p
                 jobs_left -= p
 
-    def execute(self):
-        """
-        Executes the parallel tasks.
-
-        Returns:
-            list: List of results.
-        """
-        # Create a managed context to have the number of cores as shared variable
-        with (
-            multiprocessing.Manager() as manager,
-            ProcessPoolExecutor(
-                max_workers=Config.NCORES // min(job.omp for job in self.__jobs)
-            ) as executor,
-        ):
-            # Make sure that subprocesses get terminated on receiving SIGTERM
-            signal.signal(
-                signal.SIGTERM,
-                lambda signum, frame: self._handle_sigterm(signum, frame, executor),
-            )
-
-            # Set up the shared variable for the number of free cores
-            free_cores = manager.Value(int, Config.NCORES)
-            enough_cores = manager.Condition()
-
-            # Submit tasks to the executor
-            self.__jobs.sort(key=lambda x: x.omp)
-            tasks = []
-            for job in self.__jobs:
-                # TODO: add _decrease_cores
-                tasks.append(executor.submit(self.__processor.run, job))
-                tasks[-1].add_done_callback(
-                    lambda _, omp=job.omp: self._increase_cores(
-                        free_cores, omp, enough_cores
-                    )
-                )
-
-            # Wait for completion of all tasks collectively and collect results
-            results = [task.result() for task in as_completed(tasks)]
-
-        return results
-
-    def _handle_sigterm(self, signum, frame, executor):
+    def __handle_sigterm(self, signum: int, frame, pool: multiprocessing.Pool):
         """
         Handles SIGTERM signal to terminate gracefully.
 
         Args:
             signum (int): Signal number.
             frame (frame): Current stack frame.
-            executor (ProcessPoolExecutor): The executor to shut down.
         """
         logger.critical("Received SIGTERM. Terminating.")
         # Immediately terminate all subprocesses
-        executor.shutdown(wait=False)
-
-    def _increase_cores(self, free_cores, omp, enough_cores):
-        """
-        Increments the number of free cores.
-
-        Args:
-            free_cores (Value): Shared variable for free cores.
-            omp (int): Number of cores to increase.
-            enough_cores (Condition): Condition for process synchronization.
-        """
-        with enough_cores:
-            free_cores.value += omp
-            logger.debug(
-                f"Free cores increased {free_cores.value - omp} -> {free_cores.value}."
-            )
-            enough_cores.notify()
+        pool.terminate()
 
 
 def execute(
@@ -250,7 +212,6 @@ def execute(
     prepinfo,
     jobtype,
     copy_mo=False,
-    retry_failed=False,
     balance=True,
 ):
     """
@@ -263,69 +224,69 @@ def execute(
         prepinfo (dict): Preparation information for the jobs.
         jobtype (list): List of job types.
         copy_mo (bool, optional): Whether to copy the MO-files from the previous calculation.
-        retry_failed (bool, optional): Whether to retry failed jobs.
         balance (bool, optional): Whether to balance the number of cores used per job.
 
     Returns:
         list: List of results.
     """
-    with ParallelExecutor(workdir, prog) as executor:
-        executor.prepare_jobs(
-            conformers, jobtype, prepinfo, balance=balance, copy_mo=copy_mo
-        )
-        results = executor.execute()
+    executor = ParallelExecutor(Config.NCORES, prog, workdir)
 
-        # determine failed jobs
-        logger.debug("Checking for failed jobs...")
-        failed_jobs = [
-            job
-            for job in results
-            if any(not job.meta[jt]["success"] for jt in job.jobtype)
-        ]
+    # Prepare jobs for parallel execution by assigning number of cores per job etc.
+    executor.prepare_jobs(
+        conformers, jobtype, prepinfo, balance=balance, copy_mo=copy_mo
+    )
 
-        if retry_failed and len(failed_jobs) > 0:
-            # create a new list of failed jobs that should be restarted with special flags
-            # contains jobs that should be retried (depends on wether the error can be handled or not)
-            retry = []
+    # Execute the jobs
+    executor()
 
-            # determine flags for jobs based on error messages
-            for failed_job in failed_jobs:
-                handled_errors = ["scf_not_converged", "Previous calculation failed"]
+    # determine failed jobs
+    logger.debug("Checking for failed jobs...")
 
-                # list of jobtypes that should be removed from the jobtype list
-                jtremove = []
-                for jt in failed_job.jobtype:
-                    if not failed_job.meta[jt]["success"]:
-                        if failed_job.meta[jt]["error"] in handled_errors:
-                            retry.append(failed_job)
-                            failed_job.flags[jt] = failed_job.meta[jt]["error"]
-                    # store all successful jobtypes to be removed later
-                    elif failed_job.meta[jt]["success"]:
-                        jtremove.append(jt)
+    if len(executor.failed_jobs) > 0:
+        logger.info(f"Number of failed jobs: {len(executor.failed_jobs)}.")
 
-                # remove all successful jobs from jobtype to avoid re-execution
-                for jt in jtremove:
-                    failed_job.jobtype.remove(jt)
+        """
+    if retry_failed and len(failed_jobs) > 0:
+        # create a new list of failed jobs that should be restarted with special flags
+        # contains jobs that should be retried (depends on wether the error can be handled or not)
+        # retry = []
 
-            logger.info(f"Number of failed jobs: {len(failed_jobs)}.")
-            if len(retry) > 0:
-                # execute jobs that should be retried
-                executor.jobs = retry
-                _ = executor.execute()
-            else:
-                logger.info("No failed jobs can be recovered.")
+        # determine flags for jobs based on error messages
+        for failed_job in failed_jobs:
+            handled_errors = ["scf_not_converged", "Previous calculation failed"]
 
-            # any jobs that still failed will lead to the conformer being marked as unrecoverable
-            failed_confs = []
-            for job in results:
-                if not all(job.meta[jt]["success"] for jt in job.jobtype):
-                    logger.warning(
-                        f"{job.conf.name} job recovery failed. Error: {job.meta[jt]['error']}. Check output files."
-                    )
-                    failed_confs.append(job.conf.name)
-                else:
-                    logger.info(f"Successfully retried job for {job.conf.name}.")
+            # list of jobtypes that should be removed from the jobtype list
+            jtremove = []
+            for jt in failed_job.jobtype:
+                if not failed_job.meta[jt]["success"]:
+                    if failed_job.meta[jt]["error"] in handled_errors:
+                        retry.append(failed_job)
+                        failed_job.flags[jt] = failed_job.meta[jt]["error"]
+                # store all successful jobtypes to be removed later
+                elif failed_job.meta[jt]["success"]:
+                    jtremove.append(jt)
+
+            # remove all successful jobs from jobtype to avoid re-execution
+            for jt in jtremove:
+                failed_job.jobtype.remove(jt)
+
+
+        if len(retry) > 0:
+            # execute jobs that should be retried
+            executor.jobs = retry
+            _ = executor.execute()
         else:
-            logger.debug("All jobs executed successfully.")
+            logger.info("No failed jobs can be recovered.")
+        """
 
-    return results
+        # any jobs that still failed will lead to the conformer being marked as unrecoverable
+        failed_confs = [job.conf.name for job in executor.failed_jobs]
+        for job in executor.failed_jobs:
+            errors = {jt: job.meta[jt]["error"] for jt in job.meta}
+            logger.warning(
+                f"{job.conf.name} job failed. Errors: {errors}. Check output files."
+            )
+    else:
+        logger.debug("All jobs executed successfully.")
+
+    return {job.conf.name: job.results for job in executor.jobs}, failed_confs

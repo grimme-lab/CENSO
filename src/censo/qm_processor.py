@@ -8,7 +8,9 @@ import json
 import os
 import signal
 import subprocess
-from time import perf_counter
+import multiprocessing
+import traceback
+from time import perf_counter, sleep
 from collections.abc import Callable
 
 from .datastructure import ParallelJob
@@ -136,67 +138,78 @@ class QmProc:
 
         self.workdir = workdir
 
-    def run(self, job: ParallelJob) -> ParallelJob:
+    def run(self, job: ParallelJob, free_cores: multiprocessing.Value) -> None:
         """
         Run methods depending on jobtype.
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. censo.parallel.execute
 
         Args:
             job (ParallelJob): job to run
-
-        Returns:
-            job (ParallelJob): job with results
+            free_cores (multiprocessing.Value): Shared variable to track number of free CPU cores.
         """
-        logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
-        # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
-        # list containing the types of computations to do
-        if not all(t in self._jobtypes for t in job.jobtype):
-            raise RuntimeError(
-                f"At least one jobtype of {job.jobtype} is not available for "
-                + f"{self.__class__.__name__}.\nAvailable "
-                + f"jobtypes are: {list(self._jobtypes)}"
+        while True:
+            with free_cores.get_lock():
+                if free_cores.value >= job.omp:
+                    free_cores.value -= job.omp
+                    logger.debug(f"Number of cores decreased: {free_cores.value + job.omp} -> {free_cores.value}")
+                    break
+            sleep(1)
+
+        try:
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
+            # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
+            # list containing the types of computations to do
+            if not all(t in self._jobtypes for t in job.jobtype):
+                raise RuntimeError(
+                    f"At least one jobtype of {job.jobtype} is not available for "
+                    + f"{self.__class__.__name__}.\nAvailable "
+                    + f"jobtypes are: {list(self._jobtypes)}"
+                )
+
+            # run all the computations
+            for j in job.jobtype:
+                # Create jobdir
+                jobdir = self._create_jobdir(job.conf.name, j)
+
+                # Time execution
+                start = perf_counter()
+
+                logger.info(
+                    f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
+                    + f"{j} calculation in {jobdir}."
+                )
+                print(f"Running {j} calculation for {job.conf.name}.")
+                job.results[j], job.meta[j] = self._jobtypes[j](job, jobdir)
+
+                # Copy mo path if possible to be used for further calculations
+                # (processors grab the mo path from the 'mo_path' key that is always present in the meta dict)
+                if job.meta[j].get("mo_path", None) is not None:
+                    job.meta["mo_path"] = job.meta[j]["mo_path"]
+
+                end = perf_counter()
+
+                job.meta[j]["time"] = end - start
+
+                # if a calculation failed all following calculations will not be executed
+                if not job.meta[j]["success"]:
+                    for j2 in job.jobtype[job.jobtype.index(j) + 1 :]:
+                        job.results[j2] = None
+                        job.meta[j2]["success"] = False
+                        job.meta[j2]["error"] = "Previous calculation failed"
+                    break
+
+            job.meta["total_time"] = sum(
+                job.meta[j]["time"]
+                for j in job.jobtype
+                if job.meta[j]["error"] != "Previous calculation failed"
             )
-
-        # run all the computations
-        for j in job.jobtype:
-            # Create jobdir
-            jobdir = self._create_jobdir(job.conf.name, j)
-
-            # Time execution
-            start = perf_counter()
-
-            logger.info(
-                f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
-                + f"{j} calculation in {jobdir}."
-            )
-            print(f"Running {j} calculation for {job.conf.name}.")
-            job.results[j], job.meta[j] = self._jobtypes[j](job, jobdir)
-
-            # Copy mo path if possible to be used for further calculations
-            # (processors grab the mo path from the 'mo_path' key that is always present in the meta dict)
-            if job.meta[j].get("mo_path", None) is not None:
-                job.meta["mo_path"] = job.meta[j]["mo_path"]
-
-            end = perf_counter()
-
-            job.meta[j]["time"] = end - start
-
-            # if a calculation failed all following calculations will not be executed
-            if not job.meta[j]["success"]:
-                for j2 in job.jobtype[job.jobtype.index(j) + 1 :]:
-                    job.results[j2] = None
-                    job.meta[j2]["success"] = False
-                    job.meta[j2]["error"] = "Previous calculation failed"
-                break
-
-        job.meta["total_time"] = sum(
-            job.meta[j]["time"]
-            for j in job.jobtype
-            if job.meta[j]["error"] != "Previous calculation failed"
-        )
-
-        # returns modified job object with result dict e.g.: {"sp": ..., "gsolv": ..., etc.}
-        return job
+        except Exception as e:
+            logger.exception(f"{f'worker{os.getpid()}:':{WARNLEN}}Exception occured: {e}")
+            traceback.print_exc(e)
+        finally:
+            with free_cores.get_lock():
+                free_cores.value += job.omp
+                logger.debug(f"Number of cores increased: {free_cores.value - job.omp} -> {free_cores.value}")
 
     def _make_call(
         self, prog: str, call: list, outputpath: str, jobdir: str
