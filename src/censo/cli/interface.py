@@ -43,7 +43,11 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 0
 
     # Print general settings once
+<<<<<<< HEAD
     CensoPart(ensemble)
+=======
+    CensoPart(ensemble, print_info=True)
+>>>>>>> origin/main
 
     run = filter(
         lambda x: x.get_settings()["run"],
@@ -110,15 +114,21 @@ def startup(args) -> EnsembleData | None:
         for filename in args.reload:
             ensemble.read_output(os.path.join(cwd, filename))
 
+<<<<<<< HEAD
     # Set multiprocessing variables
+=======
+>>>>>>> origin/main
     if args.maxcores:
         Config.NCORES = args.maxcores
 
     if args.omp:
         Config.OMP = args.omp
+<<<<<<< HEAD
 
     if args.ompmin:
         Config.OMPMIN = args.ompmin
+=======
+>>>>>>> origin/main
 
     # if data should be reloaded, do it here
     if args.reload:

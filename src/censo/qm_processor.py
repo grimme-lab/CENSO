@@ -151,12 +151,16 @@ class QmProc:
             with free_cores.get_lock():
                 if free_cores.value >= job.omp:
                     free_cores.value -= job.omp
-                    logger.debug(f"Number of cores decreased: {free_cores.value + job.omp} -> {free_cores.value}")
+                    logger.debug(
+                        f"Number of cores decreased: {free_cores.value + job.omp} -> {free_cores.value}"
+                    )
                     break
             sleep(1)
 
         try:
-            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores.")
+            logger.debug(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Running on {job.omp} cores."
+            )
             # jobtype is basically an ordered (!!!) (important e.g. if sp is required before the next step)
             # list containing the types of computations to do
             if not all(t in self._jobtypes for t in job.jobtype):
@@ -204,12 +208,16 @@ class QmProc:
                 if job.meta[j]["error"] != "Previous calculation failed"
             )
         except Exception as e:
-            logger.exception(f"{f'worker{os.getpid()}:':{WARNLEN}}Exception occured: {e}")
+            logger.exception(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Exception occured: {e}"
+            )
             traceback.print_exc(e)
         finally:
             with free_cores.get_lock():
                 free_cores.value += job.omp
-                logger.debug(f"Number of cores increased: {free_cores.value - job.omp} -> {free_cores.value}")
+                logger.debug(
+                    f"Number of cores increased: {free_cores.value - job.omp} -> {free_cores.value}"
+                )
 
     def _make_call(
         self, prog: str, call: list, outputpath: str, jobdir: str

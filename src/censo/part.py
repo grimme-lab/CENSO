@@ -288,15 +288,12 @@ class CensoPart:
 
         return wrapper
 
-    def __init__(self, ensemble: EnsembleData, print_info: bool = True):
+    def __init__(self, ensemble: EnsembleData):
         """
         Initializes a part instance.
 
         Args:
             ensemble: The ensemble instance that manages the conformers.
-
-        Returns:
-            None
         """
         # sets the name of the part (used for printing and folder creation)
         self.name: str = (
@@ -331,14 +328,23 @@ class CensoPart:
         #    to get the single-point energy: self.data["results"]["CONF4"]["sp"]["energy"]
         #    (refer to the results for each jobtype)
 
-        # Print out settings if requested
-        if print_info:
-            self._print_info()
+        # Print out settings
+        # NOTE: policy is now to print by default always, since python allows
+        # you to redirect stdout via context manager if necessary
+        self._print_info()
 
     def __call__(self, **kwargs) -> None:
         """
         This implements the actual part logic. This should always return None if using the
         @timeit decorator.
+        Do override this.
+        """
+        raise NotImplementedError
+
+    def _output(self) -> None:
+        """
+        Implements printouts and writes for any output data.
+        Necessary to implement for each part.
         """
         raise NotImplementedError
 
@@ -359,7 +365,7 @@ class CensoPart:
             object: The part instance.
         """
         # Create the instance
-        instance = cls(ensemble, **kwargs)
+        instance = cls(ensemble)
 
         runtime = instance(**kwargs)
         instance.data["runtime"] = runtime
@@ -367,6 +373,9 @@ class CensoPart:
         # Append a reference to the run instance to the ensemble results for
         # book keeping
         ensemble.results.append(instance)
+
+        # Output the results
+        instance._output()
 
         # Return the instance in the final state and the runtime
         return instance, runtime

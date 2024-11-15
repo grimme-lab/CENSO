@@ -6,7 +6,6 @@ functionality for program setup
 import os
 import re
 import json
-from collections import abc
 
 from .datastructure import MoleculeData
 from .logging import setup_logger

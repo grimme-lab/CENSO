@@ -79,11 +79,6 @@ class Refinement(Screening):
                     ][conf.name]["xtb_rrho"]
                     self.data["results"][conf.name]["gtot"] = self._grrho(conf)
 
-        # sort conformers list
-        self._ensemble.conformers.sort(
-            key=lambda conf: self.data["results"][conf.name]["gtot"]
-        )
-
         # calculate boltzmann weights from gtot values calculated here
         # trying to get temperature from instructions, set it to room temperature if that fails for some reason
         self._update_results(self._calc_boltzmannweights())
@@ -93,18 +88,25 @@ class Refinement(Screening):
             threshold = self.get_settings()["threshold"]
 
             # Update ensemble using Boltzman population threshold
-            confiter = iter(self._ensemble.conformers)
-            filtered = []
-            while (
-                sum(self.data["results"][conf.name]["bmw"] for conf in filtered)
-                < threshold
-            ):
-                filtered.append(next(confiter))
+            filtered = [
+                conf.name
+                for conf in sorted(
+                    self._ensemble.conformers,
+                    key=lambda x: self.data["results"][x.name]["gtot"],
+                )
+            ]
+            total_bmw = 0
+
+            for confname in filtered:
+                total_bmw += self.data["results"][confname]["bmw"]
+                filtered.remove(confname)
+                if total_bmw >= threshold:
+                    break
 
             # Remove conformers
-            self._ensemble.remove_conformers([conf.name for conf in filtered])
-            for conf in filtered:
-                print(f"No longer considering {conf.name}.")
+            self._ensemble.remove_conformers(filtered)
+            for confname in filtered:
+                print(f"No longer considering {confname}.")
 
             # Recalculate boltzmann weights after cutting down the ensemble
             self._update_results(self._calc_boltzmannweights())
@@ -205,11 +207,9 @@ class Refinement(Screening):
 
         # calculate averaged free enthalpy
         avG = sum(
-            [
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["gtot"]
-                for conf in self._ensemble.conformers
-            ]
+            self.data["results"][conf.name]["bmw"]
+            * self.data["results"][conf.name]["gtot"]
+            for conf in self._ensemble.conformers
         )
 
         # calculate averaged free energy
