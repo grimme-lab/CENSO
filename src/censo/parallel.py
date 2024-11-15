@@ -63,7 +63,7 @@ class ParallelExecutor:
 
             # Register tasks in the pool
             # NOTE: this processes tasks synchronously so that the caller is blocked until execution is completed for all tasks (async would continue)
-            pool.map(self.__processor.run, self.__jobs)
+            self.__jobs = pool.map(self.__processor.run, self.__jobs)
 
         logger.debug(f"Finished execution of {len(self.__jobs)} jobs.")
 

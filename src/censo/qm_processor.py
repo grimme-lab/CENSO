@@ -146,14 +146,18 @@ class QmProc:
         self.__free_cores = free_cores
         self.__enough_cores = enough_cores
 
-    def run(self, job: ParallelJob) -> None:
+    def run(self, job: ParallelJob) -> ParallelJob:
         """
         Run methods depending on jobtype.
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. censo.parallel.execute
 
         Args:
             job (ParallelJob): job to run
+
+        Returns:
+            ParallelJob: the job object with results inserted.
         """
+        # NOTE: this function needs a return value because for the multiprocessing.Pool the jobs are not passed by reference
         # Wait here until enough cores are freed
         with self.__enough_cores:
             self.__enough_cores.wait_for(lambda: self.__free_cores.value >= job.omp)
@@ -225,6 +229,8 @@ class QmProc:
                     f"Free cores increased {self.__free_cores.value - job.omp} -> {self.__free_cores.value}."
                 )
                 self.__enough_cores.notify()
+
+        return job
 
     def _make_call(
         self, prog: str, call: list, outputpath: str, jobdir: str
