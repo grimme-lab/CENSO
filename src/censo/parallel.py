@@ -249,7 +249,8 @@ def execute(
     # determine failed jobs
     logger.debug("Checking for failed jobs...")
 
-    if len(executor.failed_jobs) > 0:
+    failed_confs = [job.conf.name for job in executor.failed_jobs]
+    if len(failed_confs) > 0:
         logger.info(f"Number of failed jobs: {len(executor.failed_jobs)}.")
 
         """
@@ -287,7 +288,6 @@ def execute(
         """
 
         # any jobs that still failed will lead to the conformer being marked as unrecoverable
-        failed_confs = [job.conf.name for job in executor.failed_jobs]
         for job in executor.failed_jobs:
             errors = {jt: job.meta[jt]["error"] for jt in job.meta}
             logger.warning(
