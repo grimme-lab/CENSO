@@ -63,8 +63,8 @@ class Optimization(EnsembleOptimizer):
 
     _settings = {}
 
-    def __init__(self, ensemble: EnsembleData, print_info: bool = False):
-        super().__init__(ensemble, print_info=print_info)
+    def __init__(self, ensemble: EnsembleData):
+        super().__init__(ensemble)
 
         # Special 'todo-list' for optimization part, contains all unconverged conformers,
         # used in macrocycle optimization
