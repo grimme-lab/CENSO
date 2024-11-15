@@ -128,7 +128,12 @@ class QmProc:
         for line in lines:
             print(line)
 
-    def __init__(self, workdir: str, ncores: int):
+    def __init__(
+        self,
+        workdir: str,
+        free_cores: multiprocessing.Value,
+        enough_cores: multiprocessing.Condition,
+    ):
         # dict to map the jobtypes to their respective methods
         self._jobtypes: dict[str, Callable] = {
             "xtb_sp": self._xtb_sp,
@@ -138,8 +143,8 @@ class QmProc:
 
         self.workdir = workdir
 
-        self.__free_cores = multiprocessing.Value("i", ncores)
-        self.__enough_cores = multiprocessing.Condition()
+        self.__free_cores = free_cores
+        self.__enough_cores = enough_cores
 
     def run(self, job: ParallelJob) -> None:
         """

@@ -20,6 +20,7 @@ class ParallelExecutor:
 
     def __init__(
         self,
+        manager: multiprocessing.Manager,
         ncores: int,
         prog: str,
         workdir: str,
@@ -28,19 +29,21 @@ class ParallelExecutor:
         Initializes the ParallelExecutor with the given parameters.
 
         Args:
+            manager (multiprocessing.Manager): Manager for sharing variables between processes.
             ncores (int): Number of available cores.
             workdir (str): Working directory.
             prog (str): Name of the program to be used.
         """
-        self.__MAXCORES = ncores
+        self.__manager = manager
         self.__workdir = workdir
         self.__prog = prog
 
         self.__jobs: list[ParallelJob] = []
 
-        self.__ncores = ncores
+        free_cores = manager.Value("i", ncores)
+        enough_cores = manager.Condition()
         self.__processor: QmProc = Factory.create(
-            self.__prog, self.__workdir, self.__ncores
+            self.__prog, self.__workdir, free_cores, enough_cores
         )
 
     def __call__(self) -> None:
@@ -230,15 +233,17 @@ def execute(
     Returns:
         list: List of results.
     """
-    executor = ParallelExecutor(Config.NCORES, prog, workdir)
+    # Create a managed context to be able to share the number of free cores between processes
+    with multiprocessing.Manager() as manager:
+        executor = ParallelExecutor(manager, Config.NCORES, prog, workdir)
 
-    # Prepare jobs for parallel execution by assigning number of cores per job etc.
-    executor.prepare_jobs(
-        conformers, jobtype, prepinfo, balance=balance, copy_mo=copy_mo
-    )
+        # Prepare jobs for parallel execution by assigning number of cores per job etc.
+        executor.prepare_jobs(
+            conformers, jobtype, prepinfo, balance=balance, copy_mo=copy_mo
+        )
 
-    # Execute the jobs
-    executor()
+        # Execute the jobs
+        executor()
 
     # determine failed jobs
     logger.debug("Checking for failed jobs...")
