@@ -135,7 +135,6 @@ class Optimization(EnsembleOptimizer):
                 jobtype,
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
-                retry_failed=self.get_general_settings()["retry_failed"],
             )
 
             # Remove failed conformers
@@ -190,7 +189,6 @@ class Optimization(EnsembleOptimizer):
                 jobtype,
                 copy_mo=self.get_general_settings()["copy_mo"],
                 balance=self.get_general_settings()["balance"],
-                retry_failed=self.get_general_settings()["retry_failed"],
             )
 
             # Remove failed conformers
@@ -321,7 +319,6 @@ class Optimization(EnsembleOptimizer):
                     jobtype,
                     copy_mo=self.get_general_settings()["copy_mo"],
                     balance=self.get_general_settings()["balance"],
-                    retry_failed=self.get_general_settings()["retry_failed"],
                 )
 
                 # Remove failed conformers

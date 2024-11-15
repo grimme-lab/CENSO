@@ -53,7 +53,7 @@ class CensoPart:
         "balance": {"default": True},
         "gas-phase": {"default": False},
         "copy_mo": {"default": True},
-        "retry_failed": {"default": True},
+        # "retry_failed": {"default": True},
         "trange": {"default": [273.15, 373.15, 5]},
     }
 
