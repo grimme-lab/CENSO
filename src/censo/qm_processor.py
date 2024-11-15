@@ -128,7 +128,7 @@ class QmProc:
         for line in lines:
             print(line)
 
-    def __init__(self, workdir: str):
+    def __init__(self, workdir: str, ncores: int):
         # dict to map the jobtypes to their respective methods
         self._jobtypes: dict[str, Callable] = {
             "xtb_sp": self._xtb_sp,
@@ -138,24 +138,24 @@ class QmProc:
 
         self.workdir = workdir
 
-    def run(self, job: ParallelJob, free_cores: multiprocessing.Value) -> None:
+        self.__free_cores = multiprocessing.Value("i", ncores)
+        self.__enough_cores = multiprocessing.Condition()
+
+    def run(self, job: ParallelJob) -> None:
         """
         Run methods depending on jobtype.
         DO NOT OVERRIDE OR OVERLOAD! this will break e.g. censo.parallel.execute
 
         Args:
             job (ParallelJob): job to run
-            free_cores (multiprocessing.Value): Shared variable to track number of free CPU cores.
         """
-        while True:
-            with free_cores.get_lock():
-                if free_cores.value >= job.omp:
-                    free_cores.value -= job.omp
-                    logger.debug(
-                        f"Number of cores decreased: {free_cores.value + job.omp} -> {free_cores.value}"
-                    )
-                    break
-            sleep(1)
+        # Wait here until enough cores are freed
+        with self.__enough_cores:
+            self.__enough_cores.wait_for(lambda: self.__free_cores.value >= job.omp)
+            self.__free_cores.value -= job.omp
+            logger.debug(
+                f"Free cores decreased {self.__free_cores.value + job.omp} -> {self.__free_cores.value}."
+            )
 
         try:
             logger.debug(
@@ -213,11 +213,13 @@ class QmProc:
             )
             traceback.print_exc(e)
         finally:
-            with free_cores.get_lock():
-                free_cores.value += job.omp
+            # acquire lock on the condition and increase the number of cores, notifying one waiting process
+            with self.__enough_cores:
+                self.__free_cores.value += job.omp
                 logger.debug(
-                    f"Number of cores increased: {free_cores.value - job.omp} -> {free_cores.value}"
+                    f"Free cores increased {self.__free_cores.value - job.omp} -> {self.__free_cores.value}."
                 )
+                self.__enough_cores.notify()
 
     def _make_call(
         self, prog: str, call: list, outputpath: str, jobdir: str

@@ -16,6 +16,8 @@ class ParallelExecutor:
     Manages parallel execution of external program calls. Handles the setup, execution, and cleanup of parallel tasks.
     """
 
+    # NOTE: it might be possible to merge QmProc and this into a class to manage everything holistically
+
     def __init__(
         self,
         ncores: int,
@@ -35,17 +37,18 @@ class ParallelExecutor:
         self.__prog = prog
 
         self.__jobs: list[ParallelJob] = []
-        self.__processor: QmProc = Factory.create(self.__prog, self.__workdir)
 
-        self.__free_cores = multiprocessing.Value("i", ncores)
+        self.__ncores = ncores
+        self.__processor: QmProc = Factory.create(
+            self.__prog, self.__workdir, self.__ncores
+        )
 
     def __call__(self) -> None:
         """
         Executes the parallel tasks.
         """
         with multiprocessing.Pool(
-            processes=self.__free_cores.value
-            // min([job.omp for job in self.__jobs] + [1])
+            processes=self.__ncores // min([job.omp for job in self.__jobs] + [1])
         ) as pool:
             # Make sure SIGTERM is propagated
             # FIXME: will this raise an exception an break the context manager?
@@ -56,9 +59,7 @@ class ParallelExecutor:
 
             # Register tasks in the pool
             # NOTE: this processes tasks synchronously so that the caller is blocked until execution is completed for all tasks (async would continue)
-            pool.starmap(
-                self.__processor.run, [(job, self.__free_cores) for job in self.__jobs]
-            )
+            pool.map(self.__processor.run, self.__jobs)
 
         logger.debug(f"Finished execution of {len(self.__jobs)} jobs.")
 
