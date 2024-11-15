@@ -40,6 +40,7 @@ class ParallelExecutor:
 
         self.__jobs: list[ParallelJob] = []
 
+        self.ncores = ncores
         free_cores = manager.Value("i", ncores)
         enough_cores = manager.Condition()
         self.__processor: QmProc = Factory.create(
@@ -51,7 +52,7 @@ class ParallelExecutor:
         Executes the parallel tasks.
         """
         with multiprocessing.Pool(
-            processes=self.__ncores // min([job.omp for job in self.__jobs] + [1])
+            processes=self.ncores // min([job.omp for job in self.__jobs] + [1])
         ) as pool:
             # Make sure SIGTERM is propagated
             # FIXME: will this raise an exception an break the context manager?
