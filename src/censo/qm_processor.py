@@ -736,7 +736,7 @@ class QmProc:
             and len(trange) == len(rotS)
         ):
             meta["success"] = False
-            meta["error"] = "what went wrong in xtb_rrho"
+            meta["error"] = "unkown_error"
             return result, meta
         elif job.prepinfo["general"]["multitemp"]:
             result["gibbs"] = gt
