@@ -5,31 +5,7 @@ cml parsing
 
 from ..params import START_DESCR
 import argparse
-
-
-def check_soft_requirements(args: argparse.Namespace) -> bool:
-    """
-    Checks for soft-required options (e.g. if you call --new-config you don't need to give -i, for a normal
-    CENSO run you need to, though).
-    """
-    soft_required = [
-        "inp",
-        "maxcores",
-        # "charge",
-        # "unpaired",
-    ]
-    requirement_override = ["writeconfig", "cleanup", "cleanup_all", "version"]
-    # If all settings, that override soft-requirement, are unused
-    if all(getattr(args, s, None) is False for s in requirement_override):
-        # Check, if all the soft-required settings are given
-        if all(getattr(args, s, None) is not None for s in soft_required):
-            return True
-        # Else, the check fails
-        else:
-            return False
-    # Else, the the soft requirement is overridden
-    else:
-        return True
+import os
 
 
 def parse(argv=None) -> argparse.Namespace:
@@ -54,7 +30,8 @@ def parse(argv=None) -> argparse.Namespace:
         "--input",
         dest="inp",
         type=str,
-        help="Relative path to ensemble file, e.g. crest_conformers.xyz. For a default run this is REQUIRED. ",
+        help="Relative path to ensemble file, e.g. crest_conformers.xyz.",
+        default="crest_conformers.xyz",
     )
     groups[0].add_argument(
         "-n",
@@ -93,11 +70,11 @@ def parse(argv=None) -> argparse.Namespace:
         help="Delete unneeded files from current working directory.",
     )
     groups[0].add_argument(
-        "--cleanup_all",
+        "--cleanup-all",
         dest="cleanup_all",
         action="store_true",
         help="Delete all CENSO files from previous runs from current working directory. "
-        "Stronger than -cleanup !",
+        "Stronger than --cleanup !",
     )
     groups[0].add_argument(
         "--new-config",
@@ -118,6 +95,7 @@ def parse(argv=None) -> argparse.Namespace:
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
         "the maximum number available. For a default run this is REQUIRED.",
+        default=os.cpu_count(),
     )
     groups[0].add_argument(
         "-O",
@@ -243,7 +221,6 @@ def parse(argv=None) -> argparse.Namespace:
         help="Gsolv is evaluated for the input molecule in its solution (same). "
         "Only possible with COSMO-RS.",
     )
-    """
 
     # PRESCREENING SETTINGS
     groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
@@ -267,7 +244,6 @@ def parse(argv=None) -> argparse.Namespace:
     groups.append(parser.add_argument_group("UVVIS SETTINGS"))
 
     # leave these options out for now, implementation for cml complicated
-    """
     groups[7].add_argument(
         "-freqOR",
         "--freqOR",
@@ -527,10 +503,9 @@ def parse(argv=None) -> argparse.Namespace:
     ) """
 
     args = parser.parse_args(argv)
-    if not check_soft_requirements(args):
-        raise argparse.ArgumentError(
-            None,
-            "You must provide an input file via '-i' and provide number of cores via '--maxcores'.",
-        )
+    # NOTE: as opposed to previous behaviour '-i' and '--maxcores' are now optional,
+    # however the program WILL exit after creating a new config file if any of 
+    # '--new-config', '--cleanup', '--cleanup-all' 
+    # are used
 
     return args

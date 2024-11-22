@@ -10,7 +10,7 @@ from .utilities import DfaHelper, SolventHelper, print
 parts = {}
 
 
-def configure(rcpath: str = None, create_new: bool = False):
+def configure(rcpath: str = None):
     """
     Configures the application based on the provided configuration file path.
     If no configuration file path is provided, it searches for the default configuration file.
@@ -18,7 +18,6 @@ def configure(rcpath: str = None, create_new: bool = False):
 
     Args:
         rcpath (str): Path to the configuration file.
-        create_new (bool): If True, a new configuration file will be created at rcpath.
 
     Returns:
         None
@@ -28,7 +27,7 @@ def configure(rcpath: str = None, create_new: bool = False):
     if rcpath is None:
         censorc_path = find_rcfile()
     else:
-        if not os.path.isfile(rcpath) and not create_new:
+        if not os.path.isfile(rcpath):
             raise FileNotFoundError(f"No configuration file found at {rcpath}.")
         censorc_path = rcpath
 
@@ -57,43 +56,33 @@ def configure(rcpath: str = None, create_new: bool = False):
         "uvvis": UVVis,
     }
 
-    # if explicitely told to create a new configuration file, do so
-    if create_new:
-        if rcpath is None:
-            # If not chosen otherwise, the new rcfile is written in the home dir
-            censorc_path = os.path.join(os.path.expanduser("~"), "censo2rc_NEW")
-        else:
-            censorc_path = os.path.join(rcpath, "censo2rc_NEW")
-        write_rcfile(censorc_path)
+    # Initialize default settings
+    # Make sure that settings are initialized even if there is no section for this part in the rcfile
+    # General settings should always be configured first
+    CensoPart.set_general_settings({})
+    for part in parts.values():
+        part.set_settings({}, complete=True)
+
+    if censorc_path is not None:
+        # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
+        settings_dict = read_rcfile(censorc_path, silent=False)
+
+        # first set general settings
+        CensoPart.set_general_settings(settings_dict["general"])
+
+        # Then the remaining settings for each part
+        for section, settings in settings_dict.items():
+            if section in parts:
+                parts[section].set_settings(settings)
+            # NOTE: if the name of a section is unknown it will be ignored
+
+        paths = read_rcfile(censorc_path)["paths"]
     else:
-        # Initialize default settings
-        # Make sure that settings are initialized even if there is no section for this part in the rcfile
-        # General settings should always be configured first
-        CensoPart.set_general_settings({})
-        for part in parts.values():
-            part.set_settings({}, complete=True)
+        # Try to find paths
+        paths = find_program_paths()
 
-        # Read rcfile if it exists
-        if censorc_path is not None:
-            # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
-            settings_dict = read_rcfile(censorc_path, silent=False)
-
-            # first set general settings
-            CensoPart.set_general_settings(settings_dict["general"])
-
-            # Then the remaining settings for each part
-            for section, settings in settings_dict.items():
-                if section in parts:
-                    parts[section].set_settings(settings)
-                # NOTE: if section is not in the parts names, it will be ignored
-
-            paths = read_rcfile(censorc_path)["paths"]
-        else:
-            # Try to automatically determine program paths (not guaranteed to succeed)
-            paths = find_program_paths()
-
-        # Update the paths for the processors
-        QmProc._paths.update(paths)
+    # Update the paths for the processors
+    QmProc._paths.update(paths)
 
     # create user assets folder if it does not exist
     if not os.path.isdir(Config.USER_ASSETS_PATH):
@@ -148,6 +137,10 @@ def write_rcfile(path: str) -> None:
 
         # Rename existing file
         os.rename(path, f"{path}_OLD")
+    else:
+        # Try to get paths from 'which'
+        print("Trying to determine program paths automatically ...")
+        external_paths = find_program_paths()
 
     with open(path, "w", newline=None) as rcfile:
         parser = configparser.ConfigParser()
@@ -165,13 +158,9 @@ def write_rcfile(path: str) -> None:
                 for partname, part in parts.items()
             }
         )
-
-        # Try to get paths from 'which'
-        if external_paths is None:
-            print("Trying to determine program paths automatically ...")
-            external_paths = find_program_paths()
-
-        parser["paths"] = external_paths
+        
+        if external_paths is not None:
+            parser["paths"] = external_paths
 
         print(f"Writing new configuration file to {path} ...")
         parser.write(rcfile)
@@ -184,8 +173,8 @@ def write_rcfile(path: str) -> None:
 
     if Config.CENSORCNAME not in path:
         print(
-            f"Additionally make sure that the file name is '{Config.CENSORCNAME}'.\n"
-            f"Currently it is '{os.path.split(path)[-1]}'.\n"
+            f"To load it automatically make sure that the file name is '{Config.CENSORCNAME}' and it's located in your home directory.\n"
+            f"Current name: '{os.path.split(path)[-1]}'.\n"
         )
 
 
