@@ -284,17 +284,18 @@ class QmProc:
                 f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid})."
             )
 
+            # TODO: is this really required?
             # make sure to send SIGTERM to subprocess if program is quit
-            signal.signal(
-                signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
-            )
+            # signal.signal(
+            #     signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
+            # )
 
             # wait for process to finish
             _, errors = sub.communicate()
             returncode = sub.returncode
 
             # unregister SIGTERM handler
-            signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            # signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
             logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
