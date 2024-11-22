@@ -11,17 +11,19 @@ If you want to install and run `CENSO` without `pip` you can add the `CENSO/src`
 # Usage
 Basic usage: 
 
-    python3 -m censo -i [path to ensemble input] --maxcores [number of cores] ...
+    python3 -m censo
 
 For information about command line options use the `-h` option.
 
 If you want to run it via helper script after adding it to your `$PATH`:
 
-    censo -i [path to ensemble input] --maxcores [number of cores]
+    censo
 
-Please note that the ``--maxcores`` option is required for every run.
+Previous versions required the ``-i`` and ``--maxcores`` keywords. Since version 2.1.3 these are no longer required 
+and instead assume default values, ``crest_conformers.xyz`` and the total number of CPU cores on the machine 
+running CENSO, respectively.
 
-CENSO can also be used as a package. A basic setup for a CENSO run in a Python file could look like this:
+CENSO can also be used as a package within Python. A basic setup for a CENSO run in a Python file could look like this:
 ```python
 from censo.ensembledata import EnsembleData
 from censo.configuration import configure
@@ -63,8 +65,7 @@ settings = {
     "func": "pbeh-3c",
     "implicit": True,
 }
-Screening.set_settings(settings, complete=False)  
-# the complete kwarg tells the method whether to set the undefined settings using defaults or leave them on their current value
+Screening.set_settings(settings)  
 
 
 # Setup and run all the parts that the user wants to run
