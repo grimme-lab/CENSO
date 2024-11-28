@@ -1,6 +1,5 @@
 from .configuration import configure
 from .params import DESCR
-from .__version__ import __version__
 
 print(DESCR)
 configure()

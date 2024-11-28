@@ -7,7 +7,10 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 import os
 import sys
 
-from .__version__ import __version__
+try:
+    from .__version__ import __version__
+except ImportError:
+    __version__ = "0.0.0"
 
 
 class Config:
