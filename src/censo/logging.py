@@ -50,17 +50,23 @@ def setup_logger(name: str, silent: bool = True) -> logging.Logger:
     return logger
 
 
-def set_loglevel(loglevel: str) -> None:
+def set_loglevel(loglevel: str | int) -> None:
     """
     Set the log level for the logger.
 
     Args:
-        loglevel (str): The log level to set.
+        loglevel (str | int): The log level to set. In case of a string this will get the respective attr
+        from logging..
 
     Returns:
         None
     """
     global __loglevel
-    __loglevel = getattr(logging, loglevel)
+
+    if isinstance(loglevel, str):
+        __loglevel = getattr(logging, loglevel)
+    else:
+        __loglevel = loglevel
+
     for logger in __loggers:
         logger.setLevel(__loglevel)
