@@ -15,7 +15,7 @@ documentation = "https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html
 dev = ["black", "pytest", "tox"]
 scripts = [
     "numpy",
-    "matplotlip",
+    "matplotlib",
     "pandas"
 ]
 
