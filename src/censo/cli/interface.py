@@ -175,7 +175,10 @@ def cleanup_run(cwd, complete=False):
             shutil.rmtree(subdir)
         for file in files:
             if any(s in file for s in to_delete) and (
-                complete or all(not file.endswith(pattern) for pattern in [".xyz", ".out", ".json"])
+                complete
+                or all(
+                    not file.endswith(pattern) for pattern in [".xyz", ".out", ".json"]
+                )
             ):
                 print(f"Removing: {file}")
                 os.remove(os.path.join(subdir, file))

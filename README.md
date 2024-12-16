@@ -6,18 +6,14 @@ Can be installed using `pip` by running
 
     pip install .
 
-If you want to install and run `CENSO` without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
+If you want to install and run CENSO without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
 
 # Usage
-Basic usage: 
-
-    python3 -m censo
+An entry point `censo` will be installed by pip. Furthermore the scripts under the `bin` directory will be added to your path.
 
 For information about command line options use the `-h` option.
 
-If you want to run it via helper script after adding it to your `$PATH`:
-
-    censo
+The helper script is also called via `censo`.
 
 Previous versions required the ``-i`` and ``--maxcores`` keywords. Since version 2.1.3 these are no longer required 
 and instead assume default values, ``crest_conformers.xyz`` and the total number of CPU cores on the machine 
