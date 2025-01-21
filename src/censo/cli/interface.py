@@ -18,12 +18,12 @@ from ..logging import setup_logger, set_loglevel
 logger = setup_logger(__name__)
 
 
-def entry_point(argv: list[str] | None = None) -> int:
+def entry_point() -> int:
     """
     Console entry point to execute CENSO from the command line.
     """
     try:
-        args = parse(argv=argv)
+        args = parse()
     except ArgumentError as e:
         print(e.message)
         return 1
@@ -35,7 +35,6 @@ def entry_point(argv: list[str] | None = None) -> int:
         return 1
 
     # Print program call
-    # FIXME - what happens here? argv is always none, yet it is parsed above without problems?
     print("CALL: " + " ".join(arg for arg in sys.argv))
 
     ensemble = startup(args)

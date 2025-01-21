@@ -4,6 +4,7 @@ import os
 import ast
 from math import exp
 from collections.abc import Callable
+from typing import final
 
 from .ensembledata import EnsembleData
 from .params import DIGILEN, KB, AU2J, Config
@@ -333,7 +334,7 @@ class CensoPart:
         # you to redirect stdout via context manager if necessary
         self._print_info()
 
-    def __call__(self, **kwargs) -> None:
+    def __call__(self, **kwargs) -> float:
         """
         This implements the actual part logic. This should always return None if using the
         @timeit decorator.
@@ -348,6 +349,7 @@ class CensoPart:
         """
         raise NotImplementedError
 
+    @final
     @classmethod
     def run(cls, ensemble: EnsembleData, **kwargs) -> tuple[object, float]:
         """
@@ -355,8 +357,6 @@ class CensoPart:
         which serves the purpose of having a storage location for all information
         (i.e. which settings were used, results). Will also attach a reference to
         the instance to the EnsembleData.results.
-
-        Do not override!
 
         Args:
             ensemble: The ensemble instance that manages the conformers.

@@ -8,7 +8,7 @@ import argparse
 import os
 
 
-def parse(argv=None) -> argparse.Namespace:
+def parse() -> argparse.Namespace:
     """
     Process commandline arguments
 
@@ -502,10 +502,10 @@ def parse(argv=None) -> argparse.Namespace:
         "Which is currently not changeable!",
     ) """
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args()
     # NOTE: as opposed to previous behaviour '-i' and '--maxcores' are now optional,
-    # however the program WILL exit after creating a new config file if any of 
-    # '--new-config', '--cleanup', '--cleanup-all' 
+    # however the program WILL exit after creating a new config file if any of
+    # '--new-config', '--cleanup', '--cleanup-all'
     # are used
 
     return args
