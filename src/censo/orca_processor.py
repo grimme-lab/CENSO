@@ -1453,24 +1453,19 @@ class OrcaProc(QmProc):
                 result["shieldings"].sort(key=lambda x: x[0])
 
             if ending in ["", "_j"]:
-                # Read couplings from *_properties.txt for easier parsing
-                # NOTE: in different orca versions this seems to change between having _ and . before property
-                property_file = os.path.join(jobdir, f"{filename}{ending}_property.txt")
-                if not os.path.isfile(property_file):
-                    property_file = os.path.join(
-                        jobdir, f"{filename}{ending}.property.txt"
-                    )
-
-                with open(property_file, "r") as f:
+                with open(outputpath, "r") as f:
                     lines = f.readlines()
 
                 start = (
-                    lines.index(next(x for x in lines if "EPRNMR_SSCoupling" in x)) + 13
+                    lines.index(next(x for x in lines if "SPIN-SPIN COUPLING" in x)) + 6
                 )
 
                 lines = lines[start:]
 
-                end = lines.index(next(x for x in lines if "-----" in x))
+                end = (
+                    lines.index(next(x for x in lines if "SUMMARY OF ISOTROPIC" in x))
+                    - 3
+                )
 
                 lines = lines[:end]
 
@@ -1478,15 +1473,19 @@ class OrcaProc(QmProc):
 
                 # This goes through all the pairs, even though ORCA gives also non-unique pairs, since it makes life
                 # easier (basically every element of a symmetric square matrix)
-                # Only every third line a new pair is defined
                 # The iterator created here unpacks a tuple consisting of the multiples of three (indices of every
                 # third line) and every third line in 'lines'
-                for i, line in zip(range(0, len(lines), 3), lines[::3]):
-                    # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
-                    # of a normal set
-                    pair = frozenset((int(line.split()[4]), int(line.split()[11])))
-                    coupling = float(lines[i + 2].split()[4])
-                    result["couplings"].append((pair, coupling))
+                for i, line in enumerate(lines):
+                    if "NUCLEUS" in line:
+                        # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
+                        # of a normal set
+                        pair = frozenset((int(line.split()[4]), int(line.split()[9])))
+                        for line2 in lines[i:]:
+                            if "(Total)" in line2:
+                                coupling = float(line2.split()[5])
+                                break
+
+                        result["couplings"].append((pair, coupling))
 
                 # Convert to set and back to get rid of duplicates
                 # ('vectorizing the symmetric matrix')
