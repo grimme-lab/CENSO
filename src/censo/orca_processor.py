@@ -1454,9 +1454,14 @@ class OrcaProc(QmProc):
 
             if ending in ["", "_j"]:
                 # Read couplings from *_properties.txt for easier parsing
-                with open(
-                    os.path.join(jobdir, f"{filename}{ending}_property.txt"), "r"
-                ) as f:
+                # NOTE: in different orca versions this seems to change between having _ and . before property
+                property_file = os.path.join(jobdir, f"{filename}{ending}_property.txt")
+                if not os.path.isfile(property_file):
+                    property_file = os.path.join(
+                        jobdir, f"{filename}{ending}.property.txt"
+                    )
+
+                with open(property_file, "r") as f:
                     lines = f.readlines()
 
                 start = (
