@@ -114,8 +114,8 @@ class Screening(Prescreening):
 
                 # update the conformer list in ensemble (remove confs if below threshold)
                 self._ensemble.remove_conformers([conf.name for conf in filtered])
-                for confname in filtered:
-                    print(f"No longer considering {confname}.")
+                for conf in filtered:
+                    print(f"No longer considering {conf.name}.")
 
             # calculate boltzmann weights from gtot values calculated here
             # trying to get temperature from instructions, set it to room temperature if that fails for some reason
