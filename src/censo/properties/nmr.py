@@ -381,7 +381,7 @@ class NMR(PropertyCalculator):
                 bmw = result["bmw"]
                 for (atom1, atom2), coupling in result["nmr"]["couplings"]:
                     couplings.setdefault((atom1, atom2), 0.0)
-                    coupling[(atom1, atom2)] += coupling * bmw
+                    couplings[(atom1, atom2)] += coupling * bmw
 
         return shieldings, couplings
 
