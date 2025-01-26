@@ -89,7 +89,7 @@ class PropertyCalculator(CensoPart):
 
         return prepinfo
 
-    def _set_energy(self, using_part: CensoPart = None):
+    def _set_energy(self, using_part: CensoPart | None = None):
         """
         Looks through results to set energy values.
         Order of preference:
@@ -128,7 +128,7 @@ class PropertyCalculator(CensoPart):
             else:
                 # This will put the highest quality part at the top (highest part number)
                 smallest_results.sort(
-                    lambda part: self._part_nos[part.name], reverse=True
+                    key=lambda part: self._part_nos[part.name], reverse=True
                 )
                 using_part = smallest_results[0]
 
