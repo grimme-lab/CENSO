@@ -43,9 +43,6 @@ class PropertyCalculator(CensoPart):
         # Perform the property calculations
         self._property()
 
-        # Write out the results
-        self._write_results()
-
         # DONE
 
     def _output(self) -> None:
