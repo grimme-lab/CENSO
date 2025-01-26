@@ -408,7 +408,7 @@ class NMR(PropertyCalculator):
 
                 print(h1("Averaged NMR Shielding Constants"))
                 for line in lines:
-                    print(line)
+                    print(line, flush=True, end="")
 
                 f.writelines(lines)
             else:
@@ -433,7 +433,7 @@ class NMR(PropertyCalculator):
 
                 print(h1("Averaged NMR Spin-Spin Coupling Constants"))
                 for line in lines:
-                    print(line)
+                    print(line, flush=True, end="")
 
                 f.writelines(lines)
             else:
