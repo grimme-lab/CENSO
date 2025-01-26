@@ -7,7 +7,7 @@ import os
 from ..parallel import execute
 from ..params import Config
 from .property_calculator import PropertyCalculator
-from ..utilities import print, DfaHelper, format_data, SolventHelper, Factory
+from ..utilities import h1, print, DfaHelper, format_data, SolventHelper, Factory
 from ..logging import setup_logger
 from ..part import CensoPart
 
@@ -360,18 +360,85 @@ class NMR(PropertyCalculator):
             "\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file."
         )
 
-    def _shieldings_averaging(self):
+    def _params_averaging(
+        self,
+    ) -> tuple[dict[int, float], dict[tuple[int, int], float]]:
         """
-        Calculate the population weighted shielding constants for the ensemble NMR spectrum.
+        Calculate the population weighted shielding and coupling constants for the ensemble NMR spectrum.
         """
-        # For each conf in conformers
-        # add shift shielding value multiplied by bmw to a list
-        pass
+        shieldings = {}
+        couplings = {}
+
+        if self.get_settings()["shieldings"]:
+            for conf, result in self.data["results"].items():
+                bmw = result["bmw"]
+                for atom, shielding in result["nmr"]["shieldings"]:
+                    shieldings.setdefault(atom, 0.0)
+                    shieldings[atom] += shielding * bmw
+
+        if self.get_settings()["couplings"]:
+            for conf, result in self.data["results"].items():
+                bmw = result["bmw"]
+                for (atom1, atom2), coupling in result["nmr"]["couplings"]:
+                    couplings.setdefault((atom1, atom2), 0.0)
+                    coupling[(atom1, atom2)] += coupling * bmw
+
+        return shieldings, couplings
 
     def _write_results(self) -> None:
         """
         Write result shieldings and/or couplings to files.
         """
+        # Print averaged parameters
+        shieldings, couplings = self._params_averaging()
+
+        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
+        with open(filename, "w") as f:
+            # Print shieldings
+            if len(shieldings) > 0:
+                headers = ["Atom #", "σ"]
+                printmap = {"Atom #": lambda k, v: str(k), "σ": lambda k, v: f"{v:.4f}"}
+
+                rows = [
+                    [printmap[header](k, v) for header in headers]
+                    for k, v in shieldings.items()
+                ]
+
+                lines = format_data(headers, rows)
+
+                print(h1("Averaged NMR Shielding Constants"))
+                for line in lines:
+                    print(line)
+
+                f.writelines(lines)
+            else:
+                print("No shieldings calculated.")
+
+            # Print couplings
+            if len(couplings) > 0:
+                headers = ["Atom A #", "Atom B #", "J"]
+                units = ["", "", "[Hz]"]
+                printmap = {
+                    "Atom A #": lambda k, v: str(k[0]),
+                    "Atom B #": lambda k, v: str(k[1]),
+                    "J": lambda k, v: f"{v:.2f}",
+                }
+
+                rows = [
+                    [printmap[header](k, v) for header in headers]
+                    for k, v in couplings.items()
+                ]
+
+                lines = format_data(headers, rows, units=units)
+
+                print(h1("Averaged NMR Spin-Spin Coupling Constants"))
+                for line in lines:
+                    print(line)
+
+                f.writelines(lines)
+            else:
+                print("No couplings calculated.")
+
         # Write results to json file
         self._write_json()
 
