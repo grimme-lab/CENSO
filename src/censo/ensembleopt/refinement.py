@@ -98,10 +98,10 @@ class Refinement(Screening):
             total_bmw = 0
 
             for confname in filtered:
-                total_bmw += self.data["results"][confname]["bmw"]
-                filtered.remove(confname)
                 if total_bmw >= threshold:
                     break
+                total_bmw += self.data["results"][confname]["bmw"]
+                filtered.remove(confname)
 
             # Remove conformers
             self._ensemble.remove_conformers(filtered)
