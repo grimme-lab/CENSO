@@ -98,7 +98,7 @@ class Refinement(Screening):
             total_bmw = 0
 
             for confname in filtered:
-                if total_bmw >= threshold:
+                if total_bmw > threshold:
                     break
                 total_bmw += self.data["results"][confname]["bmw"]
                 filtered.remove(confname)
