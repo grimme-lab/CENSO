@@ -415,18 +415,17 @@ class TmProc(QmProc):
                 if all(
                     os.path.isfile(f)
                     and any(g in f for g in ["alpha", "beta"])
-                    and not any(
-                        os.path.join(jobdir, g) == guess_file for g in ["alpha", "beta"]
-                    )
+                    and not any(os.path.join(jobdir, g) == f for g in ["alpha", "beta"])
                     for f in guess_file
                 ):
                     # All MO files found and not already in dir
                     # Copy MO files
-                    for g in ["alpha", "beta"]:
+                    for f in guess_file:
+                        g = os.path.split(f)[1]
                         logger.debug(
-                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {guess_file}."
+                            f"{f'worker{os.getpid()}:':{WARNLEN}}Copying {g} file from {f}."
                         )
-                        shutil.copy(guess_file, os.path.join(jobdir, g))
+                        shutil.copy(f, os.path.join(jobdir, g))
             else:
                 # closed shell guess
                 if (
@@ -674,8 +673,20 @@ class TmProc(QmProc):
                 return result, meta
 
             # Prepare cosmotherm.inp
+            if job.prepinfo["sp"]["sm"] == "cosmors":
+                setup = (
+                    self._paths["cosmorssetup"]
+                    if not "FINE" in self._paths["cosmorssetup"]
+                    else self._paths["cosmorssetup"].replace("TZVPD_FINE", "TZVP")
+                )
+            else:
+                setup = (
+                    self._paths["cosmorssetup"]
+                    if "FINE" in self._paths["cosmorssetup"]
+                    else self._paths["cosmorssetup"].replace("TZVP", "TZVPD_FINE")
+                )
             lines = [
-                f"ctd = {self._paths['cosmorssetup']} cdir = {os.path.join(self._paths['cosmothermpath'], 'CTDATA-FILES')}\n"
+                f"ctd = {setup} cdir = {os.path.join(self._paths['cosmothermpath'], 'CTDATA-FILES')}\n"
                 "EFILE VPFILE\n",
                 "!!\n",
             ]
