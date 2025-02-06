@@ -1037,18 +1037,8 @@ class OrcaProc(QmProc):
         with open(outputpath, "r", encoding=Config.CODING, newline=None) as out:
             lines = out.readlines()
 
-        # Get final energy
-        result["energy"] = next(
-            (
-                float(line.split()[4])
-                for line in lines
-                if "FINAL SINGLE POINT ENERGY" in line
-            ),
-            None,
-        )
-
         meta["error"] = self.__check_output(lines)
-        meta["success"] = meta["error"] is None and result["energy"] is not None
+        meta["success"] = meta["error"] is None
 
         # Check for errors in the output file in case returncode is 0
         if meta["success"]:
@@ -1072,6 +1062,8 @@ class OrcaProc(QmProc):
                     float(line.split("....")[-1].split()[0])
                     for line in filter(lambda x: "Current Energy" in x, lines)
                 ]
+
+                result["energy"] = result["ecyc"][-1]
 
                 # Get all gradient norms for evaluation
                 result["gncyc"] = [
