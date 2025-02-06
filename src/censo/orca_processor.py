@@ -463,7 +463,8 @@ class OrcaProc(QmProc):
         functype = prepinfo[jobtype]["func_type"]
         disp = prepinfo[jobtype]["disp"]
 
-        indict["main"].append(func)
+        if func != "dummy":
+            indict["main"].append(func)
 
         if "composite" not in functype:
             indict["main"].append(basis)
