@@ -396,13 +396,20 @@ def check_for_float(line: str) -> float | None:
     return value
 
 
-def average(x: Sequence[int | float]):
+def average(x: list[int | float]):
     assert len(x) > 0
     return float(sum(x)) / len(x)
 
 
-def pearson_def(x, y):
-    assert len(x) == len(y)
+def pearson_def(x: list[int | float], y: list[int | float]):
+    # Pad with last value
+    if len(x) > len(y):
+        while len(x) > len(y):
+            y.append(y[-1])
+    elif len(x) < len(y):
+        while len(x) < len(y):
+            x.append(x[-1])
+
     n = len(x)
     assert n > 0
     avg_x = average(x)

@@ -369,9 +369,7 @@ class Optimization(EnsembleOptimizer):
                     combinations = set(
                         [
                             (confa, confb)
-                            for confa, confb in zip(
-                                self._ensemble.conformers, self._ensemble.conformers
-                            )
+                            for confa, confb in zip(results_opt, results_opt)
                         ]
                     )
                     corr = average(
@@ -389,7 +387,6 @@ class Optimization(EnsembleOptimizer):
 
                 logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
-                # TODO - count removed conformers as converged?
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
                 # NOTE: we need to look at results_opt here to look at only the current macrocycle
