@@ -364,12 +364,13 @@ class Optimization(EnsembleOptimizer):
                 # NOTE: it is important to work with the results of the current macrocycle,
                 # since in the results dict of the MoleculeData objects all the results
                 # from previous cycles are stored
-                if len(self._ensemble.conformers) > 1:
+                if len(results_opt) > 1:
                     # Get average of Pearson correlation between all unique conformer pairs
                     combinations = set(
                         [
                             (confa, confb)
                             for confa, confb in zip(results_opt, results_opt)
+                            if confa != confb
                         ]
                     )
                     corr = average(
