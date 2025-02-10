@@ -375,8 +375,8 @@ class Optimization(EnsembleOptimizer):
                     corr = average(
                         [
                             pearson_def(
-                                results_opt[confa.name][jobtype[0]]["ecyc"],
-                                results_opt[confb.name][jobtype[0]]["ecyc"],
+                                results_opt[confa][jobtype[0]]["ecyc"],
+                                results_opt[confb][jobtype[0]]["ecyc"],
                             )
                             for confa, confb in combinations
                         ]
