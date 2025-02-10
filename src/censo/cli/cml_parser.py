@@ -124,6 +124,12 @@ def parse() -> argparse.Namespace:
         help="Reload data from json output files. List all file names separated by spaces. "
         "Note that all conformers from the current ensemble need to be included in the output data keys.",
     )
+    groups[0].add_argument(
+        "--keep-all",
+        dest="keep_all",
+        action="store_true",
+        help="Do not cut down the ensemble, keep all conformers from start to end.",
+    )
 
     # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))

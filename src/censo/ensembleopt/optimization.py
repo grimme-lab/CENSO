@@ -7,10 +7,18 @@ import os
 
 from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
-from ..datastructure import MoleculeData
+from ..molecules import MoleculeData
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, Config
-from ..utilities import print, format_data, h1, DfaHelper, Factory
+from ..utilities import (
+    printf,
+    format_data,
+    h1,
+    DfaHelper,
+    Factory,
+    average,
+    pearson_def,
+)
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -106,7 +114,7 @@ class Optimization(EnsembleOptimizer):
         # Check for constraint file
         if self.get_settings()["constrain"]:
             assert os.path.isfile(os.path.join(os.getcwd(), "constraints.xtb"))
-            print("Found constraints-file constraints.xtb ...")
+            printf("Found constraints-file constraints.xtb ...")
             self.constraints = os.path.join(os.getcwd(), "constraints.xtb")
 
         # Use macrocycle optimization only if there is more than one conformer
@@ -116,12 +124,12 @@ class Optimization(EnsembleOptimizer):
         else:
             # do complete geometry optimization
             if not len(self._ensemble.conformers) > 1:
-                print(
+                printf(
                     f"Only one conformer ({self._ensemble.conformers[0].name}) is available for optimization."
                 )
 
             # disable spearman optimization
-            print("Macrocycle optimization turned off.")
+            printf("Macrocycle optimization turned off.")
             self.set_setting("macrocycles", False)
 
             prepinfo = self._setup_prepinfo(jobtype)
@@ -166,12 +174,12 @@ class Optimization(EnsembleOptimizer):
             logger.warning(
                 "The geometry optimization of at least one conformer did not converge."
             )
-            print("Unconverged conformers:")
+            printf("Unconverged conformers:")
             for conf in unconverged:
-                print(
+                printf(
                     f"{conf.name}, grad_norm: {self.data['results'][conf.name][jobtype[0]]['grad_norm']}"
                 )
-            print("The unconverged conformers will now be removed from consideration.")
+            printf("The unconverged conformers will now be removed from consideration.")
             self._ensemble.remove_conformers([conf.name for conf in unconverged])
 
         # NOTE: old censo did a single-point after all optimizations were done (to include gsolv?).
@@ -242,7 +250,7 @@ class Optimization(EnsembleOptimizer):
 
         ncyc = 0
         rrho_done = False
-        print(
+        printf(
             f"Optimization using macrocycles, {self.get_settings()['optcycles']} microcycles per step."
         )
         nconv = 0
@@ -345,7 +353,7 @@ class Optimization(EnsembleOptimizer):
                     self.__confs_nc,
                 )
             ):
-                print(
+                printf(
                     f"{conf.name} converged after {ncyc + self.data['results'][conf.name][jobtype[0]]['cycles']} steps."
                 )
                 self.__confs_nc.remove(conf)
@@ -354,21 +362,31 @@ class Optimization(EnsembleOptimizer):
             if cut:
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
-                # threshold increase based on number of converged conformers
-                # TODO - maybe there are betters ways to do this?
+                # threshold increases based on average Pearson correlation of trajectories
                 # NOTE: it is important to work with the results of the current macrocycle,
                 # since in the results dict of the MoleculeData objects all the results
                 # from previous cycles are stored
                 if len(self._ensemble.conformers) > 1:
-                    n = 1
-                    threshold += (
-                        n
-                        * (
-                            self.get_settings()["threshold"]
-                            - self.get_settings()["threshold"] * nconv / ninit
-                        )
-                        / AU2KCAL
+                    # Get average of Pearson correlation between all unique conformer pairs
+                    combinations = set(
+                        [
+                            (confa, confb)
+                            for confa, confb in zip(
+                                self._ensemble.conformers, self._ensemble.conformers
+                            )
+                        ]
                     )
+                    corr = average(
+                        [
+                            pearson_def(
+                                results_opt[confa.name][jobtype[0]]["ecyc"],
+                                results_opt[confb.name][jobtype[0]]["ecyc"],
+                            )
+                            for confa, confb in combinations
+                        ]
+                    )
+                    n = 1
+                    threshold += n * (1 / (1 + exp(-10 * (corr - 0.5))))
 
                 logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
@@ -394,7 +412,7 @@ class Optimization(EnsembleOptimizer):
                 self._ensemble.remove_conformers([conf.name for conf in filtered])
                 for conf in filtered:
                     # print(f"No longer considering {conf}.")
-                    print(
+                    printf(
                         f"No longer considering {conf.name} (gradient too small and"
                         f" ΔG = {(self._grrho(conf) - limit) * AU2KCAL:.2f})."
                     )
@@ -413,7 +431,7 @@ class Optimization(EnsembleOptimizer):
         """
         formatted write of part results (optional)
         """
-        print(h1(f"{self.name.upper()} RESULTS"))
+        printf(h1(f"{self.name.upper()} RESULTS"))
 
         # column headers
         headers = [
@@ -501,7 +519,7 @@ class Optimization(EnsembleOptimizer):
 
         # Print everything
         for line in lines:
-            print(line, flush=True, end="")
+            printf(line, flush=True, end="")
 
         # write lines to file
         filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
@@ -516,7 +534,7 @@ class Optimization(EnsembleOptimizer):
         """
         writes information about the current state of the ensemble in form of a table
         """
-        print(h1(f"{self.name.upper()} CYCLE {ncyc} UPDATE"))
+        printf(h1(f"{self.name.upper()} CYCLE {ncyc} UPDATE"))
         # Define headers for the table
         headers = [
             "CONF#",
@@ -559,9 +577,9 @@ class Optimization(EnsembleOptimizer):
 
         # Print the lines
         for line in lines:
-            print(line, end="")
+            printf(line, end="")
 
-        print("".ljust(PLENGTH, "-"))
+        printf("".ljust(PLENGTH, "-"))
 
 
 Factory.register_builder("optimization", Optimization)

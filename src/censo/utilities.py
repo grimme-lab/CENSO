@@ -5,306 +5,61 @@ printout routines.
 
 import functools
 import hashlib
-import json
 import os
 import time
 import re
-from builtins import print as print_orig
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from pydantic import BaseModel
+from typing import Any
+import math
 
-from .params import BOHR2ANG, PLENGTH, Config
+from .params import BOHR2ANG, PLENGTH
 from .logging import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class Factory:
+class Factory[T]:
     """
-    Generic object factory class.
+    Abstract object factory class.
     """
 
-    __builders: dict[str, type] = {}
+    _registry: dict[str, Callable[..., T]] = {}
 
     @classmethod
-    def register_builder(cls, name: str, builder: type) -> None:
+    def register_builder(cls, name: str, builder: Callable[..., T]) -> None:
         """
         Registers a builder.
 
         Args:
             name (str): name of the builder.
-            builder (type): type of the builder.
+            builder (Callable[..., T]): type of the builder.
         """
-        cls.__builders[name] = builder
+        cls._registry[name] = builder
 
     @classmethod
-    def create(cls, name: str, *args, **kwargs) -> object:
+    def create(cls, name: str, *args, **kwargs) -> T:
         """
         Generic factory method
         """
-        builder = cls.__builders.get(name, None)
-
-        if builder is not None:
-            return builder(*args, **kwargs)
-        raise TypeError(f"No type was found for '{name}' in {list(cls.__builders)}.")
-
-
-class DfaHelper:
-    _dfa_dict: dict
-
-    @classmethod
-    def set_dfa_dict(cls, dfadict_path: str):
-        with open(dfadict_path, "r") as f:
-            cls._dfa_dict = json.load(f)
-
-    @classmethod
-    def get_funcs(cls, prog: str):
-        """
-        Returns all functionals available for a given qm program.
-
-        Args:
-            prog (str): The qm program name.
-
-        Returns:
-            list[str]: The list of functionals.
-        """
-        return [
-            func
-            for func, v in cls._dfa_dict["functionals"].items()
-            if v[prog.lower()] is not None
-        ]
-
-    @classmethod
-    def get_name(cls, func: str, prog: str):
-        """
-        Returns the name of a certain functional in the given qm program. If name could not
-        be found, the string passed as func will be returned instead.
-
-        Args:
-            func (str): The functional.
-            prog (str): The qm program.
-
-        Returns:
-            str: The name of the functional.
-        """
-        func = func.lower()
-        prog = prog.lower()
-        if func in cls._dfa_dict["functionals"].keys():
-            name = cls._dfa_dict["functionals"][func][prog]
-        else:
-            logger.warning(
-                f"Functional {func} not found for program {prog}. Applying name literally."
-            )
-            name = func
-        return name
-
-    @classmethod
-    def get_disp(cls, func: str):
-        """
-        Returns the dispersion correction of a given functional. If dispersion correction
-        cannot be determined, apply none.
-
-        Args:
-            func (str): The functional.
-
-        Returns:
-            str: The dispersion correction name.
-        """
-        func = func.lower()
-        if func in cls._dfa_dict["functionals"].keys():
-            disp = cls._dfa_dict["functionals"][func]["disp"]
-        else:
-            logger.warning(
-                f"Could not determine dispersion correction for {func}. Applying none."
-            )
-            disp = "novdw"
-        return disp
-
-    @classmethod
-    def get_type(cls, func: str):
-        """
-        Returns the type of a certain functional. If the type cannot be determined, it
-        is assumed to be a GGA.
-
-        Args:
-            func (str): The functional.
-
-        Returns:
-            str: The type of the functional.
-        """
-        func = func.lower()
-        if func in cls._dfa_dict["functionals"].keys():
-            rettype = cls._dfa_dict["functionals"][func]["type"]
-        else:
-            logger.warning(
-                f"Could not determine functional type for {func}. Assuming GGA."
-            )
-            rettype = "GGA"
-        return rettype
-
-    @classmethod
-    def functionals(cls) -> dict[str, dict]:
-        return cls._dfa_dict["functionals"]
+        if name not in cls._registry:
+            raise TypeError(f"No type was found for '{name}' in {list(cls._registry)}.")
+        builder = cls._registry[name]
+        return builder(*args, **kwargs)
 
 
-class SolventHelper:
-    """
-    Helper class to manage solvent lookup.
-    """
-
-    @classmethod
-    def set_solvent_dict(cls, solvent_dict_path: str) -> None:
-        """
-        Load the solvents lookup dict.
-
-        Args:
-            solvent_dict_path (str): The path to the solvents lookup dict.
-        """
-        with open(solvent_dict_path, "r") as f:
-            cls._solv_dict = json.load(f)
-
-    @classmethod
-    def get_solvent(cls, sm: str, name: str) -> str | None:
-        """
-        Try to lookup the solvent model keyword for the given solvent name. If it is not found, return None.
-
-        Args:
-            sm (str): The solvent model.
-            name (str): The solvent name.
-
-        Returns:
-            str | None: The solvent model keyword or None if not found.
-        """
-        available_solvent_names_dict = cls.get_solvents_dict(sm)
-        if name not in available_solvent_names_dict:
-            return None
-        return available_solvent_names_dict[name]
-
-    @classmethod
-    def get_solvents_dict(cls, sm: str) -> dict:
-        """
-        Get all available solvent names for a specified solvent model with the respective internal keyword.
-
-        Args:
-            sm (str): The solvent model.
-
-        Returns:
-            dict: The solvent names mapping onto the solvent keyword in the model.
-        """
-        return {
-            name: sm_keys[sm]
-            for name, sm_keys in cls._solv_dict.items()
-            if sm in sm_keys
-        }
+class DataDump(BaseModel):
+    part_name: str
+    data: dict[str, dict[str, float]] = {}
+    settings: dict[str, Any] = {}
 
 
-def print(*args, **kwargs):
+def printf(*args, **kwargs):
     """
     patch print to always flush
     """
-    sep = " "
-    end = "\n"
-    file = None
-    flush = True
-    for key, value in kwargs.items():
-        if key == "sep":
-            sep = value
-        elif key == "end":
-            end = value
-        elif key == "file":
-            file = value
-        elif key == "flush":
-            flush = value
-    print_orig(*args, sep=sep, end=end, file=file, flush=flush)
-
-
-def format_data(
-    headers: list[str],
-    rows: list[list[str]],
-    units: list[str] = None,
-    sortby: int = 0,
-    padding: int = 6,
-) -> list[str]:
-    """
-    Generates a formatted table based on the given headers, rows, units, and sortby index.
-
-    Args:
-        headers (list[str]): The list of column headers.
-        rows (list[list[str]]): The list of rows, where each row is a list of values.
-        units (list[str], optional): The list of units for each column. Defaults to None.
-        sortby (int, optional): The index of the column to sort by. Defaults to 0. In case of a string column,
-                                use natural sorting.
-
-    Returns:
-        list[str]: The list of formatted lines representing the table.
-
-    """
-
-    def natural_sort_key(s):
-        """
-        Natural sorting key for strings.
-        """
-        return [int(text) if text.isdigit() else text for text in re.split(r"(\d+)", s)]
-
-    lines = []
-
-    # First, determine the maximium width for each column
-    ncols = len(headers)
-    if units is not None:
-        maxcolw = [
-            max(
-                [
-                    len(headers[i]),
-                    max(len(rows[j][i]) for j in range(len(rows))),
-                    len(units[i]),
-                ]
-            )
-            for i in range(ncols)
-        ]
-    else:
-        maxcolw = [
-            max(len(headers[i]), max(len(rows[j][i]) for j in range(len(rows))))
-            for i in range(ncols)
-        ]
-
-    # add table header
-    lines.append(
-        " ".join(f"{headers[i]:^{width + padding}}" for i, width in enumerate(maxcolw))
-        + "\n"
-    )
-
-    # Add units
-    if units is not None:
-        lines.append(
-            " ".join(
-                f"{units[i]:^{width + padding}}" for i, width in enumerate(maxcolw)
-            )
-            + "\n"
-        )
-
-    # TODO - draw an arrow if conformer is the best in current ranking
-    # ("    <------\n" if self.key(conf) == self.key(self.core.conformers[0]) else "\n")
-
-    # Sort rows lexicographically if column sorted by is a number
-    if rows[0][sortby].replace(".", "", 1).isdigit():
-        rows = sorted(rows, key=lambda x: x[sortby])
-    # Otherwise use natural sorting
-    else:
-        rows = sorted(rows, key=lambda x: natural_sort_key(x[sortby]))
-
-    # add a line for every row
-    for row in rows:
-        lines.append(
-            " ".join(f"{row[i]:^{width + padding}}" for i, width in enumerate(maxcolw))
-            + "\n"
-        )
-
-    # Remove leading whitespace
-    start = min(len(line) - len(line.lstrip()) for line in lines)
-    for i in range(len(lines)):
-        lines[i] = lines[i][start:]
-
-    return lines
+    print(*args, flush=True, **kwargs)
 
 
 def frange(start: float, end: float, step: float = 1) -> list[float]:
@@ -325,6 +80,40 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
         result.append(current)
         current += step
     return result
+
+
+def average(x: list[int | float]):
+    assert len(x) > 0
+    return float(sum(x)) / len(x)
+
+
+def pearson_def(x: list[int | float], y: list[int | float]):
+    # Pad with last value
+    if len(x) > len(y):
+        while len(x) > len(y):
+            y.append(y[-1])
+    elif len(x) < len(y):
+        while len(x) < len(y):
+            x.append(x[-1])
+
+    n = len(x)
+    assert n > 0
+    avg_x = average(x)
+    avg_y = average(y)
+    diffprod = 0
+    xdiff2 = 0
+    ydiff2 = 0
+    for idx in range(n):
+        xdiff = x[idx] - avg_x
+        ydiff = y[idx] - avg_y
+        diffprod += xdiff * ydiff
+        xdiff2 += xdiff * xdiff
+        ydiff2 += ydiff * ydiff
+
+    try:
+        return diffprod / math.sqrt(xdiff2 * ydiff2)
+    except ZeroDivisionError:
+        return 1.0
 
 
 def t2x(
@@ -415,7 +204,7 @@ def do_md5(path):
         raise FileNotFoundError
 
 
-def timeit(f) -> Callable:
+def timeit(f: Callable[..., None]) -> Callable[..., float]:
     """
     time function execution
     timed function should have no return value, since it is lost in the process

@@ -6,7 +6,7 @@ from ..utilities import (
     SolventHelper,
     format_data,
     h1,
-    print,
+    printf,
     timeit,
 )
 
@@ -271,20 +271,20 @@ class EnsembleOptimizer(CensoPart):
         return prepinfo
 
     def _print_update(self) -> None:
-        print("\n")
-        print(
+        printf("\n")
+        printf(
             "Number of conformers:".ljust(DIGILEN // 2, " ")
             + f"{len(self._ensemble.conformers)}"
         )
 
-        print(
+        printf(
             "Highest ranked conformer:".ljust(DIGILEN // 2, " ")
             + f"{self._ensemble.conformers[0].name}"
         )
-        print("\n")
+        printf("\n")
 
     def _print_comparison(self) -> None:
-        print(h1(f"{self.name.upper()} RANKING COMPARISON"))
+        printf(h1(f"{self.name.upper()} RANKING COMPARISON"))
 
         headers = ["CONF#"]
 
@@ -329,6 +329,6 @@ class EnsembleOptimizer(CensoPart):
 
         # Print everything
         for line in lines:
-            print(line, flush=True, end="")
+            printf(line, flush=True, end="")
 
-        print("".ljust(int(PLENGTH), "-") + "\n")
+        printf("".ljust(int(PLENGTH), "-") + "\n")

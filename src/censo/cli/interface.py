@@ -1,3 +1,4 @@
+from logging import DEBUG
 import os
 import shutil
 import sys
@@ -5,14 +6,16 @@ from os import getcwd
 from argparse import ArgumentError
 from datetime import timedelta
 
+from censo.config.parts.general import GeneralConfig
+
+from ..config import PartsConfig
+from ..config.setup import configure, write_rcfile
 from .cml_parser import parse
-from ..configuration import configure, override_rc, write_rcfile
 from ..ensembledata import EnsembleData
-from ..ensembleopt import Prescreening, Screening, Optimization, Refinement
-from ..part import CensoPart
-from ..properties import NMR, UVVis
-from ..params import __version__, Config
-from ..utilities import print
+from ..ensembleopt import prescreening, screening, optimization, refinement
+from ..properties import nmr, uvvis
+from ..params import __version__, NCORES, OMP, OMPMIN
+from ..utilities import printf, h1, PLENGTH
 from ..logging import setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
@@ -25,35 +28,62 @@ def entry_point() -> int:
     try:
         args = parse()
     except ArgumentError as e:
-        print(e.message)
+        printf(e.message)
         return 1
     except SystemExit:
         return 0
 
     if not any(vars(args).values()):
-        print("CENSO needs at least one argument!")
+        printf("CENSO needs at least one argument!")
         return 1
 
     # Print program call
-    print("CALL: " + " ".join(arg for arg in sys.argv))
+    printf("CALL: " + " ".join(arg for arg in sys.argv))
 
-    ensemble = startup(args)
-    if ensemble is None:
+    ensemble, parts_config = startup(args)
+    if ensemble is None and parts_config is None:
         return 0
 
-    # Print general settings once
-    CensoPart(ensemble)
+    assert ensemble is not None and parts_config is not None
 
-    run = filter(
-        lambda x: x.get_settings()["run"],
-        [Prescreening, Screening, Optimization, Refinement, NMR, UVVis],
-    )
+    # Print all active parts settings once
+    if logger.level == DEBUG:
+        printf(parts_config)
+    else:
+        for _, config in parts_config:
+            if "run" in config.model_fields:
+                if config.run:
+                    printf(config)
+            else:
+                printf(config)
 
+    tasks = [
+        (parts_config.prescreening.run, prescreening),
+        (parts_config.screening.run, screening),
+        (parts_config.optimization.run, optimization),
+        (parts_config.refinement.run, refinement),
+        (parts_config.nmr.run, nmr),
+        (parts_config.uvvis.run, uvvis),
+    ]
+
+    comparison: dict[str, dict[str, float]] = {}
+    cut: bool = not args.keep_all
     time = 0.0
-    for part in run:
-        res, runtime = part.run(ensemble)
-        print(f"Ran {res.name} in {runtime:.2f} seconds!")
-        time += runtime
+    for enabled, func in tasks:
+        if enabled:
+            runtime = func(ensemble, parts_config, cut=cut)
+            printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
+            time += runtime
+
+            if func in (prescreening, screening, optimization, refinement):
+                # Collect results for comparison
+                mingtot = min(conf.gtot for conf in ensemble)
+                comparison[func.__name__] = {
+                    conf.name: conf.gtot - mingtot for conf in ensemble
+                }
+
+    # Print final comparison
+    print_comparison(comparison)
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
@@ -61,63 +91,58 @@ def entry_point() -> int:
     if time.days:
         hours += time.days * 24
 
-    print(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d}")
+    printf(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d}")
 
-    print("\nCENSO all done!")
+    printf("\nCENSO all done!")
     return 0
 
 
-# sets up a ensemble object for you using the given cml arguments and censorc
-def startup(args) -> EnsembleData | None:
+# sets up a ensemble object using the given cml arguments and censorc
+def startup(args) -> tuple[EnsembleData | None, PartsConfig | None]:
     # get most important infos for current run
     cwd = getcwd()
 
     # run actions for which no complete setup is needed
     if args.version:
-        print(__version__)
-        return None
+        printf(__version__)
+        return None, None
     elif args.cleanup:
         cleanup_run(cwd)
-        print("Removed files and going to exit!")
-        return None
+        printf("Removed files and going to exit!")
+        return None, None
     elif args.cleanup_all:
         cleanup_run(cwd, complete=True)
-        print("Removed files and going to exit!")
-        return None
+        printf("Removed files and going to exit!")
+        return None, None
     elif args.writeconfig:
         write_rcfile(os.path.join(cwd, "censo2rc_NEW"))
-        return None
-    elif args.inprcpath is not None:
-        configure(args.inprcpath)
+        return None, None
+
+    parts_config = configure(rcpath=args.inprcpath, args=args, cli=True)
 
     if args.loglevel:
         set_loglevel(args.loglevel)
 
-    # Override settings with command line arguments
-    override_rc(args)
-
-    # initialize ensemble, constructor get runinfo from args
+    # initialize ensemble
     ensemble = EnsembleData()
 
     # read input and setup conformers
-    ensemble.read_input(
-        args.inp, charge=args.charge, unpaired=args.unpaired, nconf=args.nconf
-    )
+    ensemble.read_input(args.inp, nconf=args.nconf)
 
     # if data should be reloaded, do it here
     if args.reload:
         for filename in args.reload:
             ensemble.read_output(os.path.join(cwd, filename))
 
-    # Set multiprocessing variables
+    # TODO: Set multiprocessing variables
     if args.maxcores:
-        Config.NCORES = args.maxcores
+        NCORES = args.maxcores
 
     if args.omp:
-        Config.OMP = args.omp
+        OMP = args.omp
 
     if args.ompmin:
-        Config.OMPMIN = args.ompmin
+        OMPMIN = args.ompmin
 
     # if data should be reloaded, do it here
     if args.reload:
@@ -128,7 +153,7 @@ def startup(args) -> EnsembleData | None:
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
     # -> output data is reloaded if wanted
 
-    return ensemble
+    return ensemble, parts_config
 
 
 def cleanup_run(cwd, complete=False):
@@ -148,29 +173,29 @@ def cleanup_run(cwd, complete=False):
     ]
 
     if complete:
-        print(
+        printf(
             "Removing ALL files generated by previous CENSO runs, including ensembles and output files (*.xyz, *.out, *.json)!"
         )
 
-    print(
+    printf(
         f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
         f"will be deleted:"
     )
     for sub in to_delete:
-        print(sub)
+        printf(sub)
 
-    print("Do you wish to continue?")
-    print("Please type 'yes' or 'no':")
+    printf("Do you wish to continue?")
+    printf("Please type 'yes' or 'no':")
 
     ui = input()
     if ui.strip().lower() not in ["yes", "y"]:
-        print("Aborting cleanup!")
+        printf("Aborting cleanup!")
         sys.exit(0)
 
     # iterate over files in cwd and subdirs recursively and remove them if to delete
     for subdir, dirs, files in os.walk(cwd):
         if any(s in subdir for s in to_delete):
-            print(f"Removing: {subdir}")
+            printf(f"Removing: {subdir}")
             shutil.rmtree(subdir)
         for file in files:
             if any(s in file for s in to_delete) and (
@@ -179,5 +204,53 @@ def cleanup_run(cwd, complete=False):
                     not file.endswith(pattern) for pattern in [".xyz", ".out", ".json"]
                 )
             ):
-                print(f"Removing: {file}")
+                printf(f"Removing: {file}")
                 os.remove(os.path.join(subdir, file))
+
+
+def override_rc(args: Namespace, config: GeneralConfig) -> None:
+    """
+    Override the settings from the rcfile (or default settings) with settings from the command line.
+
+    Args:
+        args(Namespace): Namespace generated by command line parser.
+
+    Returns:
+        None
+    """
+    # Override general settings only for now
+    config.validate_assignment = False
+    for field in config.model_fields:
+        setting = getattr(args, field, None)
+        if setting is not None:
+            config.__setattr__(field, setting)
+
+
+def print_comparison(comparison: dict[str, dict[str, float]]):
+    printf(h1(f"FINAL RANKING COMPARISON"))
+
+    headers = ["CONF#"]
+
+    headers.extend([f"ΔGtot {part.capitalize()}" for part in comparison])
+
+    units = [
+        "",
+    ]
+
+    units.extend(["[kcal/mol]" for _ in headers[1:]])
+
+    printmap = {"CONF#": lambda column: [confname for confname in column]}
+
+    for header in headers[1:]:
+        printmap[header] = lambda column: [value for value in column.values()]
+
+    rows = [
+        printmap[header](column) for header, column in zip(headers, comparison.values())
+    ]
+
+    lines = format_data(headers, rows, units=units)
+
+    for line in lines:
+        printf(line, flush=True, end="")
+
+    printf("".ljust(int(PLENGTH), "-") + "\n")

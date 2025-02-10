@@ -1,7 +1,7 @@
 from functools import reduce
 from typing import TypedDict
 
-from .params import BOHR2ANG, Config
+from .params import BOHR2ANG, Config, QmProg
 
 
 class Atom(TypedDict):
@@ -19,7 +19,6 @@ class GeometryData:
         """
         takes an identifier and the geometry lines from the xyz-file as input
         """
-
         # name of the linked MoleculeData
         self.name: str = name
 
@@ -37,7 +36,7 @@ class GeometryData:
         # Count atoms
         self.nat: int = len(self.xyz)
 
-    def toorca(self) -> list:
+    def toorca(self) -> list[str]:
         """
         method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
         """
@@ -118,7 +117,7 @@ class MoleculeData:
     The confomers' MoleculeData are set up in censo.ensembledata.EnsembleData.setup_conformers
     """
 
-    def __init__(self, name: str, xyz: list[str]):
+    def __init__(self, name: str, xyz: list[str], charge: int = 0, unpaired: int = 0):
         """
         takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor
         """
@@ -132,51 +131,76 @@ class MoleculeData:
         # stores the degeneration factor of the conformer
         self.degen: int = 1
 
+        self.charge: int = charge
+        self.unpaired: int = unpaired
+
         # stores the initial (biased) xtb energy from CREST (or whatever was used before)
-        self.xtb_energy: float = None
+        self.xtb_energy: float | None = None
+
+        self.__energies: list[float] = []
+        self.__gsolvs: list[float] = []
+        self.__grrhos: list[float] = []
+
+        # Stores Boltzmann populations in order of calculation
+        self.__bmws: list[float] = []
 
         # list to store the paths to all MO-files from the jobs run for this conformer
         # might also include tuples if open shell and tm is used
-        self.mo_paths: list[str, tuple] = []
-
-
-class ParallelJob:
-
-    def __init__(self, conf: GeometryData, jobtype: list[str]):
-        # conformer for the job
-        self.conf = conf
-
-        # list of jobtypes to execute for the processor
-        self.jobtype = jobtype
-
-        # number of cores to use
-        self.omp = Config.OMPMIN
-
-        # stores path to an mo file which is supposed to be used as a guess
-        # In case of open shell tm calculation this can be a tuple of files
-        self.mo_guess = None
-
-        # Stores all the important information for preparation of the input files for every jobtype
-        # Always contains the 'general' key, which basically stores settings from the general section
-        # that are supposed to be applied for every job
-        # Also should always contain the name of the part where the job is launched from, as well as charge and
-        # number of unpaired electrons
-        # NOTE: prepinfo.keys() and items in jobtype are not necessarily the same! E.g. for NMR
-        # jobtype = ["nmr"], prepinfo.keys() = ["nmr_s"], or prepinfo.keys() = ["nmr_s", "nmr_j"], ...
-        self.prepinfo: dict[str, dict[str, any]] = {
-            "general": {},
-            "partname": "",
-            "charge": 0,
-            "unpaired": 0,
+        self.mo_paths: dict[str, list[str | tuple[str, str]]] = {
+            QmProg.ORCA: [],
+            QmProg.TM: [],
         }
 
-        # store metadata, is updated by the processor
-        # structure e.g.: {"sp": {"success": True, "error": None}, "xtb_rrho": {"success": False, ...}, ...}
-        # always contains the "mo_path" key
-        self.meta: dict[str, any] = {"mo_path": None}
+    @property
+    def energy(self) -> float:
+        """Most recent electronic gas-phase energy."""
+        # TODO: is this really a good solution?
+        # NOTE: this is the only time we don't check for the list length, since this really shouldn't be the case
+        # when you want to access it
+        return self.__energies[-1]
 
-        # store the results of the job
-        self.results: dict[str, any] = {}
+    @energy.setter
+    def energy(self, energy: float):
+        """Set most recent gas-phase/implicitly solvated energy."""
+        self.__energies.append(energy)
 
-        # stores all flags for the jobtypes
-        self.flags: dict[str, any] = {}
+    @property
+    def gsolv(self) -> float:
+        """Most recent solvation Gibbs free energy."""
+        if len(self.__gsolvs) > 0:
+            return self.__gsolvs[-1]
+        else:
+            return 0.0
+
+    @gsolv.setter
+    def gsolv(self, gsolv: float):
+        """Set most recent solvation Gibbs free energy."""
+        self.__gsolvs.append(gsolv)
+
+    @property
+    def grrho(self) -> float:
+        """Most recent mRRHO contribution."""
+        if len(self.__grrhos) > 0:
+            return self.__grrhos[-1]
+        else:
+            return 0.0
+
+    @grrho.setter
+    def grrho(self, grrho: float):
+        """Set most recent mRRHO contribution."""
+        self.__grrhos.append(grrho)
+
+    @property
+    def gtot(self) -> float:
+        """Most recent energy+gsolv+grrho."""
+        return self.energy + self.gsolv + self.grrho
+
+    @property
+    def bmw(self) -> float:
+        """Most recent Boltzmann population."""
+        return self.__bmws[-1]
+
+    @bmw.setter
+    def bmw(self, bmw: float):
+        """Set most recent Boltzmann weight."""
+        self.__bmws.append(bmw)

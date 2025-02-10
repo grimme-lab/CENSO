@@ -2,7 +2,7 @@ import os
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, Config
-from ..utilities import format_data, h1, print, DfaHelper, Factory
+from ..utilities import format_data, h1, printf, DfaHelper, Factory
 from .prescreening import Prescreening
 from .screening import Screening
 from .optimization import Optimization
@@ -105,7 +105,7 @@ class Refinement(Screening):
             # Remove conformers
             self._ensemble.remove_conformers(filtered)
             for confname in filtered:
-                print(f"No longer considering {confname}.")
+                printf(f"No longer considering {confname}.")
 
             # Recalculate boltzmann weights after cutting down the ensemble
             self._update_results(self._calc_boltzmannweights())
@@ -125,7 +125,7 @@ class Refinement(Screening):
 
         Also writes them into an easily digestible format.
         """
-        print(h1(f"{self.name.upper()} SINGLE-POINT (+ mRRHO) RESULTS"))
+        printf(h1(f"{self.name.upper()} SINGLE-POINT (+ mRRHO) RESULTS"))
 
         # column headers
         headers = [
@@ -237,7 +237,7 @@ class Refinement(Screening):
 
         # Print everything
         for line in lines:
-            print(line, flush=True, end="")
+            printf(line, flush=True, end="")
 
         # append lines to already existing file
         filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"

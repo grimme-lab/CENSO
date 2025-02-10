@@ -1,8 +1,11 @@
 import os
 import logging
 import sys
+from pathlib import Path
 
-__logpath: str = os.path.join(os.getcwd(), "censo.log")
+from .params import USER_ASSETS_PATH
+
+__logpath: Path = Path(USER_ASSETS_PATH) / "censo.log"
 __loglevel = logging.INFO
 
 __loggers = []

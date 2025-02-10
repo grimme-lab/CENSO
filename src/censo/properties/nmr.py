@@ -7,7 +7,7 @@ import os
 from ..parallel import execute
 from ..params import Config
 from .property_calculator import PropertyCalculator
-from ..utilities import print, DfaHelper, format_data, SolventHelper, Factory
+from ..utilities import printf, DfaHelper, format_data, SolventHelper, Factory
 from ..logging import setup_logger
 from ..part import CensoPart
 
@@ -355,7 +355,7 @@ class NMR(PropertyCalculator):
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
                 f.writelines(lines)
 
-        print(
+        printf(
             "\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file."
         )
 

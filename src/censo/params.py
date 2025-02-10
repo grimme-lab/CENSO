@@ -6,107 +6,143 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 
 import os
 import sys
+from enum import Enum
+from pydantic import ConfigDict
 
 try:
     from .__version__ import __version__
 except ImportError:
     __version__ = "0.0.0"
 
+PYDANTIC_DEFAULT_CONFIG = ConfigDict(
+    use_enum_values=True, validate_assignment=True, use_attribute_docstrings=True
+)
 
-class Config:
-    ENVIRON = os.environ.copy()
-    if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
-        # workaround for LD_LIBRARY_PATH pyinstaller and suse
-        LP_KEY = "LD_LIBRARY_PATH"  # for GNU/Linux and *BSD.
-        lp_orig = ENVIRON.get(LP_KEY + "_ORIG")
-        if lp_orig is not None:
-            ENVIRON[LP_KEY] = lp_orig  # restore the original, unmodified value
-        else:
-            # This happens when LD_LIBRARY_PATH was not set.
-            # Remove the env var as a last resort:
-            ENVIRON.pop(LP_KEY, None)
-        # end workaround
+ENVIRON = os.environ.copy()
+if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
+    # workaround for LD_LIBRARY_PATH pyinstaller and suse
+    LP_KEY = "LD_LIBRARY_PATH"  # for GNU/Linux and *BSD.
+    lp_orig = ENVIRON.get(LP_KEY + "_ORIG")
+    if lp_orig is not None:
+        ENVIRON[LP_KEY] = lp_orig  # restore the original, unmodified value
+    else:
+        # This happens when LD_LIBRARY_PATH was not set.
+        # Remove the env var as a last resort:
+        ENVIRON.pop(LP_KEY, None)
+    # end workaround
 
-    CODING = "ISO-8859-1"
+OMPMIN = 1
 
-    ASSETS_PATH = __file__.replace("params.py", "assets")
+NCORES = os.cpu_count() or OMPMIN
 
-    USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
+OMPMAX = 32
 
-    PROGS = ("orca", "tm")
+CODING = "ISO-8859-1"
 
-    SOLV_MODS: dict[str, tuple] = {
-        "orca": ("cpcm", "smd"),
-        "tm": ("cosmo", "dcosmors", "cosmors", "cosmors-fine"),
-        "xtb": ("alpb", "gbsa"),
-    }
+USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
 
-    GRIDOPTIONS = (
-        "low",
-        "low+",
-        "high",
-        "high+",
-    )
+PROGS = ("orca", "tm")
 
-    GFNOPTIONS = (
-        "gfnff",
-        "gfn1",
-        "gfn2",
-    )
 
-    CENSORCNAME = ".censo2rc"
+class OrcaSolvMod(str, Enum):
+    CPCM = "cpcm"
+    SMD = "smd"
 
-    OMPMIN = 4
 
-    OMPMAX = 32
+class TmSolvMod(str, Enum):
+    COSMO = "cosmo"
+    DCOSMORS = "dcosmors"
+    COSMORS = "cosmors"
+    COSMORS_FINE = "cosmors-fine"
 
-    OMP = OMPMIN
 
-    NCORES = os.cpu_count()
+class XtbSolvMod(str, Enum):
+    ALPB = "alpb"
+    GBSA = "gbsa"
 
-    COSMORS_PARAM = {
-        "12-normal": "BP_TZVP_C30_1201.ctd",
-        "13-normal": "BP_TZVP_C30_1301.ctd",
-        "14-normal": "BP_TZVP_C30_1401.ctd",
-        "15-normal": "BP_TZVP_C30_1501.ctd",
-        "16-normal": "BP_TZVP_C30_1601.ctd",
-        "17-normal": "BP_TZVP_C30_1701.ctd",
-        "18-normal": "BP_TZVP_18.ctd",
-        "19-normal": "BP_TZVP_19.ctd",
-        "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
-        "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
-        "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
-        "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
-        "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
-        "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
-        "18-fine": "BP_TZVPD_FINE_18.ctd",
-        "19-fine": "BP_TZVPD_FINE_19.ctd",
-    }
+
+class GfnVersion(str, Enum):
+    GFNFF = "gfnff"
+    GFN1 = "gfn1"
+    GFN2 = "gfn2"
+
+
+class QmProg(str, Enum):
+    ORCA = "orca"
+    TM = "tm"
+
+
+class GridLevel(str, Enum):
+    LOW = "low"
+    MEDIUM = "low+"
+    HIGH = "high"
+    VERY_HIGH = "high+"
+
+
+SOLV_MODS = {
+    "orca": OrcaSolvMod,
+    "tm": TmSolvMod,
+    "xtb": XtbSolvMod,
+}
+
+GRIDOPTIONS = (
+    "low",
+    "low+",
+    "high",
+    "high+",
+)
+
+GFN_VERSIONS = (
+    "gfnff",
+    "gfn1",
+    "gfn2",
+)
+
+CENSORCNAME = ".censo2rc"
+
+COSMORS_PARAM = {
+    "12-normal": "BP_TZVP_C30_1201.ctd",
+    "13-normal": "BP_TZVP_C30_1301.ctd",
+    "14-normal": "BP_TZVP_C30_1401.ctd",
+    "15-normal": "BP_TZVP_C30_1501.ctd",
+    "16-normal": "BP_TZVP_C30_1601.ctd",
+    "17-normal": "BP_TZVP_C30_1701.ctd",
+    "18-normal": "BP_TZVP_18.ctd",
+    "19-normal": "BP_TZVP_19.ctd",
+    "12-fine": "BP_TZVPD_FINE_HB2012_C30_1201.ctd",
+    "13-fine": "BP_TZVPD_FINE_HB2012_C30_1301.ctd",
+    "14-fine": "BP_TZVPD_FINE_C30_1401.ctd",
+    "15-fine": "BP_TZVPD_FINE_C30_1501.ctd",
+    "16-fine": "BP_TZVPD_FINE_C30_1601.ctd",
+    "17-fine": "BP_TZVPD_FINE_C30_1701.ctd",
+    "18-fine": "BP_TZVPD_FINE_18.ctd",
+    "19-fine": "BP_TZVPD_FINE_19.ctd",
+}
 
 
 DESCR = f"""
-         ______________________________________________________________
-        |                                                              |
-        |                                                              |
-        |                   CENSO - Commandline ENSO                   |
-        |{'v ' + __version__:^{62}}|
-        |    energetic sorting of CREST Conformer Rotamer Ensembles    |
-        |                    University of Bonn, MCTC                  |
-        |                           Oct 2024                           |
-        |                 based on ENSO version 2.0.1                  |
-        |             L. M. Seidler, F. Bohle and S. Grimme            |
-        |                                                              |
-        |______________________________________________________________|
-
-        Please cite:
-        (TBA)
-        S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn
-        J. Phys. Chem. A 2021, 125, 19, 4039-4054.
-        DOI: https://doi.org/10.1021/acs.jpca.1c00971
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+               ______________________________________________________________
+              |                                                              |
+              |                                                              |
+              |                   CENSO - Commandline ENSO                   |
+              |{'v ' + __version__:^{62}}|
+              |    energetic sorting of CREST Conformer Rotamer Ensembles    |
+              |                    University of Bonn, MCTC                  |
+              |                           Oct 2024                           |
+              |                 based on ENSO version 2.0.1                  |
+              |             L. M. Seidler, F. Bohle and S. Grimme            |
+              |                                                              |
+              |______________________________________________________________|
+  
+              Please cite:
+              (TBA)
+              S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn
+              J. Phys. Chem. A 2021, 125, 19, 4039-4054.
+              DOI: https://doi.org/10.1021/acs.jpca.1c00971
+  
+              This program is distributed in the hope that it will be useful,
+              but WITHOUT ANY WARRANTY; without even the implied warranty of
+              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 """
 
 START_DESCR = "Energetic sorting of Conformer Rotamer Ensembles (command line version)."

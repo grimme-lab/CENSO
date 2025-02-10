@@ -7,7 +7,7 @@ import os
 
 from ..parallel import execute
 from ..params import Config
-from ..utilities import SolventHelper, DfaHelper, format_data, print, Factory
+from ..utilities import SolventHelper, DfaHelper, format_data, printf, Factory
 from ..logging import setup_logger
 from .property_calculator import PropertyCalculator
 from ..part import CensoPart
@@ -187,7 +187,7 @@ class UVVis(PropertyCalculator):
 
         # Print everything
         for line in lines:
-            print(line, flush=True, end="")
+            printf(line, flush=True, end="")
 
         # write lines to file
         logger.debug(

@@ -6,11 +6,13 @@ functionality for program setup
 import os
 import re
 import json
+from typing import Callable
+from math import exp
 
-from .datastructure import MoleculeData
+from .molecules import MoleculeData
 from .logging import setup_logger
-from .params import DIGILEN
-from .utilities import check_for_float, print, t2x, Factory
+from .params import DIGILEN, AU2J, KB
+from .utilities import check_for_float, printf, t2x
 
 logger = setup_logger(__name__)
 
@@ -24,22 +26,17 @@ class EnsembleData:
         """
         Setup an EnsembleData object. Conformers can be read using read_input.
         """
-        # contains run-specific info
-        # initialized in EnsembleData.read_input
-        self.runinfo = {
-            "charge": None,
-            "unpaired": None,
-        }
-
         # stores the conformers with all info
-        # NOTE: this is deliberately chosen to be a list since lists are ordered
         self.__conformers: list[MoleculeData] = []
 
         # stores the conformers which were sorted out
-        self.rem: list[MoleculeData] = []
+        self.__rem: list[MoleculeData] = []
 
         # A list containing all part references in order of execution or loading
         self.results = []
+
+    def __iter__(self):
+        return iter(self.__conformers)
 
     @property
     def conformers(self):
@@ -53,6 +50,11 @@ class EnsembleData:
     def conformers(self, confs):
         assert all(isinstance(conf, MoleculeData) for conf in confs)
         self.__conformers = confs
+
+    @property
+    def rem(self) -> list[MoleculeData]:
+        """Returns the list of removed conformers."""
+        return self.__rem
 
     def read_output(self, outpath: str) -> None:
         """
@@ -71,25 +73,24 @@ class EnsembleData:
             data = json.load(file)
 
         # Check if all conformers from the current ensemble are also found in the output data
-        if not all(conf.name in data["results"] for conf in self.conformers):
+        if not all(conf.name in data for conf in self.conformers):
             raise RuntimeError(
                 "Not all conformers from the current ensemble are found in the output data."
             )
 
-        # Create a part instance and load in the results
-        part = Factory.create(data["partname"], self)
-        part.data.update(data)
+        for conf in self.conformers:
+            conf.energy = data[conf.name]["energy"]
+            conf.gsolv = data[conf.name]["gsolv"]
+            conf.grrho = data[conf.name]["grrho"]
 
         logger.info(f"Reloaded results from {outpath}.")
-
-        self.results.append(part)
 
     def read_input(
         self,
         input_path: str,
         charge: int = 0,
         unpaired: int = 0,
-        nconf: int = None,
+        nconf: int | None = None,
         append: bool = False,
     ) -> None:
         """
@@ -97,8 +98,8 @@ class EnsembleData:
 
         Args:
             input_path (str): Path to the ensemble input file.
-            charge (int, optional): Charge of the system. Defaults to 0.
-            unpaired (int, optional): Number of unpaired electrons. Defaults to 0.
+            charge (int, optional): Sets the charge of all molecules to this value. Defaults to 0.
+            unpaired (int, optional): Sets the unpaired electrons of all molecules to this value. Defaults to 0.
             nconf (int, optional): Number of conformers to consider. Defaults to None, so all conformers are read.
             append (bool, optional): If True, the conformers will be appended to the existing ensemble. Defaults to False.
 
@@ -114,10 +115,6 @@ class EnsembleData:
                 )
             else:
                 nat = int(lines[0].split()[0])
-
-        # Set charge and unpaired via funtion args
-        self.runinfo["charge"] = charge
-        self.runinfo["unpaired"] = unpaired
 
         confs = self.__setup_conformers(input_path)
         if len(confs) == 0:
@@ -137,16 +134,36 @@ class EnsembleData:
             # Only sort if all conformers have a defined precalculated energy
             pass
 
+        for conf in self.conformers:
+            conf.charge = charge
+            conf.unpaired = unpaired
+
         # Print information about read ensemble
-        print(
-            f"Read {len(self.conformers)} conformers.\n",
-            "Number of atoms:".ljust(DIGILEN // 2, " ") + f"{nat}" + "\n",
-            "Charge:".ljust(DIGILEN // 2, " ") + f"{self.runinfo['charge']}" + "\n",
-            "Unpaired electrons:".ljust(DIGILEN // 2, " ")
-            + f"{self.runinfo['unpaired']}"
-            + "\n",
-            sep="",
+        printf(
+            f"Read {len(self.conformers)} conformers.\n\n",
         )
+
+    def set_populations(self, temperature: float) -> None:
+        """
+        Calculate populations for boltzmann distribution of ensemble at given
+        temperature given values for free enthalpy.
+        """
+        # find lowest gtot value
+        minfree: float = min(conf.gtot for conf in self.conformers)
+
+        # calculate boltzmann factors
+        bmfactors = {
+            conf.name: conf.degen
+            * exp(-(conf.gtot - minfree) * AU2J / (KB * temperature))
+            for conf in self.conformers
+        }
+
+        # calculate partition function from boltzmann factors
+        bsum: float = sum(bmfactors.values())
+
+        # Set Boltzmann populations
+        for conf in self.conformers:
+            conf.bmw = bmfactors[conf.name] / bsum
 
     def __setup_conformers(self, input_path: str) -> list[MoleculeData]:
         """
@@ -223,45 +240,48 @@ class EnsembleData:
 
         return conformers
 
-    def remove_conformers(self, confnames: list[str]) -> None:
+    def remove_conformers(self, cond: Callable[[MoleculeData], bool]) -> None:
         """
-        Remove the conformers with the names listed in 'confnames' from further consideration.
+        Remove conformers from further consideration if 'cond' evaluates to True.
         The removed conformers will be stored in self.rem.
 
         Args:
-            confnames (list[str]): A list of conformer names.
+            cond (Callable[[MoleculeData], bool]): Condition to check for the conf objects.
 
         Returns:
             None
         """
-        if len(confnames) > 0:
-            for confname in confnames:
-                # Skip any non-str items
-                if not isinstance(confname, str):
-                    logger.warning(
-                        f"Cannot remove {confname} from ensemble (invalid type)."
-                    )
-                    continue
+        filtered = filter(cond, self.conformers)
+        for conf in filtered:
+            # pop item from conformers and insert this item at index 0 in rem
+            self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))
 
-                remove = next((c for c in self.conformers if c.name == confname), None)
+            # Log removed conformers
+            logger.debug(f"Removed {conf.name}.")
 
-                if remove is not None:
-                    # pop item from conformers and insert this item at index 0 in rem
-                    self.rem.insert(
-                        0, self.conformers.pop(self.conformers.index(remove))
-                    )
-
-                    # Log removed conformers
-                    logger.debug(f"Removed {remove.name}.")
-                else:
-                    logger.warning(
-                        f"Cannot remove {confname} from ensemble (not found)."
-                    )
-
-    def dump(self, filename: str) -> None:
+    def dump_xyz(self, filename: str):
         """
-        dump the conformers to a file
+        Dump the current ensemble in xyz-format.
         """
         with open(os.path.join(f"{os.getcwd()}", f"{filename}.xyz"), "w") as file:
             for conf in self.conformers:
                 file.writelines(conf.geom.toxyz())
+
+    def dump_rem_xyz(self, filename: str):
+        """Dump the conformers removed via 'remove_conformers' in xyz-format."""
+        with open(filename, "w") as f:
+            for conf in self.rem:
+                f.writelines(conf.geom.toxyz())
+
+    def dump_json(self, filename: str):
+        """Dump the ensemble with most recent rankings and values in json-format."""
+        dump = {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+            }
+            for conf in self.conformers
+        }
+        with open(filename, "w") as f:
+            json.dump(dump, f, indent=4)
