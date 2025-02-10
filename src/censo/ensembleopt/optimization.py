@@ -4,13 +4,14 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 
 import os
+from math import exp
 
 from .optimizer import EnsembleOptimizer
 from ..ensembledata import EnsembleData
 from ..datastructure import MoleculeData
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, Config
-from ..utilities import print, format_data, h1, DfaHelper, Factory
+from ..utilities import average, pearson_def, print, format_data, h1, DfaHelper, Factory
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -29,7 +30,8 @@ class Optimization(EnsembleOptimizer):
     _options = {
         "optcycles": {"default": 8},
         "maxcyc": {"default": 200},
-        "threshold": {"default": 1.5},
+        "threshold": {"default": 2.5},
+        "threshold_margin": {"default": 1.0},
         "hlow": {"default": 0.01},
         "gradthr": {"default": 0.01},
         "func": {
@@ -358,21 +360,32 @@ class Optimization(EnsembleOptimizer):
             if cut:
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
-                # threshold increase based on number of converged conformers
-                # TODO - maybe there are betters ways to do this?
+                # threshold increases based on average Pearson correlation of trajectories
                 # NOTE: it is important to work with the results of the current macrocycle,
                 # since in the results dict of the MoleculeData objects all the results
                 # from previous cycles are stored
                 if len(self._ensemble.conformers) > 1:
-                    n = 1
-                    threshold += (
-                        n
-                        * (
-                            self.get_settings()["threshold"]
-                            - self.get_settings()["threshold"] * nconv / ninit
-                        )
-                        / AU2KCAL
+                    # Get average of Pearson correlation between all unique conformer pairs
+                    combinations = set(
+                        [
+                            (confa, confb)
+                            for confa, confb in zip(
+                                self._ensemble.conformers, self._ensemble.conformers
+                            )
+                        ]
                     )
+                    corr = average(
+                        [
+                            pearson_def(
+                                results_opt[confa.name][jobtype[0]]["ecyc"],
+                                results_opt[confb.name][jobtype[0]]["ecyc"],
+                            )
+                            for confa, confb in combinations
+                        ]
+                    )
+                    # Adding a maximum of n kcal/mol ontop
+                    n = self.get_settings()["threshold_margin"]
+                    threshold += n * (1 / (1 + exp(-10 * (corr - 0.5)))) / AU2KCAL
 
                 logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
