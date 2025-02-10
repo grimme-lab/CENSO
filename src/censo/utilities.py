@@ -424,7 +424,10 @@ def pearson_def(x: list[int | float], y: list[int | float]):
         xdiff2 += xdiff * xdiff
         ydiff2 += ydiff * ydiff
 
-    return diffprod / math.sqrt(xdiff2 * ydiff2)
+    try:
+        return diffprod / math.sqrt(xdiff2 * ydiff2)
+    except ZeroDivisionError:
+        return 0.0
 
 
 def do_md5(path):

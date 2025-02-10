@@ -383,11 +383,16 @@ class Optimization(EnsembleOptimizer):
                             for confa, confb in combinations
                         ]
                     )
+
+                    print(
+                        f"Average Pearson correlation between trajectories: {corr:.2f}"
+                    )
+
                     # Adding a maximum of n kcal/mol ontop
                     n = self.get_settings()["threshold_margin"]
                     threshold += n * (1 / (1 + exp(-10 * (corr - 0.5)))) / AU2KCAL
 
-                logger.info(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
+                print(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
