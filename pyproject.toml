@@ -19,6 +19,9 @@ scripts = [
     "pandas"
 ]
 
+[project.scripts]
+censo = "censo.cli.interface:entry_point:"
+
 [tool.setuptools.dynamic]
 readme = {file = "README.md"}
 
