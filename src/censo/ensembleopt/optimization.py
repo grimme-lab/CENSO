@@ -369,7 +369,8 @@ class Optimization(EnsembleOptimizer):
                     combinations = set(
                         [
                             (confa, confb)
-                            for confa, confb in zip(results_opt, results_opt)
+                            for confa in results_opt
+                            for confb in results_opt
                             if confa != confb
                         ]
                     )
