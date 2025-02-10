@@ -427,7 +427,7 @@ def pearson_def(x: list[int | float], y: list[int | float]):
     try:
         return diffprod / math.sqrt(xdiff2 * ydiff2)
     except ZeroDivisionError:
-        return 0.0
+        return 1.0
 
 
 def do_md5(path):
