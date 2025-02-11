@@ -390,7 +390,7 @@ class Optimization(EnsembleOptimizer):
 
                     # Adding a maximum of n kcal/mol ontop
                     n = self.get_settings()["threshold_margin"]
-                    threshold += n * (1 - 1 / (1 + exp(-10 * (corr - 0.5)))) / AU2KCAL
+                    threshold += n * (1 - exp(-5 * (max(0, corr - 1)) ** 2)) / AU2KCAL
 
                 print(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
