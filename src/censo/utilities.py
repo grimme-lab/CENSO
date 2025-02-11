@@ -402,18 +402,10 @@ def average(x: list[int | float]):
 
 
 def pearson_def(x: list[int | float], y: list[int | float]):
-    # Pad with last value
-    if len(x) > len(y):
-        while len(x) > len(y):
-            y.append(y[-1])
-    elif len(x) < len(y):
-        while len(x) < len(y):
-            x.append(x[-1])
-
-    n = len(x)
+    n = min(len(x), len(y))
     assert n > 0
-    avg_x = average(x)
-    avg_y = average(y)
+    avg_x = average(x[:n])
+    avg_y = average(y[:n])
     diffprod = 0
     xdiff2 = 0
     ydiff2 = 0
