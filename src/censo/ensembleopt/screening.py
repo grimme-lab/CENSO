@@ -92,13 +92,19 @@ class Screening(Prescreening):
                 fuzzy = (1 / AU2KCAL) * (
                     1
                     - exp(
-                        -AU2KCAL
-                        * stdev(
-                            [
-                                self.data["results"][conf.name]["xtb_rrho"]["energy"]
-                                for conf in self._ensemble.conformers
-                            ]
+                        -5
+                        * (
+                            AU2KCAL
+                            * stdev(
+                                [
+                                    self.data["results"][conf.name]["xtb_rrho"][
+                                        "energy"
+                                    ]
+                                    for conf in self._ensemble.conformers
+                                ]
+                            )
                         )
+                        ** 2
                     )
                 )
                 threshold += fuzzy
