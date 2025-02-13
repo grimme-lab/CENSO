@@ -138,11 +138,13 @@ class OrcaProc(QmProc):
                 job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"]
             )
         else:
-            inp[-1:-1] = self.__prep_geom(
-                job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"]
+            inp.extend(
+                self.__prep_geom(
+                    job.conf, xyzfile, job.prepinfo["charge"], job.prepinfo["unpaired"]
+                )
             )
 
-        inp[-1:-1] = self.__prep_postgeom(job.prepinfo, jobtype)
+        inp.extend(self.__prep_postgeom(job.prepinfo, jobtype))
 
         return [line + "\n" if not line.endswith("\n") else line for line in inp]
 
