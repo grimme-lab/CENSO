@@ -339,6 +339,7 @@ class OrcaProc(QmProc):
         # by default coordinates are written directly into input file
         if xyzfile is None:
             lines.extend([f"* xyz {charge} {unpaired + 1}"] + conf.toorca())
+            lines.append("*")
         else:
             lines.extend([f"* xyzfile {charge} {unpaired + 1} {xyzfile}"])
 
