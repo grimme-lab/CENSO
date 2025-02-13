@@ -275,6 +275,24 @@ class TmProc(QmProc):
                 self.__prep_solv(lines, job.prepinfo, jobtype)
             self.__prep_special(lines, job.prepinfo, jobtype)
 
+            # Insert template lines
+            if job.prepinfo[jobtype]["template"]:
+                # load template file
+                try:
+                    with open(
+                        os.path.join(
+                            Config.USER_ASSETS_PATH,
+                            f"{job.prepinfo['partname']}.tm.template",
+                        ),
+                        "r",
+                    ) as f:
+                        lines_template = f.readlines()
+                    lines[-1:-1] = lines_template
+                except FileNotFoundError:
+                    raise FileNotFoundError(
+                        f"Could not find template file {job.prepinfo['partname']}.orca.template."
+                    )
+
             f.seek(0)  # Reset cursor to 0
             f.writelines(lines)
             f.truncate()  # Truncate in case the content is shorter than before
