@@ -305,12 +305,12 @@ class TmProc(QmProc):
             }
             if basis.lower() in gcp_keywords:
                 if basis.lower() == "def2-sv(p)":
-                    lines.insert(-1, "$gcp dft/sv(p)\n")
+                    lines.append("$gcp dft/sv(p)\n")
                 else:
-                    lines.insert(-1, f"$gcp dft/{basis.lower().replace('-', '')}\n")
+                    lines.append(f"$gcp dft/{basis.lower().replace('-', '')}\n")
 
     def __prep_solv(self, lines: list[str], prepinfo: dict[str, Any], jobtype: str):
-        lines.insert(-1, "$cosmo\n")
+        lines.append("$cosmo\n")
 
         # write DC in any case
         lines.insert(
@@ -326,15 +326,13 @@ class TmProc(QmProc):
                 "hexadecane",
                 "octanol",
             ]:
-                lines.insert(
-                    -1,
+                lines.append(
                     f"$dcosmo_rs file={prepinfo[jobtype]['solvent_key_prog']}_25.pot\n",
                 )
             else:
                 # The three solvents above are specifically defined in the assets
                 # TODO - this opens the possibility to insert your own potential files
-                lines.insert(
-                    -1,
+                lines.append(
                     f"$dcosmo_rs file={os.path.join(Config.ASSETS_PATH, prepinfo[jobtype]['solvent_key_prog'])}_25.pot\n",
                 )
 
@@ -383,7 +381,7 @@ class TmProc(QmProc):
                     ]
                 )
 
-            lines.insert(-1, "$rpaconv 8\n")
+            lines.append("$rpaconv 8\n")
         elif jobtype == "rot":
             # TODO
             """
