@@ -5,6 +5,7 @@ Contains TmProc class for calculating TURBOMOLE related properties of conformers
 import os
 import shutil
 import math
+from typing import Any
 
 from .qm_processor import QmProc
 from .logging import setup_logger
@@ -23,11 +24,11 @@ class TmProc(QmProc):
     _progname = "tm"
 
     __gridsettings = {
-        "low": ["-grid", "m3", "-scfconv", "6"],
-        "low+": ["-grid", "m4", "-scfconv", "6"],
-        "high": ["-grid", "m4", "-scfconv", "7"],
-        "high+": ["-grid", "m5", "-scfconv", "7"],
-        "nmr": ["-grid", "5", "-scfconv", "7"],
+        "low": ["   gridsize m3", "$scfconv 6"],
+        "low+": ["  gridsize m4", "$scfconv 6"],
+        "high": ["  gridsize m4", "$scfconv 7"],
+        "high+": [" gridsize m5", "$scfconv 7"],
+        "nmr": ["   gridsize 5", "$scfconv 7"],
     }
 
     __returncode_to_err = {}
@@ -181,28 +182,15 @@ class TmProc(QmProc):
         """
         Prepares TURBOMOLE input files for a specified jobtype.
         """
+
+        inp = []
+
         func = job.prepinfo[jobtype]["func_name"]
         func_type = job.prepinfo[jobtype]["func_type"]
-
-        # Set up basic cefine call
-        call = [
-            self._paths["cefinepath"],
-            "-func",
-            func,
-            "-sym",
-            "c1",
-            "-noopt",
-        ]
 
         if "composite" not in func_type:
             try:
                 basis = self.__basis_mapping[job.prepinfo[jobtype]["basis"]]
-                call.extend(
-                    [
-                        "-bas",
-                        basis,
-                    ]
-                )
             except KeyError as exc:
                 raise KeyError(
                     f"Basis {job.prepinfo[jobtype]['basis']} could not be found for TURBOMOLE input preparation. "
@@ -211,97 +199,85 @@ class TmProc(QmProc):
         else:
             basis = ""
 
-        disp = job.prepinfo[jobtype]["disp"]
-
-        # Configure grid
-        call.extend(self.__gridsettings[job.prepinfo[jobtype]["grid"]])
+        inp.extend(["$atoms", f"    basis={basis}"])
+        inp.extend(["$dft", f"    functional {func}"])
+        inp.extend(self.__gridsettings[job.prepinfo[jobtype]["grid"]])
 
         # r2scan-3c should use m4 grid and radsize 10
         if func == "r2scan-3c":
-            if "m3" in call:
-                call[call.index("m3")] = "m4"
-            call.extend(["-radsize", "10"])
+            inp[inp.index("m3")] = "m4"
+            inp.insert(inp.index("$dft") + 2, "    radsize 10")
 
         # Add dispersion
         # dispersion correction information
         # FIXME - temporary solution (not very nice)
         mapping = {
-            "d3bj": "-d3",
-            "d3(0)": "-zero",
-            "d4": "-d4",
-            "novdw": "-novdw",
-            "included": "-novdw",
+            "d3bj": "$disp3 -bj",
+            "d3(0)": "$disp3 -zero",
+            "d4": "$disp4",
+            "nl": "$donl",
         }
 
-        if disp not in ["composite", "nl"]:
-            call.append(mapping[disp])
+        disp = job.prepinfo[jobtype]["disp"]
+        if disp not in ["composite", "novdw"]:
+            inp.append(mapping[disp])
+
+        inp.append("$rij")
 
         # Add charge and unpaired info
-        if job.prepinfo["unpaired"] > 0:
-            call.extend(["-uhf", f"{job.prepinfo['unpaired']}"])
-        if job.prepinfo["charge"] != 0:
-            call.extend(["-chrg", f"{job.prepinfo['charge']}"])
+        inp.append(
+            f"$charge={job.prepinfo[jobtype]['charge']} unpaired={job.prepinfo[jobtype]['unpaired']}"
+        )
 
         # Write coord file
         with open(os.path.join(jobdir, "coord"), "w") as f:
             f.writelines(job.conf.tocoord())
 
-        # Call cefine
-        outputpath = os.path.join(jobdir, "cefine.out")
-        _, errors = self._make_call("tm", call, outputpath, jobdir)
-
-        # Check cefine for errors
-        if "define ended abnormally" in errors:
-            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
-            raise RuntimeError("Define failed")
+        inp.append("$coord file=coord")
 
         # Do further manipulations of input files
-        with open(os.path.join(jobdir, "control"), "r+") as f:
-            lines = f.readlines()
+        self.__prep_main(
+            inp,
+            func,
+            func_type,
+            basis,
+            job.prepinfo[jobtype].get("gcp", False),
+        )
+        if (
+            not no_solv
+            and not job.prepinfo["general"]["gas-phase"]
+            and "sm" in job.prepinfo[jobtype]
+        ):
+            self.__prep_solv(inp, job.prepinfo, jobtype)
+        self.__prep_special(inp, job.prepinfo, jobtype)
 
-            self.__prep_main(
-                lines,
-                func,
-                disp,
-                func_type,
-                basis,
-                job.prepinfo[jobtype].get("gcp", False),
-            )
-            if (
-                not no_solv
-                and not job.prepinfo["general"]["gas-phase"]
-                and "sm" in job.prepinfo[jobtype]
-            ):
-                self.__prep_solv(lines, job.prepinfo, jobtype)
-            self.__prep_special(lines, job.prepinfo, jobtype)
+        # Insert template inp
+        if job.prepinfo[jobtype]["template"]:
+            # load template file
+            try:
+                with open(
+                    os.path.join(
+                        Config.USER_ASSETS_PATH,
+                        f"{job.prepinfo['partname']}.tm.template",
+                    ),
+                    "r",
+                ) as f:
+                    inp_template = f.readlines()
+                inp.extend(inp_template)
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"Could not find template file {job.prepinfo['partname']}.tm.template."
+                )
 
-            # Insert template lines
-            if job.prepinfo[jobtype]["template"]:
-                # load template file
-                try:
-                    with open(
-                        os.path.join(
-                            Config.USER_ASSETS_PATH,
-                            f"{job.prepinfo['partname']}.tm.template",
-                        ),
-                        "r",
-                    ) as f:
-                        lines_template = f.readlines()
-                    lines[-1:-1] = lines_template
-                except FileNotFoundError:
-                    raise FileNotFoundError(
-                        f"Could not find template file {job.prepinfo['partname']}.orca.template."
-                    )
-
-            f.seek(0)  # Reset cursor to 0
-            f.writelines(lines)
-            f.truncate()  # Truncate in case the content is shorter than before
+        inp.append("$end")
+        inp = [line + "\n" if not line.endswith("\n") else line for line in inp]
+        with open(os.path.join(jobdir, "control"), "w") as f:
+            f.writelines(inp)
 
     def __prep_main(
         self,
         lines: list[str],
         func: str,
-        disp: str,
         func_type: str,
         basis: str,
         gcp: bool,
@@ -316,10 +292,6 @@ class TmProc(QmProc):
             # Needs three-body dispersion
             disp_line_index = next(lines.index(l) for l in lines if "disp" in l)
             lines[disp_line_index] = "$disp3 -bj -abc\n"
-
-        # Enable non local dispersion
-        if disp == "nl":
-            lines.insert(-1, "$donl\n")
 
         # Handle GCP
         if func_type != "composite" and gcp:
@@ -337,7 +309,7 @@ class TmProc(QmProc):
                 else:
                     lines.insert(-1, f"$gcp dft/{basis.lower().replace('-', '')}\n")
 
-    def __prep_solv(self, lines: list[str], prepinfo: dict[str, any], jobtype: str):
+    def __prep_solv(self, lines: list[str], prepinfo: dict[str, Any], jobtype: str):
         lines.insert(-1, "$cosmo\n")
 
         # write DC in any case
@@ -367,15 +339,17 @@ class TmProc(QmProc):
                 )
 
         if jobtype == "rot":
-            lines[-1:-1] = [
-                " cavity closed\n",
-                " use_contcav\n",
-                " nspa=272\n",
-                " nsph=162\n",
-                "$cosmo_isorad\n",
-            ]
+            lines.extend(
+                [
+                    " cavity closed\n",
+                    " use_contcav\n",
+                    " nspa=272\n",
+                    " nsph=162\n",
+                    "$cosmo_isorad\n",
+                ]
+            )
 
-    def __prep_special(self, lines: list[str], prepinfo: dict[str, any], jobtype: str):
+    def __prep_special(self, lines: list[str], prepinfo: dict[str, Any], jobtype: str):
         # Set NMR parameters
         if "nmr" in jobtype:
             # Determine the settings that need to be put into the input file for the NMR calculation
@@ -392,22 +366,22 @@ class TmProc(QmProc):
                 element for element, active in active_elements_map.items() if active
             ]
 
-            rpacor_line_index = next(lines.index(l) for l in lines if "rpacor" in l)
-            rpacor = float(lines[rpacor_line_index].split()[-1])
-            rpacor = rpacor if rpacor > 10000 else 10000
-            lines[rpacor_line_index] = f"$rpacor {rpacor}\n"
+            rpacor = 10000
+            lines.append(f"$rpacor {rpacor}\n")
 
-            lines[-1:-1] = ["$ncoupling\n"]
+            lines.extend(["$ncoupling\n"])
 
             if prepinfo[jobtype]["fc_only"]:
-                lines[-1:-1] = [" simple\n", " thr=0.0\n"]
+                lines.extend([" simple\n", " thr=0.0\n"])
 
             # nucsel only required if not all elements are active
             if not all(element in todo for element in active_elements_map):
-                lines[-1:-1] = [
-                    "$nucsel " + " ".join(todo) + "\n",
-                    "$nucsel2 " + " ".join(todo) + "\n",
-                ]
+                lines.extend(
+                    [
+                        "$nucsel " + " ".join(todo) + "\n",
+                        "$nucsel2 " + " ".join(todo) + "\n",
+                    ]
+                )
 
             lines.insert(-1, "$rpaconv 8\n")
         elif jobtype == "rot":
@@ -486,7 +460,7 @@ class TmProc(QmProc):
         jobdir: str,
         no_solv: bool = False,
         prep: bool = True,
-    ) -> tuple[dict[str, float | None], dict[str, any]]:
+    ) -> tuple[dict[str, float | None], dict[str, Any]]:
         """
         TURBOMOLE single-point calculation.
 
@@ -498,7 +472,7 @@ class TmProc(QmProc):
 
         Returns:
             result (dict[str, float | None]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+            meta (dict[str, Any]): metadata about the job
 
         result = {i can
             "energy": None,
@@ -575,7 +549,7 @@ class TmProc(QmProc):
 
     def _gsolv(
         self, job: ParallelJob, jobdir: str
-    ) -> tuple[dict[str, any], dict[str, any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
 
@@ -584,8 +558,8 @@ class TmProc(QmProc):
             jobdir: path to the job directory
 
         Returns:
-            result (dict[str, any]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+            result (dict[str, Any]): dictionary containing the results of the calculation
+            meta (dict[str, Any]): metadata about the job
         """
         # what is returned in the end
         result = {
@@ -817,7 +791,7 @@ class TmProc(QmProc):
 
     def _xtb_opt(
         self, job: ParallelJob, jobdir: str, filename: str = "xtb_opt"
-    ) -> tuple[dict[str, any], dict[str, any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
@@ -828,8 +802,8 @@ class TmProc(QmProc):
             filename: name of the input file
 
         Returns:
-            result (dict[str, any]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+            result (dict[str, Any]): dictionary containing the results of the calculation
+            meta (dict[str, Any]): metadata about the job
 
         Keywords required in prepinfo:
         - optcycles
@@ -1038,7 +1012,7 @@ class TmProc(QmProc):
 
     def _nmr(
         self, job: ParallelJob, jobdir: str
-    ) -> tuple[dict[str, any], dict[str, any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Calculate the NMR shieldings and/or couplings for a conformer using TURBOMOLE.
         Formatting:
@@ -1053,8 +1027,8 @@ class TmProc(QmProc):
             jobdir: path to the job directory
 
         Returns:
-            result (dict[str, any]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+            result (dict[str, Any]): dictionary containing the results of the calculation
+            meta (dict[str, Any]): metadata about the job
         """
         # Set results
         result = {
