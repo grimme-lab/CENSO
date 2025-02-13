@@ -112,11 +112,9 @@ class NMR(PropertyCalculator):
                     )
 
                 # dummy/template functionality not implemented yet for TM
-                if tovalidate["prog"] == "tm" and (
-                    func == "dummy" or tovalidate.get("template", False)
-                ):
+                if tovalidate["prog"] == "tm" and (func == "dummy"):
                     raise NotImplementedError(
-                        "Dummy and template functionality is not implemented yet for use with TURBOMOLE."
+                        "Dummy functionality is not implemented for use with TURBOMOLE."
                     )
 
     def _property(self) -> None:
