@@ -280,6 +280,7 @@ class OrcaProc(QmProc):
         ):
             sm = prepinfo[jobtype]["sm"]
             solv_key = prepinfo[jobtype]["solvent_key_prog"]
+            solv_key = f'"{solv_key}"'
 
             if sm == "smd":
                 pregeom.extend(["%cpcm", "smd true", f"smdsolvent {solv_key}", "end"])
@@ -390,7 +391,7 @@ class OrcaProc(QmProc):
                 lines.append(
                     f"Nuclei = all "
                     + element
-                    + "{ "
+                    + " { "
                     + ",".join(x for x in todo2)
                     + " }"
                 )
