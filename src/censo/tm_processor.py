@@ -254,20 +254,15 @@ class TmProc(QmProc):
         # Insert template inp
         if job.prepinfo[jobtype]["template"]:
             # load template file
-            try:
-                with open(
-                    os.path.join(
-                        Config.USER_ASSETS_PATH,
-                        f"{job.prepinfo['partname']}.tm.template",
-                    ),
-                    "r",
-                ) as f:
-                    inp_template = f.readlines()
-                inp.extend(inp_template)
-            except FileNotFoundError:
-                raise FileNotFoundError(
-                    f"Could not find template file {job.prepinfo['partname']}.tm.template."
-                )
+            with open(
+                os.path.join(
+                    Config.USER_ASSETS_PATH,
+                    f"{job.prepinfo['partname']}.tm.template",
+                ),
+                "r",
+            ) as f:
+                inp_template = f.readlines()
+            inp.extend(inp_template)
 
         inp.append("$end")
         inp = [line + "\n" if not line.endswith("\n") else line for line in inp]

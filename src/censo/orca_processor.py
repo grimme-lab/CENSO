@@ -106,22 +106,17 @@ class OrcaProc(QmProc):
             # NOTE: when using templates we're not going to check for double definitions!
             # if the template is messed up, orca will fail and the user should deal with that
             # load template file
-            try:
-                with open(
-                    os.path.join(
-                        Config.USER_ASSETS_PATH,
-                        f"{job.prepinfo['partname']}.orca.template",
-                    ),
-                    "r",
-                ) as f:
-                    inp = f.readlines()
+            with open(
+                os.path.join(
+                    Config.USER_ASSETS_PATH,
+                    f"{job.prepinfo['partname']}.orca.template",
+                ),
+                "r",
+            ) as f:
+                inp = f.readlines()
 
-                main_line = next(inp.index(l) for l in inp if "{main}" in l)
-                inp.pop(main_line)
-            except FileNotFoundError:
-                raise FileNotFoundError(
-                    f"Could not find template file {job.prepinfo['partname']}.orca.template."
-                )
+            main_line = next(inp.index(l) for l in inp if "{main}" in l)
+            inp.pop(main_line)
 
         # prepare the main line of the orca input
         inp[:0] = self.__prep_main(job.prepinfo, jobtype, orca5)
