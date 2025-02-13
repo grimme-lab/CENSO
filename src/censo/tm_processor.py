@@ -226,7 +226,7 @@ class TmProc(QmProc):
 
         # Add charge and unpaired info
         inp.append(
-            f"$charge={job.prepinfo[jobtype]['charge']} unpaired={job.prepinfo[jobtype]['unpaired']}"
+            f"$charge={job.prepinfo['charge']} unpaired={job.prepinfo['unpaired']}"
         )
 
         # Write coord file
