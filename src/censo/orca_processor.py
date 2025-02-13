@@ -381,7 +381,7 @@ class OrcaProc(QmProc):
                     todo2.append("ssfc")
                 else:
                     todo2.append("ssall")
-                todo3["SpinSpinRThresh"] = [f"{prepinfo[jobtype]['ss_cutoff']:.4f}"]
+                lines.append(f"SpinSpinRThresh {prepinfo[jobtype]['ss_cutoff']:.4f}")
 
             for i, element in enumerate(todo):
                 lines.append(

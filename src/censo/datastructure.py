@@ -37,13 +37,13 @@ class GeometryData:
         # Count atoms
         self.nat: int = len(self.xyz)
 
-    def toorca(self) -> list:
+    def toorca(self) -> list[str | float]:
         """
         method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
         """
         coord = []
         for atom in self.xyz:
-            coord.append([atom["element"]] + atom["xyz"])
+            coord.append(" ".join([atom["element"]] + [str(c) for c in atom["xyz"]]))
 
         return coord
 
