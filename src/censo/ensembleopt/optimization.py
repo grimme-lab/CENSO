@@ -30,8 +30,7 @@ class Optimization(EnsembleOptimizer):
     _options = {
         "optcycles": {"default": 8},
         "maxcyc": {"default": 200},
-        "threshold": {"default": 2.5},
-        "threshold_margin": {"default": 1.0},
+        "threshold": {"default": 3.0},
         "hlow": {"default": 0.01},
         "gradthr": {"default": 0.01},
         "func": {
@@ -376,39 +375,9 @@ class Optimization(EnsembleOptimizer):
             if cut:
                 threshold = self.get_settings()["threshold"] / AU2KCAL
 
-                # threshold increases based on average Pearson correlation of trajectories
                 # NOTE: it is important to work with the results of the current macrocycle,
                 # since in the results dict of the MoleculeData objects all the results
                 # from previous cycles are stored
-                if len(results_opt) > 1:
-                    # Get average of Pearson correlation between all unique conformer pairs
-                    combinations = set(
-                        [
-                            (confa, confb)
-                            for confa in results_opt
-                            for confb in results_opt
-                            if confa != confb
-                        ]
-                    )
-                    corr = average(
-                        [
-                            pearson_def(
-                                results_opt[confa][jobtype[0]]["ecyc"],
-                                results_opt[confb][jobtype[0]]["ecyc"],
-                            )
-                            for confa, confb in combinations
-                        ]
-                    )
-
-                    print(
-                        f"Average Pearson correlation between trajectories: {corr:.2f}"
-                    )
-
-                    # Adding a maximum of n kcal/mol ontop
-                    n = self.get_settings()["threshold_margin"]
-                    threshold += n * (1 - exp(-5 * (min(0, corr - 1)) ** 2)) / AU2KCAL
-
-                print(f"Threshold: {threshold * AU2KCAL:.2f} kcal/mol")
 
                 # update the conformer list (remove conf if below threshold and gradient too small for all microcycles in
                 # this macrocycle)
