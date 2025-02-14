@@ -202,6 +202,22 @@ class Optimization(EnsembleOptimizer):
             self._update_results(results)
 
         # TODO - Add the possibility to explicitly calculate solvation contributions
+        if cut:
+            threshold = self.get_settings()["threshold"] / AU2KCAL
+            print(f"Applying final threshold {threshold} kcal/mol.")
+
+            limit = min(self._grrho(conf) for conf in self._ensemble.conformers)
+            filtered = list(
+                filter(
+                    lambda conf: self._grrho(conf) - limit > threshold,
+                    self._ensemble.conformers,
+                )
+            )
+
+            # update the conformer list in ensemble (remove confs if below threshold)
+            self._ensemble.remove_conformers([conf.name for conf in filtered])
+            for conf in filtered:
+                print(f"No longer considering {conf.name}.")
 
         for conf in self._ensemble.conformers:
             self.data["results"][conf.name]["gtot"] = self._grrho(conf)
