@@ -1198,11 +1198,18 @@ class OrcaProc(QmProc):
 
         # Extract excitation wavelengths and oscillator strengths
         result["excitations"] = []
-        for row in uvvis_table:
-            spl = row.split()
-            result["excitations"].append(
-                {"wavelength": float(spl[2]), "osc_str": float(spl[3])}
-            )
+        if float(self._paths["orcaversion"][0]) < 6:
+            for row in uvvis_table:
+                spl = row.split()
+                result["excitations"].append(
+                    {"wavelength": float(spl[2]), "osc_str": float(spl[3])}
+                )
+        else:
+            for row in uvvis_table:
+                spl = row.split()
+                result["excitations"].append(
+                    {"wavelength": float(spl[5]), "osc_str": float(spl[6])}
+                )
 
         meta["success"] = True
 
