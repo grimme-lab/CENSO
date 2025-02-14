@@ -163,7 +163,7 @@ class UVVis(PropertyCalculator):
         # eps is a list of tuples that contain each excitation wavelength with the respective epsilon_max
         eps = []
         for conf in self._ensemble.conformers:
-            for excitation in self.data["results"][conf.name]["excitations"]:
+            for excitation in self.data["results"][conf.name]["uvvis"]["excitations"]:
                 epsilon_max = (
                     self.data["results"][conf.name]["bmw"] * excitation["osc_str"]
                 )
