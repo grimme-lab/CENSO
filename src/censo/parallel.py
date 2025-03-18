@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Literal
 from contextlib import contextmanager
 from pathlib import Path
 from multiprocessing.managers import SyncManager
@@ -254,13 +254,11 @@ def prepare_jobs(
     return jobs
 
 
-def execute[
-    T: QmResult
-](
+def execute[T: QmResult](
     conformers: list[MoleculeData],
     task: Callable[..., tuple[T, MetaData]],
     job_config: XTBJobConfig | SPJobConfig,
-    prog: QmProg,
+    prog: QmProg | Literal["xtb"],
     ncores: int,
     omp: int,
     balance: bool = True,
@@ -273,7 +271,7 @@ def execute[
         conformers (list[MoleculeData]): List of conformers for which jobs will be created and executed.
         task (Callable): Callable to be mapped onto the list of jobs created from conformers.
         job_config (XTBJobConfig | SPJobConfig): instructions for the execution of the task.
-        prog (QmProg): Name of the QM program.
+        prog (QmProg | "xtb"): Name of the QM program.
         balance (bool, optional): Whether to balance the number of cores used per job. Defaults to True.
         copy_mo (bool, optional): Whether to store the paths to the MO files for reuse. Defaults to True.
 
@@ -281,6 +279,7 @@ def execute[
         dict[str, QmResult]: Job results.
         list[MoleculeData]: List of failed conformers.
     """
+    # Initialize lists to store failed conformers and results
     failed_confs: list[MoleculeData] = []
     results: dict[str, T] = {}
 

@@ -216,7 +216,7 @@ class TmProc(QmProc):
         }
 
         disp = FUNCTIONALS[func]["disp"]
-        if disp not in ["composite"]:
+        if disp not in ["composite", "novdw"]:
             inp.append(mapping[disp])
 
         inp.append("$rij")
@@ -243,6 +243,11 @@ class TmProc(QmProc):
 
         self.__prep_special(inp, config, jobtype)
 
+        # TODO: add template
+
+        inp.append("$end")
+        (Path(jobdir) / "control").write_text("\n".join(inp))
+
     def __prep_main(
         self,
         inp: list[str],
@@ -264,7 +269,7 @@ class TmProc(QmProc):
 
         # Enable non local dispersion
         if disp == "nl":
-            inp.insert(-1, "$donl\n")
+            inp.append("$donl\n")
 
         # Handle GCP
         if func_type != "composite":
@@ -278,9 +283,9 @@ class TmProc(QmProc):
             }
             if basis.lower() in gcp_keywords:
                 if basis.lower() == "def2-sv(p)":
-                    inp.insert(-1, "$gcp dft/sv(p)\n")
+                    inp.append("$gcp dft/sv(p)\n")
                 else:
-                    inp.insert(-1, f"$gcp dft/{basis.lower().replace('-', '')}\n")
+                    inp.append(f"$gcp dft/{basis.lower().replace('-', '')}\n")
 
     def __prep_solv(self, inp: list[str], config: SPJobConfig, jobtype: str):
         inp.insert(-1, "$cosmo\n")
@@ -292,7 +297,7 @@ class TmProc(QmProc):
         solv_key = SOLVENTS[config.solvent][sm]
 
         # write DC in any case
-        inp.insert(-1, f" epsilon= {self.__cosmo_dcs[solv_key]}\n")
+        inp.append(f" epsilon= {self.__cosmo_dcs[solv_key]}\n")
 
         if sm == TmSolvMod.DCOSMORS:
             # if using dcosmors also add the potential file path
@@ -301,26 +306,26 @@ class TmProc(QmProc):
                 "hexadecane",
                 "octanol",
             ]:
-                inp.insert(
-                    -1,
+                inp.append(
                     f"$dcosmo_rs file={solv_key}_25.pot\n",
                 )
             else:
                 # The three solvents above are specifically defined in the assets
                 # TODO: this opens the possibility to insert your own potential files
-                inp.insert(
-                    -1,
+                inp.append(
                     f"$dcosmo_rs file={os.path.join(ASSETS_PATH, solv_key)}_25.pot\n",
                 )
 
         if jobtype == "rot":
-            inp[-1:-1] = [
-                " cavity closed\n",
-                " use_contcav\n",
-                " nspa=272\n",
-                " nsph=162\n",
-                "$cosmo_isorad\n",
-            ]
+            inp.extend(
+                [
+                    " cavity closed\n",
+                    " use_contcav\n",
+                    " nspa=272\n",
+                    " nsph=162\n",
+                    "$cosmo_isorad\n",
+                ]
+            )
 
     def __prep_special(self, lines: list[str], config: SPJobConfig, jobtype: str):
         # Set NMR parameters
@@ -332,19 +337,21 @@ class TmProc(QmProc):
 
             lines.append("$rpacor 10000")
 
-            lines[-1:-1] = ["$ncoupling\n"]
+            lines.append("$ncoupling")
 
             if config.fc_only:
-                lines[-1:-1] = [" simple\n", " thr=0.0\n"]
+                lines.extend([" simple\n", " thr=0.0\n"])
 
             # nucsel only required if not all elements are active
             if not all(element in todo for element in ["h", "c", "f", "si", "p"]):
-                lines[-1:-1] = [
-                    "$nucsel " + " ".join(todo) + "\n",
-                    "$nucsel2 " + " ".join(todo) + "\n",
-                ]
+                lines.extend(
+                    [
+                        "$nucsel " + " ".join(todo) + "\n",
+                        "$nucsel2 " + " ".join(todo) + "\n",
+                    ]
+                )
 
-            lines.insert(-1, "$rpaconv 8\n")
+            lines.append("$rpaconv 8\n")
         elif jobtype == "rot":
             # TODO:
             """

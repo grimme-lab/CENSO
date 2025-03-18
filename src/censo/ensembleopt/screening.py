@@ -1,17 +1,23 @@
 """
 Screening is basically just an extension of part0 (Prescreening).
-Additionally to part0 it is also possible to calculate gsolv implicitly and include the RRHO contribution.
+Additionally to part0 it is also possible to calculate gsolv using higher level solvation models and include the mRRHO contributions.
 """
 
 from math import exp
 from statistics import stdev
+from tabulate import tabulate
+from pathlib import Path
+from typing import Any
+import json
+from collections.abc import Callable
 
 from ..molecules import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel
-from ..utilities import h1, printf, Factory, timeit
+from ..utilities import h1, printf, Factory, timeit, DataDump
 from ..config import PartsConfig
+from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..ensembledata import EnsembleData
 from ..qm import QmProc
@@ -37,7 +43,7 @@ def screening(
     """
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "1_SCREENING")
+    proc: QmProc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
 
     if not config.general.gas_phase and not config.screening.gsolv_included:
         # Calculate Gsolv using qm
@@ -55,7 +61,7 @@ def screening(
             ensemble.conformers,
             proc.gsolv,
             job_config,
-            config.prescreening.prog,
+            config.screening.prog,
             ncores,
             omp,
             balance=config.general.balance,
@@ -81,7 +87,7 @@ def screening(
             ensemble.conformers,
             proc.sp,
             job_config,
-            config.prescreening.prog,
+            config.screening.prog,
             ncores,
             omp,
             balance=config.general.balance,
@@ -95,22 +101,13 @@ def screening(
         # Run mRRHO calculation
         job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
-            gas_phase=config.general.gas_phase,
-            solvent=config.general.solvent,
-            sm_rrho=config.general.sm_rrho,
-            multitemp=config.general.multitemp,
-            sthr=config.general.sthr,
-            imagthr=config.general.imagthr,
-            bhess=config.general.bhess,
-            temperature=config.general.temperature,
-            trange=config.general.trange,
-            rmsdbias=config.general.rmsdbias,
+            **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
         results, _ = execute(
             ensemble.conformers,
             proc.xtb_rrho,
             job_config,
-            config.prescreening.prog,
+            "xtb",
             ncores,
             omp,
             balance=config.general.balance,
@@ -121,14 +118,17 @@ def screening(
             conf.grrho = results[conf.name].energy
 
     if cut:
+        # Threshold in kcal/mol
         threshold = config.screening.threshold
         if len(ensemble.conformers) > 1:
             # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-            fuzzy = (1 / AU2KCAL) * (
-                1 - exp(-AU2KCAL * stdev([conf.grrho for conf in ensemble]))
+            fuzzy = 1 - exp(
+                -5 * (AU2KCAL * stdev([conf.grrho for conf in ensemble])) ** 2
             )
             threshold += fuzzy
-            printf(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
+            printf(f"Updated fuzzy threshold: {threshold:.2f} kcal/mol.")
+
+        threshold = min(conf.gtot for conf in ensemble) + threshold * AU2KCAL
 
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 
@@ -299,6 +299,8 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     #         for conf in self._ensemble.conformers
     #     )
 
+    gtotmin = min(conf.gtot for conf in ensemble)
+
     printmap = {
         "CONF#": lambda conf: conf.name,
         # "G (xTB)": lambda conf: (
@@ -358,13 +360,14 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
 
     # write everything to a file
     filepath = Path("1_SCREENING.out")
-    logger.debug(f"Writing to {filepath}.")
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
     Path("1_SCREENING.json").write_text(
-        json.dumps(jsonify(ensemble, config.prescreening), indent=4)
+        json.dumps(jsonify(ensemble, config.screening), indent=4)
     )
+
+    ensemble.dump_xyz(Path("1_SCREENING.xyz"))
 
 
 # TODO: generalize this
@@ -384,7 +387,7 @@ def jsonify(
         }
     )
 
-    dump = DataDump(part_name="prescreening")
+    dump = DataDump(part_name="screening")
 
     for conf in ensemble:
         dump.data.update(per_conf(conf))

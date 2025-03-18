@@ -7,7 +7,7 @@ Storing censo_solvent_db solvent database across all solvation models (as fallba
 import os
 import sys
 from enum import Enum
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 try:
     from .__version__ import __version__
@@ -17,6 +17,11 @@ except ImportError:
 PYDANTIC_DEFAULT_CONFIG = ConfigDict(
     use_enum_values=True, validate_assignment=True, use_attribute_docstrings=True
 )
+
+
+class GenericConfig(BaseModel):
+    model_config = PYDANTIC_DEFAULT_CONFIG
+
 
 ENVIRON = os.environ.copy()
 if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...

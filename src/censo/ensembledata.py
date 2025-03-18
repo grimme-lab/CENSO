@@ -3,7 +3,9 @@ stores ensembledata and conformers
 functionality for program setup
 """
 
+from functools import reduce
 import os
+from pathlib import Path
 import re
 import json
 from typing import Callable
@@ -259,21 +261,23 @@ class EnsembleData:
             # Log removed conformers
             logger.debug(f"Removed {conf.name}.")
 
-    def dump_xyz(self, filename: str):
+    def dump_xyz(self, file: Path):
         """
         Dump the current ensemble in xyz-format.
         """
-        with open(os.path.join(f"{os.getcwd()}", f"{filename}.xyz"), "w") as file:
-            for conf in self.conformers:
-                file.writelines(conf.geom.toxyz())
+        text = "\n".join(
+            reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self])
+        )
+        file.write_text(text)
 
-    def dump_rem_xyz(self, filename: str):
+    def dump_rem_xyz(self, file: Path):
         """Dump the conformers removed via 'remove_conformers' in xyz-format."""
-        with open(filename, "w") as f:
-            for conf in self.rem:
-                f.writelines(conf.geom.toxyz())
+        text = "\n".join(
+            reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self.rem])
+        )
+        file.write_text(text)
 
-    def dump_json(self, filename: str):
+    def dump_json(self, file: Path):
         """Dump the ensemble with most recent rankings and values in json-format."""
         dump = {
             conf.name: {
@@ -283,5 +287,4 @@ class EnsembleData:
             }
             for conf in self.conformers
         }
-        with open(filename, "w") as f:
-            json.dump(dump, f, indent=4)
+        file.write_text(json.dumps(dump, indent=4))

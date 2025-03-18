@@ -14,9 +14,16 @@ from collections.abc import Callable
 from typing import final
 
 
-from ..config.job_config import RRHOJobConfig, SPJobConfig, XTBJobConfig, OptJobConfig
+from ..config.job_config import (
+    RRHOJobConfig,
+    SPJobConfig,
+    XTBJobConfig,
+    OptJobConfig,
+    XTBOptJobConfig,
+)
 from ..parallel import (
     GsolvResult,
+    NMRResult,
     OptResult,
     QmResult,
     MetaData,
@@ -24,6 +31,7 @@ from ..parallel import (
     ResourceMonitor,
     ParallelJob,
     SPResult,
+    UVVisResult,
 )
 from ..params import (
     PLENGTH,
@@ -698,9 +706,30 @@ class QmProc:
 
     @abstractmethod
     @_run
+    def xtb_opt(
+        self, job: ParallelJob, jobdir: Path | str, config: XTBOptJobConfig, **kwargs
+    ) -> tuple[OptResult, MetaData]:
+        raise NotImplementedError
+
+    @abstractmethod
+    @_run
     def opt(
         self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
     ) -> tuple[OptResult, MetaData]:
+        raise NotImplementedError
+
+    @abstractmethod
+    @_run
+    def nmr(
+        self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
+    ) -> tuple[NMRResult, MetaData]:
+        raise NotImplementedError
+
+    @abstractmethod
+    @_run
+    def uvvis(
+        self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
+    ) -> tuple[UVVisResult, MetaData]:
         raise NotImplementedError
 
 

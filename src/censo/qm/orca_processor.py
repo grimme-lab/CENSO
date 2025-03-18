@@ -138,14 +138,16 @@ class OrcaProc(QmProc):
                 job.unpaired,
             )
         else:
-            inp[-1:] = self.__prep_geom(
-                job.conf,
-                xyzfile,
-                job.charge,
-                job.unpaired,
+            inp.extend(
+                self.__prep_geom(
+                    job.conf,
+                    xyzfile,
+                    job.charge,
+                    job.unpaired,
+                )
             )
 
-        inp[-1:] = self.__prep_postgeom(config, jobtype)
+        inp.extend(self.__prep_postgeom(config, jobtype))
 
         # Finally append newlines where needed
         return [line + "\n" if not line.endswith("\n") else line for line in inp]
@@ -272,7 +274,7 @@ class OrcaProc(QmProc):
             assert config.solvent
             assert config.sm
             sm = config.sm
-            solv_key = SOLVENTS[config.solvent][sm]
+            solv_key = f'"{SOLVENTS[config.solvent][sm]}"'
 
             if sm == "smd":
                 pregeom.extend(["%cpcm", "smd true", f"smdsolvent {solv_key}", "end"])
@@ -339,6 +341,7 @@ class OrcaProc(QmProc):
         # by default coordinates are written directly into input file
         if xyzfile is None:
             lines.extend([f"* xyz {charge} {unpaired + 1}"] + conf.toorca())
+            lines.append("*")
         else:
             lines.extend([f"* xyzfile {charge} {unpaired + 1} {xyzfile}"])
 

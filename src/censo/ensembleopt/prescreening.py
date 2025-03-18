@@ -26,7 +26,6 @@ def prescreening(
     ncores: int = NCORES or OMPMIN,
     omp: int = OMPMIN,
     cut: bool = True,
-    workdir: Path | str = "",
 ):
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
@@ -35,9 +34,7 @@ def prescreening(
     The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
     """
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(
-        config.prescreening.prog, Path(workdir) / "0_PRESCREENING"
-    )
+    proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
 
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
@@ -84,9 +81,11 @@ def prescreening(
         conf.energy = results[conf.name].energy
 
     if cut:
-        ensemble.remove_conformers(
-            cond=lambda conf: conf.gtot > config.prescreening.threshold
+        threshold = (
+            min(conf.gtot for conf in ensemble)
+            + config.prescreening.threshold * AU2KCAL
         )
+        ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 
     ensemble.set_populations(config.general.temperature)
 
@@ -211,13 +210,14 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
 
     # write everything to a file
     filepath = Path("0_PRESCREENING.out")
-    logger.debug(f"Writing to {filepath}.")
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
     Path("0_PRESCREENING.json").write_text(
         json.dumps(jsonify(ensemble, config.prescreening), indent=4)
     )
+
+    ensemble.dump_xyz(Path("0_PRESCREENING.xyz"))
 
 
 # TODO: generalize this

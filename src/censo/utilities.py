@@ -51,7 +51,13 @@ class Factory[T]:
 
 class DataDump(BaseModel):
     part_name: str
-    data: dict[str, dict[str, float]] = {}
+    data: dict[
+        str,
+        dict[
+            str,
+            Any,
+        ],
+    ] = {}
     settings: dict[str, Any] = {}
 
 
@@ -80,40 +86,6 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
         result.append(current)
         current += step
     return result
-
-
-def average(x: list[int | float]):
-    assert len(x) > 0
-    return float(sum(x)) / len(x)
-
-
-def pearson_def(x: list[int | float], y: list[int | float]):
-    # Pad with last value
-    if len(x) > len(y):
-        while len(x) > len(y):
-            y.append(y[-1])
-    elif len(x) < len(y):
-        while len(x) < len(y):
-            x.append(x[-1])
-
-    n = len(x)
-    assert n > 0
-    avg_x = average(x)
-    avg_y = average(y)
-    diffprod = 0
-    xdiff2 = 0
-    ydiff2 = 0
-    for idx in range(n):
-        xdiff = x[idx] - avg_x
-        ydiff = y[idx] - avg_y
-        diffprod += xdiff * ydiff
-        xdiff2 += xdiff * xdiff
-        ydiff2 += ydiff * ydiff
-
-    try:
-        return diffprod / math.sqrt(xdiff2 * ydiff2)
-    except ZeroDivisionError:
-        return 1.0
 
 
 def t2x(

@@ -38,6 +38,8 @@ class GeneralConfig(BasePartConfig):
         if not v[2] > 0:
             raise ValueError(f"Step size for trange must be positive.")
 
+        return v
+
     @field_validator("solvent")
     @classmethod
     def solvent_must_be_valid_for_sm(cls, v: str, info: ValidationInfo):
@@ -48,3 +50,4 @@ class GeneralConfig(BasePartConfig):
         ]
         if v not in available_solvents:
             raise ValueError(f"Solvent {v} not defined for {info.data['sm_rrho']}.")
+        return v

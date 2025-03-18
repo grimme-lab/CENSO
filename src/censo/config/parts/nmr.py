@@ -43,3 +43,4 @@ class NMRConfig(BasePartConfig):
             raise ValueError(
                 f"Selection of active nuclei ({v}) invalid. Allowed nuclei: h, c, f, si, p."
             )
+        return v

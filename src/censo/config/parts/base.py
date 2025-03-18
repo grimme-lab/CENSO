@@ -1,12 +1,11 @@
 from typing import override
-from pydantic import BaseModel
 
 
-from ...params import DIGILEN
+from ...params import DIGILEN, GenericConfig
 from ...utilities import h2
 
 
-class BasePartConfig(BaseModel):
+class BasePartConfig(GenericConfig):
     """Base class for configuration classes for all parts"""
 
     @override
