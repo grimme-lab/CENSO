@@ -121,7 +121,7 @@ class QmProc:
 
         @functools.wraps(f)
         def wrapper(
-            self: QmProc,
+            self,
             job: ParallelJob,
             job_config: U,
             resources: ResourceMonitor,

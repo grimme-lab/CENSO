@@ -175,4 +175,4 @@ def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRRes
 
     dump.settings = config.model_dump()
 
-    return dump.model_dump()
+    return dump.model_dump(mode="json")

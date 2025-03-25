@@ -8,6 +8,7 @@ import os
 import sys
 from enum import Enum
 from pydantic import BaseModel, ConfigDict
+from pathlib import Path
 
 try:
     from .__version__ import __version__
@@ -42,7 +43,9 @@ OMPMAX = 32
 
 CODING = "ISO-8859-1"
 
-USER_ASSETS_PATH = os.path.join(os.path.expanduser("~"), ".censo2_assets")
+ASSETS_PATH = Path(__file__).parent / "assets"
+
+USER_ASSETS_PATH = Path("~/.censo2_assets").expanduser()
 
 PROGS = ("orca", "tm")
 

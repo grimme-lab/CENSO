@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Literal
 from contextlib import contextmanager
 from pathlib import Path
@@ -73,9 +73,9 @@ class RRHOResult(QmResult):
 
     energy: float = 0.0
     rmsd: float = 0.0
-    gibbs: dict[float, float] = {}
-    enthalpy: dict[float, float] = {}
-    entropy: dict[float, float] = {}
+    gibbs: dict[float, float] = field(default_factory=dict)
+    enthalpy: dict[float, float] = field(default_factory=dict)
+    entropy: dict[float, float] = field(default_factory=dict)
     symmetry: str = "c1"
     symnum: int = 1
     linear: bool = False
@@ -86,13 +86,13 @@ class OptResult(QmResult):
     """Results class for geometry optimizations."""
 
     # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
-    ecyc: list[float] = []
+    ecyc: list[float] = field(default_factory=list)
     # 'gncyc' contains the gradient norms for all cycles
-    gncyc: list[float] = []
+    gncyc: list[float] = field(default_factory=list)
     # 'energy' contains the final energy of the optimization (converged or unconverged)
     energy: float = 0.0
     # 'geom' stores the optimized geometry in GeometryData.xyz format
-    geom: list[Atom] = []
+    geom: list[Atom] = field(default_factory=list)
     grad_norm: float = 0.0
     cycles: int = 0
     converged: bool = False
@@ -102,15 +102,15 @@ class OptResult(QmResult):
 class NMRResult(QmResult):
     """Results class for NMR calculations."""
 
-    shieldings: list[tuple[int, float]] = []
-    couplings: list[tuple[tuple[int, int], float]] = []
+    shieldings: list[tuple[int, float]] = field(default_factory=list)
+    couplings: list[tuple[tuple[int, int], float]] = field(default_factory=list)
 
 
 @dataclass
 class UVVisResult(QmResult):
     """Results class for UVVis calculations."""
 
-    excitations: list[dict[str, float]] = []
+    excitations: list[dict[str, float]] = field(default_factory=list)
 
 
 @dataclass

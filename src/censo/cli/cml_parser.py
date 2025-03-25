@@ -97,14 +97,16 @@ def parse(argv: list[str]) -> argparse.Namespace:
         "the maximum number available. For a default run this is REQUIRED.",
         default=os.cpu_count(),
     )
-    groups[0].add_argument(
-        "-O",
-        "--omp",
-        dest="omp",
-        type=int,
-        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
-        "if load balancing is disabled.",
-    )
+    # groups[0].add_argument(
+    #     "-O",
+    #     "--omp",
+    #     dest="omp",
+    #     type=int,
+    #     help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
+    #     "if load balancing is disabled.",
+    # )
+    # NOTE: omp arg is not used anymore since the way it works right now, censo will always try to get the minimum number of cores per process
+    # because this is the most efficient. therefore, the user should only set the minimum number of cores
     groups[0].add_argument(
         "--omp-min",
         dest="ompmin",

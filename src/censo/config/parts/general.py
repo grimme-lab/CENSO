@@ -1,5 +1,4 @@
-import os
-from pydantic import ValidationInfo, field_validator, Field
+from pydantic import field_validator, Field, model_validator
 
 
 from .base import BasePartConfig
@@ -33,21 +32,20 @@ class GeneralConfig(BasePartConfig):
             raise ValueError("Negative temperature values not allowed (trange).")
         if v[1] < v[0]:
             raise ValueError(
-                f"Order of arguments incorret for trange: {v[1]} must be larger than {v[0]}."
+                f"Order of arguments incorrect for trange: {v[1]} must be larger than {v[0]}."
             )
         if not v[2] > 0:
             raise ValueError(f"Step size for trange must be positive.")
 
         return v
 
-    @field_validator("solvent")
-    @classmethod
-    def solvent_must_be_valid_for_sm(cls, v: str, info: ValidationInfo):
+    @model_validator(mode="after")
+    def solvent_must_be_valid_for_sm(self):
         available_solvents = [
             solvent
             for solvent, keywords in SOLVENTS.items()
-            if keywords.get(info.data["sm_rrho"], None) is not None
+            if keywords.get(self.sm_rrho, None) is not None
         ]
-        if v not in available_solvents:
-            raise ValueError(f"Solvent {v} not defined for {info.data['sm_rrho']}.")
-        return v
+        if self.solvent not in available_solvents:
+            raise ValueError(f"Solvent {self.solvent} not defined for {self.sm_rrho}.")
+        return self

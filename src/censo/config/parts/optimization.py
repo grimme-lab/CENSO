@@ -1,5 +1,5 @@
 from typing import Literal
-from pydantic import field_validator, ValidationInfo, Field
+from pydantic import model_validator, Field
 
 from .base import BasePartConfig
 from ...params import GfnVersion, QmProg, TmSolvMod, OrcaSolvMod
@@ -28,14 +28,15 @@ class OptimizationConfig(BasePartConfig):
     run: bool = True
     template: bool = False
 
-    @field_validator("func")
-    @classmethod
-    def func_must_be_known_in_prog(cls, v: str, info: ValidationInfo):
-        prog: str = info.data["prog"]
+    @model_validator(mode="after")
+    def func_must_be_known_in_prog(self):
+        prog: str = self.prog
         try:
-            assert FUNCTIONALS[v][prog] is not None
-            assert FUNCTIONALS[v]["disp"] is not None
-            assert FUNCTIONALS[v]["type"] is not None
+            assert FUNCTIONALS[self.func][prog] is not None
+            assert FUNCTIONALS[self.func]["disp"] is not None
+            assert FUNCTIONALS[self.func]["type"] is not None
         except (KeyError, AssertionError):
-            raise ValueError(f"Functional {v} not (fully) defined for prog {prog}.")
-        return v
+            raise ValueError(
+                f"Functional {self.func} not (fully) defined for prog {prog}."
+            )
+        return self

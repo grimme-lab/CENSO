@@ -1,15 +1,13 @@
-import os
-import shutil
-import pytest
 from pathlib import Path
+import pytest
 
 from censo.cli.cml_parser import parse
 from censo.cli.interface import startup, entry_point
-from censo.params import DESCR
 
 
 def test_blank_startup():
-    entry_point([])
+    with pytest.raises(FileNotFoundError, match="No such file or directory"):
+        entry_point([])
 
 
 def test_help_startup():
@@ -17,34 +15,34 @@ def test_help_startup():
     entry_point(argv)
 
 
-def test_general_startup():
-    argv = str("-i testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0").split()
+def test_general_startup(example_ensemble_file):
+    argv = str(f"-i {example_ensemble_file} --solvent water -c 0 -u 0").split()
     ensemble, config = startup(parse(argv))
 
 
 def test_writeconfig():
-    argv = str("-newconfig").split()
+    argv = str("--new-config").split()
     entry_point(argv)
 
     assert Path("censo2rc_NEW").is_file()
 
 
-def test_writereadconfig():
-    argv = str("-newconfig").split()
+def test_writereadconfig(example_ensemble_file):
+    argv = str("--new-config").split()
     entry_point(argv)
 
     argv = str(
-        "-inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -inprc censo2rc_NEW"
+        f"-i {example_ensemble_file} --solvent water -c 0 -u 0 --inprc censo2rc_NEW"
     ).split()
     ensemble, config = startup(parse(argv))
 
 
-def test_rc_override():
-    argv = str("-newconfig").split()
+def test_rc_override(example_ensemble_file):
+    argv = str("--new-config").split()
     entry_point(argv)
 
     argv = str(
-        "-inprc censo2rc_NEW -inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -gp"
+        f"--inprc censo2rc_NEW -i {example_ensemble_file} --solvent water -c 0 -u 0 --gas-phase"
     ).split()
     args = parse(argv)
     ensemble, config = startup(args)

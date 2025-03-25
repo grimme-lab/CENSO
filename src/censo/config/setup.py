@@ -51,8 +51,11 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
         # Try to find paths
         paths = find_program_paths()
 
-    # TODO: update settings with cml args
-    # if args:
+    # Override general settings only for now
+    for field in parts_config.general.model_fields:
+        setting = getattr(args, field, None)
+        if setting is not None:
+            parts_config.general.__setattr__(field, setting)
 
     # Update the paths for the processors
     QmProc.paths.update(paths)
@@ -116,7 +119,9 @@ def write_rcfile(path: str) -> None:
 
         # collect all default settings from parts and feed them into the parser
         parts_config = PartsConfig()
-        parser.read_dict(parts_config.model_dump() | {"paths": external_paths})
+        parser.read_dict(
+            parts_config.model_dump(mode="json") | {"paths": external_paths}
+        )
 
         if external_paths is not None:
             parser["paths"] = external_paths

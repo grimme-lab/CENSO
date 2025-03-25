@@ -48,7 +48,7 @@ class PartsConfig(GenericConfig):
         """Create a formatted string for printing the settings"""
         return str("\n".join(f"{config}" for (_, config) in self))
 
-    # TODO: validate solvent, func for all active parts if called from cli, otherwise check all parts
+    # TODO: validate only active parts (run=True) if called from cli, otherwise check all parts
     # TODO: how to handle the case of setting settings, temporarily yielding invalid settings
 
     # SOLVENT/SM VALIDATION

@@ -141,4 +141,4 @@ def jsonify(
 
     dump.settings = config.model_dump()
 
-    return dump.model_dump()
+    return dump.model_dump(mode="json")

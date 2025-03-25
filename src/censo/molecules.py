@@ -1,10 +1,9 @@
-from functools import reduce
-from typing import TypedDict
+from pydantic import BaseModel
 
-from .params import BOHR2ANG, Config, QmProg
+from .params import BOHR2ANG, QmProg
 
 
-class Atom(TypedDict):
+class Atom(BaseModel):
     element: str
     xyz: list[float]
 
@@ -31,7 +30,7 @@ class GeometryData:
         for line in xyz:
             spl = [s.strip() for s in line.split()]
             element = spl[0].capitalize()
-            self.xyz.append({"element": element, "xyz": [float(i) for i in spl[1:]]})
+            self.xyz.append(Atom(element=element, xyz=[float(i) for i in spl[1:]]))
 
         # Count atoms
         self.nat: int = len(self.xyz)
@@ -42,7 +41,7 @@ class GeometryData:
         """
         coord = []
         for atom in self.xyz:
-            coord.append(" ".join([atom["element"]] + [str(c) for c in atom["xyz"]]))
+            coord.append(" ".join([atom.element] + [str(c) for c in atom.xyz]))
 
         return coord
 
@@ -53,10 +52,9 @@ class GeometryData:
         coord = ["$coord\n"]
         for atom in self.xyz:
             coord.append(
-                reduce(
-                    lambda x, y: f"{x} {y}",
-                    list(map(lambda x: float(x) / BOHR2ANG, atom["xyz"]))
-                    + [f"{atom['element']}\n"],
+                " ".join(
+                    list(map(lambda x: str(float(x) / BOHR2ANG), atom.xyz))
+                    + [f"{atom.element}\n"]
                 )
             )
 
@@ -77,7 +75,7 @@ class GeometryData:
                 coords = line.split()
                 element = coords[-1]
                 cartesian_coords = [float(x) * BOHR2ANG for x in coords[:-1]]
-                self.xyz.append({"element": element, "xyz": cartesian_coords})
+                self.xyz.append(Atom(element=element, xyz=cartesian_coords))
             elif line.startswith("$end"):
                 break
 
@@ -94,7 +92,7 @@ class GeometryData:
             split = line.split()
             element = split[0]
             coords = [float(x) for x in split[1:]]
-            self.xyz.append({"element": element, "xyz": coords})
+            self.xyz.append(Atom(element=element, xyz=coords))
 
     def toxyz(self) -> list[str]:
         """
@@ -106,7 +104,7 @@ class GeometryData:
         ]
         for atom in self.xyz:
             lines.append(
-                f"{atom['element']} {atom['xyz'][0]:.10f} {atom['xyz'][1]:.10f} {atom['xyz'][2]:.10f}\n"
+                f"{atom.element} {atom.xyz[0]:.10f} {atom.xyz[1]:.10f} {atom.xyz[2]:.10f}\n"
             )
 
         return lines
