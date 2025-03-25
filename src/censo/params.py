@@ -14,13 +14,11 @@ try:
 except ImportError:
     __version__ = "0.0.0"
 
-PYDANTIC_DEFAULT_CONFIG = ConfigDict(
-    use_enum_values=True, validate_assignment=True, use_attribute_docstrings=True
-)
-
 
 class GenericConfig(BaseModel):
-    model_config = PYDANTIC_DEFAULT_CONFIG
+    model_config = ConfigDict(
+        use_enum_values=True, validate_assignment=True, use_attribute_docstrings=True
+    )
 
 
 ENVIRON = os.environ.copy()

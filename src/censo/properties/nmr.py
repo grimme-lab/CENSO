@@ -145,7 +145,7 @@ def _write_results(
     filepath.write_text(text)
 
     # Additionally, write results in json format
-    Path("5_NMR.json").write_text(
+    Path("4_NMR.json").write_text(
         json.dumps(jsonify(ensemble, config.nmr, results), indent=4)
     )
 

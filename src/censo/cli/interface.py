@@ -3,12 +3,12 @@ import os
 import shutil
 import sys
 from os import getcwd
-from argparse import ArgumentError
+from argparse import ArgumentError, Namespace
 from datetime import timedelta
-
-from censo.config.parts.general import GeneralConfig
+from typing import cast
 
 from ..config import PartsConfig
+from ..config.parts_config import GeneralConfig
 from ..config.setup import configure, write_rcfile
 from .cml_parser import parse
 from ..ensembledata import EnsembleData
@@ -21,30 +21,29 @@ from ..logging import setup_logger, set_loglevel
 logger = setup_logger(__name__)
 
 
-def entry_point() -> int:
+def entry_point(argv: list[str] = sys.argv) -> int:
     """
     Console entry point to execute CENSO from the command line.
     """
     try:
-        args = parse()
+        args = parse(argv)
     except ArgumentError as e:
         printf(e.message)
         return 1
-    except SystemExit:
-        return 0
+    except SystemExit as e:
+        return cast(int, e.code)
 
     if not any(vars(args).values()):
         printf("CENSO needs at least one argument!")
         return 1
 
     # Print program call
-    printf("CALL: " + " ".join(arg for arg in sys.argv))
+    printf("CALL: " + " ".join(arg for arg in argv))
 
-    ensemble, parts_config = startup(args)
-    if ensemble is None and parts_config is None:
-        return 0
-
-    assert ensemble is not None and parts_config is not None
+    try:
+        ensemble, parts_config = startup(args)
+    except SystemExit as e:
+        return cast(int, e.code)
 
     # Print all active parts settings once
     if logger.level == DEBUG:
@@ -98,27 +97,27 @@ def entry_point() -> int:
 
 
 # sets up a ensemble object using the given cml arguments and censorc
-def startup(args) -> tuple[EnsembleData | None, PartsConfig | None]:
+def startup(args) -> tuple[EnsembleData, PartsConfig]:
     # get most important infos for current run
     cwd = getcwd()
 
     # run actions for which no complete setup is needed
     if args.version:
         printf(__version__)
-        return None, None
+        sys.exit()
     elif args.cleanup:
         cleanup_run(cwd)
         printf("Removed files and going to exit!")
-        return None, None
+        sys.exit()
     elif args.cleanup_all:
         cleanup_run(cwd, complete=True)
         printf("Removed files and going to exit!")
-        return None, None
+        sys.exit()
     elif args.writeconfig:
         write_rcfile(os.path.join(cwd, "censo2rc_NEW"))
-        return None, None
+        sys.exit()
 
-    parts_config = configure(rcpath=args.inprcpath, args=args, cli=True)
+    parts_config = configure(rcpath=args.inprcpath, args=args)
 
     if args.loglevel:
         set_loglevel(args.loglevel)
@@ -149,9 +148,12 @@ def startup(args) -> tuple[EnsembleData | None, PartsConfig | None]:
         for filename in args.reload:
             ensemble.read_output(os.path.join(cwd, filename))
 
+    override_rc(args, parts_config.general)
+
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
     # -> output data is reloaded if wanted
+    # -> settings are updated with cml args
 
     return ensemble, parts_config
 
@@ -185,10 +187,15 @@ def cleanup_run(cwd, complete=False):
         printf(sub)
 
     printf("Do you wish to continue?")
-    printf("Please type 'yes' or 'no':")
+    printf("Please type 'yes'/'y' or 'no'/'n':")
 
     ui = input()
-    if ui.strip().lower() not in ["yes", "y"]:
+
+    while ui.strip().lower() not in ["yes", "y", "no", "n"]:
+        printf("Please type 'yes'/'y' or 'no'/'n':")
+        ui = input()
+
+    if ui.strip().lower() in ["no", "n"]:
         printf("Aborting cleanup!")
         sys.exit(0)
 
@@ -219,7 +226,6 @@ def override_rc(args: Namespace, config: GeneralConfig) -> None:
         None
     """
     # Override general settings only for now
-    config.validate_assignment = False
     for field in config.model_fields:
         setting = getattr(args, field, None)
         if setting is not None:

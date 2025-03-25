@@ -1,5 +1,8 @@
 # NEW: CENSO 2.0
-This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, dummy functionals, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
+This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
+
+## Update: CENSO 2.2
+The new update 2.2 improves upon version 2.0 by significantly upgrading the program's architecture, which is especially important for usage as a Python package.
 
 # Installation
 Can be installed using `pip` by running
@@ -23,9 +26,10 @@ CENSO can also be used as a package within Python. A basic setup for a CENSO run
 ```python
 from censo.ensembledata import EnsembleData
 from censo.configuration import configure
-from censo.ensembleopt import Prescreening, Screening, Optimization
-from censo.properties import NMR
-from censo.params import Config
+from censo.ensembleopt import prescreening, screening, optimization
+from censo.properties import nmr
+from censo.params import NCORES, OMP
+from censo.config import GeneralConfig
 
 # CENSO will put all files in the current working directory (os.getcwd())
 input_path = "rel/path/to/your/inputfile" # path relative to the working directory
@@ -41,19 +45,14 @@ configure("/abs/path/to/rcfile")
 # Get the number of available cpu cores on this machine
 # This is also the default value that CENSO uses
 # This number can also be set to any other integer value and automatically checked for validity
-Config.NCORES = os.cpu_count()
+NCORES = os.cpu_count()
 
 # Another possibly important setting is OMP, which will get used if you disabled the automatic 
 # load balancing in the settings
-Config.OMP = 4
+OMP = 4
 
 # The user can also choose to change specific settings of the parts
 # Please take note of the following:
-# - the settings of certain parts, e.g. Prescreening are changed using set_setting(name, value)
-# - general settings are changed by using set_general_setting(name, value) (it does not matter which part you call it from)
-# - the values you want to set must comply with limits and the type of the setting
-Prescreening.set_setting("threshold", 5.0)
-Prescreening.set_general_setting("solvent", "dmso")
 
 # It is also possible to use a dict to set multiple values in one step
 settings = {
@@ -61,8 +60,10 @@ settings = {
     "func": "pbeh-3c",
     "implicit": True,
 }
-Screening.set_settings(settings)  
 
+# To temporarily disable assignment validation for a specific config:
+GeneralConfig.model_config["validate_assignment"] = False
+config.general.solvent = "dmso"
 
 # Setup and run all the parts that the user wants to run
 # Running the parts in order here, while it is also possible to use a custom order or run some parts multiple times
@@ -70,11 +71,10 @@ Screening.set_settings(settings)
 # References to the resulting part instances will be appended to a list in the EnsembleData object (ensemble.results)
 # Note though, that currently this will lead to results being overwritten in your working directory
 # (you could circumvent this by moving/renaming the folders)
-results, timings = zip(*[part.run(ensemble) for part in [Prescreening, Screening, Optimization, NMR]])
+timings = [part(ensemble, config) for part in [prescreening, screening, optimization, nmr]]
 
 # You access the results using the ensemble object
 # You can also find all the results the <part>.json output files
-print(ensemble.results[0].data["results"]["CONF5"]["sp"]["energy"])
 ```
 
 # License

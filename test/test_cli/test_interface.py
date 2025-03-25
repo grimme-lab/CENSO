@@ -1,69 +1,52 @@
-"""
 import os
 import shutil
-import unittest
-
-os.chdir(os.path.split(__file__)[0])
+import pytest
+from pathlib import Path
 
 from censo.cli.cml_parser import parse
 from censo.cli.interface import startup, entry_point
 from censo.params import DESCR
 
 
-class CensoTest(unittest.TestCase):
-    def test_blank_startup(self):
-        entry_point("")
-
-    def test_help_startup(self):
-        argv = "-h".split()
-        entry_point(argv)
-
-    def test_general_startup(self):
-        argv = "-inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0"
-        core = startup(parse(DESCR, argv.split()))
-        self.assertEqual(core.workdir, os.path.split(__file__)[0])
-
-    def test_partial_req(self):
-        argv = "-inp testfiles/crest_conformers.xyz".split()
-        entry_point(argv)
-
-    def test_writeconfig(self):
-        argv = "-newconfig".split()
-        entry_point(argv)
-
-        self.assertTrue(os.path.isfile("censo2rc_NEW"))
-
-    def test_writereadconfig(self):
-        argv = "-newconfig".split()
-        entry_point(argv)
-
-        argv = "-inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -inprc censo2rc_NEW"
-        startup(parse(DESCR, argv.split()))
-
-    def test_rc_override(self):
-        argv = "-newconfig".split()
-        entry_point(argv)
-
-        argv = "-inprc censo2rc_NEW -inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -gp".split()
-        args = parse(DESCR, argv)
-        startup(args)
-        from censo.part import CensoPart
-
-        self.assertTrue(CensoPart.get_general_settings()["gas-phase"])
-
-    def doCleanups(self):
-        # perform cleanup
-        delete = ["censo.log", "censo2rc_NEW_OLD", "censo2rc_NEW"]
-        for f in delete:
-            f = os.path.join(os.path.split(__file__)[0], f)
-            if os.path.exists(f):
-                if os.path.isdir(f):
-                    shutil.rmtree(f)
-                else:
-                    os.remove(f)
+def test_blank_startup():
+    entry_point([])
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_help_startup():
+    argv = ["-h"]
+    entry_point(argv)
 
-"""
+
+def test_general_startup():
+    argv = str("-i testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0").split()
+    ensemble, config = startup(parse(argv))
+
+
+def test_writeconfig():
+    argv = str("-newconfig").split()
+    entry_point(argv)
+
+    assert Path("censo2rc_NEW").is_file()
+
+
+def test_writereadconfig():
+    argv = str("-newconfig").split()
+    entry_point(argv)
+
+    argv = str(
+        "-inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -inprc censo2rc_NEW"
+    ).split()
+    ensemble, config = startup(parse(argv))
+
+
+def test_rc_override():
+    argv = str("-newconfig").split()
+    entry_point(argv)
+
+    argv = str(
+        "-inprc censo2rc_NEW -inp testfiles/crest_conformers.xyz -solvent water -chrg 0 -u 0 -gp"
+    ).split()
+    args = parse(argv)
+    ensemble, config = startup(args)
+
+    assert config.general.gas_phase is True
