@@ -1,19 +1,18 @@
 """Tests for BasePartConfig"""
 
-import pytest
 from censo.config.parts.base import BasePartConfig
-from censo.params import DIGILEN
-
-
-class TestBaseConfig(BasePartConfig):
-    """Test implementation of BasePartConfig"""
-
-    test_value: str = "test"
-    test_number: int = 42
+from censo.params import PLENGTH
 
 
 def test_base_part_config_str():
     """Test the string representation of BasePartConfig"""
+
+    class TestBaseConfig(BasePartConfig):
+        """Test implementation of BasePartConfig"""
+
+        test_value: str = "test"
+        test_number: int = 42
+
     config = TestBaseConfig()
     result = str(config)
 
@@ -31,4 +30,4 @@ def test_base_part_config_str():
     for line in lines[1:]:  # Skip header
         if ":" in line:
             name = line.split(":")[0]
-            assert len(name) >= DIGILEN // 2
+            assert len(name) >= PLENGTH // 2
