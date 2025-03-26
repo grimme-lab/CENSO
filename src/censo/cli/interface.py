@@ -126,14 +126,13 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
     ensemble = EnsembleData()
 
     # read input and setup conformers
-    ensemble.read_input(args.inp, nconf=args.nconf)
+    ensemble.read_input(args.inp, args.charge or 0, args.unpaired or 0, args.nconf)
 
     # if data should be reloaded, do it here
     if args.reload:
         for filename in args.reload:
             ensemble.read_output(os.path.join(cwd, filename))
 
-    # TODO: Set multiprocessing variables
     if args.maxcores:
         NCORES = args.maxcores
 
@@ -147,8 +146,8 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
 
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
-    # -> output data is reloaded if wanted
     # -> settings are updated with cml args
+    # -> output data is reloaded if wanted
 
     return ensemble, parts_config
 

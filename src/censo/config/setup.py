@@ -23,7 +23,7 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
     If no configuration file is found, it raises a FileNotFoundError.
 
     Args:
-        rcpath (str): Path to the configuration file.
+        rcpath (str, optional): Path to the configuration file.
         args (Namespace, optional): Parsed command line arguments. Defaults to None.
 
     Returns:
@@ -53,7 +53,6 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
         paths = find_program_paths()
 
     # Override general settings only for now
-    print(args)
     for field in parts_config.general.model_fields:
         setting = getattr(args, field, None)
         if setting is not None:

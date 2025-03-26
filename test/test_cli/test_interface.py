@@ -42,9 +42,12 @@ def test_rc_override(example_ensemble_file):
     entry_point(argv)
 
     argv = str(
-        f"--inprc censo2rc_NEW -i {example_ensemble_file} --solvent water -c 0 -u 0 --gas-phase"
+        f"--inprc censo2rc_NEW -i {example_ensemble_file} --solvent water -c 1 -u 1 --gas-phase"
     ).split()
     args = parse(argv)
     ensemble, config = startup(args)
 
     assert config.general.gas_phase is True
+    assert config.general.solvent == "water"
+    assert ensemble.conformers[0].charge == 1
+    assert ensemble.conformers[0].unpaired == 1
