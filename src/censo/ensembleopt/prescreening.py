@@ -83,7 +83,7 @@ def prescreening(
     if cut:
         threshold = (
             min(conf.gtot for conf in ensemble)
-            + config.prescreening.threshold * AU2KCAL
+            + config.prescreening.threshold / AU2KCAL
         )
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 

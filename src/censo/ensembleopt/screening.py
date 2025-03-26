@@ -128,7 +128,7 @@ def screening(
             threshold += fuzzy
             printf(f"Updated fuzzy threshold: {threshold:.2f} kcal/mol.")
 
-        threshold = min(conf.gtot for conf in ensemble) + threshold * AU2KCAL
+        threshold = min(conf.gtot for conf in ensemble) + threshold / AU2KCAL
 
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 

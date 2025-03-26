@@ -78,7 +78,7 @@ def optimization(
     if cut:
         threshold = (
             min(conf.gtot for conf in ensemble)
-            + config.optimization.threshold * AU2KCAL
+            + config.optimization.threshold / AU2KCAL
         )
         ensemble.remove_conformers(lambda conf: conf.gtot > threshold)
 
@@ -188,7 +188,7 @@ def _macrocycle_opt(
                     [conf.gtot for conf in unconverged_ensemble]
                     + [conf.gtot for conf in unconverged_ensemble.rem]
                 )
-                + config.optimization.threshold
+                + config.optimization.threshold / AU2KCAL
             )
             unconverged_ensemble.remove_conformers(
                 lambda conf: conf.gtot > threshold
