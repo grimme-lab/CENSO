@@ -18,7 +18,8 @@ except ImportError:
 
 class GenericConfig(BaseModel):
     model_config = ConfigDict(
-        use_enum_values=True, validate_assignment=True, use_attribute_docstrings=True
+        use_enum_values=True,
+        use_attribute_docstrings=True,  # , validate_assignment=True <- don't use this for now
     )
 
 

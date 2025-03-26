@@ -52,6 +52,10 @@ def entry_point(argv: list[str] = sys.argv) -> int:
         for _, config in parts_config:
             if "run" in config.model_fields:
                 if config.run:
+                    # Revalidate
+                    config.model_validate(config)
+
+                    # Print
                     printf(config)
             else:
                 printf(config)
