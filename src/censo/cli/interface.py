@@ -6,6 +6,7 @@ from os import getcwd
 from argparse import ArgumentError, Namespace
 from datetime import timedelta
 from typing import cast
+from tabulate import tabulate
 
 from ..config import PartsConfig
 from ..config.parts_config import GeneralConfig
@@ -235,9 +236,16 @@ def print_comparison(comparison: dict[str, dict[str, float]]):
         printmap[header](column) for header, column in zip(headers, comparison.values())
     ]
 
-    lines = format_data(headers, rows, units=units)
+    for i in range(len(headers)):
+        headers[i] += "\n" + units[i]
 
-    for line in lines:
-        printf(line, flush=True, end="")
+    table = tabulate(
+        rows,
+        headers=headers,
+        colalign=["center" for _ in headers],
+        disable_numparse=True,
+        numalign="decimal",
+    )
+    print(table, flush=True)
 
     printf("".ljust(int(PLENGTH), "-") + "\n")

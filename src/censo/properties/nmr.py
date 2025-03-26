@@ -128,6 +128,8 @@ def _write_results(
             [printmap[header](k, v) for header in headers]
             for k, v in averaged_couplings.items()
         ]
+        for i in range(len(headers)):
+            headers[i] += "\n" + units[i]
 
         print(h1("Averaged NMR Spin-Spin Coupling Constants"))
         table = tabulate(
