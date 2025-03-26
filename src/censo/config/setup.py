@@ -2,11 +2,12 @@ import os
 import shutil
 import toml
 from argparse import Namespace
-from typing import Any
+from typing import Any, cast
 from pathlib import Path
 
 
 from .parts_config import PartsConfig
+from .parts import *
 from ..params import CENSORCNAME
 from ..logging import setup_logger
 from ..qm import QmProc
@@ -43,8 +44,19 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
         settings_dict = read_rcfile(censorc_path, silent=False)
         paths = settings_dict["paths"]
 
+        # NOTE: this ignores the possibility that the annotation could be None (however, this should not be the case)
+        mapping = cast(
+            dict[str, type],
+            {
+                field: info.annotation
+                for field, info in PartsConfig.model_fields.items()
+            },
+        )
+
         # Create configurations
-        parts_config = PartsConfig(**settings_dict)
+        parts_config = PartsConfig(
+            **{field: mapping[field](**settings_dict[field]) for field in mapping}
+        )
     else:
         # Create default configurations
         parts_config = PartsConfig()
