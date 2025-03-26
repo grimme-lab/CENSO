@@ -1,5 +1,5 @@
 from typing import override
-from pydantic import ValidationInfo, field_validator
+from pydantic import model_validator
 
 
 from ..params import OrcaSolvMod, TmSolvMod, GenericConfig
@@ -55,72 +55,24 @@ class PartsConfig(GenericConfig):
     # NOTE: since solvent is a general settings this is validated here because we need access
     # to this setting
 
-    @field_validator("screening")
-    @classmethod
-    def screening_sm_func_check(cls, v: ScreeningConfig, info: ValidationInfo):
-        solvent: str = info.data["general"].solvent
-        solvent_model: OrcaSolvMod | TmSolvMod = v.sm
-        available_solvents = [
-            s for s, keywords in SOLVENTS.items() if solvent_model in keywords
-        ]
-        if solvent not in available_solvents:
-            raise ValueError(
-                f"Solvent {solvent} not available with {solvent_model} in screening."
-            )
-        return v
+    @model_validator(mode="after")
+    def sm_check(self):
+        solvent: str = self.general.solvent
 
-    @field_validator("optimization")
-    @classmethod
-    def optimization_sm_func_check(cls, v: OptimizationConfig, info: ValidationInfo):
-        solvent: str = info.data["general"].solvent
-        solvent_model: OrcaSolvMod | TmSolvMod = v.sm
-        available_solvents = [
-            s for s, keywords in SOLVENTS.items() if solvent_model in keywords
-        ]
-        if solvent not in available_solvents:
-            raise ValueError(
-                f"Solvent {solvent} not available with {solvent_model} in optimization."
-            )
-        return v
+        for name, part in [
+            ("screening", self.screening),
+            ("optimization", self.optimization),
+            ("refinement", self.refinement),
+            ("nmr", self.nmr),
+            ("uvvis", self.uvvis),
+        ]:
+            solvent_model: OrcaSolvMod | TmSolvMod = part.sm
+            available_solvents = [
+                s for s, keywords in SOLVENTS.items() if solvent_model in keywords
+            ]
+            if solvent not in available_solvents:
+                raise ValueError(
+                    f"Solvent {solvent} not available with {solvent_model} in {name}."
+                )
 
-    @field_validator("refinement")
-    @classmethod
-    def refinement_sm_func_check(cls, v: RefinementConfig, info: ValidationInfo):
-        solvent: str = info.data["general"].solvent
-        solvent_model: OrcaSolvMod | TmSolvMod = v.sm
-        available_solvents = [
-            s for s, keywords in SOLVENTS.items() if solvent_model in keywords
-        ]
-        if solvent not in available_solvents:
-            raise ValueError(
-                f"Solvent {solvent} not available with {solvent_model} in refinement."
-            )
-        return v
-
-    @field_validator("nmr")
-    @classmethod
-    def nmr_sm_func_check(cls, v: NMRConfig, info: ValidationInfo):
-        solvent: str = info.data["general"].solvent
-        solvent_model: OrcaSolvMod | TmSolvMod = v.sm
-        available_solvents = [
-            s for s, keywords in SOLVENTS.items() if solvent_model in keywords
-        ]
-        if solvent not in available_solvents:
-            raise ValueError(
-                f"Solvent {solvent} not available with {solvent_model} in nmr."
-            )
-        return v
-
-    @field_validator("uvvis")
-    @classmethod
-    def uvvis_sm_func_check(cls, v: UVVisConfig, info: ValidationInfo):
-        solvent: str = info.data["general"].solvent
-        solvent_model: OrcaSolvMod | TmSolvMod = v.sm
-        available_solvents = [
-            s for s, keywords in SOLVENTS.items() if solvent_model in keywords
-        ]
-        if solvent not in available_solvents:
-            raise ValueError(
-                f"Solvent {solvent} not available with {solvent_model} in uvvis."
-            )
-        return v
+        return self

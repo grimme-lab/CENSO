@@ -1,8 +1,9 @@
 import os
 import shutil
-from configparser import ConfigParser
+import toml
 from argparse import Namespace
 from typing import Any
+from pathlib import Path
 
 
 from .parts_config import PartsConfig
@@ -52,6 +53,7 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
         paths = find_program_paths()
 
     # Override general settings only for now
+    print(args)
     for field in parts_config.general.model_fields:
         setting = getattr(args, field, None)
         if setting is not None:
@@ -78,10 +80,7 @@ def read_rcfile(path: str, silent: bool = True) -> dict[str, dict[str, Any]]:
     if not silent:
         print(f"Reading configuration file from {path}.")
 
-    parser: ConfigParser = ConfigParser()
-    parser.read(path)
-
-    return {section: dict(parser[section]) for section in parser.sections()}
+    return toml.loads(Path(path).read_text())
 
 
 def write_rcfile(path: str) -> None:
@@ -115,19 +114,15 @@ def write_rcfile(path: str) -> None:
         external_paths = find_program_paths()
 
     with open(path, "w", newline=None) as rcfile:
-        parser = ConfigParser()
-
         # collect all default settings from parts and feed them into the parser
         parts_config = PartsConfig()
-        parser.read_dict(
-            parts_config.model_dump(mode="json") | {"paths": external_paths}
-        )
+        data = parts_config.model_dump(mode="json") | {"paths": external_paths}
 
         if external_paths is not None:
-            parser["paths"] = external_paths
+            data["paths"] = external_paths
 
         print(f"Writing new configuration file to {path} ...")
-        parser.write(rcfile)
+        toml.dump(data, rcfile)
 
     print(
         f"\nA new configuration file was written into {path}.\n"
@@ -146,12 +141,10 @@ def read_program_paths(path: str) -> dict[str, str] | None:
     """
     Read program paths from the configuration file at 'path'
     """
-    with open(path, "r") as inp:
-        parser = ConfigParser()
-        parser.read_file(inp)
+    data = toml.loads(Path(path).read_text())
 
     try:
-        return dict(parser["paths"])
+        return dict(data["paths"])
     except KeyError:
         logger.warning(f"No paths found in {path}")
         return None

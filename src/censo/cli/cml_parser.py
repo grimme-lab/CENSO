@@ -196,7 +196,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
     )
     groups[1].add_argument(
         "--gas-phase",
-        dest="gas-phase",
+        dest="gas_phase",
         action="store_const",
         const=True,
         help="Run calculation in gas-phase, overriding all solvation settings.",
