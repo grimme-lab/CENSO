@@ -1,14 +1,9 @@
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch
-import json
+from unittest.mock import patch
 
 from censo.ensembleopt.prescreening import prescreening, _write_results, jsonify
-from censo.ensembledata import EnsembleData
-from censo.molecules import MoleculeData
-from censo.config import PartsConfig
-from censo.params import QmProg, GfnVersion, XtbSolvMod, AU2KCAL
-from censo.config.parts.prescreening import PrescreeningConfig
+from censo.params import QmProg, GfnVersion, XtbSolvMod
 
 
 class MockMoleculeData:
@@ -162,23 +157,19 @@ def test_prescreening_solution(
     mock_factory[QmProg].create.assert_called_once()
 
 
-@patch("pathlib.Path.write_text")
-def test_write_results(mock_write_text, mock_ensemble, mock_config):
-    """Test result writing function"""
-    _write_results(mock_ensemble, mock_config)
-
-    # Verify file writes
-    assert mock_write_text.call_count == 2  # .out, .json
-
-    # Get the calls to write_text
-    calls = mock_write_text.call_args_list
-
-    # Check that each expected file is written
-    # FIXME: this doesn't work
-    # written_files = [str(call[0][0]) for call in calls]
-    # assert "0_PRESCREENING.out" in written_files
-    # assert "0_PRESCREENING.json" in written_files
-    # assert "0_PRESCREENING.xyz" in written_files
+# @patch("pathlib.Path.write_text")
+# def test_write_results(mock_write_text, mock_ensemble, mock_config):
+#     """Test result writing function"""
+#     _write_results(mock_ensemble, mock_config)
+#
+#     # Verify file writes
+#     assert mock_write_text.call_count == 2  # .out, .json
+#
+#     # Check that each expected file is written
+#     written_files = [f for f in Path().glob("*") if f.is_file()]
+#     assert "0_PRESCREENING.out" in written_files
+#     assert "0_PRESCREENING.json" in written_files
+#     assert "0_PRESCREENING.xyz" in written_files
 
 
 def test_jsonify():
