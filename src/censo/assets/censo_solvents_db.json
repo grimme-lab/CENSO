@@ -223,7 +223,6 @@
   },
   "aniline": {
     "smd": "aniline",
-    "gbsa": "aniline",
     "alpb": "aniline",
     "cosmors-fine": "aniline_c0",
     "cosmors": "aniline_c0",
@@ -235,7 +234,6 @@
   },
   "benzaldehyde": {
     "smd": "benzaldehyde",
-    "gbsa": "benzaldehyde",
     "alpb": "benzaldehyde",
     "cosmors-fine": "benzaldehyde_c0",
     "cosmors": "benzaldehyde_c0"
@@ -387,7 +385,10 @@
     "smd": "z-1,2-dichloroethene"
   },
   "dichloromethane": {
-    "smd": "dichloromethane"
+    "smd": "dichloromethane",
+    "cpcm": "ch2cl2",
+    "alpb": "ch2cl2",
+    "gbsa": "ch2cl2"
   },
   "diethyl_ether": {
     "smd": "diethyl ether"
@@ -540,7 +541,6 @@
   },
   "nitromethane": {
     "smd": "nitromethane",
-    "gbsa": "nitromethane",
     "alpb": "nitromethane",
     "cosmors-fine": "nitromethane_c0",
     "cosmors": "nitromethane_c0",
@@ -671,7 +671,6 @@
   },
   "dmf": {
     "smd": "dmf",
-    "gbsa": "dmf",
     "alpb": "dmf",
     "cpcm": "dmf"
   },
@@ -707,6 +706,7 @@
     "cosmo": "propanone"
   },
   "ch2cl2": {
+    "smd": "dichloromethane",
     "gbsa": "ch2cl2",
     "alpb": "ch2cl2",
     "cpcm": "ch2cl2",
@@ -720,7 +720,6 @@
     "cosmors": "cs2_c0"
   },
   "dioxane": {
-    "gbsa": "dioxane",
     "alpb": "dioxane",
     "cosmors-fine": "dioxane_c0",
     "cosmors": "dioxane_c0"
@@ -730,25 +729,21 @@
     "alpb": "ether"
   },
   "ethylacetate": {
-    "gbsa": "ethylacetate",
     "alpb": "ethylacetate",
     "cosmors-fine": "ethylacetate_c0",
     "cosmors": "ethylacetate_c0"
   },
   "furane": {
-    "gbsa": "furane",
     "alpb": "furane",
     "cosmors-fine": "furane_c0",
     "cosmors": "furane_c0"
   },
   "hexadecane": {
-    "gbsa": "hexadecane",
     "alpb": "hexadecane",
     "dcosmors": "hexadecane",
     "cosmo": "hexadecane"
   },
   "hexane": {
-    "gbsa": "hexane",
     "alpb": "hexane",
     "cpcm": "hexane",
     "cosmors-fine": "hexane_c0",
@@ -757,14 +752,15 @@
     "cosmo": "hexane"
   },
   "octanol": {
-    "gbsa": "octanol",
     "alpb": "octanol",
     "cpcm": "octanol",
     "dcosmors": "octanol",
-    "cosmo": "octanol"
+    "cosmo": "octanol",
+    "smd": "1-octanol",
+    "cosmors-fine": "1-octanol_c0",
+    "cosmors": "1-octanol_c0"
   },
   "woctanol": {
-    "gbsa": "woctanol",
     "alpb": "woctanol",
     "cosmors-fine": "woctanol",
     "cosmors": "woctanol",
@@ -772,7 +768,6 @@
     "cosmo": "wet-octanol"
   },
   "wet_octanol": {
-    "gbsa": "woctanol",
     "alpb": "woctanol",
     "cosmors-fine": "woctanol",
     "cosmors": "woctanol",
@@ -780,7 +775,6 @@
     "cosmo": "wet-octanol"
   },
   "phenol": {
-    "gbsa": "phenol",
     "alpb": "phenol",
     "cosmors-fine": "phenol_c0",
     "cosmors": "phenol_c0"
@@ -809,6 +803,10 @@
     "cosmors": "acetonitrile_c0"
   },
   "ch2cl2_c0": {
+    "smd": "dicholormethane",
+    "cpcm": "ch2cl2",
+    "alpb": "ch2cl2",
+    "gbsa": "ch2cl2",
     "cosmors-fine": "ch2cl2_c0",
     "cosmors": "ch2cl2_c0"
   },
@@ -923,4 +921,3 @@
     "cosmo": "aniline"
   }
 }
-
