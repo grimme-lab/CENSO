@@ -32,12 +32,16 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
     """
     # Try to find the .censo2rc in the user's home directory
     # if no configuration file path is provided
+    # NOTE: order of priority for rcfile path:
+    # - args.inprcfile
+    # - home dir
+    # - env variable
     if rcpath is None:
         censorc_path = find_rcfile()
     else:
-        if not os.path.isfile(rcpath):
+        if not Path(rcpath).expanduser().is_file():
             raise FileNotFoundError(f"No configuration file found at {rcpath}.")
-        censorc_path = rcpath
+        censorc_path = Path(rcpath).expanduser()
 
     if censorc_path is not None:
         # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
@@ -76,12 +80,12 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
     return parts_config
 
 
-def read_rcfile(path: str, silent: bool = True) -> dict[str, dict[str, Any]]:
+def read_rcfile(path: Path, silent: bool = True) -> dict[str, dict[str, Any]]:
     """
     Read the configuration file at 'path' and return the settings as a dictionary.
 
     Args:
-        path (str): Path to the configuration file.
+        path (Path): Path to the configuration file.
         silent (bool): If True, no messages will be printed.
 
     Returns:
@@ -91,24 +95,24 @@ def read_rcfile(path: str, silent: bool = True) -> dict[str, dict[str, Any]]:
     if not silent:
         print(f"Reading configuration file from {path}.")
 
-    return toml.loads(Path(path).read_text())
+    return toml.loads(path.read_text())
 
 
-def write_rcfile(path: str) -> None:
+def write_rcfile(path: Path) -> None:
     """
     Write new configuration file with default settings into file at 'path'.
     Also reads program paths from preexisting configuration file or tries to
     determine the paths automatically.
 
     Args:
-        path (str): Path to the new configuration file.
+        path (Path): Path to the new configuration file.
 
     Returns:
         None
     """
     # what to do if there is an existing configuration file
     external_paths = None
-    if os.path.isfile(path):
+    if path.is_file():
         print(
             f"An existing configuration file has been found at {path}.\n",
             f"Renaming existing file to {CENSORCNAME}_OLD.\n",
@@ -118,7 +122,7 @@ def write_rcfile(path: str) -> None:
         external_paths = read_program_paths(path)
 
         # Rename existing file
-        os.rename(path, f"{path}_OLD")
+        path.rename(f"{path}_OLD")
     else:
         # Try to get paths from 'which'
         print("Trying to determine program paths automatically ...")
@@ -141,18 +145,18 @@ def write_rcfile(path: str) -> None:
         + "Right now the settings are at their default values.\n"
     )
 
-    if CENSORCNAME not in path:
+    if CENSORCNAME not in path.stem:
         print(
             f"To load it automatically make sure that the file name is '{CENSORCNAME}' and it's located in your home directory.\n"
             f"Current name: '{os.path.split(path)[-1]}'.\n"
         )
 
 
-def read_program_paths(path: str) -> dict[str, str] | None:
+def read_program_paths(path: Path) -> dict[str, str] | None:
     """
     Read program paths from the configuration file at 'path'
     """
-    data = toml.loads(Path(path).read_text())
+    data = toml.loads(path.read_text())
 
     try:
         return dict(data["paths"])
@@ -191,14 +195,23 @@ def find_program_paths() -> dict[str, str]:
     return paths
 
 
-def find_rcfile() -> str | None:
+def find_rcfile() -> Path | None:
     """
-    check for existing .censorc2 in $home dir
+    Check for existing .censorc2 in $home dir or rcfile path in environment variable.
     """
 
     rcpath = None
+    homepath = Path("~").expanduser() / CENSORCNAME
+    try:
+        envpath = Path(os.environ.get("CENSORC_PATH"))
+    except TypeError:
+        envpath = None
+
     # check for .censorc in $home
-    if os.path.isfile(os.path.join(os.path.expanduser("~"), CENSORCNAME)):
-        rcpath = os.path.join(os.path.expanduser("~"), CENSORCNAME)
+    if homepath.is_file():
+        rcpath = homepath
+    # check for path in env variable
+    elif envpath is not None and envpath.is_file():
+        rcpath = envpath
 
     return rcpath

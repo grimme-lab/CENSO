@@ -6,6 +6,7 @@ from os import getcwd
 from argparse import ArgumentError, Namespace
 from datetime import timedelta
 from typing import cast
+from pathlib import Path
 from tabulate import tabulate
 
 from ..config import PartsConfig
@@ -119,7 +120,7 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
         printf("Removed files and going to exit!")
         sys.exit()
     elif args.writeconfig:
-        write_rcfile(os.path.join(cwd, "censo2rc_NEW"))
+        write_rcfile(Path() / "censo2rc_NEW")
         sys.exit()
 
     parts_config = configure(rcpath=args.inprcpath, args=args)
