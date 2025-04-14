@@ -89,8 +89,6 @@ def create_mock_conformers():
             mock.charge = 0
             mock.unpaired = 0
             mock.mo_paths = {
-                "tm": ["path/to/mos"],
-                "orca": ["path/to/file.gbw"],
                 QmProg.TM: ["path/to/mos"],
                 QmProg.ORCA: ["path/to/file.gbw"],
             }
@@ -280,10 +278,25 @@ class TestOMPConfiguration:
     @pytest.mark.parametrize(
         "balance,omp,ncores,expected_omp",
         [
-            (True, 2, 4, 2),  # Test with balancing enabled
-            (False, 3, 4, 3),  # Test with balancing disabled
-            (True, 1, 4, 2),  # Test with omp < OMPMIN
-            (False, 8, 4, 4),  # Test with omp > ncores
+            (
+                True,
+                2,
+                4,
+                4,
+            ),  # Test with balancing enabled, len(jobs) < ncores // OMPMIN (4 // 1 = 4), expect ncores // len(jobs) (4)
+            (
+                False,
+                0,
+                4,
+                1,
+            ),  # Test with balancing disabled, omp < OMPMIN, expect OMPMIN
+            (
+                False,
+                5,
+                4,
+                4,
+            ),  # Test with balancing disabled, omp > ncores, expect ncores
+            (False, 5, 8, 5),  # Test with ncores > omp > OMPMIN, expect omp
         ],
     )
     def test_set_omp_tmproc(

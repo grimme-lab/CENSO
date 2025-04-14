@@ -227,7 +227,7 @@ def prepare_jobs(
                     (
                         mo_path
                         for conf in conformers
-                        for mo_path in conf.mo_paths
+                        for mo_path in conf.mo_paths["orca"]
                         if conf.name == job.conf.name and ".gbw" in mo_path
                     ),
                     None,
@@ -237,7 +237,7 @@ def prepare_jobs(
                     (
                         mo_path
                         for conf in conformers
-                        for mo_path in conf.mo_paths
+                        for mo_path in conf.mo_paths["tm"]
                         if conf.name == job.conf.name
                         and any(kw in mo_path for kw in ["alpha", "beta", "mos"])
                     ),
