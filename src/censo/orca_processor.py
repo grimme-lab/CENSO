@@ -1111,7 +1111,7 @@ class OrcaProc(QmProc):
                         # of a normal set
                         pair = frozenset((int(line.split()[4]), int(line.split()[9])))
                         for line2 in lines[i:]:
-                            if "(Total)" in line2:
+                            if "Total" in line2 and "iso=" in line2:
                                 coupling = float(line2.split()[5])
                                 break
 
