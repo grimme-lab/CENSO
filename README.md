@@ -1,4 +1,5 @@
-# CENSO - Commandline ENergeti SOrting of Conformer-Rotamer Ensembles
+# CENSO - Commandline ENergetic SOrting of Conformer-Rotamer Ensembles
+![censo_logo_300dpi](https://github.com/user-attachments/assets/0e6bac6a-2637-4207-8eca-3122ab90112a)
 CENSO is a Python package meant to automate refinement of Conformer-Rotamer ensembles on DFT level, as well as calculation of ensemble properties, e.g. NMR parameters.
 It can be used from the command line as well as using custom wrapper scripts.
 
