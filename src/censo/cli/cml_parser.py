@@ -3,6 +3,7 @@ defininition of internal defaults, checking of logic for parameter combinations,
 cml parsing
 """
 
+import os
 from ..params import START_DESCR
 import argparse
 
@@ -94,6 +95,7 @@ def parse(argv=None) -> argparse.Namespace:
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
         "the maximum number available. For a default run this is REQUIRED.",
+        default=os.cpu_count(),
     )
     groups[0].add_argument(
         "-O",
