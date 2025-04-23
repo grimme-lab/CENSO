@@ -1,5 +1,9 @@
-# NEW: CENSO 2.0
-This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, dummy functionals, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
+# CENSO - Commandline ENergeti SOrting of Conformer-Rotamer Ensembles
+CENSO is a Python package meant to automate refinement of Conformer-Rotamer ensembles on DFT level, as well as calculation of ensemble properties, e.g. NMR parameters.
+It can be used from the command line as well as using custom wrapper scripts.
+
+## NEW: CENSO 2.0
+This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
 
 # Installation
 Can be installed using `pip` by running
