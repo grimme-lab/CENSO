@@ -106,6 +106,12 @@ def parse(argv=None) -> argparse.Namespace:
         "if load balancing is disabled.",
     )
     groups[0].add_argument(
+        "--omp-min",
+        dest="ompmin",
+        type=int,
+        help="Minimum number of OpenMP threads per process, default is 4. This is mostly important if load balancing is enabled.",
+    )
+    groups[0].add_argument(
         "--loglevel",
         dest="loglevel",
         help="Set the loglevel for all modules to a specified level.",

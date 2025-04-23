@@ -117,6 +117,9 @@ def startup(args) -> EnsembleData:
     if args.omp:
         Config.OMP = args.omp
 
+    if args.ompmin:
+        Config.OMPMIN = args.ompmin
+
     # if data should be reloaded, do it here
     if args.reload:
         for filename in args.reload:
