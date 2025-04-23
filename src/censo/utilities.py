@@ -201,7 +201,7 @@ class SolventHelper:
                 solvents.append(solventname)
             for alias in mappings["alias"]:
                 if sm in cls._solv_dict[alias]["sms"]:
-                    solvents.append(alias)
+                    solvents.append(solventname)
         solvents = list(set(solvents))
         return solvents
 

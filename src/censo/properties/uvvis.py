@@ -89,7 +89,6 @@ class UVVis(PropertyCalculator):
         ):
             raise ValueError(
                 f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "
-                "Please create an issue on GitHub if you think this is incorrect."
             )
 
         # dummy/template functionality not implemented yet for TM
