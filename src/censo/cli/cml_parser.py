@@ -94,7 +94,7 @@ def parse(argv=None) -> argparse.Namespace:
         dest="maxcores",
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
-        "the maximum number available. For a default run this is REQUIRED.",
+        "the maximum number available. By default this is determined by os.cpu_count().",
         default=os.cpu_count(),
     )
     groups[0].add_argument(
