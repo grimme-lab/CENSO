@@ -1,923 +1,946 @@
 {
   "1,1,1-trichloroethane": {
-    "smd": "1,1,1-trichloroethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1,1,2-trichloroethane": {
-    "smd": "1,1,2-trichloroethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1,2,4-trimethylbenzene": {
-    "smd": "1,2,4-trimethylbenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1,2-dibromoethane": {
-    "smd": "1,2-dibromoethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1,2-dichloroethane": {
-    "smd": "1,2-dichloroethane",
-    "cosmors-fine": "1,2-dichloroethane_c0",
-    "cosmors": "1,2-dichloroethane_c0"
+    "sms": ["smd", "cpcm"],
+    "alias": ["1,2-dichloroethane_c0"]
   },
   "1,2-ethanediol": {
-    "smd": "1,2-ethanediol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1,4-dioxane": {
-    "smd": "1,4-dioxane",
-    "cosmors-fine": "dioxane_c0",
-    "cosmors": "dioxane_c0"
+    "sms": ["smd", "cpcm"],
+    "alias": ["dioxane", "dioxane_c0"]
   },
   "1-bromo-2-methylpropane": {
-    "smd": "1-bromo-2-methylpropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-bromooctane": {
-    "smd": "1-bromooctane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-bromopentane": {
-    "smd": "1-bromopentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-bromopropane": {
-    "smd": "1-bromopropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-butanol": {
-    "smd": "1-butanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-chlorohexane": {
-    "smd": "1-chlorohexane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-chloropentane": {
-    "smd": "1-chloropentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-chloropropane": {
-    "smd": "1-chloropropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-decanol": {
-    "smd": "1-decanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-fluorooctane": {
-    "smd": "1-fluorooctane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-heptanol": {
-    "smd": "1-heptanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-hexanol": {
-    "smd": "1-hexanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-hexene": {
-    "smd": "1-hexene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-hexyne": {
-    "smd": "1-hexyne"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-iodobutane": {
-    "smd": "1-iodobutane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-iodohexadecane": {
-    "smd": "1-iodohexadecane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-iodopentane": {
-    "smd": "1-iodopentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-iodopropane": {
-    "smd": "1-iodopropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-nitropropane": {
-    "smd": "1-nitropropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-nonanol": {
-    "smd": "1-nonanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-octanol": {
-    "smd": "1-octanol",
-    "cosmors-fine": "1-octanol_c0",
-    "cosmors": "1-octanol_c0"
+    "sms": ["smd", "cpcm"],
+    "alias": ["1-octanol_c0"]
   },
   "1-pentanol": {
-    "smd": "1-pentanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-pentene": {
-    "smd": "1-pentene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "1-propanol": {
-    "smd": "1-propanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2,2,2-trifluoroethanol": {
-    "smd": "2,2,2-trifluoroethanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2,2,4-trimethylpentane": {
-    "smd": "2,2,4-trimethylpentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2,4-dimethylpentane": {
-    "smd": "2,4-dimethylpentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2,4-dimethylpyridine": {
-    "smd": "2,4-dimethylpyridine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2,6-dimethylpyridine": {
-    "smd": "2,6-dimethylpyridine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-bromopropane": {
-    "smd": "2-bromopropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-butanol": {
-    "smd": "2-butanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-chlorobutane": {
-    "smd": "2-chlorobutane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-heptanone": {
-    "smd": "2-heptanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-hexanone": {
-    "smd": "2-hexanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-methoxyethanol": {
-    "smd": "2-methoxyethanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-methyl-1-propanol": {
-    "smd": "2-methyl-1-propanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-methyl-2-propanol": {
-    "smd": "2-methyl-2-propanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-methylpentane": {
-    "smd": "2-methylpentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-methylpyridine": {
-    "smd": "2-methylpyridine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-nitropropane": {
-    "smd": "2-nitropropane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-octanone": {
-    "smd": "2-octanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-pentanone": {
-    "smd": "2-pentanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-propanol": {
-    "smd": "2-propanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "2-propen-1-ol": {
-    "smd": "2-propen-1-ol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "e-2-pentene": {
-    "smd": "e-2-pentene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "3-methylpyridine": {
-    "smd": "3-methylpyridine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "3-pentanone": {
-    "smd": "3-pentanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "4-heptanone": {
-    "smd": "4-heptanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "4-methyl-2-pentanone": {
-    "smd": "4-methyl-2-pentanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "4-methylpyridine": {
-    "smd": "4-methylpyridine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "5-nonanone": {
-    "smd": "5-nonanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "acetic_acid": {
-    "smd": "acetic acid"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "acetone": {
-    "smd": "acetone",
-    "gbsa": "acetone",
-    "alpb": "acetone",
-    "cpcm": "acetone",
-    "cosmors-fine": "propanone_c0",
-    "cosmors": "propanone_c0"
+    "sms": ["smd", "gbsa", "alpb", "cpcm"],
+    "alias": ["propanone", "propanone_c0"]
   },
   "mecn": {
-    "smd": "mecn",
-    "gbsa": "acetonitrile",
-    "cosmors-fine": "acetonitrile_c0",
-    "cosmors": "acetonitrile_c0",
-    "dcosmors": "acetonitrile",
-    "cosmo": "acetonitrile"
+    "sms": ["smd", "cpcm"],
+    "alias": ["acetonitrile", "acetonitrile_c0"]
   },
   "acetonitrile": {
-    "smd": "mecn",
-    "gbsa": "acetonitrile",
-    "alpb": "acetonitrile",
-    "cpcm": "acetonitrile",
-    "cosmors-fine": "acetonitrile_c0",
-    "cosmors": "acetonitrile_c0",
-    "dcosmors": "acetonitrile",
-    "cosmo": "acetonitrile"
-  },
-  "cyanomethane": {
-    "smd": "mecn",
-    "gbsa": "acetonitrile",
-    "alpb": "acetonitrile",
-    "cpcm": "acetonitrile",
-    "cosmors-fine": "acetonitrile_c0",
-    "cosmors": "acetonitrile_c0",
-    "dcosmors": "acetonitrile",
-    "cosmo": "acetonitrile"
+    "sms": ["gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["mecn", "acetonitrile_c0"]
   },
   "acetophenone": {
-    "smd": "acetophenone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "aniline": {
-    "smd": "aniline",
-    "alpb": "aniline",
-    "cosmors-fine": "aniline_c0",
-    "cosmors": "aniline_c0",
-    "dcosmors": "aniline",
-    "cosmo": "aniline"
+    "sms": ["smd", "alpb", "dcosmors", "cosmo"],
+    "alias": ["aniline_c0", "phenylamine", "aminobenzene"]
   },
   "anisole": {
-    "smd": "anisole"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "benzaldehyde": {
-    "smd": "benzaldehyde",
-    "alpb": "benzaldehyde",
-    "cosmors-fine": "benzaldehyde_c0",
-    "cosmors": "benzaldehyde_c0"
+    "sms": ["smd", "alpb"],
+    "alias": ["benzaldehyde_c0"]
   },
   "benzene": {
-    "smd": "benzene",
-    "gbsa": "benzene",
-    "alpb": "benzene",
-    "cpcm": "benzene",
-    "cosmors-fine": "benzene_c0",
-    "cosmors": "benzene_c0",
-    "dcosmors": "benzene",
-    "cosmo": "benzene"
+    "sms": ["smd", "gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["benzene_c0"]
   },
   "benzonitrile": {
-    "smd": "benzonitrile"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "benzyl_alcohol": {
-    "smd": "benzyl alcohol"
+  "benzyl alcohol": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "bromobenzene": {
-    "smd": "bromobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "bromoethane": {
-    "smd": "bromoethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "bromoform": {
-    "smd": "bromoform"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "butanal": {
-    "smd": "butanal"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "butanoic_acid": {
-    "smd": "butanoic acid"
+  "butanoic acid": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "butanone": {
-    "smd": "butanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "butanonitrile": {
-    "smd": "butanonitrile"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "butyl_ethanoate": {
-    "smd": "butyl ethanoate"
+  "butyl ethanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "butylamine": {
-    "smd": "butylamine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-butylbenzene": {
-    "smd": "n-butylbenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "sec-butylbenzene": {
-    "smd": "sec-butylbenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "tert-butylbenzene": {
-    "smd": "tert-butylbenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "carbon_disulfide": {
-    "smd": "carbon disulfide"
+  "carbon disulfide": {
+    "sms": ["smd", "cpcm"],
+    "alias": ["cs2", "cs2_c0"]
   },
-  "carbon_tetrachloride": {
-    "smd": "carbon tetrachloride"
+  "carbon tetrachloride": {
+    "sms": ["smd", "cpcm"],
+    "alias": ["ccl4", "ccl4_c0"]
   },
   "chlorobenzene": {
-    "smd": "chlorobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "chloroform": {
-    "smd": "chloroform",
-    "gbsa": "chcl3",
-    "alpb": "chcl3",
-    "cpcm": "chloroform",
-    "cosmors-fine": "chcl3_c0",
-    "cosmors": "chcl3_c0",
-    "dcosmors": "chcl3",
-    "cosmo": "chcl3"
+    "sms": ["smd", "cpcm"],
+    "alias": ["chcl3", "chcl3_c0", "trichloromethane"]
   },
   "chcl3": {
-    "smd": "chloroform",
-    "gbsa": "chcl3",
-    "alpb": "chcl3",
-    "cosmors-fine": "chcl3_c0",
-    "cosmors": "chcl3_c0",
-    "dcosmors": "chcl3",
-    "cosmo": "chcl3"
+    "sms": ["gbsa", "alpb", "dcosmors", "cosmo"],
+    "alias": ["chloroform", "chcl3_c0", "trichloromethane"]
   },
   "a-chlorotoluene": {
-    "smd": "a-chlorotoluene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "o-chlorotoluene": {
-    "smd": "o-chlorotoluene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "m-cresol": {
-    "smd": "m-cresol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "o-cresol": {
-    "smd": "o-cresol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "cyclohexane": {
-    "smd": "cyclohexane",
-    "cpcm": "cyclohexane",
-    "cosmors-fine": "cyclohexane_c0",
-    "cosmors": "cyclohexane_c0",
-    "dcosmors": "cyclohexane",
-    "cosmo": "cyclohexane"
+    "sms": ["smd", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["cyclohexane_c0"]
   },
   "cyclohexanone": {
-    "smd": "cyclohexanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "ccl4": {
-    "smd": "ccl4",
-    "gbsa": "ccl4",
-    "alpb": "ccl4",
-    "cpcm": "ccl4",
-    "cosmors-fine": "ccl4_c0",
-    "cosmors": "ccl4_c0",
-    "dcosmors": "ccl4",
-    "cosmo": "ccl4"
+    "sms": ["smd", "gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["ccl4_c0", "carbon tetrachloride"]
   },
   "cyclopentane": {
-    "smd": "cyclopentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "cyclopentanol": {
-    "smd": "cyclopentanol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "cyclopentanone": {
-    "smd": "cyclopentanone"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "decalin_mix": {
-    "smd": "decalin (cis/trans mixture)"
+  "decalin (cis/trans mixture)": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "cis-decalin": {
-    "smd": "cis-decalin"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-decane": {
-    "smd": "n-decane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "dibromomethane": {
-    "smd": "dibromomethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "dibutylether": {
-    "smd": "dibutylether"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "o-dichlorobenzene": {
-    "smd": "o-dichlorobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "e-1,2-dichloroethene": {
-    "smd": "e-1,2-dichloroethene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "z-1,2-dichloroethene": {
-    "smd": "z-1,2-dichloroethene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "dichloromethane": {
-    "smd": "dichloromethane",
-    "cpcm": "ch2cl2",
-    "alpb": "ch2cl2",
-    "gbsa": "ch2cl2"
+    "sms": ["smd", "cpcm"],
+    "alias": ["ch2cl2", "ch2cl2_c0", "dcm"]
   },
-  "diethyl_ether": {
-    "smd": "diethyl ether"
+  "diethyl ether": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "diethyl_sulfide": {
-    "smd": "diethyl sulfide"
+  "diethyl sulfide": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "diethylamine": {
-    "smd": "diethylamine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "diiodomethane": {
-    "smd": "diiodomethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "diisopropyl_ether": {
-    "smd": "diisopropyl ether"
+  "diisopropyl ether": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "cis-1,2-dimethylcyclohexane": {
-    "smd": "cis-1,2-dimethylcyclohexane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "dimethyl_disulfide": {
-    "smd": "dimethyl disulfide"
+  "dimethyl disulfide": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n,n-dimethylacetamide": {
-    "smd": "n,n-dimethylacetamide"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n,n-dimethylformamide": {
-    "smd": "n,n-dimethylformamide"
+    "sms": ["smd", "cpcm"],
+    "alias": ["dmf", "dimethylformamide", "dimethylformamide_c0"]
   },
   "dimethylsulfoxide": {
-    "smd": "dimethylsulfoxide",
-    "cosmors-fine": "dimethylsulfoxide_c0",
-    "cosmors": "dimethylsulfoxide_c0",
-    "dcosmors": "dimethylsulfoxide",
-    "cosmo": "dimethylsulfoxide"
+    "sms": ["smd", "dcosmors", "cosmo"],
+    "alias": ["dimethylsulfoxide_c0"]
   },
   "diphenylether": {
-    "smd": "diphenylether"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "dipropylamine": {
-    "smd": "dipropylamine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-dodecane": {
-    "smd": "n-dodecane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "ethanethiol": {
-    "smd": "ethanethiol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "ethanol": {
-    "smd": "ethanol",
-    "gbsa": "ethanol",
-    "alpb": "ethanol",
-    "cpcm": "ethanol",
-    "cosmors-fine": "ethanol_c0",
-    "cosmors": "ethanol_c0",
-    "dcosmors": "ethanol",
-    "cosmo": "ethanol"
+    "sms": ["smd", "gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["ethanol_c0"]
   },
-  "ethyl_ethanoate": {
-    "smd": "ethyl ethanoate"
+  "ethyl ethanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "ethyl_methanoate": {
-    "smd": "ethyl methanoate"
+  "ethyl methanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "ethyl_phenyl_ether": {
-    "smd": "ethyl phenyl ether"
+  "ethyl phenyl ether": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "ethylbenzene": {
-    "smd": "ethylbenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "fluorobenzene": {
-    "smd": "fluorobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "formamide": {
-    "smd": "formamide"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "formic_acid": {
-    "smd": "formic acid"
+  "formic acid": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-heptane": {
-    "smd": "n-heptane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-hexadecane": {
-    "smd": "n-hexadecane",
-    "cosmors-fine": "n-hexadecane_c0",
-    "cosmors": "n-hexadecane_c0"
+    "sms": ["smd", "cpcm"],
+    "alias": ["n-hexadecane_c0"]
   },
   "n-hexane": {
-    "smd": "n-hexane"
+    "sms": ["smd", "cpcm"],
+    "alias": ["hexane", "hexane_c0"]
   },
-  "hexanoic_acid": {
-    "smd": "hexanoic acid"
+  "hexanoic acid": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "iodobenzene": {
-    "smd": "iodobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "iodoethane": {
-    "smd": "iodoethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "iodomethane": {
-    "smd": "iodomethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "isopropylbenzene": {
-    "smd": "isopropylbenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "p-isopropyltoluene": {
-    "smd": "p-isopropyltoluene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "mesitylene": {
-    "smd": "mesitylene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "methanol": {
-    "smd": "methanol",
-    "gbsa": "methanol",
-    "alpb": "methanol",
-    "cpcm": "methanol",
-    "cosmors-fine": "methanol_c0",
-    "cosmors": "methanol_c0",
-    "dcosmors": "methanol",
-    "cosmo": "methanol"
+    "sms": ["smd", "gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["methanol_c0"]
   },
-  "methyl_benzoate": {
-    "smd": "methyl benzoate"
+  "methyl benzoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "methyl_butanoate": {
-    "smd": "methyl butanoate"
+  "methyl butanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "methyl_ethanoate": {
-    "smd": "methyl ethanoate"
+  "methyl ethanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "methyl_methanoate": {
-    "smd": "methyl methanoate"
+  "methyl methanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "methyl_propanoate": {
-    "smd": "methyl propanoate"
+  "methyl propanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-methylaniline": {
-    "smd": "n-methylaniline"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "methylcyclohexane": {
-    "smd": "methylcyclohexane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-methylformamide": {
-    "smd": "n-methylformamide"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "nitrobenzene": {
-    "smd": "nitrobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "nitroethane": {
-    "smd": "nitroethane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "nitromethane": {
-    "smd": "nitromethane",
-    "alpb": "nitromethane",
-    "cosmors-fine": "nitromethane_c0",
-    "cosmors": "nitromethane_c0",
-    "dcosmors": "nitromethane",
-    "cosmo": "nitromethane"
+    "sms": ["smd", "alpb", "dcosmors", "cosmo"],
+    "alias": ["nitromethane_c0"]
   },
   "o-nitrotoluene": {
-    "smd": "o-nitrotoluene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-nonane": {
-    "smd": "n-nonane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-octane": {
-    "smd": "n-octane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-pentadecane": {
-    "smd": "n-pentadecane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "pentanal": {
-    "smd": "pentanal"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-pentane": {
-    "smd": "n-pentane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "pentanoic_acid": {
-    "smd": "pentanoic acid"
+  "pentanoic acid": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "pentyl_ethanoate": {
-    "smd": "pentyl ethanoate"
+  "pentyl ethanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "pentylamine": {
-    "smd": "pentylamine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "perfluorobenzene": {
-    "smd": "perfluorobenzene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "propanal": {
-    "smd": "propanal"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "propanoic_acid": {
-    "smd": "propanoic acid"
+  "propanoic acid": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "propanonitrile": {
-    "smd": "propanonitrile"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
-  "propyl_ethanoate": {
-    "smd": "propyl ethanoate"
+  "propyl ethanoate": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "propylamine": {
-    "smd": "propylamine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "pyridine": {
-    "smd": "pyridine",
-    "cpcm": "pyridine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "tetrachloroethene": {
-    "smd": "tetrachloroethene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "tetrahydrofuran": {
-    "smd": "tetrahydrofuran"
+    "sms": ["smd", "cpcm"],
+    "alias": ["thf", "thf_c0"]
   },
   "tetrahydrothiophene-s,s-dioxide": {
-    "smd": "tetrahydrothiophene-s,s-dioxide"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "tetralin": {
-    "smd": "tetralin"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "thiophene": {
-    "smd": "thiophene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "thiophenol": {
-    "smd": "thiophenol"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "toluene": {
-    "smd": "toluene",
-    "gbsa": "toluene",
-    "alpb": "toluene",
-    "cpcm": "toluene",
-    "cosmors-fine": "toluene_c0",
-    "cosmors": "toluene_c0",
-    "dcosmors": "toluene",
-    "cosmo": "toluene"
+    "sms": ["smd", "gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["toluene_c0"]
   },
   "trans-decalin": {
-    "smd": "trans-decalin"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "tributylphosphate": {
-    "smd": "tributylphosphate"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "trichloroethene": {
-    "smd": "trichloroethene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "triethylamine": {
-    "smd": "triethylamine"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "n-undecane": {
-    "smd": "n-undecane"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "h2o": {
-    "smd": "water",
-    "gbsa": "h2o",
-    "alpb": "water",
-    "cpcm": "water",
-    "cosmors-fine": "h2o_c0",
-    "cosmors": "h2o_c0",
-    "dcosmors": "h2o",
-    "cosmo": "h2o"
+    "sms": ["gbsa", "dcosmors", "cosmo"],
+    "alias": ["water", "h2o_c0"]
   },
   "water": {
-    "smd": "water",
-    "gbsa": "water",
-    "alpb": "water",
-    "cpcm": "water",
-    "dcosmors": "h2o",
-    "cosmo": "h2o"
+    "sms": ["smd", "gbsa", "alpb", "cpcm"],
+    "alias": ["h2o", "h2o_c0"]
   },
-  "xylene_mix": {
-    "smd": "xylene (mixture)"
+  "xylene (mixture)": {
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "m-xylene": {
-    "smd": "m-xylene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "o-xylene": {
-    "smd": "o-xylene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "p-xylene": {
-    "smd": "p-xylene"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "dmf": {
-    "smd": "dmf",
-    "alpb": "dmf",
-    "cpcm": "dmf"
+    "sms": ["smd", "alpb", "cpcm"],
+    "alias": [
+      "dimethylformamide",
+      "n,n-dimethylformamide",
+      "n,n-dimethylformamide_c0"
+    ]
   },
   "dmso": {
-    "smd": "dmso",
-    "gbsa": "dmso",
-    "alpb": "dmso",
-    "cpcm": "dmso"
+    "sms": ["smd", "gbsa", "alpb", "cpcm"],
+    "alias": []
   },
   "phno2": {
-    "smd": "phno2"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "meno2": {
-    "smd": "meno2"
+    "sms": ["smd", "cpcm"],
+    "alias": []
   },
   "thf": {
-    "smd": "thf",
-    "gbsa": "thf",
-    "alpb": "thf",
-    "cpcm": "thf",
-    "cosmors-fine": "thf_c0",
-    "cosmors": "thf_c0",
-    "dcosmors": "thf",
-    "cosmo": "thf"
+    "sms": ["smd", "gbsa", "alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["thf_c0", "tetrahydrofuran"]
   },
   "propanone": {
-    "gbsa": "acetone",
-    "alpb": "acetone",
-    "cpcm": "acetone",
-    "cosmors-fine": "propanone_c0",
-    "cosmors": "propanone_c0",
-    "dcosmors": "propanone",
-    "cosmo": "propanone"
+    "sms": ["dcosmors", "cosmo"],
+    "alias": ["acetone", "propanone_c0"]
   },
   "ch2cl2": {
-    "smd": "dichloromethane",
-    "gbsa": "ch2cl2",
-    "alpb": "ch2cl2",
-    "cpcm": "ch2cl2",
-    "cosmors-fine": "ch2cl2_c0",
-    "cosmors": "ch2cl2_c0"
+    "sms": ["gbsa", "alpb", "cpcm"],
+    "alias": ["dichloromethane", "ch2cl2_c0", "dcm"]
   },
   "cs2": {
-    "gbsa": "cs2",
-    "alpb": "cs2",
-    "cosmors-fine": "cs2_c0",
-    "cosmors": "cs2_c0"
+    "sms": ["gbsa", "alpb"],
+    "alias": ["cs2_c0", "carbon disulfide"]
   },
   "dioxane": {
-    "alpb": "dioxane",
-    "cosmors-fine": "dioxane_c0",
-    "cosmors": "dioxane_c0"
+    "sms": ["alpb"],
+    "alias": ["dioxane_c0", "1,4-dioxane"]
   },
   "ether": {
-    "gbsa": "ether",
-    "alpb": "ether"
+    "sms": ["gbsa", "alpb"],
+    "alias": []
   },
   "ethylacetate": {
-    "alpb": "ethylacetate",
-    "cosmors-fine": "ethylacetate_c0",
-    "cosmors": "ethylacetate_c0"
+    "sms": ["alpb"],
+    "alias": ["ethylacetate_c0"]
   },
   "furane": {
-    "alpb": "furane",
-    "cosmors-fine": "furane_c0",
-    "cosmors": "furane_c0"
+    "sms": ["alpb"],
+    "alias": ["furane_c0"]
   },
   "hexadecane": {
-    "alpb": "hexadecane",
-    "dcosmors": "hexadecane",
-    "cosmo": "hexadecane"
+    "sms": ["alpb", "dcosmors", "cosmo"],
+    "alias": []
   },
   "hexane": {
-    "alpb": "hexane",
-    "cpcm": "hexane",
-    "cosmors-fine": "hexane_c0",
-    "cosmors": "hexane_c0",
-    "dcosmors": "hexane",
-    "cosmo": "hexane"
+    "sms": ["alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["hexane_c0", "n-hexane"]
   },
   "octanol": {
-    "alpb": "octanol",
-    "cpcm": "octanol",
-    "dcosmors": "octanol",
-    "cosmo": "octanol",
-    "smd": "1-octanol",
-    "cosmors-fine": "1-octanol_c0",
-    "cosmors": "1-octanol_c0"
+    "sms": ["alpb", "cpcm", "dcosmors", "cosmo"],
+    "alias": ["1-octanol"]
   },
   "woctanol": {
-    "alpb": "woctanol",
-    "cosmors-fine": "woctanol",
-    "cosmors": "woctanol",
-    "dcosmors": "wet-octanol",
-    "cosmo": "wet-octanol"
+    "sms": ["alpb", "cosmors-fine", "cosmors"],
+    "alias": ["wet-octanol"]
   },
-  "wet_octanol": {
-    "alpb": "woctanol",
-    "cosmors-fine": "woctanol",
-    "cosmors": "woctanol",
-    "dcosmors": "wet-octanol",
-    "cosmo": "wet-octanol"
+  "wet-octanol": {
+    "sms": ["alpb", "cosmors-fine", "cosmors"],
+    "alias": ["woctanol"]
   },
   "phenol": {
-    "alpb": "phenol",
-    "cosmors-fine": "phenol_c0",
-    "cosmors": "phenol_c0"
+    "sms": ["alpb"],
+    "alias": ["phenol_c0"]
   },
   "dcm": {
-    "alpb": "ch2cl2",
-    "cpcm": "ch2cl2"
+    "sms": [],
+    "alias": ["ch2cl2", "ch2cl2_c0", "dichloromethane"]
   },
   "ammonia": {
-    "cpcm": "ammonia"
+    "sms": ["cpcm"],
+    "alias": []
   },
   "propanone_c0": {
-    "cosmors-fine": "propanone_c0",
-    "cosmors": "propanone_c0"
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["propanone", "acetone"]
   },
   "trichloromethane": {
-    "cosmors-fine": "chcl3_c0",
-    "cosmors": "chcl3_c0"
-  },
-  "chcl3_c0": {
-    "cosmors-fine": "chcl3_c0",
-    "cosmors": "chcl3_c0"
-  },
-  "acetonitrile_c0": {
-    "cosmors-fine": "acetonitrile_c0",
-    "cosmors": "acetonitrile_c0"
-  },
-  "ch2cl2_c0": {
-    "smd": "dicholormethane",
-    "cpcm": "ch2cl2",
-    "alpb": "ch2cl2",
-    "gbsa": "ch2cl2",
-    "cosmors-fine": "ch2cl2_c0",
-    "cosmors": "ch2cl2_c0"
-  },
-  "dimethylsulfoxide_c0": {
-    "cosmors-fine": "dimethylsulfoxide_c0",
-    "cosmors": "dimethylsulfoxide_c0"
-  },
-  "h2o_c0": {
-    "cosmors-fine": "h2o_c0",
-    "cosmors": "h2o_c0"
-  },
-  "methanol_c0": {
-    "cosmors-fine": "methanol_c0",
-    "cosmors": "methanol_c0"
-  },
-  "thf_c0": {
-    "cosmors-fine": "thf_c0",
-    "cosmors": "thf_c0"
-  },
-  "toluene_c0": {
-    "cosmors-fine": "toluene_c0",
-    "cosmors": "toluene_c0"
-  },
-  "1-octanol_c0": {
-    "cosmors-fine": "1-octanol_c0",
-    "cosmors": "1-octanol_c0"
-  },
-  "n-hexadecane_c0": {
-    "cosmors-fine": "n-hexadecane_c0",
-    "cosmors": "n-hexadecane_c0"
-  },
-  "dimethylformamide_c0": {
-    "cosmors-fine": "dimethylformamide_c0",
-    "cosmors": "dimethylformamide_c0"
-  },
-  "dimethylformamide": {
-    "cosmors-fine": "dimethylformamide_c0",
-    "cosmors": "dimethylformamide_c0"
-  },
-  "aniline_c0": {
-    "cosmors-fine": "aniline_c0",
-    "cosmors": "aniline_c0"
-  },
-  "cyclohexane_c0": {
-    "cosmors-fine": "cyclohexane_c0",
-    "cosmors": "cyclohexane_c0"
-  },
-  "ccl4_c0": {
-    "cosmors-fine": "ccl4_c0",
-    "cosmors": "ccl4_c0"
-  },
-  "diethylether_c0": {
-    "cosmors-fine": "diethylether_c0",
-    "cosmors": "diethylether_c0"
-  },
-  "diethylether": {
-    "cosmors-fine": "diethylether_c0",
-    "cosmors": "diethylether_c0",
-    "dcosmors": "diethylether",
-    "cosmo": "diethylether"
-  },
-  "ethanol_c0": {
-    "cosmors-fine": "ethanol_c0",
-    "cosmors": "ethanol_c0"
-  },
-  "hexane_c0": {
-    "cosmors-fine": "hexane_c0",
-    "cosmors": "hexane_c0"
-  },
-  "nitromethane_c0": {
-    "cosmors-fine": "nitromethane_c0",
-    "cosmors": "nitromethane_c0"
-  },
-  "benzaldehyde_c0": {
-    "cosmors-fine": "benzaldehyde_c0",
-    "cosmors": "benzaldehyde_c0"
-  },
-  "benzene_c0": {
-    "cosmors-fine": "benzene_c0",
-    "cosmors": "benzene_c0"
-  },
-  "cs2_c0": {
-    "cosmors-fine": "cs2_c0",
-    "cosmors": "cs2_c0"
-  },
-  "dioxane_c0": {
-    "cosmors-fine": "dioxane_c0",
-    "cosmors": "dioxane_c0"
-  },
-  "ethylacetate_c0": {
-    "cosmors-fine": "ethylacetate_c0",
-    "cosmors": "ethylacetate_c0"
-  },
-  "furane_c0": {
-    "cosmors-fine": "furane_c0",
-    "cosmors": "furane_c0"
-  },
-  "phenol_c0": {
-    "cosmors-fine": "phenol_c0",
-    "cosmors": "phenol_c0"
+    "sms": [],
+    "alias": ["chcl3_c0", "chloroform", "chcl3"]
   },
   "1,2-dichloroethane_c0": {
-    "cosmors-fine": "1,2-dichloroethane_c0",
-    "cosmors": "1,2-dichloroethane_c0"
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["1,2-dichloroethane"]
+  },
+  "chcl3_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["trichloromethane", "chcl3", "chloroform"]
+  },
+  "acetonitrile_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["acetonitrile", "mecn"]
+  },
+  "ch2cl2_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["dichloromethane", "ch2cl2", "dcm"]
+  },
+  "dimethylsulfoxide_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": []
+  },
+  "h2o_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["h2o", "water"]
+  },
+  "methanol_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["methanol"]
+  },
+  "thf_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["thf", "tetrahydrofuran"]
+  },
+  "toluene_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["toluene"]
+  },
+  "1-octanol_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["1-octanol"]
+  },
+  "n-hexadecane_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["n-hexadecane"]
+  },
+  "dimethylformamide_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["dmf", "dimethylformamide", "n,n-dimethylformamide"]
+  },
+  "dimethylformamide": {
+    "sms": [],
+    "alias": ["dmf", "dimethylformamide_c0", "n,n-dimethylformamide"]
+  },
+  "aniline_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["aniline", "phenylamine", "aminobenzene"]
+  },
+  "cyclohexane_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["cyclohexane"]
+  },
+  "ccl4_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["ccl4", "carbon tetrachloride"]
+  },
+  "diethylether_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["diethylether"]
+  },
+  "diethylether": {
+    "sms": ["dcosmors", "cosmo"],
+    "alias": ["diethylether_c0"]
+  },
+  "ethanol_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["ethanol"]
+  },
+  "hexane_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["hexane", "n-hexane"]
+  },
+  "nitromethane_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["nitromethane"]
+  },
+  "benzaldehyde_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["benzaldehyde"]
+  },
+  "benzene_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["benzene"]
+  },
+  "cs2_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["cs2", "carbon disulfide"]
+  },
+  "dioxane_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["dioxane", "1,4-dioxane"]
+  },
+  "ethylacetate_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["ethlyacetate"]
+  },
+  "furane_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["furane"]
+  },
+  "phenol_c0": {
+    "sms": ["cosmors-fine", "cosmors"],
+    "alias": ["phenol"]
   },
   "aminobenzene": {
-    "dcosmors": "aniline",
-    "cosmo": "aniline"
+    "sms": [],
+    "alias": ["aniline", "phenylamine", "aniline_c0"]
   },
   "phenylamine": {
-    "dcosmors": "aniline",
-    "cosmo": "aniline"
+    "sms": [],
+    "alias": ["aniline", "aminobenzene", "aniline_c0"]
   }
 }

@@ -38,7 +38,7 @@ class CensoPart:
         "solvent": {
             "default": "h2o",
             "options": {
-                sm: list(SolventHelper.get_solvents_dict(sm).keys())
+                sm: list(SolventHelper.get_solvent_names(sm))
                 for sm in functools.reduce(
                     lambda x, y: x + y, Config.SOLV_MODS.values()
                 )

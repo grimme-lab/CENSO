@@ -176,13 +176,16 @@ class SolventHelper:
         Returns:
             str | None: The solvent model keyword or None if not found.
         """
-        available_solvent_names_dict = cls.get_solvents_dict(sm)
-        if name not in available_solvent_names_dict:
-            return None
-        return available_solvent_names_dict[name]
+        mappings = cls._solv_dict[name]
+        if sm in mappings["sms"]:
+            return name
+        for alias in mappings["alias"]:
+            if sm in cls._solv_dict[alias]["sms"]:
+                return alias
+        return None
 
     @classmethod
-    def get_solvents_dict(cls, sm: str) -> dict:
+    def get_solvent_names(cls, sm: str) -> list[str]:
         """
         Get all available solvent names for a specified solvent model with the respective internal keyword.
 
@@ -190,13 +193,17 @@ class SolventHelper:
             sm (str): The solvent model.
 
         Returns:
-            dict: The solvent names mapping onto the solvent keyword in the model.
+            list[str]: The available solvent names for the given solvent model.
         """
-        return {
-            name: sm_keys[sm]
-            for name, sm_keys in cls._solv_dict.items()
-            if sm in sm_keys
-        }
+        solvents = []
+        for solventname, mappings in cls._solv_dict.items():
+            if sm in mappings["sms"]:
+                solvents.append(solventname)
+            for alias in mappings["alias"]:
+                if sm in cls._solv_dict[alias]["sms"]:
+                    solvents.append(alias)
+        solvents = list(set(solvents))
+        return solvents
 
 
 def print(*args, **kwargs):
