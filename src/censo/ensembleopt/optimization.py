@@ -58,7 +58,7 @@ class Optimization(EnsembleOptimizer):
         "macrocycles": {"default": True},
         "crestcheck": {"default": False},
         "template": {"default": False},
-        "constrain": {"default": False},
+        # "constrain": {"default": False},
         "xtb_opt": {"default": True},
     }
 
@@ -72,7 +72,7 @@ class Optimization(EnsembleOptimizer):
         self.__confs_nc: list[MoleculeData] = None
 
         # Attribute to store path to constraints file if used
-        self.constraints = None
+        # self.constraints = None
 
     def _optimize(self, cut: bool = True) -> None:
         """
@@ -105,10 +105,10 @@ class Optimization(EnsembleOptimizer):
 
         # NOTE: (IMPORTANT) the following only uses xtb as driver (no native geometry optimizations)
         # Check for constraint file
-        if self.get_settings()["constrain"]:
-            assert os.path.isfile(os.path.join(os.getcwd(), "constraints.xtb"))
-            print("Found constraints-file constraints.xtb ...")
-            self.constraints = os.path.join(os.getcwd(), "constraints.xtb")
+        # if self.get_settings()["constrain"]:
+        #     assert os.path.isfile(os.path.join(os.getcwd(), "constraints.xtb"))
+        #     print("Found constraints-file constraints.xtb ...")
+        #     self.constraints = os.path.join(os.getcwd(), "constraints.xtb")
 
         # Use macrocycle optimization only if there is more than one conformer
         if self.get_settings()["macrocycles"] and len(self._ensemble.conformers) > 1:
