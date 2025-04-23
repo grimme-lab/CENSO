@@ -109,7 +109,7 @@
   },
   "1-octanol": {
     "sms": ["smd", "cpcm"],
-    "alias": ["1-octanol_c0"]
+    "alias": ["1-octanol_c0", "octanol"]
   },
   "1-pentanol": {
     "sms": ["smd", "cpcm"],
@@ -421,7 +421,7 @@
   },
   "diethyl ether": {
     "sms": ["smd", "cpcm"],
-    "alias": []
+    "alias": ["diethylether", "diethylether_c0"]
   },
   "diethyl sulfide": {
     "sms": ["smd", "cpcm"],
@@ -481,7 +481,7 @@
   },
   "ethyl ethanoate": {
     "sms": ["smd", "cpcm"],
-    "alias": []
+    "alias": ["ethylacetate", "ethylacetate_c0"]
   },
   "ethyl methanoate": {
     "sms": ["smd", "cpcm"],
@@ -777,11 +777,15 @@
   },
   "ethylacetate": {
     "sms": ["alpb"],
-    "alias": ["ethylacetate_c0"]
+    "alias": ["ethylacetate_c0", "ethyl ethanoate"]
   },
   "furane": {
     "sms": ["alpb"],
-    "alias": ["furane_c0"]
+    "alias": ["furane_c0", "furan"]
+  },
+  "furan": {
+    "sms": ["smd", "cpcm"],
+    "alias": ["furane_c0", "furane"]
   },
   "hexadecane": {
     "sms": ["alpb", "dcosmors", "cosmo"],
@@ -793,7 +797,7 @@
   },
   "octanol": {
     "sms": ["alpb", "cpcm", "dcosmors", "cosmo"],
-    "alias": ["1-octanol"]
+    "alias": ["1-octanol", "1-octanol_c0"]
   },
   "woctanol": {
     "sms": ["alpb", "cosmors-fine", "cosmors"],
@@ -841,7 +845,7 @@
   },
   "dimethylsulfoxide_c0": {
     "sms": ["cosmors-fine", "cosmors"],
-    "alias": []
+    "alias": ["dimethylsulfoxide"]
   },
   "h2o_c0": {
     "sms": ["cosmors-fine", "cosmors"],
@@ -861,7 +865,7 @@
   },
   "1-octanol_c0": {
     "sms": ["cosmors-fine", "cosmors"],
-    "alias": ["1-octanol"]
+    "alias": ["1-octanol", "octanol"]
   },
   "n-hexadecane_c0": {
     "sms": ["cosmors-fine", "cosmors"],
@@ -889,11 +893,11 @@
   },
   "diethylether_c0": {
     "sms": ["cosmors-fine", "cosmors"],
-    "alias": ["diethylether"]
+    "alias": ["diethylether", "diethyl ether"]
   },
   "diethylether": {
     "sms": ["dcosmors", "cosmo"],
-    "alias": ["diethylether_c0"]
+    "alias": ["diethylether_c0", "diethyl ether"]
   },
   "ethanol_c0": {
     "sms": ["cosmors-fine", "cosmors"],
@@ -925,11 +929,11 @@
   },
   "ethylacetate_c0": {
     "sms": ["cosmors-fine", "cosmors"],
-    "alias": ["ethlyacetate"]
+    "alias": ["ethylacetate", "ethyl ethanoate"]
   },
   "furane_c0": {
     "sms": ["cosmors-fine", "cosmors"],
-    "alias": ["furane"]
+    "alias": ["furane", "furan"]
   },
   "phenol_c0": {
     "sms": ["cosmors-fine", "cosmors"],
