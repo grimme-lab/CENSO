@@ -536,21 +536,21 @@ class QmProc:
         # setup xcontrol
         with open(xcontrolpath, "w", newline=None) as xcout:
             xcout.write("$thermo\n")
-            if job.prepinfo["general"]["multitemp"]:
-                trange = frange(
-                    job.prepinfo["general"]["trange"][0],
-                    job.prepinfo["general"]["trange"][1],
-                    step=job.prepinfo["general"]["trange"][2],
-                )
-
-                # Always append the fixed temperature to the trange so that it is the last value
-                # (important since --enso will make xtb give the G(T) value for this temperature)
-                trange.append(job.prepinfo["general"]["temperature"])
-
-                # Write trange to the xcontrol file
-                xcout.write(f"    temp=" f"{','.join([str(i) for i in trange])}\n")
-            else:
-                xcout.write(f"    temp={job.prepinfo['general']['temperature']}\n")
+            # if job.prepinfo["general"]["multitemp"]:
+            #     trange = frange(
+            #         job.prepinfo["general"]["trange"][0],
+            #         job.prepinfo["general"]["trange"][1],
+            #         step=job.prepinfo["general"]["trange"][2],
+            #     )
+            #
+            #     # Always append the fixed temperature to the trange so that it is the last value
+            #     # (important since --enso will make xtb give the G(T) value for this temperature)
+            #     trange.append(job.prepinfo["general"]["temperature"])
+            #
+            #     # Write trange to the xcontrol file
+            #     xcout.write(f"    temp=" f"{','.join([str(i) for i in trange])}\n")
+            # else:
+            xcout.write(f"    temp={job.prepinfo['general']['temperature']}\n")
 
             xcout.write(f"    sthr={job.prepinfo['general']['sthr']}\n")
 
@@ -636,41 +636,41 @@ class QmProc:
         with open(outputpath, "r", encoding=Config.CODING, newline=None) as outputfile:
             lines = outputfile.readlines()
 
-        if job.prepinfo["general"]["multitemp"]:
-            # get gibbs energy, enthalpy and entropy for given temperature range
-            trange = frange(
-                job.prepinfo["general"]["trange"][0],
-                job.prepinfo["general"]["trange"][1],
-                step=job.prepinfo["general"]["trange"][2],
-            )
-
-            # gibbs energy
-            gt = {}
-
-            # enthalpy
-            ht = {}
-
-            # Get Gibbs energy and enthalpy
-            for line in lines:
-                if "T/K" in line:
-                    for line2 in lines[lines.index(line) + 2 :]:
-                        if "----------------------------------" in line2:
-                            break
-
-                        T = float(line2.split()[0])
-                        gt[T] = float(line2.split()[4])
-                        ht[T] = float(line2.split()[2])
-
-            # rotational entropy
-            rotS = {}
-
-            # Get rotational entropy
-            entropy_lines = (
-                (line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line
-            )
-            for line in entropy_lines:
-                T = float(line[0].split()[0])
-                rotS[T] = float(line[1].split()[4])
+        # if job.prepinfo["general"]["multitemp"]:
+        #     # get gibbs energy, enthalpy and entropy for given temperature range
+        #     trange = frange(
+        #         job.prepinfo["general"]["trange"][0],
+        #         job.prepinfo["general"]["trange"][1],
+        #         step=job.prepinfo["general"]["trange"][2],
+        #     )
+        #
+        #     # gibbs energy
+        #     gt = {}
+        #
+        #     # enthalpy
+        #     ht = {}
+        #
+        #     # Get Gibbs energy and enthalpy
+        #     for line in lines:
+        #         if "T/K" in line:
+        #             for line2 in lines[lines.index(line) + 2 :]:
+        #                 if "----------------------------------" in line2:
+        #                     break
+        #
+        #                 T = float(line2.split()[0])
+        #                 gt[T] = float(line2.split()[4])
+        #                 ht[T] = float(line2.split()[2])
+        #
+        #     # rotational entropy
+        #     rotS = {}
+        #
+        #     # Get rotational entropy
+        #     entropy_lines = (
+        #         (line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line
+        #     )
+        #     for line in entropy_lines:
+        #         T = float(line[0].split()[0])
+        #         rotS[T] = float(line[1].split()[4])
 
         # Extract symmetry
         result["linear"] = next(
@@ -693,22 +693,22 @@ class QmProc:
         )
 
         # check if xtb calculated the temperature range correctly
-        if job.prepinfo["general"]["multitemp"] and not (
-            len(trange) == len(gt)
-            and len(trange) == len(ht)
-            and len(trange) == len(rotS)
-        ):
-            meta["success"] = False
-            meta["error"] = "what went wrong in xtb_rrho"
-            return result, meta
-        elif job.prepinfo["general"]["multitemp"]:
-            result["gibbs"] = gt
-            result["enthalpy"] = ht
-            result["entropy"] = rotS
-        else:
-            result["gibbs"] = {}
-            result["enthalpy"] = {}
-            result["entropy"] = {}
+        # if job.prepinfo["general"]["multitemp"] and not (
+        #     len(trange) == len(gt)
+        #     and len(trange) == len(ht)
+        #     and len(trange) == len(rotS)
+        # ):
+        #     meta["success"] = False
+        #     meta["error"] = "what went wrong in xtb_rrho"
+        #     return result, meta
+        # elif job.prepinfo["general"]["multitemp"]:
+        #     result["gibbs"] = gt
+        #     result["enthalpy"] = ht
+        #     result["entropy"] = rotS
+        # else:
+        result["gibbs"] = {}
+        result["enthalpy"] = {}
+        result["entropy"] = {}
 
         # xtb_enso.json is generated by xtb by using the '--enso' argument *only* when using --bhess or --ohess
         # (when a hessian is calculated)
@@ -742,23 +742,23 @@ class QmProc:
                 result["enthalpy"][job.prepinfo["general"]["temperature"]] = data.get(
                     "ZPVE", 0.0
                 )
-                if not job.prepinfo["general"]["multitemp"]:
-                    result["entropy"][
-                        job.prepinfo["general"]["temperature"]
-                    ] = None  # set this to None for predictability
+                # if not job.prepinfo["general"]["multitemp"]:
+                #     result["entropy"][
+                #         job.prepinfo["general"]["temperature"]
+                #     ] = None  # set this to None for predictability
             else:
                 result["energy"] = data.get("G(T)", 0.0)
                 result["gibbs"][job.prepinfo["general"]["temperature"]] = data.get(
                     "G(T)", 0.0
                 )
-                if not job.prepinfo["general"]["multitemp"]:
-                    result["enthalpy"][
-                        job.prepinfo["general"]["temperature"]
-                    ] = None  # set this to None for predictability
-                    result["entropy"][
-                        job.prepinfo["general"]["temperature"]
-                    ] = None  # set this to None for predictability
-                    # FIXME - why though?
+                # if not job.prepinfo["general"]["multitemp"]:
+                #     result["enthalpy"][
+                #         job.prepinfo["general"]["temperature"]
+                #     ] = None  # set this to None for predictability
+                #     result["entropy"][
+                #         job.prepinfo["general"]["temperature"]
+                #     ] = None  # set this to None for predictability
+                #     # FIXME: why though?
 
             # only determine symmetry if all the needed information is there
             if "point group" and "linear" in data.keys():

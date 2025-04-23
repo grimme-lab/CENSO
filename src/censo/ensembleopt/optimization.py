@@ -56,7 +56,7 @@ class Optimization(EnsembleOptimizer):
         },
         "run": {"default": True},
         "macrocycles": {"default": True},
-        "crestcheck": {"default": False},
+        # "crestcheck": {"default": False},
         "template": {"default": False},
         # "constrain": {"default": False},
         "xtb_opt": {"default": True},

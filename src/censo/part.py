@@ -45,7 +45,7 @@ class CensoPart:
             },
         },
         "sm_rrho": {"default": "alpb", "options": Config.SOLV_MODS["xtb"]},
-        "multitemp": {"default": True},
+        # "multitemp": {"default": True},
         "evaluate_rrho": {"default": True},
         "consider_sym": {"default": True},
         "bhess": {"default": True},
@@ -54,7 +54,7 @@ class CensoPart:
         "gas-phase": {"default": False},
         "copy_mo": {"default": True},
         "retry_failed": {"default": True},
-        "trange": {"default": [273.15, 373.15, 5]},
+        # "trange": {"default": [273.15, 373.15, 5]},
     }
 
     _settings = {}

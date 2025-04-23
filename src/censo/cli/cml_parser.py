@@ -150,15 +150,15 @@ def parse(argv=None) -> argparse.Namespace:
         type=float,
         help="Temperature in Kelvin for thermostatistical evaluation.",
     )
-    groups[1].add_argument(
-        "--trange",
-        dest="trange",
-        nargs=3,
-        metavar=("start", "end", "step"),
-        type=float,
-        help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
-        "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
-    )
+    # groups[1].add_argument(
+    #     "--trange",
+    #     dest="trange",
+    #     nargs=3,
+    #     metavar=("start", "end", "step"),
+    #     type=float,
+    #     help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
+    #     "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
+    # )
     groups[1].add_argument(
         "--bhess",
         dest="bhess",
@@ -240,25 +240,25 @@ def parse(argv=None) -> argparse.Namespace:
     """
 
     # PRESCREENING SETTINGS
-    groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
+    # groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
 
     # SCREENING SETTINGS
-    groups.append(parser.add_argument_group("SCREENING SETTINGS"))
+    # groups.append(parser.add_argument_group("SCREENING SETTINGS"))
 
     # OPTIMIZATION SETTINGS
-    groups.append(parser.add_argument_group("OPTIMIZATION SETTINGS"))
+    # groups.append(parser.add_argument_group("OPTIMIZATION SETTINGS"))
 
     # REFINEMENT SETTINGS
-    groups.append(parser.add_argument_group("REFINEMENT SETTINGS"))
+    # groups.append(parser.add_argument_group("REFINEMENT SETTINGS"))
 
     # NMR SETTINGS
-    groups.append(parser.add_argument_group("NMR SETTINGS"))
+    # groups.append(parser.add_argument_group("NMR SETTINGS"))
 
     # OPTROT SETTINGS
-    groups.append(parser.add_argument_group("OPTROT SETTINGS"))
+    # groups.append(parser.add_argument_group("OPTROT SETTINGS"))
 
     # UVVIS SETTINGS
-    groups.append(parser.add_argument_group("UVVIS SETTINGS"))
+    # groups.append(parser.add_argument_group("UVVIS SETTINGS"))
 
     # leave these options out for now, implementation for cml complicated
     """
