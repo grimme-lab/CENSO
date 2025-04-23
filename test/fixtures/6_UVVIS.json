@@ -1,0 +1,2132 @@
+{
+    "partname": "uvvis",
+    "runtime": 304.87570271641016,
+    "results": {
+        "CONF59": {
+            "energy": -344.826989899877,
+            "gsolv": 0.0,
+            "grrho": 0.080467188749,
+            "gtot": -344.74652271112797,
+            "bmw": 0.19087506737088925,
+            "uvvis": {
+                "energy": -344.770196658163,
+                "excitations": [
+                    {
+                        "wavelength": 163.6,
+                        "osc_str": 0.000815008
+                    },
+                    {
+                        "wavelength": 154.4,
+                        "osc_str": 0.009595888
+                    },
+                    {
+                        "wavelength": 150.6,
+                        "osc_str": 0.040891563
+                    },
+                    {
+                        "wavelength": 136.8,
+                        "osc_str": 0.004166862
+                    },
+                    {
+                        "wavelength": 134.3,
+                        "osc_str": 0.013838156
+                    },
+                    {
+                        "wavelength": 134.1,
+                        "osc_str": 0.023847149
+                    },
+                    {
+                        "wavelength": 129.8,
+                        "osc_str": 0.023948952
+                    },
+                    {
+                        "wavelength": 128.3,
+                        "osc_str": 0.054609775
+                    },
+                    {
+                        "wavelength": 127.4,
+                        "osc_str": 0.032831633
+                    },
+                    {
+                        "wavelength": 126.4,
+                        "osc_str": 0.005731108
+                    },
+                    {
+                        "wavelength": 123.6,
+                        "osc_str": 0.16320498
+                    },
+                    {
+                        "wavelength": 123.2,
+                        "osc_str": 0.001911017
+                    },
+                    {
+                        "wavelength": 121.8,
+                        "osc_str": 0.013274558
+                    },
+                    {
+                        "wavelength": 121.2,
+                        "osc_str": 0.010552033
+                    },
+                    {
+                        "wavelength": 119.6,
+                        "osc_str": 0.001625971
+                    },
+                    {
+                        "wavelength": 118.8,
+                        "osc_str": 0.036135519
+                    },
+                    {
+                        "wavelength": 116.7,
+                        "osc_str": 0.03001081
+                    },
+                    {
+                        "wavelength": 115.8,
+                        "osc_str": 0.17714706
+                    },
+                    {
+                        "wavelength": 114.3,
+                        "osc_str": 0.061971496
+                    },
+                    {
+                        "wavelength": 113.8,
+                        "osc_str": 0.107570885
+                    }
+                ]
+            }
+        },
+        "CONF31": {
+            "energy": -344.828100268961,
+            "gsolv": 0.0,
+            "grrho": 0.081745593632,
+            "gtot": -344.74635467532903,
+            "bmw": 0.1597563339896363,
+            "uvvis": {
+                "energy": -344.762255965782,
+                "excitations": [
+                    {
+                        "wavelength": 158.4,
+                        "osc_str": 0.00197115
+                    },
+                    {
+                        "wavelength": 153.6,
+                        "osc_str": 0.007608041
+                    },
+                    {
+                        "wavelength": 150.5,
+                        "osc_str": 0.008412327
+                    },
+                    {
+                        "wavelength": 134.0,
+                        "osc_str": 0.016509592
+                    },
+                    {
+                        "wavelength": 132.5,
+                        "osc_str": 0.078853611
+                    },
+                    {
+                        "wavelength": 130.0,
+                        "osc_str": 0.089403016
+                    },
+                    {
+                        "wavelength": 129.5,
+                        "osc_str": 0.040103995
+                    },
+                    {
+                        "wavelength": 128.2,
+                        "osc_str": 0.028842301
+                    },
+                    {
+                        "wavelength": 126.8,
+                        "osc_str": 0.0289176
+                    },
+                    {
+                        "wavelength": 124.5,
+                        "osc_str": 0.042075839
+                    },
+                    {
+                        "wavelength": 123.7,
+                        "osc_str": 0.022326786
+                    },
+                    {
+                        "wavelength": 121.6,
+                        "osc_str": 0.06948687
+                    },
+                    {
+                        "wavelength": 120.2,
+                        "osc_str": 0.04058426
+                    },
+                    {
+                        "wavelength": 119.8,
+                        "osc_str": 0.078373256
+                    },
+                    {
+                        "wavelength": 119.3,
+                        "osc_str": 0.002664898
+                    },
+                    {
+                        "wavelength": 117.6,
+                        "osc_str": 0.052603101
+                    },
+                    {
+                        "wavelength": 116.6,
+                        "osc_str": 0.018675942
+                    },
+                    {
+                        "wavelength": 116.1,
+                        "osc_str": 0.081873486
+                    },
+                    {
+                        "wavelength": 114.9,
+                        "osc_str": 0.0745705
+                    },
+                    {
+                        "wavelength": 114.7,
+                        "osc_str": 0.044807051
+                    }
+                ]
+            }
+        },
+        "CONF10": {
+            "energy": -344.827774436117,
+            "gsolv": 0.0,
+            "grrho": 0.081432027913,
+            "gtot": -344.746342408204,
+            "bmw": 0.15769415599374428,
+            "uvvis": {
+                "energy": -344.765020180284,
+                "excitations": [
+                    {
+                        "wavelength": 160.2,
+                        "osc_str": 0.003164201
+                    },
+                    {
+                        "wavelength": 154.1,
+                        "osc_str": 0.009361481
+                    },
+                    {
+                        "wavelength": 149.6,
+                        "osc_str": 0.011204811
+                    },
+                    {
+                        "wavelength": 133.6,
+                        "osc_str": 0.00684442
+                    },
+                    {
+                        "wavelength": 133.1,
+                        "osc_str": 0.088890091
+                    },
+                    {
+                        "wavelength": 131.7,
+                        "osc_str": 0.012893622
+                    },
+                    {
+                        "wavelength": 130.0,
+                        "osc_str": 0.053052217
+                    },
+                    {
+                        "wavelength": 128.3,
+                        "osc_str": 0.01005453
+                    },
+                    {
+                        "wavelength": 127.6,
+                        "osc_str": 0.028722591
+                    },
+                    {
+                        "wavelength": 126.9,
+                        "osc_str": 0.12599954
+                    },
+                    {
+                        "wavelength": 124.1,
+                        "osc_str": 0.057606963
+                    },
+                    {
+                        "wavelength": 122.7,
+                        "osc_str": 0.053497283
+                    },
+                    {
+                        "wavelength": 122.2,
+                        "osc_str": 0.05768407
+                    },
+                    {
+                        "wavelength": 121.4,
+                        "osc_str": 0.044110844
+                    },
+                    {
+                        "wavelength": 119.5,
+                        "osc_str": 0.010737426
+                    },
+                    {
+                        "wavelength": 118.7,
+                        "osc_str": 0.044913072
+                    },
+                    {
+                        "wavelength": 116.9,
+                        "osc_str": 0.05720699
+                    },
+                    {
+                        "wavelength": 115.7,
+                        "osc_str": 0.024725297
+                    },
+                    {
+                        "wavelength": 114.3,
+                        "osc_str": 0.059085552
+                    },
+                    {
+                        "wavelength": 114.0,
+                        "osc_str": 0.121277356
+                    }
+                ]
+            }
+        },
+        "CONF42": {
+            "energy": -344.826930654742,
+            "gsolv": 0.0,
+            "grrho": 0.080952955286,
+            "gtot": -344.745977699456,
+            "bmw": 0.10716702805684028,
+            "uvvis": {
+                "energy": -344.771549765847,
+                "excitations": [
+                    {
+                        "wavelength": 164.4,
+                        "osc_str": 0.001122256
+                    },
+                    {
+                        "wavelength": 153.8,
+                        "osc_str": 0.008475293
+                    },
+                    {
+                        "wavelength": 150.9,
+                        "osc_str": 0.036205859
+                    },
+                    {
+                        "wavelength": 136.3,
+                        "osc_str": 0.007034014
+                    },
+                    {
+                        "wavelength": 134.9,
+                        "osc_str": 0.005002572
+                    },
+                    {
+                        "wavelength": 133.5,
+                        "osc_str": 0.026357465
+                    },
+                    {
+                        "wavelength": 129.5,
+                        "osc_str": 0.013959476
+                    },
+                    {
+                        "wavelength": 128.4,
+                        "osc_str": 0.079104635
+                    },
+                    {
+                        "wavelength": 127.0,
+                        "osc_str": 0.007731898
+                    },
+                    {
+                        "wavelength": 126.4,
+                        "osc_str": 0.068719779
+                    },
+                    {
+                        "wavelength": 123.9,
+                        "osc_str": 0.130864373
+                    },
+                    {
+                        "wavelength": 122.3,
+                        "osc_str": 0.000805575
+                    },
+                    {
+                        "wavelength": 121.9,
+                        "osc_str": 0.008134723
+                    },
+                    {
+                        "wavelength": 121.2,
+                        "osc_str": 0.003094845
+                    },
+                    {
+                        "wavelength": 119.8,
+                        "osc_str": 0.046591896
+                    },
+                    {
+                        "wavelength": 118.9,
+                        "osc_str": 0.020286019
+                    },
+                    {
+                        "wavelength": 118.3,
+                        "osc_str": 0.134737977
+                    },
+                    {
+                        "wavelength": 115.6,
+                        "osc_str": 0.035669313
+                    },
+                    {
+                        "wavelength": 114.4,
+                        "osc_str": 0.01970596
+                    },
+                    {
+                        "wavelength": 113.7,
+                        "osc_str": 0.027939189
+                    }
+                ]
+            }
+        },
+        "CONF1": {
+            "energy": -344.828531640612,
+            "gsolv": 0.0,
+            "grrho": 0.082719129925,
+            "gtot": -344.745812510687,
+            "bmw": 0.08996624884000934,
+            "uvvis": {
+                "energy": -344.774609169609,
+                "excitations": [
+                    {
+                        "wavelength": 164.9,
+                        "osc_str": 0.00136195
+                    },
+                    {
+                        "wavelength": 151.0,
+                        "osc_str": 0.009333102
+                    },
+                    {
+                        "wavelength": 146.9,
+                        "osc_str": 0.040910503
+                    },
+                    {
+                        "wavelength": 137.7,
+                        "osc_str": 0.03603853
+                    },
+                    {
+                        "wavelength": 133.8,
+                        "osc_str": 0.010378989
+                    },
+                    {
+                        "wavelength": 129.5,
+                        "osc_str": 0.100501283
+                    },
+                    {
+                        "wavelength": 128.4,
+                        "osc_str": 0.118521817
+                    },
+                    {
+                        "wavelength": 126.5,
+                        "osc_str": 0.002737325
+                    },
+                    {
+                        "wavelength": 125.5,
+                        "osc_str": 0.002308384
+                    },
+                    {
+                        "wavelength": 125.1,
+                        "osc_str": 0.035488615
+                    },
+                    {
+                        "wavelength": 123.9,
+                        "osc_str": 0.033548949
+                    },
+                    {
+                        "wavelength": 121.9,
+                        "osc_str": 0.071617408
+                    },
+                    {
+                        "wavelength": 120.0,
+                        "osc_str": 0.01613949
+                    },
+                    {
+                        "wavelength": 119.4,
+                        "osc_str": 0.024787277
+                    },
+                    {
+                        "wavelength": 118.9,
+                        "osc_str": 0.01287622
+                    },
+                    {
+                        "wavelength": 117.9,
+                        "osc_str": 0.004003797
+                    },
+                    {
+                        "wavelength": 116.3,
+                        "osc_str": 0.153811696
+                    },
+                    {
+                        "wavelength": 115.9,
+                        "osc_str": 0.046399882
+                    },
+                    {
+                        "wavelength": 114.0,
+                        "osc_str": 0.054082226
+                    },
+                    {
+                        "wavelength": 113.5,
+                        "osc_str": 0.05609145
+                    }
+                ]
+            }
+        },
+        "CONF15": {
+            "energy": -344.827451438608,
+            "gsolv": 0.0,
+            "grrho": 0.081778606221,
+            "gtot": -344.745672832387,
+            "bmw": 0.07759469709776734,
+            "uvvis": {
+                "energy": -344.766357889104,
+                "excitations": [
+                    {
+                        "wavelength": 161.1,
+                        "osc_str": 0.000335316
+                    },
+                    {
+                        "wavelength": 153.9,
+                        "osc_str": 0.013543284
+                    },
+                    {
+                        "wavelength": 151.4,
+                        "osc_str": 0.016679044
+                    },
+                    {
+                        "wavelength": 139.5,
+                        "osc_str": 0.030038695
+                    },
+                    {
+                        "wavelength": 131.7,
+                        "osc_str": 0.039567331
+                    },
+                    {
+                        "wavelength": 131.1,
+                        "osc_str": 0.004810922
+                    },
+                    {
+                        "wavelength": 128.4,
+                        "osc_str": 0.004742383
+                    },
+                    {
+                        "wavelength": 128.1,
+                        "osc_str": 0.028175569
+                    },
+                    {
+                        "wavelength": 126.5,
+                        "osc_str": 0.080228942
+                    },
+                    {
+                        "wavelength": 124.8,
+                        "osc_str": 0.084013234
+                    },
+                    {
+                        "wavelength": 124.5,
+                        "osc_str": 0.00438224
+                    },
+                    {
+                        "wavelength": 123.4,
+                        "osc_str": 0.053147165
+                    },
+                    {
+                        "wavelength": 123.0,
+                        "osc_str": 0.049806619
+                    },
+                    {
+                        "wavelength": 121.6,
+                        "osc_str": 0.102651623
+                    },
+                    {
+                        "wavelength": 119.1,
+                        "osc_str": 0.020462394
+                    },
+                    {
+                        "wavelength": 117.7,
+                        "osc_str": 0.071657336
+                    },
+                    {
+                        "wavelength": 117.5,
+                        "osc_str": 0.008621967
+                    },
+                    {
+                        "wavelength": 115.4,
+                        "osc_str": 0.022464661
+                    },
+                    {
+                        "wavelength": 114.5,
+                        "osc_str": 0.118373897
+                    },
+                    {
+                        "wavelength": 113.6,
+                        "osc_str": 0.085216609
+                    }
+                ]
+            }
+        },
+        "CONF7": {
+            "energy": -344.82786395891,
+            "gsolv": 0.0,
+            "grrho": 0.082281143913,
+            "gtot": -344.74558281499696,
+            "bmw": 0.07053861185073293,
+            "uvvis": {
+                "energy": -344.763550960454,
+                "excitations": [
+                    {
+                        "wavelength": 159.0,
+                        "osc_str": 0.000847531
+                    },
+                    {
+                        "wavelength": 155.9,
+                        "osc_str": 0.009101744
+                    },
+                    {
+                        "wavelength": 146.3,
+                        "osc_str": 0.023593445
+                    },
+                    {
+                        "wavelength": 138.1,
+                        "osc_str": 0.00897195
+                    },
+                    {
+                        "wavelength": 133.3,
+                        "osc_str": 0.021134945
+                    },
+                    {
+                        "wavelength": 129.7,
+                        "osc_str": 0.120699226
+                    },
+                    {
+                        "wavelength": 128.8,
+                        "osc_str": 0.030226633
+                    },
+                    {
+                        "wavelength": 128.4,
+                        "osc_str": 0.061017303
+                    },
+                    {
+                        "wavelength": 124.9,
+                        "osc_str": 0.030095575
+                    },
+                    {
+                        "wavelength": 123.1,
+                        "osc_str": 0.003304244
+                    },
+                    {
+                        "wavelength": 122.7,
+                        "osc_str": 0.011778154
+                    },
+                    {
+                        "wavelength": 121.2,
+                        "osc_str": 0.006240922
+                    },
+                    {
+                        "wavelength": 120.4,
+                        "osc_str": 0.050625058
+                    },
+                    {
+                        "wavelength": 120.2,
+                        "osc_str": 0.032123537
+                    },
+                    {
+                        "wavelength": 118.5,
+                        "osc_str": 0.040442512
+                    },
+                    {
+                        "wavelength": 117.9,
+                        "osc_str": 0.117864176
+                    },
+                    {
+                        "wavelength": 116.8,
+                        "osc_str": 0.060387158
+                    },
+                    {
+                        "wavelength": 116.2,
+                        "osc_str": 0.054819732
+                    },
+                    {
+                        "wavelength": 114.8,
+                        "osc_str": 0.149117262
+                    },
+                    {
+                        "wavelength": 114.4,
+                        "osc_str": 0.118971516
+                    }
+                ]
+            }
+        },
+        "CONF25": {
+            "energy": -344.825205359892,
+            "gsolv": 0.0,
+            "grrho": 0.080959074147,
+            "gtot": -344.74424628574496,
+            "bmw": 0.01712639700644263,
+            "uvvis": {
+                "energy": -344.763741935538,
+                "excitations": [
+                    {
+                        "wavelength": 160.8,
+                        "osc_str": 0.000822464
+                    },
+                    {
+                        "wavelength": 156.6,
+                        "osc_str": 0.010335006
+                    },
+                    {
+                        "wavelength": 152.0,
+                        "osc_str": 0.012697214
+                    },
+                    {
+                        "wavelength": 137.3,
+                        "osc_str": 0.022243848
+                    },
+                    {
+                        "wavelength": 136.1,
+                        "osc_str": 0.025661784
+                    },
+                    {
+                        "wavelength": 134.3,
+                        "osc_str": 0.024263494
+                    },
+                    {
+                        "wavelength": 130.2,
+                        "osc_str": 0.016222694
+                    },
+                    {
+                        "wavelength": 128.9,
+                        "osc_str": 0.036467345
+                    },
+                    {
+                        "wavelength": 128.0,
+                        "osc_str": 0.01982813
+                    },
+                    {
+                        "wavelength": 126.5,
+                        "osc_str": 0.069317984
+                    },
+                    {
+                        "wavelength": 125.8,
+                        "osc_str": 0.13756477
+                    },
+                    {
+                        "wavelength": 124.6,
+                        "osc_str": 0.026440629
+                    },
+                    {
+                        "wavelength": 123.9,
+                        "osc_str": 0.050402786
+                    },
+                    {
+                        "wavelength": 121.4,
+                        "osc_str": 0.041116573
+                    },
+                    {
+                        "wavelength": 119.2,
+                        "osc_str": 0.048450208
+                    },
+                    {
+                        "wavelength": 117.1,
+                        "osc_str": 0.075556806
+                    },
+                    {
+                        "wavelength": 116.5,
+                        "osc_str": 0.056998675
+                    },
+                    {
+                        "wavelength": 115.9,
+                        "osc_str": 0.026018916
+                    },
+                    {
+                        "wavelength": 114.5,
+                        "osc_str": 0.077516484
+                    },
+                    {
+                        "wavelength": 113.5,
+                        "osc_str": 0.035674305
+                    }
+                ]
+            }
+        },
+        "CONF6": {
+            "energy": -344.825630267234,
+            "gsolv": 0.0,
+            "grrho": 0.081492192733,
+            "gtot": -344.744138074501,
+            "bmw": 0.0152718721732626,
+            "uvvis": {
+                "energy": -344.767938129116,
+                "excitations": [
+                    {
+                        "wavelength": 163.0,
+                        "osc_str": 0.003603414
+                    },
+                    {
+                        "wavelength": 159.6,
+                        "osc_str": 0.004633638
+                    },
+                    {
+                        "wavelength": 149.7,
+                        "osc_str": 0.034374481
+                    },
+                    {
+                        "wavelength": 138.5,
+                        "osc_str": 0.00266161
+                    },
+                    {
+                        "wavelength": 137.4,
+                        "osc_str": 0.013730457
+                    },
+                    {
+                        "wavelength": 133.3,
+                        "osc_str": 0.035423646
+                    },
+                    {
+                        "wavelength": 130.4,
+                        "osc_str": 0.012861151
+                    },
+                    {
+                        "wavelength": 129.9,
+                        "osc_str": 0.012352373
+                    },
+                    {
+                        "wavelength": 128.3,
+                        "osc_str": 0.073110537
+                    },
+                    {
+                        "wavelength": 126.7,
+                        "osc_str": 0.029585795
+                    },
+                    {
+                        "wavelength": 123.3,
+                        "osc_str": 0.081040865
+                    },
+                    {
+                        "wavelength": 122.2,
+                        "osc_str": 0.044091921
+                    },
+                    {
+                        "wavelength": 121.8,
+                        "osc_str": 0.042187682
+                    },
+                    {
+                        "wavelength": 119.5,
+                        "osc_str": 0.026666663
+                    },
+                    {
+                        "wavelength": 119.2,
+                        "osc_str": 0.028624045
+                    },
+                    {
+                        "wavelength": 118.5,
+                        "osc_str": 0.146581418
+                    },
+                    {
+                        "wavelength": 117.2,
+                        "osc_str": 0.027099924
+                    },
+                    {
+                        "wavelength": 115.5,
+                        "osc_str": 0.0945164
+                    },
+                    {
+                        "wavelength": 114.2,
+                        "osc_str": 0.017284271
+                    },
+                    {
+                        "wavelength": 113.7,
+                        "osc_str": 0.021998287
+                    }
+                ]
+            }
+        },
+        "CONF28": {
+            "energy": -344.825224793887,
+            "gsolv": 0.0,
+            "grrho": 0.081130358456,
+            "gtot": -344.744094435431,
+            "bmw": 0.014582087421899866,
+            "uvvis": {
+                "energy": -344.765617462969,
+                "excitations": [
+                    {
+                        "wavelength": 162.1,
+                        "osc_str": 0.000436012
+                    },
+                    {
+                        "wavelength": 160.4,
+                        "osc_str": 0.002749045
+                    },
+                    {
+                        "wavelength": 149.8,
+                        "osc_str": 0.014415622
+                    },
+                    {
+                        "wavelength": 135.8,
+                        "osc_str": 0.022573111
+                    },
+                    {
+                        "wavelength": 132.8,
+                        "osc_str": 0.007937112
+                    },
+                    {
+                        "wavelength": 131.6,
+                        "osc_str": 0.11103329
+                    },
+                    {
+                        "wavelength": 130.4,
+                        "osc_str": 0.023159602
+                    },
+                    {
+                        "wavelength": 129.8,
+                        "osc_str": 0.070876972
+                    },
+                    {
+                        "wavelength": 126.4,
+                        "osc_str": 0.018195283
+                    },
+                    {
+                        "wavelength": 125.4,
+                        "osc_str": 0.048005105
+                    },
+                    {
+                        "wavelength": 124.7,
+                        "osc_str": 0.025392095
+                    },
+                    {
+                        "wavelength": 123.4,
+                        "osc_str": 0.080669455
+                    },
+                    {
+                        "wavelength": 121.7,
+                        "osc_str": 0.029362916
+                    },
+                    {
+                        "wavelength": 121.4,
+                        "osc_str": 0.033362889
+                    },
+                    {
+                        "wavelength": 119.6,
+                        "osc_str": 0.014372981
+                    },
+                    {
+                        "wavelength": 118.0,
+                        "osc_str": 0.102244972
+                    },
+                    {
+                        "wavelength": 117.6,
+                        "osc_str": 0.098320572
+                    },
+                    {
+                        "wavelength": 116.6,
+                        "osc_str": 0.020746252
+                    },
+                    {
+                        "wavelength": 113.7,
+                        "osc_str": 0.081872003
+                    },
+                    {
+                        "wavelength": 113.5,
+                        "osc_str": 0.020658962
+                    }
+                ]
+            }
+        },
+        "CONF27": {
+            "energy": -344.825373529638,
+            "gsolv": 0.0,
+            "grrho": 0.081303846135,
+            "gtot": -344.744069683503,
+            "bmw": 0.0142047828428402,
+            "uvvis": {
+                "energy": -344.762473565004,
+                "excitations": [
+                    {
+                        "wavelength": 160.2,
+                        "osc_str": 0.002531195
+                    },
+                    {
+                        "wavelength": 159.1,
+                        "osc_str": 0.0041415
+                    },
+                    {
+                        "wavelength": 151.8,
+                        "osc_str": 0.007721631
+                    },
+                    {
+                        "wavelength": 138.3,
+                        "osc_str": 0.041098146
+                    },
+                    {
+                        "wavelength": 133.5,
+                        "osc_str": 0.003606389
+                    },
+                    {
+                        "wavelength": 130.4,
+                        "osc_str": 0.012066026
+                    },
+                    {
+                        "wavelength": 129.4,
+                        "osc_str": 0.010843082
+                    },
+                    {
+                        "wavelength": 128.5,
+                        "osc_str": 0.034412961
+                    },
+                    {
+                        "wavelength": 127.3,
+                        "osc_str": 0.028323219
+                    },
+                    {
+                        "wavelength": 126.5,
+                        "osc_str": 0.039913844
+                    },
+                    {
+                        "wavelength": 125.6,
+                        "osc_str": 0.18117043
+                    },
+                    {
+                        "wavelength": 123.8,
+                        "osc_str": 0.069740949
+                    },
+                    {
+                        "wavelength": 120.8,
+                        "osc_str": 0.032125559
+                    },
+                    {
+                        "wavelength": 120.2,
+                        "osc_str": 0.082261897
+                    },
+                    {
+                        "wavelength": 119.6,
+                        "osc_str": 0.061339292
+                    },
+                    {
+                        "wavelength": 118.3,
+                        "osc_str": 0.037058735
+                    },
+                    {
+                        "wavelength": 116.3,
+                        "osc_str": 0.061984875
+                    },
+                    {
+                        "wavelength": 115.5,
+                        "osc_str": 0.055260056
+                    },
+                    {
+                        "wavelength": 114.4,
+                        "osc_str": 0.050141442
+                    },
+                    {
+                        "wavelength": 113.1,
+                        "osc_str": 0.098462067
+                    }
+                ]
+            }
+        },
+        "CONF34": {
+            "energy": -344.824981249559,
+            "gsolv": 0.0,
+            "grrho": 0.081010205233,
+            "gtot": -344.74397104432603,
+            "bmw": 0.012795690237211037,
+            "uvvis": {
+                "energy": -344.76329153435,
+                "excitations": [
+                    {
+                        "wavelength": 160.8,
+                        "osc_str": 0.003087618
+                    },
+                    {
+                        "wavelength": 159.1,
+                        "osc_str": 0.004228399
+                    },
+                    {
+                        "wavelength": 149.8,
+                        "osc_str": 0.016734941
+                    },
+                    {
+                        "wavelength": 139.0,
+                        "osc_str": 0.021378789
+                    },
+                    {
+                        "wavelength": 133.0,
+                        "osc_str": 0.04572343
+                    },
+                    {
+                        "wavelength": 132.1,
+                        "osc_str": 0.050370742
+                    },
+                    {
+                        "wavelength": 131.2,
+                        "osc_str": 0.049330398
+                    },
+                    {
+                        "wavelength": 129.4,
+                        "osc_str": 0.019794631
+                    },
+                    {
+                        "wavelength": 127.7,
+                        "osc_str": 0.067566389
+                    },
+                    {
+                        "wavelength": 127.2,
+                        "osc_str": 0.101302772
+                    },
+                    {
+                        "wavelength": 125.8,
+                        "osc_str": 0.023200991
+                    },
+                    {
+                        "wavelength": 122.9,
+                        "osc_str": 0.059308807
+                    },
+                    {
+                        "wavelength": 122.0,
+                        "osc_str": 0.012301009
+                    },
+                    {
+                        "wavelength": 120.4,
+                        "osc_str": 0.00908718
+                    },
+                    {
+                        "wavelength": 118.9,
+                        "osc_str": 0.019193111
+                    },
+                    {
+                        "wavelength": 118.5,
+                        "osc_str": 0.039849726
+                    },
+                    {
+                        "wavelength": 116.8,
+                        "osc_str": 0.021865349
+                    },
+                    {
+                        "wavelength": 116.6,
+                        "osc_str": 0.063489381
+                    },
+                    {
+                        "wavelength": 113.9,
+                        "osc_str": 0.090018752
+                    },
+                    {
+                        "wavelength": 113.5,
+                        "osc_str": 0.038154172
+                    }
+                ]
+            }
+        },
+        "CONF13": {
+            "energy": -344.825296090807,
+            "gsolv": 0.0,
+            "grrho": 0.081434767409,
+            "gtot": -344.743861323398,
+            "bmw": 0.011391884799999488,
+            "uvvis": {
+                "energy": -344.760017181359,
+                "excitations": [
+                    {
+                        "wavelength": 158.7,
+                        "osc_str": 0.011614537
+                    },
+                    {
+                        "wavelength": 158.3,
+                        "osc_str": 0.00142015
+                    },
+                    {
+                        "wavelength": 154.9,
+                        "osc_str": 0.002909394
+                    },
+                    {
+                        "wavelength": 136.7,
+                        "osc_str": 0.016815034
+                    },
+                    {
+                        "wavelength": 134.6,
+                        "osc_str": 0.021687907
+                    },
+                    {
+                        "wavelength": 132.0,
+                        "osc_str": 0.008232081
+                    },
+                    {
+                        "wavelength": 131.7,
+                        "osc_str": 0.080293436
+                    },
+                    {
+                        "wavelength": 131.1,
+                        "osc_str": 0.005982112
+                    },
+                    {
+                        "wavelength": 128.5,
+                        "osc_str": 0.009472046
+                    },
+                    {
+                        "wavelength": 127.5,
+                        "osc_str": 0.14147922
+                    },
+                    {
+                        "wavelength": 125.9,
+                        "osc_str": 0.035251828
+                    },
+                    {
+                        "wavelength": 124.7,
+                        "osc_str": 0.040459131
+                    },
+                    {
+                        "wavelength": 121.7,
+                        "osc_str": 0.024189462
+                    },
+                    {
+                        "wavelength": 120.7,
+                        "osc_str": 0.147318837
+                    },
+                    {
+                        "wavelength": 118.0,
+                        "osc_str": 0.006573417
+                    },
+                    {
+                        "wavelength": 117.0,
+                        "osc_str": 0.032405428
+                    },
+                    {
+                        "wavelength": 116.5,
+                        "osc_str": 0.036205256
+                    },
+                    {
+                        "wavelength": 115.8,
+                        "osc_str": 0.026903116
+                    },
+                    {
+                        "wavelength": 115.5,
+                        "osc_str": 0.053333269
+                    },
+                    {
+                        "wavelength": 115.1,
+                        "osc_str": 0.017549719
+                    }
+                ]
+            }
+        },
+        "CONF37": {
+            "energy": -344.825004767488,
+            "gsolv": 0.0,
+            "grrho": 0.081210727828,
+            "gtot": -344.74379403966,
+            "bmw": 0.010608334547503411,
+            "uvvis": {
+                "energy": -344.762979151699,
+                "excitations": [
+                    {
+                        "wavelength": 160.5,
+                        "osc_str": 0.000359633
+                    },
+                    {
+                        "wavelength": 159.8,
+                        "osc_str": 0.004763271
+                    },
+                    {
+                        "wavelength": 153.8,
+                        "osc_str": 0.02562713
+                    },
+                    {
+                        "wavelength": 137.1,
+                        "osc_str": 0.010579353
+                    },
+                    {
+                        "wavelength": 134.0,
+                        "osc_str": 0.020993022
+                    },
+                    {
+                        "wavelength": 131.6,
+                        "osc_str": 0.027936494
+                    },
+                    {
+                        "wavelength": 130.9,
+                        "osc_str": 0.038803951
+                    },
+                    {
+                        "wavelength": 129.7,
+                        "osc_str": 0.020618612
+                    },
+                    {
+                        "wavelength": 129.0,
+                        "osc_str": 0.022988627
+                    },
+                    {
+                        "wavelength": 126.6,
+                        "osc_str": 0.010294788
+                    },
+                    {
+                        "wavelength": 123.7,
+                        "osc_str": 0.026717338
+                    },
+                    {
+                        "wavelength": 123.4,
+                        "osc_str": 0.009570084
+                    },
+                    {
+                        "wavelength": 120.9,
+                        "osc_str": 0.07406409
+                    },
+                    {
+                        "wavelength": 119.9,
+                        "osc_str": 0.046640189
+                    },
+                    {
+                        "wavelength": 119.1,
+                        "osc_str": 0.097147675
+                    },
+                    {
+                        "wavelength": 118.8,
+                        "osc_str": 0.01097235
+                    },
+                    {
+                        "wavelength": 118.0,
+                        "osc_str": 0.060830638
+                    },
+                    {
+                        "wavelength": 116.4,
+                        "osc_str": 0.086496361
+                    },
+                    {
+                        "wavelength": 116.0,
+                        "osc_str": 0.092020181
+                    },
+                    {
+                        "wavelength": 114.3,
+                        "osc_str": 0.090255164
+                    }
+                ]
+            }
+        },
+        "CONF36": {
+            "energy": -344.824974147705,
+            "gsolv": 0.0,
+            "grrho": 0.081285257367,
+            "gtot": -344.743688890338,
+            "bmw": 0.009490342084428725,
+            "uvvis": {
+                "energy": -344.762956491824,
+                "excitations": [
+                    {
+                        "wavelength": 160.5,
+                        "osc_str": 0.00040674
+                    },
+                    {
+                        "wavelength": 159.8,
+                        "osc_str": 0.004701836
+                    },
+                    {
+                        "wavelength": 153.7,
+                        "osc_str": 0.025669043
+                    },
+                    {
+                        "wavelength": 137.1,
+                        "osc_str": 0.010787929
+                    },
+                    {
+                        "wavelength": 134.0,
+                        "osc_str": 0.021726005
+                    },
+                    {
+                        "wavelength": 131.6,
+                        "osc_str": 0.028757864
+                    },
+                    {
+                        "wavelength": 130.9,
+                        "osc_str": 0.038494249
+                    },
+                    {
+                        "wavelength": 129.7,
+                        "osc_str": 0.0198944
+                    },
+                    {
+                        "wavelength": 129.0,
+                        "osc_str": 0.023422986
+                    },
+                    {
+                        "wavelength": 126.6,
+                        "osc_str": 0.010222466
+                    },
+                    {
+                        "wavelength": 123.8,
+                        "osc_str": 0.024360348
+                    },
+                    {
+                        "wavelength": 123.4,
+                        "osc_str": 0.011672703
+                    },
+                    {
+                        "wavelength": 120.9,
+                        "osc_str": 0.07209189
+                    },
+                    {
+                        "wavelength": 119.9,
+                        "osc_str": 0.047692397
+                    },
+                    {
+                        "wavelength": 119.1,
+                        "osc_str": 0.096431952
+                    },
+                    {
+                        "wavelength": 118.8,
+                        "osc_str": 0.010687584
+                    },
+                    {
+                        "wavelength": 118.0,
+                        "osc_str": 0.062605175
+                    },
+                    {
+                        "wavelength": 116.4,
+                        "osc_str": 0.086639513
+                    },
+                    {
+                        "wavelength": 115.9,
+                        "osc_str": 0.088598153
+                    },
+                    {
+                        "wavelength": 114.3,
+                        "osc_str": 0.092066443
+                    }
+                ]
+            }
+        },
+        "CONF39": {
+            "energy": -344.825124835976,
+            "gsolv": 0.0,
+            "grrho": 0.081568192645,
+            "gtot": -344.743556643331,
+            "bmw": 0.008249971619122786,
+            "uvvis": {
+                "energy": -344.762616641883,
+                "excitations": [
+                    {
+                        "wavelength": 160.3,
+                        "osc_str": 0.004144553
+                    },
+                    {
+                        "wavelength": 158.1,
+                        "osc_str": 0.005682847
+                    },
+                    {
+                        "wavelength": 154.7,
+                        "osc_str": 0.004758356
+                    },
+                    {
+                        "wavelength": 137.7,
+                        "osc_str": 0.041663806
+                    },
+                    {
+                        "wavelength": 136.4,
+                        "osc_str": 0.042160031
+                    },
+                    {
+                        "wavelength": 132.6,
+                        "osc_str": 0.042643177
+                    },
+                    {
+                        "wavelength": 131.0,
+                        "osc_str": 0.079291592
+                    },
+                    {
+                        "wavelength": 128.0,
+                        "osc_str": 0.001117501
+                    },
+                    {
+                        "wavelength": 126.2,
+                        "osc_str": 0.050187448
+                    },
+                    {
+                        "wavelength": 125.4,
+                        "osc_str": 0.037412485
+                    },
+                    {
+                        "wavelength": 125.0,
+                        "osc_str": 0.090669051
+                    },
+                    {
+                        "wavelength": 123.7,
+                        "osc_str": 0.067643824
+                    },
+                    {
+                        "wavelength": 121.8,
+                        "osc_str": 0.040374376
+                    },
+                    {
+                        "wavelength": 120.3,
+                        "osc_str": 0.068351889
+                    },
+                    {
+                        "wavelength": 119.9,
+                        "osc_str": 0.037106372
+                    },
+                    {
+                        "wavelength": 117.4,
+                        "osc_str": 0.048692827
+                    },
+                    {
+                        "wavelength": 116.6,
+                        "osc_str": 0.000779597
+                    },
+                    {
+                        "wavelength": 116.3,
+                        "osc_str": 0.055224748
+                    },
+                    {
+                        "wavelength": 115.0,
+                        "osc_str": 0.041450427
+                    },
+                    {
+                        "wavelength": 114.1,
+                        "osc_str": 0.009111399
+                    }
+                ]
+            }
+        },
+        "CONF70": {
+            "energy": -344.824322493197,
+            "gsolv": 0.0,
+            "grrho": 0.080898463992,
+            "gtot": -344.74342402920496,
+            "bmw": 0.007168927344238095,
+            "uvvis": {
+                "energy": -344.763958778929,
+                "excitations": [
+                    {
+                        "wavelength": 161.5,
+                        "osc_str": 0.00012779
+                    },
+                    {
+                        "wavelength": 160.5,
+                        "osc_str": 0.00210463
+                    },
+                    {
+                        "wavelength": 149.9,
+                        "osc_str": 0.014846059
+                    },
+                    {
+                        "wavelength": 136.5,
+                        "osc_str": 0.072831801
+                    },
+                    {
+                        "wavelength": 133.1,
+                        "osc_str": 0.041401559
+                    },
+                    {
+                        "wavelength": 131.9,
+                        "osc_str": 0.05370088
+                    },
+                    {
+                        "wavelength": 131.6,
+                        "osc_str": 0.021565887
+                    },
+                    {
+                        "wavelength": 128.2,
+                        "osc_str": 0.006459513
+                    },
+                    {
+                        "wavelength": 127.7,
+                        "osc_str": 0.029708096
+                    },
+                    {
+                        "wavelength": 125.3,
+                        "osc_str": 0.07446739
+                    },
+                    {
+                        "wavelength": 124.8,
+                        "osc_str": 0.02160882
+                    },
+                    {
+                        "wavelength": 123.9,
+                        "osc_str": 0.019268082
+                    },
+                    {
+                        "wavelength": 121.1,
+                        "osc_str": 0.057164534
+                    },
+                    {
+                        "wavelength": 119.0,
+                        "osc_str": 0.048143731
+                    },
+                    {
+                        "wavelength": 118.6,
+                        "osc_str": 0.021273871
+                    },
+                    {
+                        "wavelength": 118.2,
+                        "osc_str": 0.004225503
+                    },
+                    {
+                        "wavelength": 117.2,
+                        "osc_str": 0.049705156
+                    },
+                    {
+                        "wavelength": 115.9,
+                        "osc_str": 0.114581644
+                    },
+                    {
+                        "wavelength": 114.6,
+                        "osc_str": 0.04306781
+                    },
+                    {
+                        "wavelength": 113.6,
+                        "osc_str": 0.031437317
+                    }
+                ]
+            }
+        },
+        "CONF35": {
+            "energy": -344.82467845046,
+            "gsolv": 0.0,
+            "grrho": 0.081259360504,
+            "gtot": -344.743419089956,
+            "bmw": 0.007131522908843628,
+            "uvvis": {
+                "energy": -344.763588430654,
+                "excitations": [
+                    {
+                        "wavelength": 161.2,
+                        "osc_str": 0.000368479
+                    },
+                    {
+                        "wavelength": 159.1,
+                        "osc_str": 0.001444591
+                    },
+                    {
+                        "wavelength": 150.1,
+                        "osc_str": 0.023976608
+                    },
+                    {
+                        "wavelength": 138.2,
+                        "osc_str": 0.0299709
+                    },
+                    {
+                        "wavelength": 136.4,
+                        "osc_str": 0.032914765
+                    },
+                    {
+                        "wavelength": 130.8,
+                        "osc_str": 0.090048724
+                    },
+                    {
+                        "wavelength": 129.7,
+                        "osc_str": 0.003459838
+                    },
+                    {
+                        "wavelength": 129.5,
+                        "osc_str": 0.009915778
+                    },
+                    {
+                        "wavelength": 127.8,
+                        "osc_str": 0.005450285
+                    },
+                    {
+                        "wavelength": 125.5,
+                        "osc_str": 0.01539398
+                    },
+                    {
+                        "wavelength": 124.0,
+                        "osc_str": 0.092325434
+                    },
+                    {
+                        "wavelength": 123.6,
+                        "osc_str": 0.017012635
+                    },
+                    {
+                        "wavelength": 122.7,
+                        "osc_str": 0.079916433
+                    },
+                    {
+                        "wavelength": 121.4,
+                        "osc_str": 0.03540917
+                    },
+                    {
+                        "wavelength": 119.8,
+                        "osc_str": 0.183037167
+                    },
+                    {
+                        "wavelength": 118.7,
+                        "osc_str": 0.010266599
+                    },
+                    {
+                        "wavelength": 117.2,
+                        "osc_str": 0.01104724
+                    },
+                    {
+                        "wavelength": 116.0,
+                        "osc_str": 0.022213706
+                    },
+                    {
+                        "wavelength": 115.4,
+                        "osc_str": 0.017124788
+                    },
+                    {
+                        "wavelength": 113.8,
+                        "osc_str": 0.073425639
+                    }
+                ]
+            }
+        },
+        "CONF20": {
+            "energy": -344.825112471916,
+            "gsolv": 0.0,
+            "grrho": 0.081757427642,
+            "gtot": -344.743355044274,
+            "bmw": 0.006663820759612649,
+            "uvvis": {
+                "energy": -344.765673446839,
+                "excitations": [
+                    {
+                        "wavelength": 162.0,
+                        "osc_str": 0.005818981
+                    },
+                    {
+                        "wavelength": 159.8,
+                        "osc_str": 0.002673255
+                    },
+                    {
+                        "wavelength": 153.5,
+                        "osc_str": 0.024382737
+                    },
+                    {
+                        "wavelength": 137.6,
+                        "osc_str": 0.018620273
+                    },
+                    {
+                        "wavelength": 134.2,
+                        "osc_str": 0.005462038
+                    },
+                    {
+                        "wavelength": 132.2,
+                        "osc_str": 0.01325696
+                    },
+                    {
+                        "wavelength": 130.0,
+                        "osc_str": 0.0369898
+                    },
+                    {
+                        "wavelength": 129.0,
+                        "osc_str": 0.029690347
+                    },
+                    {
+                        "wavelength": 127.0,
+                        "osc_str": 0.064926984
+                    },
+                    {
+                        "wavelength": 125.6,
+                        "osc_str": 0.050316797
+                    },
+                    {
+                        "wavelength": 123.5,
+                        "osc_str": 0.010933228
+                    },
+                    {
+                        "wavelength": 122.1,
+                        "osc_str": 0.013952935
+                    },
+                    {
+                        "wavelength": 120.8,
+                        "osc_str": 0.033225021
+                    },
+                    {
+                        "wavelength": 119.7,
+                        "osc_str": 0.058024237
+                    },
+                    {
+                        "wavelength": 119.2,
+                        "osc_str": 0.024914528
+                    },
+                    {
+                        "wavelength": 117.9,
+                        "osc_str": 0.071221124
+                    },
+                    {
+                        "wavelength": 117.2,
+                        "osc_str": 0.013086501
+                    },
+                    {
+                        "wavelength": 116.4,
+                        "osc_str": 0.176975854
+                    },
+                    {
+                        "wavelength": 115.6,
+                        "osc_str": 0.102059672
+                    },
+                    {
+                        "wavelength": 114.0,
+                        "osc_str": 0.051787396
+                    }
+                ]
+            }
+        },
+        "CONF46": {
+            "energy": -344.824617922483,
+            "gsolv": 0.0,
+            "grrho": 0.081475145673,
+            "gtot": -344.74314277681003,
+            "bmw": 0.005322149038808401,
+            "uvvis": {
+                "energy": -344.764300929238,
+                "excitations": [
+                    {
+                        "wavelength": 161.6,
+                        "osc_str": 0.000805033
+                    },
+                    {
+                        "wavelength": 159.9,
+                        "osc_str": 0.002420793
+                    },
+                    {
+                        "wavelength": 151.2,
+                        "osc_str": 0.021942968
+                    },
+                    {
+                        "wavelength": 137.5,
+                        "osc_str": 0.009077557
+                    },
+                    {
+                        "wavelength": 134.1,
+                        "osc_str": 0.028390539
+                    },
+                    {
+                        "wavelength": 131.2,
+                        "osc_str": 0.005737983
+                    },
+                    {
+                        "wavelength": 129.5,
+                        "osc_str": 0.054544837
+                    },
+                    {
+                        "wavelength": 128.7,
+                        "osc_str": 0.031291582
+                    },
+                    {
+                        "wavelength": 125.9,
+                        "osc_str": 0.011592949
+                    },
+                    {
+                        "wavelength": 124.5,
+                        "osc_str": 0.085254811
+                    },
+                    {
+                        "wavelength": 123.5,
+                        "osc_str": 0.031570152
+                    },
+                    {
+                        "wavelength": 122.9,
+                        "osc_str": 0.031973424
+                    },
+                    {
+                        "wavelength": 122.2,
+                        "osc_str": 0.000599857
+                    },
+                    {
+                        "wavelength": 120.5,
+                        "osc_str": 0.047930829
+                    },
+                    {
+                        "wavelength": 119.6,
+                        "osc_str": 0.017838953
+                    },
+                    {
+                        "wavelength": 118.8,
+                        "osc_str": 0.031009068
+                    },
+                    {
+                        "wavelength": 117.6,
+                        "osc_str": 0.033596776
+                    },
+                    {
+                        "wavelength": 115.8,
+                        "osc_str": 0.067644704
+                    },
+                    {
+                        "wavelength": 115.3,
+                        "osc_str": 0.137497832
+                    },
+                    {
+                        "wavelength": 113.6,
+                        "osc_str": 0.052569415
+                    }
+                ]
+            }
+        },
+        "CONF40": {
+            "energy": -344.824149017485,
+            "gsolv": 0.0,
+            "grrho": 0.081734131592,
+            "gtot": -344.742414885893,
+            "bmw": 0.0024619565610204,
+            "uvvis": {
+                "energy": -344.760189129722,
+                "excitations": [
+                    {
+                        "wavelength": 159.5,
+                        "osc_str": 0.005630531
+                    },
+                    {
+                        "wavelength": 157.9,
+                        "osc_str": 0.003544719
+                    },
+                    {
+                        "wavelength": 152.3,
+                        "osc_str": 0.00328495
+                    },
+                    {
+                        "wavelength": 138.6,
+                        "osc_str": 0.016217158
+                    },
+                    {
+                        "wavelength": 138.0,
+                        "osc_str": 0.015711911
+                    },
+                    {
+                        "wavelength": 133.8,
+                        "osc_str": 0.021807063
+                    },
+                    {
+                        "wavelength": 130.3,
+                        "osc_str": 0.002851039
+                    },
+                    {
+                        "wavelength": 128.2,
+                        "osc_str": 0.110192828
+                    },
+                    {
+                        "wavelength": 126.6,
+                        "osc_str": 0.002775934
+                    },
+                    {
+                        "wavelength": 125.3,
+                        "osc_str": 0.122009959
+                    },
+                    {
+                        "wavelength": 124.3,
+                        "osc_str": 0.063975291
+                    },
+                    {
+                        "wavelength": 123.1,
+                        "osc_str": 0.068637329
+                    },
+                    {
+                        "wavelength": 122.5,
+                        "osc_str": 0.026298671
+                    },
+                    {
+                        "wavelength": 122.3,
+                        "osc_str": 0.096787314
+                    },
+                    {
+                        "wavelength": 120.0,
+                        "osc_str": 0.046863443
+                    },
+                    {
+                        "wavelength": 118.9,
+                        "osc_str": 0.047871651
+                    },
+                    {
+                        "wavelength": 118.1,
+                        "osc_str": 0.095330365
+                    },
+                    {
+                        "wavelength": 117.0,
+                        "osc_str": 0.106503743
+                    },
+                    {
+                        "wavelength": 115.0,
+                        "osc_str": 0.071955634
+                    },
+                    {
+                        "wavelength": 112.9,
+                        "osc_str": 0.033885842
+                    }
+                ]
+            }
+        },
+        "CONF16": {
+            "energy": -344.824301185112,
+            "gsolv": 0.0,
+            "grrho": 0.08195537024,
+            "gtot": -344.742345814872,
+            "bmw": 0.0022882839551421627,
+            "uvvis": {
+                "energy": -344.763390484311,
+                "excitations": [
+                    {
+                        "wavelength": 161.1,
+                        "osc_str": 0.013179688
+                    },
+                    {
+                        "wavelength": 158.5,
+                        "osc_str": 0.000489366
+                    },
+                    {
+                        "wavelength": 151.6,
+                        "osc_str": 0.002874491
+                    },
+                    {
+                        "wavelength": 140.3,
+                        "osc_str": 0.028793658
+                    },
+                    {
+                        "wavelength": 136.6,
+                        "osc_str": 0.028973706
+                    },
+                    {
+                        "wavelength": 134.9,
+                        "osc_str": 0.018077938
+                    },
+                    {
+                        "wavelength": 132.7,
+                        "osc_str": 0.049586854
+                    },
+                    {
+                        "wavelength": 129.1,
+                        "osc_str": 0.021031098
+                    },
+                    {
+                        "wavelength": 127.5,
+                        "osc_str": 0.010342852
+                    },
+                    {
+                        "wavelength": 125.8,
+                        "osc_str": 0.049935084
+                    },
+                    {
+                        "wavelength": 124.5,
+                        "osc_str": 0.017781034
+                    },
+                    {
+                        "wavelength": 123.4,
+                        "osc_str": 0.025740363
+                    },
+                    {
+                        "wavelength": 122.3,
+                        "osc_str": 0.14743431
+                    },
+                    {
+                        "wavelength": 121.3,
+                        "osc_str": 0.115476943
+                    },
+                    {
+                        "wavelength": 120.7,
+                        "osc_str": 0.066330133
+                    },
+                    {
+                        "wavelength": 118.1,
+                        "osc_str": 0.077532977
+                    },
+                    {
+                        "wavelength": 117.0,
+                        "osc_str": 0.097506365
+                    },
+                    {
+                        "wavelength": 115.8,
+                        "osc_str": 0.062210235
+                    },
+                    {
+                        "wavelength": 114.6,
+                        "osc_str": 0.003936256
+                    },
+                    {
+                        "wavelength": 113.4,
+                        "osc_str": 0.090195979
+                    }
+                ]
+            }
+        },
+        "CONF2": {
+            "energy": -344.824570463371,
+            "gsolv": 0.0,
+            "grrho": 0.082533517264,
+            "gtot": -344.742036946107,
+            "bmw": 0.0016498335000044758,
+            "uvvis": {
+                "energy": -344.77103970509,
+                "excitations": [
+                    {
+                        "wavelength": 165.4,
+                        "osc_str": 0.013040912
+                    },
+                    {
+                        "wavelength": 156.4,
+                        "osc_str": 0.005266771
+                    },
+                    {
+                        "wavelength": 152.2,
+                        "osc_str": 0.007356328
+                    },
+                    {
+                        "wavelength": 139.2,
+                        "osc_str": 0.048233532
+                    },
+                    {
+                        "wavelength": 137.3,
+                        "osc_str": 0.007961096
+                    },
+                    {
+                        "wavelength": 134.7,
+                        "osc_str": 0.018492823
+                    },
+                    {
+                        "wavelength": 133.3,
+                        "osc_str": 0.01224044
+                    },
+                    {
+                        "wavelength": 130.5,
+                        "osc_str": 0.061614112
+                    },
+                    {
+                        "wavelength": 129.4,
+                        "osc_str": 0.008907881
+                    },
+                    {
+                        "wavelength": 127.2,
+                        "osc_str": 0.016384388
+                    },
+                    {
+                        "wavelength": 125.9,
+                        "osc_str": 0.069048667
+                    },
+                    {
+                        "wavelength": 123.8,
+                        "osc_str": 0.191877101
+                    },
+                    {
+                        "wavelength": 121.2,
+                        "osc_str": 0.023509324
+                    },
+                    {
+                        "wavelength": 119.7,
+                        "osc_str": 0.082103895
+                    },
+                    {
+                        "wavelength": 118.8,
+                        "osc_str": 0.031448792
+                    },
+                    {
+                        "wavelength": 117.4,
+                        "osc_str": 0.109048726
+                    },
+                    {
+                        "wavelength": 115.6,
+                        "osc_str": 0.034652706
+                    },
+                    {
+                        "wavelength": 114.7,
+                        "osc_str": 0.015329278
+                    },
+                    {
+                        "wavelength": 114.4,
+                        "osc_str": 0.01445727
+                    },
+                    {
+                        "wavelength": 114.2,
+                        "osc_str": 0.051566768
+                    }
+                ]
+            }
+        }
+    },
+    "settings": {
+        "prog": "orca",
+        "func": "wb97x-d4",
+        "basis": "def2-tzvp",
+        "sm": "smd",
+        "gfnv": "gfn2",
+        "nroots": 20,
+        "run": true,
+        "template": false
+    }
+}

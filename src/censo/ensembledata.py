@@ -253,7 +253,7 @@ class EnsembleData:
         Returns:
             None
         """
-        filtered = filter(cond, self.conformers)
+        filtered = list(filter(cond, self.conformers))
         for conf in filtered:
             # pop item from conformers and insert this item at index 0 in rem
             self.rem.insert(0, self.conformers.pop(self.conformers.index(conf)))

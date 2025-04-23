@@ -1,11 +1,12 @@
-"""
-Configuration file for pytest.
-"""
-
 import pytest
 from pathlib import Path
 
 from censo.params import QmProg, GfnVersion, XtbSolvMod, TmSolvMod, OrcaSolvMod
+
+
+@pytest.fixture
+def fixtures_path():
+    return Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture

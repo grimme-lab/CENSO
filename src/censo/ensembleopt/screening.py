@@ -72,7 +72,7 @@ def screening(
             conf.gsolv = results[conf.name].gsolv
             conf.energy = results[conf.name].energy_gas
     else:
-        # Run single-point calculation with solvation
+        # Run single-point calculation with solvation or in gas phase
         job_config = SPJobConfig(
             copy_mo=config.general.copy_mo,
             func=config.screening.func,

@@ -1,0 +1,201 @@
+import pytest
+from unittest.mock import patch
+
+from censo.config.parts_config import PartsConfig
+from censo.ensembledata import EnsembleData
+from censo.ensembleopt.screening import screening, jsonify
+from censo.params import QmProg
+
+# ============= Tests for Core Screening Functionality =============
+
+
+class TestScreening:
+    """Tests for core screening functionality"""
+
+    @patch("censo.ensembleopt.screening.Factory")
+    @patch("censo.ensembleopt.screening.execute")
+    def test_screening_gas_phase(
+        self,
+        mock_execute,
+        mock_factory,
+        mock_ensemble: EnsembleData,
+        mock_execute_results,
+    ):
+        """Test screening function in gas phase"""
+        # Set up gas phase
+        config = PartsConfig()
+        config.general.gas_phase = True
+
+        # Mock execute results for sp only (gas phase)
+        mock_execute.side_effect = [
+            (mock_execute_results["screening"]["sp"], []),
+            (mock_execute_results["screening"]["xtb_rrho"], []),
+        ]
+
+        # Prepare ensemble (remove surplus confs)
+        mock_ensemble.remove_conformers(
+            lambda conf: conf.name not in mock_execute_results["screening"]["sp"]
+        )
+
+        # Run screening
+        screening(mock_ensemble, config, ncores=1, omp=1)
+
+        # Verify calls
+        assert mock_execute.call_count == 2  # sp and xtb_rrho
+        mock_factory[QmProg].create.assert_called_once()
+
+    @patch("censo.ensembleopt.screening.Factory")
+    @patch("censo.ensembleopt.screening.execute")
+    def test_screening_gas_phase_norrho(
+        self,
+        mock_execute,
+        mock_factory,
+        mock_ensemble: EnsembleData,
+        mock_execute_results,
+    ):
+        """Test screening function in gas phase"""
+        # Set up gas phase
+        config = PartsConfig()
+        config.general.gas_phase = True
+        config.general.evaluate_rrho = False
+
+        # Mock execute results for sp only (gas phase)
+        mock_execute.side_effect = [
+            (mock_execute_results["screening"]["sp"], []),
+        ]
+
+        # Prepare ensemble (remove surplus confs)
+        mock_ensemble.remove_conformers(
+            lambda conf: conf.name not in mock_execute_results["screening"]["sp"]
+        )
+
+        # Run screening
+        screening(mock_ensemble, config, ncores=1, omp=1)
+
+        # Verify calls
+        assert mock_execute.call_count == 1
+        mock_factory[QmProg].create.assert_called_once()
+
+    @patch("censo.ensembleopt.screening.Factory")
+    @patch("censo.ensembleopt.screening.execute")
+    def test_screening_solution(
+        self,
+        mock_execute,
+        mock_factory,
+        mock_ensemble: EnsembleData,
+        mock_execute_results,
+    ):
+        """Test screening function with solvation"""
+        # Mock execute results for gsolv (not included)
+        mock_execute.side_effect = [
+            (mock_execute_results["screening"]["gsolv"], []),
+            (mock_execute_results["screening"]["xtb_rrho"], []),
+        ]
+
+        config = PartsConfig()
+
+        # Prepare ensemble (remove surplus confs)
+        mock_ensemble.remove_conformers(
+            lambda conf: conf.name not in mock_execute_results["screening"]["gsolv"]
+        )
+
+        # Run screening
+        screening(mock_ensemble, config, ncores=1, omp=1)
+
+        # Verify calls
+        assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
+        mock_factory[QmProg].create.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "threshold,expected_count",
+        [
+            (1.0, 12),  # Small threshold should remove high energy conformer
+            (1000.0, 45),  # Large threshold should keep all conformers
+        ],
+    )
+    @patch("censo.ensembleopt.screening.Factory")
+    @patch("censo.ensembleopt.screening.execute")
+    def test_screening_threshold(
+        self,
+        mock_execute,
+        mock_factory,
+        mock_ensemble: EnsembleData,
+        mock_execute_results,
+        threshold: float,
+        expected_count: int,
+    ):
+        """Test energy threshold-based conformer removal"""
+        config = PartsConfig()
+        config.screening.threshold = threshold
+
+        # Mock execute results
+        mock_execute.side_effect = [
+            (mock_execute_results["screening"]["gsolv"], []),
+            (mock_execute_results["screening"]["xtb_rrho"], []),
+        ]
+
+        # Prepare ensemble (remove surplus confs)
+        mock_ensemble.remove_conformers(
+            lambda conf: conf.name not in mock_execute_results["screening"]["gsolv"]
+        )
+
+        # Run screening
+        screening(mock_ensemble, config, ncores=1, omp=1)
+
+        # Verify number of remaining conformers
+        assert len(mock_ensemble.conformers) == expected_count
+
+    # @patch("censo.ensembleopt.screening.Factory")
+    # @patch("censo.ensembleopt.screening.execute")
+    # def test_screening_empty_ensemble(self, mock_execute, mock_factory, mock_config):
+    #     """Test screening with empty ensemble"""
+    #     ensemble = MockEnsembleData([])
+    #     mock_execute.return_value = ({}, None)  # Return empty results
+    #
+    #     # Run screening
+    #     with pytest.raises(ValueError, match="empty"):
+    #         screening(ensemble, mock_config, ncores=1, omp=1)
+    #
+    # @patch("censo.ensembleopt.screening.Factory")
+    # @patch("censo.ensembleopt.screening.execute")
+    # def test_screening_single_conformer(
+    #     self, mock_execute, mock_factory, mock_config
+    # ):
+    #     """Test screening with single conformer"""
+    #     conf = MockMoleculeData(
+    #         name="CONF1", energy=-100.0, gsolv=-0.01, gtot=-100.01, bmw=1.0
+    #     )
+    #     ensemble = MockEnsembleData([conf])
+    #
+    #     # Mock execute results
+    #     mock_execute.side_effect = [
+    #         ({"CONF1": MockResult(gsolv=-0.01)}, None),
+    #         ({"CONF1": MockResult(energy=-100.0)}, None),
+    #     ]
+    #
+    #     # Run screening
+    #     screening(ensemble, mock_config, ncores=1, omp=1)
+    #
+    #     # Verify single conformer was processed
+    #     assert len(ensemble.conformers) == 1
+    #     assert mock_execute.call_count == 2
+
+
+# ============= Tests for Result Handling =============
+
+
+class TestResultHandling:
+    """Tests for result handling and output functions"""
+
+    def test_jsonify(self, mock_ensemble):
+        """Test JSON conversion function"""
+        config = PartsConfig()
+
+        # Run jsonify
+        result = jsonify(mock_ensemble, config.screening)
+
+        # Verify result
+        assert isinstance(result, dict)
+        assert "data" in result
+        assert "settings" in result
+        assert "CONF1" in result["data"]
