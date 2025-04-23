@@ -4,6 +4,7 @@ import sys
 from os import getcwd
 from argparse import ArgumentError
 from datetime import timedelta
+from typing import cast
 
 from .cml_parser import parse
 from ..configuration import configure, override_rc
@@ -27,20 +28,20 @@ def entry_point(argv: list[str] | None = None) -> int:
     except ArgumentError as e:
         print(e.message)
         return 1
-    except SystemExit:
-        return 0
+    except SystemExit as e:
+        return cast(int, e.code)
 
     if not any(vars(args).values()):
         print("CENSO needs at least one argument!")
         return 1
 
     # Print program call
-    # FIXME - what happens here? argv is always none, yet it is parsed above without problems?
     print("CALL: " + " ".join(arg for arg in sys.argv))
 
-    ensemble = startup(args)
-    if ensemble is None:
-        return 0
+    try:
+        ensemble = startup(args)
+    except SystemExit as e:
+        return cast(int, e.code)
 
     # Print general settings once
     CensoPart(ensemble, print_info=True)
@@ -69,25 +70,25 @@ def entry_point(argv: list[str] | None = None) -> int:
 
 
 # sets up a ensemble object for you using the given cml arguments and censorc
-def startup(args) -> EnsembleData | None:
+def startup(args) -> EnsembleData:
     # get most important infos for current run
     cwd = getcwd()
 
     # run actions for which no complete setup is needed
     if args.version:
         print(__version__)
-        return None
+        sys.exit()
     elif args.cleanup:
         cleanup_run(cwd)
         print("Removed files and going to exit!")
-        return None
+        sys.exit()
     elif args.cleanup_all:
         cleanup_run(cwd, complete=True)
         print("Removed files and going to exit!")
-        return None
+        sys.exit()
     elif args.writeconfig:
         configure(rcpath=cwd, create_new=True)
-        return None
+        sys.exit()
     elif args.inprcpath is not None:
         configure(args.inprcpath)
 

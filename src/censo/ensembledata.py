@@ -20,7 +20,7 @@ class EnsembleData:
     Class to store conformer rotamer ensembles for use in CENSO.
     """
 
-    def __init__(self, input_file: str = None):
+    def __init__(self, input_file: str | None = None):
         """
         Setup an EnsembleData object, which contains a list of conformers, read from
         input_file. If input_file is not passed here, conformers can be read using
