@@ -30,7 +30,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
         "--input",
         dest="inp",
         type=str,
-        help="Relative path to ensemble file, e.g. crest_conformers.xyz.",
+        help="Relative path to ensemble file, e.g. crest_conformers.xyz (default).",
         default="crest_conformers.xyz",
     )
     groups[0].add_argument(
