@@ -89,7 +89,7 @@ DESCR = f"""
         |{'v ' + __version__:^{62}}|
         |    energetic sorting of CREST Conformer Rotamer Ensembles    |
         |                    University of Bonn, MCTC                  |
-        |                           Oct 2024                           |
+        |                           Apr 2025                           |
         |                 based on ENSO version 2.0.1                  |
         |             L. M. Seidler, F. Bohle and S. Grimme            |
         |                                                              |

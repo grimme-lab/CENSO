@@ -801,8 +801,8 @@ class OrcaProc(QmProc):
                 os.remove(os.path.join(jobdir, file))
 
         # write conformer geometry to coord file
-        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
+        # with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
+        #     file.writelines(job.conf.tocoord())
 
         # write xyz-file for orca
         with open(os.path.join(jobdir, f"{filename}.xyz"), "w", newline=None) as file:
@@ -825,10 +825,9 @@ class OrcaProc(QmProc):
             f.writelines(inp)
 
         # append some additional lines to the coord file for ancopt
-        with open(
-            os.path.join(jobdir, f"{filename}.coord"), "a", newline=None
-        ) as newcoord:
-            newcoord.writelines(
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
+            file.writelines(job.conf.tocoord()[:-1])
+            file.writelines(
                 [
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",
