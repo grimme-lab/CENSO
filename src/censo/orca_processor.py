@@ -812,7 +812,7 @@ class OrcaProc(QmProc):
         inputpath = os.path.join(jobdir, f"{filename}.inp")
 
         # prepare input dict
-        inp = self.__prep(job, "xtb_opt")
+        inp = self.__prep(job, "xtb_opt", xyzfile=f"{filename}.xyz")
 
         # check for flags raised for this jobtype
         # NOTE: all other jobtypes call this function so flags are always checked here
