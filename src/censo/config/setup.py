@@ -1,9 +1,9 @@
 import os
 import shutil
-import toml
 from argparse import Namespace
 from typing import Any, cast
 from pathlib import Path
+from configparser import ConfigParser
 
 
 from .parts_config import PartsConfig
@@ -95,7 +95,10 @@ def read_rcfile(path: Path, silent: bool = True) -> dict[str, dict[str, Any]]:
     if not silent:
         print(f"Reading configuration file from {path}.")
 
-    return toml.loads(path.read_text())
+    parser = ConfigParser()
+    parser.read_string(path.read_text())
+
+    return {section: dict(parser[section]) for section in parser.sections()}
 
 
 def write_rcfile(path: Path) -> None:
@@ -129,15 +132,19 @@ def write_rcfile(path: Path) -> None:
         external_paths = find_program_paths()
 
     with open(path, "w", newline=None) as rcfile:
+        parser = ConfigParser()
+
         # collect all default settings from parts and feed them into the parser
         parts_config = PartsConfig()
-        data = parts_config.model_dump(mode="json") | {"paths": external_paths}
+        parser.read_dict(
+            parts_config.model_dump(mode="json") | {"paths": external_paths}
+        )
 
         if external_paths is not None:
-            data["paths"] = external_paths
+            parser["paths"] = external_paths
 
         print(f"Writing new configuration file to {path} ...")
-        toml.dump(data, rcfile)
+        parser.write(rcfile)
 
     print(
         f"\nA new configuration file was written into {path}.\n"
@@ -156,10 +163,11 @@ def read_program_paths(path: Path) -> dict[str, str] | None:
     """
     Read program paths from the configuration file at 'path'
     """
-    data = toml.loads(path.read_text())
+    parser = ConfigParser()
+    parser.read_string(path.read_text())
 
     try:
-        return dict(data["paths"])
+        return dict(parser["paths"])
     except KeyError:
         logger.warning(f"No paths found in {path}")
         return None
