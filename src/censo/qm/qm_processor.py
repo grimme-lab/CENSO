@@ -136,7 +136,7 @@ class QmProc:
                     + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores."
                 )
                 printf(f"Running {jobtype} calculation for {job.conf.name}.")
-                result, meta = f(self, job, job_config, jobdir, **kwargs)
+                result, meta = f(self, job, jobdir, job_config, **kwargs)
             return result, meta
 
         return wrapper
