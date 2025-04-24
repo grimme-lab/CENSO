@@ -12,7 +12,6 @@ homepage = "https://github.com/grimme-lab/CENSO"
 documentation = "https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html"
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "tox"]
 scripts = [
     "numpy",
     "matplotlib",
@@ -21,13 +20,16 @@ scripts = [
 
 [project.scripts]
 censo = "censo.cli.interface:entry_point"
+c2anmr = "bin.c2anmr:main"
+uvvisplot = "bin.uvvisplot:main"
+nmrplot = "bin.nmrplot:main"
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["censo*", "bin"]
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md"}
 
 [tool.setuptools_scm]
 version_file = "src/censo/__version__.py"
-
-[tool.pytest.ini_options]
-testpaths = ["test"]
-pythonpath = ["src"]

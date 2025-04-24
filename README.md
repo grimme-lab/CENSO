@@ -6,6 +6,11 @@ It can be used from the command line as well as using custom wrapper scripts.
 ## NEW: CENSO 2.0
 This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
 
+## CENSO 2.1.3 
+In the most recent version of CENSO 2.1, the code was cleaned up and many bug fixes were implemented. When it comes to functionality, the multitemp mode and constraints for the geometry optimization were removed, since they did not work (reliably). Also, a new system for solvent lookup was implemented, which is also going to be used for CENSO 2.2, and completes all solvent name mappings. This way, all solvents should be callable using a multitude of different aliases (if they are available for the respective solvation model). Also, printouts at the end of the UV/Vis and NMR calculations were added.
+
+For usage via the CLI, it is now no longer necessary to provide `--maxcores` or `-i`, since default values are now defined for both cases. It is now also possible to change the minimum number of threads when calling external programs using `--omp-min`. The same can be achieved by modifying `Config.OMPMIN` in Python.
+
 # Installation
 Can be installed using `pip` by running
 
@@ -14,16 +19,19 @@ Can be installed using `pip` by running
 If you want to install and run `CENSO` without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
 
 # Usage
-Basic usage: 
-
-    python3 -m censo -i [path to ensemble input] ...
+After installing CENSO via `pip`, it can be called using either
+```
+python -m censo
+```
+or 
+```
+censo
+```
+as now the CLI is implemented as entry point. As of version 2.1.3, it is also no longer necessary to call CENSO using `--maxcores` or `-i`, since both have default values now.
 
 For information about command line options use the `-h` option.
 
-If you want to run it via helper script after adding it to your `$PATH`:
-
-    censo -i [path to ensemble input]
-
+If you chose not to install it using `pip` and you added the `bin` directory to your `$PATH`, you can also just invoke `censo`.
 
 CENSO can also be used as a package. A basic setup for a CENSO run in a Python file could look like this:
 ```python
