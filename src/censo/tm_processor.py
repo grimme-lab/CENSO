@@ -24,11 +24,11 @@ class TmProc(QmProc):
     _progname = "tm"
 
     __gridsettings = {
-        "low": ["   gridsize m3", "$scfconv 6"],
-        "low+": ["  gridsize m4", "$scfconv 6"],
-        "high": ["  gridsize m4", "$scfconv 7"],
-        "high+": [" gridsize m5", "$scfconv 7"],
-        "nmr": ["   gridsize 5", "$scfconv 7"],
+        "low": ["    gridsize m3", "$scfconv 6"],
+        "low+": ["    gridsize m4", "$scfconv 6"],
+        "high": ["    gridsize m4", "$scfconv 7"],
+        "high+": ["    gridsize m5", "$scfconv 7"],
+        "nmr": ["    gridsize 5", "$scfconv 7"],
     }
 
     __returncode_to_err = {}
@@ -88,6 +88,7 @@ class TmProc(QmProc):
         "tzvpp": "TZVPP",
         "def-tzvpp": "def-TZVPP",
         "def2-tzvpp": "def2-TZVPP",
+        "def2-mtzvpp": "def2-mTZVPP",
         "dhf-tzvpp": "dhf-TZVPP",
         "dhf-tzvpp-2c": "dhf-TZVPP-2c",
         "tzvppp": "TZVPPP",
@@ -188,16 +189,13 @@ class TmProc(QmProc):
         func = job.prepinfo[jobtype]["func_name"]
         func_type = job.prepinfo[jobtype]["func_type"]
 
-        if "composite" not in func_type:
-            try:
-                basis = self.__basis_mapping[job.prepinfo[jobtype]["basis"]]
-            except KeyError as exc:
-                raise KeyError(
-                    f"Basis {job.prepinfo[jobtype]['basis']} could not be found for TURBOMOLE input preparation. "
-                    f"Available basis sets: {list(self.__basis_mapping.values())}"
-                ) from exc
-        else:
-            basis = ""
+        try:
+            basis = self.__basis_mapping[job.prepinfo[jobtype]["basis"]]
+        except KeyError as exc:
+            raise KeyError(
+                f"Basis {job.prepinfo[jobtype]['basis']} could not be found for TURBOMOLE input preparation. "
+                f"Available basis sets: {list(self.__basis_mapping.values())}"
+            ) from exc
 
         inp.extend(["$atoms", f"    basis={basis}"])
         inp.extend(["$dft", f"    functional {func}"])
