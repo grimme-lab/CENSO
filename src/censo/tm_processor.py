@@ -700,23 +700,23 @@ class TmProc(QmProc):
 
             lines.append("f = out.cosmo\n")
 
-            if job.prepinfo["general"]["multitemp"]:
-                trange = frange(
-                    job.prepinfo["general"]["trange"][0],
-                    job.prepinfo["general"]["trange"][1],
-                    step=job.prepinfo["general"]["trange"][2],
-                )
-
-                # Always append the fixed temperature to the trange so that it is the last value
-                trange.append(job.prepinfo["general"]["temperature"])
-
-                # Write trange to the xcontrol file
-                for t in trange:
-                    lines.append(f"henry xh={{{mix}}} tc={t - 273.15} Gsolv\n")
-            else:
-                lines.append(
-                    f"henry xh={{{mix}}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
-                )
+            # if job.prepinfo["general"]["multitemp"]:
+            #     trange = frange(
+            #         job.prepinfo["general"]["trange"][0],
+            #         job.prepinfo["general"]["trange"][1],
+            #         step=job.prepinfo["general"]["trange"][2],
+            #     )
+            #
+            #     # Always append the fixed temperature to the trange so that it is the last value
+            #     trange.append(job.prepinfo["general"]["temperature"])
+            #
+            #     # Write trange to the xcontrol file
+            #     for t in trange:
+            #         lines.append(f"henry xh={{{mix}}} tc={t - 273.15} Gsolv\n")
+            # else:
+            lines.append(
+                f"henry xh={{{mix}}} tc={job.prepinfo['general']['temperature'] - 273.15} Gsolv\n"
+            )
 
             with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
                 f.writelines(lines)
