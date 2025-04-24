@@ -8,7 +8,7 @@ import argparse
 import os
 
 
-def parse(argv: list[str]) -> argparse.Namespace:
+def parse(argv: list[str] | None) -> argparse.Namespace:
     """
     Process commandline arguments
 

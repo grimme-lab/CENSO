@@ -3,27 +3,26 @@ import os
 import shutil
 import sys
 from os import getcwd
-from argparse import ArgumentError, Namespace
+from argparse import ArgumentError
 from datetime import timedelta
 from typing import cast
 from pathlib import Path
 from tabulate import tabulate
 
 from ..config import PartsConfig
-from ..config.parts_config import GeneralConfig
 from ..config.setup import configure, write_rcfile
 from .cml_parser import parse
 from ..ensembledata import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
-from ..params import __version__, NCORES, OMPMIN
+from ..params import __version__
 from ..utilities import printf, h1, PLENGTH
 from ..logging import setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
 
 
-def entry_point(argv: list[str] = sys.argv) -> int:
+def entry_point(argv: list[str] | None = None) -> int:
     """
     Console entry point to execute CENSO from the command line.
     """
@@ -40,7 +39,7 @@ def entry_point(argv: list[str] = sys.argv) -> int:
         return 1
 
     # Print program call
-    printf("CALL: " + " ".join(arg for arg in argv))
+    printf("CALL: " + " ".join(arg for arg in sys.argv))
 
     try:
         ensemble, parts_config = startup(args)

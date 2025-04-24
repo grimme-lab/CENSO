@@ -32,11 +32,11 @@ class TmProc(QmProc):
     """
 
     __gridsettings = {
-        "low": ["   gridsize m3", "$scfconv 6"],
-        "low+": ["  gridsize m4", "$scfconv 6"],
-        "high": ["  gridsize m4", "$scfconv 7"],
-        "high+": [" gridsize m5", "$scfconv 7"],
-        "nmr": ["   gridsize 5", "$scfconv 7"],
+        "low": ["    gridsize m3", "$scfconv 6"],
+        "low+": ["    gridsize m4", "$scfconv 6"],
+        "high": ["    gridsize m4", "$scfconv 7"],
+        "high+": ["    gridsize m5", "$scfconv 7"],
+        "nmr": ["    gridsize 5", "$scfconv 7"],
     }
 
     __returncode_to_err = {}
@@ -96,6 +96,7 @@ class TmProc(QmProc):
         "tzvpp": "TZVPP",
         "def-tzvpp": "def-TZVPP",
         "def2-tzvpp": "def2-TZVPP",
+        "def2-mtzvpp": "def2-mTZVPP",
         "dhf-tzvpp": "dhf-TZVPP",
         "dhf-tzvpp-2c": "dhf-TZVPP-2c",
         "tzvppp": "TZVPPP",
@@ -182,16 +183,13 @@ class TmProc(QmProc):
         func_name = FUNCTIONALS[func]["tm"]
         func_type = FUNCTIONALS[func]["type"]
 
-        if "composite" not in func_type:
-            try:
-                basis = self.__basis_mapping[config.basis]
-            except KeyError as exc:
-                raise KeyError(
-                    f"Basis {config.basis} could not be found for TURBOMOLE input preparation. "
-                    f"Available basis sets: {list(self.__basis_mapping.values())}"
-                ) from exc
-        else:
-            basis = ""
+        try:
+            basis = self.__basis_mapping[config.basis]
+        except KeyError as exc:
+            raise KeyError(
+                f"Basis {config.basis} could not be found for TURBOMOLE input preparation. "
+                f"Available basis sets: {list(self.__basis_mapping.values())}"
+            ) from exc
 
         inp.extend(["$atoms", f"    basis={basis}"])
 
@@ -202,7 +200,8 @@ class TmProc(QmProc):
 
         # r2scan-3c should use m4 grid and radsize 10
         if func == "r2scan-3c":
-            inp[inp.index("m3")] = "m4"
+            if "m3" in inp:
+                inp[inp.index("m3")] = "m4"
             inp.insert(inp.index("$dft") + 2, "    radsize 10")
 
         # Add dispersion
@@ -212,12 +211,14 @@ class TmProc(QmProc):
             "d3bj": "$disp3 -bj",
             "d3(0)": "$disp3 -zero",
             "d4": "$disp4",
-            "nl": "$doscnl",
+            "nl": "$donl",
         }
 
         disp = FUNCTIONALS[func]["disp"]
-        if disp not in ["composite", "novdw"]:
+        if disp not in ["composite", "novdw", "included"]:
             inp.append(mapping[disp])
+        elif func.endswith("-v"):
+            inp.append("$doscnl")
 
         inp.append("$rij")
 
