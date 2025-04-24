@@ -130,7 +130,7 @@ class QmProc:
             with resources.occupy_cores(job.omp):
                 jobtype = f.__name__
                 jobdir = Path(self.workdir) / job.conf.name / jobtype
-                jobdir.mkdir(exist_ok=True)
+                jobdir.mkdir(exist_ok=True, parents=True)
                 logger.info(
                     f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
                     + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores."
