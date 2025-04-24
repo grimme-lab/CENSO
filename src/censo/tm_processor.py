@@ -218,8 +218,10 @@ class TmProc(QmProc):
         }
 
         disp = job.prepinfo[jobtype]["disp"]
-        if disp not in ["composite", "novdw"]:
+        if disp not in ["composite", "novdw", "included"]:
             inp.append(mapping[disp])
+        elif func.endswith("-v"):
+            inp.append("$doscnl")
 
         inp.append("$rij")
 
