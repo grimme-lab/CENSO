@@ -205,7 +205,8 @@ class TmProc(QmProc):
 
         # r2scan-3c should use m4 grid and radsize 10
         if func == "r2scan-3c":
-            inp[inp.index("m3")] = "m4"
+            if "m3" in inp:
+                inp[inp.index("m3")] = "m4"
             inp.insert(inp.index("$dft") + 2, "    radsize 10")
 
         # Add dispersion
