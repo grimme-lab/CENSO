@@ -15,7 +15,7 @@ from .cml_parser import parse
 from ..ensembledata import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
-from ..params import __version__
+from ..params import DESCR, __version__
 from ..utilities import printf, h1, PLENGTH
 from ..logging import setup_logger, set_loglevel
 
@@ -37,6 +37,9 @@ def entry_point(argv: list[str] | None = None) -> int:
     if not any(vars(args).values()):
         printf("CENSO needs at least one argument!")
         return 1
+
+    # Startup description
+    print(DESCR + "\n")
 
     # Print program call
     printf("CALL: " + " ".join(arg for arg in sys.argv))
@@ -95,7 +98,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     if time.days:
         hours += time.days * 24
 
-    printf(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d}")
+    printf(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d} (HH:MM:SS")
 
     printf("\nCENSO all done!")
     return 0
@@ -227,14 +230,14 @@ def print_comparison(comparison: dict[str, dict[str, float]]):
 
     units.extend(["[kcal/mol]" for _ in headers[1:]])
 
-    printmap = {"CONF#": lambda column: [confname for confname in column]}
+    confs = [conf for conf in list(comparison.values())[-1]]
 
-    for header in headers[1:]:
-        printmap[header] = lambda column: [value for value in column.values()]
+    printmap = {"CONF#": lambda confname: confname}
 
-    rows = [
-        printmap[header](column) for header, column in zip(headers, comparison.values())
-    ]
+    for header in headers:
+        printmap[header] = lambda confname: comparison[header][confname]
+
+    rows = [[printmap[header](confname) for header in headers] for confname in confs]
 
     for i in range(len(headers)):
         headers[i] += "\n" + units[i]
