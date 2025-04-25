@@ -25,8 +25,9 @@ class BasePartConfig(GenericConfig):
     @classmethod
     def convert_to_lower(cls, data: Any):
         """Make string settings case insensitive."""
-        for name, value in data:
-            if isinstance(value, str) and cls.model_fields[name].annotation is str:
-                data[name] = value.lower()
+        if isinstance(data, dict):
+            for name, value in data.items():
+                if isinstance(value, str) and cls.model_fields[name].annotation is str:
+                    data[name] = value.lower()
 
         return data
