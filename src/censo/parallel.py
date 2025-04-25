@@ -322,7 +322,8 @@ def execute[T: QmResult](
                 )
             else:
                 results[meta.conf_name] = result
-                conf.mo_paths[prog].append(result.mo_path)
+                if prog in QmProg:
+                    conf.mo_paths[prog].append(result.mo_path)
 
     if len(failed_confs) == len(conformers):
         raise RuntimeError(
