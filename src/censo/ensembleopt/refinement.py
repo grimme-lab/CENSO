@@ -45,6 +45,8 @@ def refinement(
             gas_phase=False,
             solvent=config.general.solvent,
             sm=config.refinement.sm,
+            multitemp=config.general.multitemp,
+            trange=config.general.trange,
         )
         results, _ = execute(
             ensemble.conformers,

@@ -56,6 +56,8 @@ def screening(
             gas_phase=False,
             solvent=config.general.solvent,
             sm=config.screening.sm,
+            multitemp=config.general.multitemp,
+            trange=config.general.trange,
         )
         results, _ = execute(
             ensemble.conformers,
