@@ -30,4 +30,4 @@ def test_base_part_config_str():
     for line in lines[1:]:  # Skip header
         if ":" in line:
             name = line.split(":")[0]
-            assert len(name) >= PLENGTH // 2
+            assert len(name) < PLENGTH // 2
