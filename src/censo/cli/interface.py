@@ -235,7 +235,9 @@ def print_comparison(comparison: dict[str, dict[str, float]]):
     printmap = {"CONF#": lambda confname: confname}
 
     for header in headers:
-        printmap[header] = lambda confname: comparison[header][confname]
+        printmap[header] = lambda confname: comparison[header.split()[1].lower()][
+            confname
+        ]
 
     rows = [[printmap[header](confname) for header in headers] for confname in confs]
 
