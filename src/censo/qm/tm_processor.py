@@ -645,12 +645,12 @@ class TmProc(QmProc):
                     else self.paths["cosmorssetup"].replace("TZVP", "TZVPD_FINE")
                 )
             lines = [
-                f"ctd = {setup} cdir = {os.path.join(self.paths['cosmothermpath'], 'CTDATA-FILES')}\n"
+                f"ctd = {setup} cdir = {os.path.join(self.paths['cosmotherm'], 'CTDATA-FILES')}\n"
                 "EFILE VPFILE\n",
                 "!!\n",
             ]
             db = os.path.join(
-                self.paths["cosmothermpath"],
+                self.paths["cosmotherm"],
                 "DATABASE-COSMO",
                 (
                     "BP-TZVP-COSMO"
@@ -988,7 +988,7 @@ class TmProc(QmProc):
             # Set in/out path
             outputpath = os.path.join(jobdir, "mpshift.out")
 
-            call = [self.paths["mpshiftpath"], "-smpcpus", f"{job.omp}"]
+            call = [self.paths["mpshift"], "-smpcpus", f"{job.omp}"]
 
             # Run mpshift for shielding calculation
             returncode, errors = self._make_call(call, outputpath, jobdir)
@@ -1028,7 +1028,7 @@ class TmProc(QmProc):
             # Set in/out path
             outputpath = os.path.join(jobdir, "escf.out")
 
-            call = [self.paths["escfpath"], "-smpcpus", f"{job.omp}"]
+            call = [self.paths["escf"], "-smpcpus", f"{job.omp}"]
 
             # Run escf for couplings calculation
             returncode, errors = self._make_call(call, outputpath, jobdir)

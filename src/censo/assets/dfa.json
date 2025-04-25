@@ -46,7 +46,7 @@
   "pbe-d3(0)": { "tm": "pbe", "orca": "pbe", "disp": "d3(0)", "type": "gga" },
   "pbe-d4": { "tm": "pbe", "orca": "pbe", "disp": "d4", "type": "gga" },
   "pbe-nl": { "tm": "pbe", "disp": "nl", "type": "gga" },
-  "bp86": { "tm": "bp", "disp": "novdw", "type": "gga" },
+  "bp86": { "tm": "b-p", "disp": "novdw", "type": "gga" },
   "tpss-novdw": {
     "tm": "tpss",
     "orca": "tpss",
