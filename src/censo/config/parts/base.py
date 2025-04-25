@@ -21,11 +21,11 @@ class BasePartConfig(GenericConfig):
 
         return str("\n".join(lines))
 
-    # @model_validator(mode="before")
-    # def convert_to_lower(self):
-    #     """Make string settings case insensitive."""
-    #     for name, value in self:
-    #         if isinstance(value, str):
-    #             setattr(self, name, value.lower())
-    #
-    #     return self
+    @model_validator(mode="before")
+    def convert_to_lower(self):
+        """Make string settings case insensitive."""
+        for name, value in self:
+            if isinstance(value, str) and self.model_fields[name].annotation is str:
+                setattr(self, name, value.lower())
+
+        return self
