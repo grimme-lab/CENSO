@@ -106,12 +106,11 @@ class OrcaProc(QmProc):
             # if the template is messed up, orca will fail and the user should deal with that
             # load template file
             try:
-                with open(
-                    os.path.join(
-                        USER_ASSETS_PATH, f"{job.from_part}.orca.template", "r"
-                    )
-                ) as f:
-                    inp = f.readlines()
+                inp = (
+                    (USER_ASSETS_PATH / f"{job.from_part}.orca.template")
+                    .read_text()
+                    .split("\n")
+                )
             except FileNotFoundError:
                 raise FileNotFoundError(
                     f"Could not find template file {job.from_part}.orca.template."
