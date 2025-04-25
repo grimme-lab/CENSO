@@ -472,11 +472,12 @@ class QmProc:
                 # Always append the fixed temperature to the trange so that it is the last value
                 # (important since --enso will make xtb give the G(T) value for this temperature)
                 assert config.temperature
-                if config.temperature not in trange:
-                    trange.append(config.temperature)
+                trange.append(config.temperature)
 
                 # Write trange to the xcontrol file
                 xcout.write(f"    temp=" + ",".join([str(i) for i in trange]) + "\n")
+                if config.temperature in trange[:-1]:
+                    trange = trange[:-1]
             else:
                 xcout.write(f"    temp={config.temperature}\n")
 
