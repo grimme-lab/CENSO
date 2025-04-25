@@ -211,6 +211,7 @@ def prepare_jobs(
     prog: str,
     omp: int,
     ncores: int,
+    from_part: str,
     balance: bool = True,
     copy_mo: bool = True,
 ) -> list[ParallelJob]:
@@ -243,6 +244,7 @@ def prepare_jobs(
                     ),
                     None,
                 )
+            job.from_part = from_part
 
     # Check if the the execution uses TM, because here OMP cannot be assigned on a job-variable basis
     if balance and prog != "tm":
@@ -261,6 +263,7 @@ def execute[T: QmResult](
     prog: QmProg | Literal["xtb"],
     ncores: int,
     omp: int,
+    from_part: str,
     balance: bool = True,
     copy_mo: bool = True,
 ) -> tuple[dict[str, T], list[MoleculeData]]:
@@ -288,7 +291,7 @@ def execute[T: QmResult](
     with setup_managers(ncores // OMPMIN, ncores) as (executor, _, resources):
         # Prepare jobs for parallel execution by assigning number of cores per job etc.
         jobs: list[ParallelJob] = prepare_jobs(
-            conformers, prog, ncores, omp, balance=balance, copy_mo=copy_mo
+            conformers, prog, ncores, omp, from_part, balance=balance, copy_mo=copy_mo
         )
 
         # Execute the jobs

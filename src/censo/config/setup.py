@@ -14,8 +14,6 @@ from ..qm import QmProc
 
 logger = setup_logger(__name__)
 
-parts = {}
-
 
 def configure(rcpath: str | None = None, args: Namespace | None = None) -> PartsConfig:
     """

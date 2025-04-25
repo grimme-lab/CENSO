@@ -55,8 +55,6 @@ class QmProc:
         "orca": "",
         "orcaversion": "",
         "xtb": "",
-        "crest": "",
-        "cefine": "",
         "cosmorssetup": "",
         "cosmotherm": "",
         "dbpath": "",

@@ -53,6 +53,7 @@ def refinement(
             config.refinement.prog,
             ncores,
             omp,
+            "refinement",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -79,6 +80,7 @@ def refinement(
             config.refinement.prog,
             ncores,
             omp,
+            "refinement",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -99,6 +101,7 @@ def refinement(
             "xtb",
             ncores,
             omp,
+            "refinement",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )

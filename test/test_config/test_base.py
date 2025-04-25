@@ -17,7 +17,7 @@ def test_base_part_config_str():
     result = str(config)
 
     # Check header formatting
-    assert "TestBaseConfig" in result
+    assert "TestBase" in result
 
     # Check value formatting
     assert "test_value" in result

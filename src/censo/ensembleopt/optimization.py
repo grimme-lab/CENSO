@@ -68,6 +68,7 @@ def optimization(
             "xtb",
             ncores,
             omp,
+            "optimization",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -135,6 +136,7 @@ def _macrocycle_opt(
             config.optimization.prog,
             ncores,
             omp,
+            "optimization",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -163,6 +165,7 @@ def _macrocycle_opt(
                 "xtb",
                 ncores,
                 omp,
+                "optimization",
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
             )
@@ -251,6 +254,7 @@ def _full_opt(
         config.optimization.prog,
         ncores,
         omp,
+        "optimization",
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )

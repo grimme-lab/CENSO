@@ -12,7 +12,9 @@ class BasePartConfig(GenericConfig):
     def __str__(self):
         lines: list[str] = []
         lines.append(h2(f"{self.__class__.__name__.split("Config")[0]}"))
-        for name, value in self:
+        kv = [(k, v) for k, v in self]
+        kv.sort(key=lambda x: type(x[1]).__name__)
+        for name, value in kv:
             lines.append(f"{name:>{PLENGTH // 2}} : {value}")
 
         return str("\n".join(lines))

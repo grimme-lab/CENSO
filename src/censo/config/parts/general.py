@@ -1,3 +1,5 @@
+import ast
+from typing import Any
 from pydantic import field_validator, Field, model_validator
 
 
@@ -37,6 +39,17 @@ class GeneralConfig(BasePartConfig):
         if not v[2] > 0:
             raise ValueError(f"Step size for trange must be positive.")
 
+        return v
+
+    @field_validator("trange", mode="before")
+    @classmethod
+    def trange_cast(cls, v: Any):
+        if isinstance(v, str):
+            parsed = ast.literal_eval(v)
+            try:
+                return tuple(parsed)
+            except TypeError:
+                return parsed
         return v
 
     @model_validator(mode="after")

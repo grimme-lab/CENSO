@@ -51,6 +51,7 @@ def prescreening(
             config.prescreening.prog,
             ncores,
             omp,
+            "prescreening",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -74,6 +75,7 @@ def prescreening(
         config.prescreening.prog,
         ncores,
         omp,
+        "prescreening",
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )

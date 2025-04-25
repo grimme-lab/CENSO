@@ -64,6 +64,7 @@ def screening(
             config.screening.prog,
             ncores,
             omp,
+            "screening",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -90,6 +91,7 @@ def screening(
             config.screening.prog,
             ncores,
             omp,
+            "screening",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -110,6 +112,7 @@ def screening(
             "xtb",
             ncores,
             omp,
+            "screening",
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )

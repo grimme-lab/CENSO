@@ -341,7 +341,9 @@ class TestJobPreparation:
     def test_prepare_jobs(self, prog, copy_mo, expected_mo_guess, mock_molecule_data):
         """Test prepare_jobs function creates jobs with correct parameters"""
         conformers = [mock_molecule_data]
-        jobs = prepare_jobs(conformers, prog, 2, 4, balance=True, copy_mo=copy_mo)
+        jobs = prepare_jobs(
+            conformers, prog, 2, 4, "test", balance=True, copy_mo=copy_mo
+        )
 
         assert len(jobs) == 1
         assert isinstance(jobs[0], ParallelJob)
@@ -370,6 +372,7 @@ class TestJobExecution:
             prog=QmProg.ORCA,
             ncores=4,
             omp=2,
+            from_part="test",
         )
 
         # Verify results
@@ -397,6 +400,7 @@ class TestJobExecution:
                 prog=QmProg.ORCA,
                 ncores=4,
                 omp=2,
+                from_part="test",
             )
 
     def test_execute_partial_failure(self, mock_job_config, create_mock_conformers):
@@ -412,6 +416,7 @@ class TestJobExecution:
             prog=QmProg.ORCA,
             ncores=4,
             omp=2,
+            from_part="test",
         )
 
         # Verify results (even-numbered conformers succeed, odd ones fail)
@@ -435,6 +440,7 @@ class TestJobExecution:
             prog=QmProg.ORCA,
             ncores=4,  # Limit to 4 cores
             omp=2,  # 2 cores per job
+            from_part="test",
             balance=False,
             copy_mo=False,
         )
