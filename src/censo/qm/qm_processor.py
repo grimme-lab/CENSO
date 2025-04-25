@@ -472,7 +472,8 @@ class QmProc:
                 # Always append the fixed temperature to the trange so that it is the last value
                 # (important since --enso will make xtb give the G(T) value for this temperature)
                 assert config.temperature
-                trange.append(config.temperature)
+                if config.temperature not in trange:
+                    trange.append(config.temperature)
 
                 # Write trange to the xcontrol file
                 xcout.write(f"    temp=" + ",".join([str(i) for i in trange]) + "\n")
@@ -543,8 +544,6 @@ class QmProc:
 
         # TODO: if rmsd bias is used (should be defined in censo workdir (cwd))
         if config.rmsdbias:
-            # move one dir up to get to cwd
-            # TODO: make this nicer
             cwd = os.getcwd()
 
             call.extend(
@@ -586,14 +585,15 @@ class QmProc:
                         temp = float(line2.split()[0])
                         gt[temp] = float(line2.split()[4])
                         ht[temp] = float(line2.split()[2])
+                break
 
             # rotational entropy
             rotS: dict[float, float] = {}
 
             # Get rotational entropy
-            entropy_lines = (
+            entropy_lines = [
                 (line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line
-            )
+            ]
             for line in entropy_lines:
                 temp = float(line[0].split()[0])
                 rotS[temp] = float(line[1].split()[4])
