@@ -27,7 +27,11 @@ class BasePartConfig(GenericConfig):
         """Make string settings case insensitive."""
         if isinstance(data, dict):
             for name, value in data.items():
-                if isinstance(value, str) and cls.model_fields[name].annotation is str:
+                if (
+                    isinstance(value, str)
+                    and name in cls.model_fields
+                    and cls.model_fields[name].annotation is str
+                ):
                     data[name] = value.lower()
 
         return data
