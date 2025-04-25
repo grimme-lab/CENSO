@@ -58,6 +58,7 @@ def screening(
             sm=config.screening.sm,
             multitemp=config.general.multitemp,
             trange=config.general.trange,
+            temperature=config.general.temperature,
         )
         results, _ = execute(
             ensemble.conformers,

@@ -47,6 +47,7 @@ def refinement(
             sm=config.refinement.sm,
             multitemp=config.general.multitemp,
             trange=config.general.trange,
+            temperature=config.general.temperature,
         )
         results, _ = execute(
             ensemble.conformers,
