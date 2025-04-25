@@ -463,7 +463,7 @@ class TmProc(QmProc):
             self.__copy_mo(jobdir, job.mo_guess)
 
         if prep:
-            self.__prep(job, config, "sp", jobdir, no_solv=no_solv)
+            self.__prep(job, config, "sp", jobdir, no_solv=config.gas_phase or no_solv)
 
         # call turbomole
         call = ["ridft"]

@@ -469,7 +469,7 @@ class OrcaProc(QmProc):
 
         # prepare input
         if prep:
-            inp = self.__prep(job, config, "sp", no_solv=no_solv)
+            inp = self.__prep(job, config, "sp", no_solv=config.gas_phase or no_solv)
 
             # write input into file "{filename}.inp" in a subdir created for the
             # conformer

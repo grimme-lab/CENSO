@@ -305,9 +305,7 @@ class QmProc:
         ]
 
         # add solvent to xtb call if not a gas-phase sp
-        # NOTE: solvents_dict (or rather censo_solvents.json):
-        # [0] is the normal name of the solvent, if it is available, [1] is the replacement
-        if not no_solv:
+        if not no_solv and not config.gas_phase:
             assert config.solvent
             assert config.sm_rrho
             solvent_key = SOLVENTS[config.solvent][config.sm_rrho]
