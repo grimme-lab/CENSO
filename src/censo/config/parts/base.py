@@ -1,5 +1,7 @@
 from typing import override
 
+from pydantic import model_validator
+
 
 from ...params import PLENGTH, GenericConfig
 from ...utilities import h2
@@ -18,3 +20,12 @@ class BasePartConfig(GenericConfig):
             lines.append(f"{name:>{PLENGTH // 2}} : {value}")
 
         return str("\n".join(lines))
+
+    # @model_validator(mode="before")
+    # def convert_to_lower(self):
+    #     """Make string settings case insensitive."""
+    #     for name, value in self:
+    #         if isinstance(value, str):
+    #             setattr(self, name, value.lower())
+    #
+    #     return self

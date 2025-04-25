@@ -184,7 +184,7 @@ class TmProc(QmProc):
         func_type = FUNCTIONALS[func]["type"]
 
         try:
-            basis = self.__basis_mapping[config.basis]
+            basis = self.__basis_mapping[config.basis.lower()]
         except KeyError as exc:
             raise KeyError(
                 f"Basis {config.basis} could not be found for TURBOMOLE input preparation. "
