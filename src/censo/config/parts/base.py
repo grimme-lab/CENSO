@@ -1,4 +1,4 @@
-from typing import override
+from typing import override, Any
 
 from pydantic import model_validator
 
@@ -22,10 +22,11 @@ class BasePartConfig(GenericConfig):
         return str("\n".join(lines))
 
     @model_validator(mode="before")
-    def convert_to_lower(self):
+    @classmethod
+    def convert_to_lower(cls, data: Any):
         """Make string settings case insensitive."""
-        for name, value in self:
-            if isinstance(value, str) and self.model_fields[name].annotation is str:
-                setattr(self, name, value.lower())
+        for name, value in data:
+            if isinstance(value, str) and cls.model_fields[name].annotation is str:
+                data[name] = value.lower()
 
-        return self
+        return data
