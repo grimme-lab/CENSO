@@ -15,7 +15,7 @@ from .cml_parser import parse
 from ..ensembledata import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
-from ..params import DESCR, __version__
+from ..params import AU2KCAL, DESCR, __version__
 from ..utilities import printf, h1, PLENGTH
 from ..logging import setup_logger, set_loglevel
 
@@ -86,7 +86,7 @@ def entry_point(argv: list[str] | None = None) -> int:
                 # Collect results for comparison
                 mingtot = min(conf.gtot for conf in ensemble)
                 comparison[func.__name__] = {
-                    conf.name: conf.gtot - mingtot for conf in ensemble
+                    conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
                 }
 
     # Print final comparison
@@ -98,7 +98,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     if time.days:
         hours += time.days * 24
 
-    printf(f"\nRan CENSO in {hours:02d}:{minutes:02d}:{seconds:02d} (HH:MM:SS")
+    printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     printf("\nCENSO all done!")
     return 0
@@ -218,39 +218,42 @@ def cleanup_run(cwd, complete=False):
 
 
 def print_comparison(comparison: dict[str, dict[str, float]]):
-    printf(h1(f"FINAL RANKING COMPARISON"))
+    if len(comparison) > 1:
+        printf(h1(f"FINAL RANKING COMPARISON"))
 
-    headers = ["CONF#"]
+        headers = ["CONF#"]
 
-    headers.extend([f"ΔGtot {part.capitalize()}" for part in comparison])
+        headers.extend([f"ΔGtot {part.capitalize()}" for part in comparison])
 
-    units = [
-        "",
-    ]
-
-    units.extend(["[kcal/mol]" for _ in headers[1:]])
-
-    confs = [conf for conf in list(comparison.values())[-1]]
-
-    printmap = {"CONF#": lambda confname: confname}
-
-    for header in headers:
-        printmap[header] = lambda confname: comparison[header.split()[1].lower()][
-            confname
+        units = [
+            "",
         ]
 
-    rows = [[printmap[header](confname) for header in headers] for confname in confs]
+        units.extend(["[kcal/mol]" for _ in headers[1:]])
 
-    for i in range(len(headers)):
-        headers[i] += "\n" + units[i]
+        confs = [conf for conf in list(comparison.values())[-1]]
 
-    table = tabulate(
-        rows,
-        headers=headers,
-        colalign=["center" for _ in headers],
-        disable_numparse=True,
-        numalign="decimal",
-    )
-    print(table, flush=True)
+        printmap = {"CONF#": lambda confname: confname}
 
-    printf("".ljust(int(PLENGTH), "-") + "\n")
+        for header in headers:
+            printmap[header] = (
+                lambda confname, h=header: f"{comparison[h.split()[1].lower()][confname]:.2f}"
+            )
+
+        rows = [
+            [printmap[header](confname) for header in headers] for confname in confs
+        ]
+
+        for i in range(len(headers)):
+            headers[i] += "\n" + units[i]
+
+        table = tabulate(
+            rows,
+            headers=headers,
+            colalign=["center" for _ in headers],
+            disable_numparse=True,
+            numalign="decimal",
+        )
+        print(table, flush=True)
+
+        printf("".ljust(int(PLENGTH), "-") + "\n")
