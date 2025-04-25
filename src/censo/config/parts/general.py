@@ -16,9 +16,9 @@ class GeneralConfig(BasePartConfig):
     trange: tuple[float, float, float] = (273.15, 373.15, 5)
     evaluate_rrho: bool = True
     sm_rrho: XtbSolvMod = XtbSolvMod.GBSA
-    consider_sym: bool = True
+    # consider_sym: bool = True
     bhess: bool = True
-    rmsdbias: bool = False
+    # rmsdbias: bool = False
     imagthr: float = Field(lt=0, default=-100.0)
     sthr: float = Field(default=0.0)
     scale: float = Field(gt=0, default=1.0)

@@ -166,13 +166,13 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         const=True,
         help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold). ",
     )
-    groups[1].add_argument(
-        "--rmsdbias",
-        dest="rmsdbias",
-        action="store_const",
-        const=True,
-        help="Applies constraint to rmsdpot.xyz to be consistent to CREST. ",
-    )
+    # groups[1].add_argument(
+    #     "--rmsdbias",
+    #     dest="rmsdbias",
+    #     action="store_const",
+    #     const=True,
+    #     help="Applies constraint to rmsdpot.xyz to be consistent to CREST. ",
+    # )
     groups[1].add_argument(
         "--sm-rrho",
         dest="sm_rrho",

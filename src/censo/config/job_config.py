@@ -118,7 +118,7 @@ class RRHOJobConfig(XTBJobConfig):
 
     trange: tuple[float, float, float]
 
-    rmsdbias: bool
+    # rmsdbias: bool
 
 
 class NMRJobConfig(SPJobConfig):

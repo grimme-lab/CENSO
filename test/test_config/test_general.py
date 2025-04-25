@@ -14,9 +14,9 @@ def test_general_config_default_values():
     assert config.trange == (273.15, 373.15, 5)
     assert config.evaluate_rrho is True
     assert config.sm_rrho == XtbSolvMod.GBSA
-    assert config.consider_sym is True
+    # assert config.consider_sym is True
     assert config.bhess is True
-    assert config.rmsdbias is False
+    # assert config.rmsdbias is False
     assert config.imagthr == -100.0
     assert config.sthr == 0.0
     assert config.scale == 1.0

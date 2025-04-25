@@ -23,7 +23,7 @@ class QmConfig(BaseModel):
     sthr: Optional[float]
     imagthr: Optional[float]
     bhess: Optional[bool]
-    rmsdbias: Optional[bool]
+    # rmsdbias: Optional[bool]
 
     # DFT related
     func: str
