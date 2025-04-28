@@ -64,7 +64,7 @@ def entry_point(argv: list[str] | None = None) -> int:
             else:
                 printf(config)
 
-    printf("".ljust(int(PLENGTH), "-") + "\n")
+    printf("\n" + "".ljust(int(PLENGTH), "-") + "\n")
 
     tasks = [
         (parts_config.prescreening.run, prescreening),

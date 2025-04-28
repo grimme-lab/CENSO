@@ -151,7 +151,9 @@ class OrcaProc(QmProc):
         # Finally append newlines where needed
         return [line + "\n" if not line.endswith("\n") else line for line in inp]
 
-    def __prep_main(self, jobtype: str, config: SPJobConfig) -> list[str]:
+    def __prep_main(
+        self, jobtype: str, config: SPJobConfig, no_solv: bool
+    ) -> list[str]:
         orca5 = int(self.paths["orcaversion"][0]) > 4
 
         # grab func, basis
@@ -243,6 +245,15 @@ class OrcaProc(QmProc):
         elif jobtype == "opt":
             main.extend(["OPT", "tightSCF"])
 
+        # set keywords for the selected solvent model
+        if not no_solv:
+            assert config.solvent
+            assert config.sm
+            sm = config.sm
+            solv_key = f"{SOLVENTS[config.solvent][sm]}"
+
+            main.append(f"{sm.upper()}({solv_key})")
+
         # additional print settings
         if "opt" in jobtype:
             main.append("miniprint")
@@ -255,7 +266,6 @@ class OrcaProc(QmProc):
         self,
         jobtype: str,
         config: SPJobConfig,
-        no_solv: bool,
         nprocs: int,
     ) -> list[str]:
         orca5 = int(self.paths["orcaversion"][0]) > 4
@@ -267,18 +277,6 @@ class OrcaProc(QmProc):
 
         # TODO: maybe limit TRAH macro steps (or when TRAH activates) to avoid
         # single jobs clogging everything up
-
-        # set keywords for the selected solvent model
-        if not no_solv:
-            assert config.solvent
-            assert config.sm
-            sm = config.sm
-            solv_key = f'"{SOLVENTS[config.solvent][sm]}"'
-
-            if sm == "smd":
-                pregeom.extend(["%cpcm", "smd true", f"smdsolvent {solv_key}", "end"])
-            elif sm == "cpcm":
-                pregeom.insert(0, f"! CPCM({solv_key})")
 
         if jobtype == "uvvis":
             assert isinstance(config, UVVisJobConfig)
