@@ -119,11 +119,11 @@ class OrcaProc(QmProc):
             inp.pop(main_line)
 
         # prepare the main line of the orca input
-        inp[:0] = self.__prep_main(job.prepinfo, jobtype, orca5)
+        inp[:0] = self.__prep_main(job.prepinfo, jobtype, orca5, no_solv)
 
         # prepare all options that are supposed to be placed before the
         # geometry definition
-        inp[1:1] = self.__prep_pregeom(job.prepinfo, orca5, jobtype, no_solv, job.omp)
+        inp[1:1] = self.__prep_pregeom(job.prepinfo, orca5, jobtype, job.omp)
 
         # prepare the geometry
         if job.prepinfo[jobtype]["template"]:
@@ -144,7 +144,11 @@ class OrcaProc(QmProc):
         return [line + "\n" if not line.endswith("\n") else line for line in inp]
 
     def __prep_main(
-        self, prepinfo: dict[str, Any], jobtype: str, orca5: bool
+        self,
+        prepinfo: dict[str, Any],
+        jobtype: str,
+        orca5: bool,
+        no_solv: bool,
     ) -> list[str]:
         main = ["!"]
         pregeom = []
@@ -242,6 +246,18 @@ class OrcaProc(QmProc):
         elif jobtype == "opt":
             main.extend(["OPT", "tightSCF"])
 
+        # set keywords for the selected solvent model
+        if (
+            not prepinfo["general"]["gas-phase"]
+            and not no_solv
+            and ("sm" in prepinfo[jobtype].keys())
+        ):
+            sm = prepinfo[jobtype]["sm"]
+            solv_key = prepinfo[jobtype]["solvent_key_prog"]
+            solv_key = f"{solv_key}"
+
+            main.append(f"{sm.upper()}({solv_key})")
+
         # additional print settings
         if jobtype in ["xtb_opt", "opt"]:
             main.append("miniprint")
@@ -255,7 +271,6 @@ class OrcaProc(QmProc):
         prepinfo: dict[str, Any],
         orca5: bool,
         jobtype: str,
-        no_solv: bool,
         nprocs: int,
     ) -> list[str]:
         pregeom = []
@@ -266,21 +281,6 @@ class OrcaProc(QmProc):
 
         # TODO: maybe limit TRAH macro steps (or when TRAH activates) to avoid
         # single jobs clogging everything up
-
-        # set keywords for the selected solvent model
-        if (
-            not prepinfo["general"]["gas-phase"]
-            and not no_solv
-            and ("sm" in prepinfo[jobtype].keys())
-        ):
-            sm = prepinfo[jobtype]["sm"]
-            solv_key = prepinfo[jobtype]["solvent_key_prog"]
-            solv_key = f'"{solv_key}"'
-
-            if sm == "smd":
-                pregeom.extend(["%cpcm", "smd true", f"smdsolvent {solv_key}", "end"])
-            elif sm == "cpcm":
-                pregeom.insert(0, f"! CPCM({solv_key})")
 
         if jobtype == "uvvis":
             pregeom.extend(["%tddft", f"nroots {prepinfo['uvvis']['nroots']}", "end"])
