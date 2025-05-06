@@ -78,21 +78,30 @@ def entry_point(argv: list[str] | None = None) -> int:
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
     time = 0.0
-    for enabled, func in tasks:
-        if enabled:
-            runtime = func(ensemble, parts_config, cut=cut)
-            printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
-            time += runtime
+    for func in [task for enabled, task in tasks[:4] if enabled]:
+        runtime = func(ensemble, parts_config, cut=cut)
+        printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
+        time += runtime
 
-            if func in (prescreening, screening, optimization, refinement):
-                # Collect results for comparison
-                mingtot = min(conf.gtot for conf in ensemble)
-                comparison[func.__name__] = {
-                    conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
-                }
+        # Collect results for comparison
+        mingtot = min(conf.gtot for conf in ensemble)
+        comparison[func.__name__] = {
+            conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
+        }
 
-    # Print final comparison
-    print_comparison(comparison)
+    if len(comparison) > 0:
+        print("\nFinished ensemble optimization\n")
+
+        # Print final comparison
+        print_comparison(comparison)
+
+    if any(enabled for enabled, _ in tasks[4:]):
+        print("\nRunning property calculations\n")
+
+    for func in [task for enabled, task in tasks[4:] if enabled]:
+        runtime = func(ensemble, parts_config)
+        printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
+        time += runtime
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
