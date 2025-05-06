@@ -120,11 +120,11 @@ class OrcaProc(QmProc):
         if template:
             main_line = next(inp.index(l) for l in inp if "{main}" in l)
             inp.pop(main_line)
-        inp[:0] = self.__prep_main(jobtype, config)
+        inp[:0] = self.__prep_main(jobtype, config, no_solv)
 
         # prepare all options that are supposed to be placed before the
         # geometry definition
-        inp[1:1] = self.__prep_pregeom(jobtype, config, no_solv, job.omp)
+        inp[1:1] = self.__prep_pregeom(jobtype, config, job.omp)
 
         # prepare the geometry
         if template:
