@@ -60,6 +60,7 @@ def uvvis(
         config.uvvis.prog,
         ncores,
         omp,
+        "uvvis",
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )

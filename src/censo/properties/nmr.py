@@ -61,6 +61,7 @@ def nmr(
         config.nmr.prog,
         ncores,
         omp,
+        "nmr",
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )
