@@ -332,22 +332,28 @@ class NMR(PropertyCalculator):
             confdir = os.path.join(self._dir, conf.name)
             lines = []
 
-            # first: atom no. | sigma(iso)
-            # atom no.s according to their appearance in the xyz-file
-            # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
-            for i, shielding in self.data["results"][conf.name]["nmr"]["shieldings"]:
-                lines.append(f"{i + 1:4} {shielding:.3f}\n")
+            if "shieldings" in self.data["results"][conf.name]["nmr"]:
+                # first: atom no. | sigma(iso)
+                # atom no.s according to their appearance in the xyz-file
+                # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
+                for i, shielding in self.data["results"][conf.name]["nmr"][
+                    "shieldings"
+                ]:
+                    lines.append(f"{i + 1:4} {shielding:.3f}\n")
 
-            # Fill in blank lines
-            for _ in range(
-                conf.geom.nat
-                - len(self.data["results"][conf.name]["nmr"]["shieldings"])
-            ):
-                lines.append("\n")
+                # Fill in blank lines
+                for _ in range(
+                    conf.geom.nat
+                    - len(self.data["results"][conf.name]["nmr"]["shieldings"])
+                ):
+                    lines.append("\n")
 
-            # then: atom no.1 | atom no.2 | J12
-            for (i, j), coupling in self.data["results"][conf.name]["nmr"]["couplings"]:
-                lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
+            if "couplings" in self.data["results"][conf.name]["nmr"]:
+                # then: atom no.1 | atom no.2 | J12
+                for (i, j), coupling in self.data["results"][conf.name]["nmr"][
+                    "couplings"
+                ]:
+                    lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
 
             logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
             with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
