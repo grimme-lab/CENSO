@@ -328,11 +328,13 @@ class NMR(PropertyCalculator):
                 )
         """
         # Write 'nmrprop.dat's and coord files
+        couplings = self.get_settings()["couplings"]
+        shieldings = self.get_settings()["shieldings"]
         for conf in self._ensemble.conformers:
             confdir = os.path.join(self._dir, conf.name)
             lines = []
 
-            if "shieldings" in self.data["results"][conf.name]["nmr"]:
+            if shieldings:
                 # first: atom no. | sigma(iso)
                 # atom no.s according to their appearance in the xyz-file
                 # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
@@ -348,7 +350,7 @@ class NMR(PropertyCalculator):
                 ):
                     lines.append("\n")
 
-            if "couplings" in self.data["results"][conf.name]["nmr"]:
+            if couplings:
                 # then: atom no.1 | atom no.2 | J12
                 for (i, j), coupling in self.data["results"][conf.name]["nmr"][
                     "couplings"
