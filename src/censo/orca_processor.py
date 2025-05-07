@@ -98,7 +98,7 @@ class OrcaProc(QmProc):
         """
 
         # check ORCA version (orca5 = True means at least ORCA version 5)
-        orca5 = not self._paths["orcaversion"].startswith("4")
+        orca5 = int(self._paths["orcaversion"][0]) > 4
 
         inp = []
 
@@ -252,11 +252,13 @@ class OrcaProc(QmProc):
             and not no_solv
             and ("sm" in prepinfo[jobtype].keys())
         ):
+            orca6 = int(self._paths["orcaversion"][0]) > 5
             sm = prepinfo[jobtype]["sm"]
             solv_key = prepinfo[jobtype]["solvent_key_prog"]
-            solv_key = f"{solv_key}"
-
-            main.append(f"{sm.upper()}({solv_key})")
+            if orca6 or "smd" not in sm:
+                main.append(f"{sm.upper()}({solv_key})")
+            else:
+                pregeom.extend(["%cpcm", "smd true", f'smdsolvent "{solv_key}"', "end"])
 
         # additional print settings
         if jobtype in ["xtb_opt", "opt"]:
