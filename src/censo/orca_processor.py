@@ -1017,7 +1017,7 @@ class OrcaProc(QmProc):
 
         # If settings are the same, endings = [""], otherwise it contains "_s"
         # and/or "_j", depending on conditions
-        for ending in [x[4:] for x in job.prepinfo.keys() if "nmr" in x]:
+        for ending in [x[3:] for x in job.prepinfo.keys() if "nmr" in x]:
             # Set in/out path
             inputpath = os.path.join(jobdir, f"{filename}{ending}.inp")
             outputpath = os.path.join(jobdir, f"{filename}{ending}.out")
