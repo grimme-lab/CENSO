@@ -265,6 +265,10 @@ class TmProc(QmProc):
                 inp_template = f.readlines()
             inp.extend(inp_template)
 
+        # Set $grad for geom opt
+        if "xtb_opt" in jobtype:
+            inp.append("$grad file=gradient")
+
         inp.append("$end")
         inp = [line + "\n" if not line.endswith("\n") else line for line in inp]
         with open(os.path.join(jobdir, "control"), "w") as f:
