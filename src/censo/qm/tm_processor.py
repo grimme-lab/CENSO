@@ -364,6 +364,8 @@ class TmProc(QmProc):
 
             """
             raise NotImplementedError("Optical rotation not available yet!")
+        elif jobtype == "xtb_opt":
+            lines.append("$grad file=gradient")
 
     @staticmethod
     def __copy_mo(

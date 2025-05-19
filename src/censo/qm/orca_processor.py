@@ -29,6 +29,7 @@ from ..molecules import GeometryData
 from ..params import (
     WARNLEN,
     USER_ASSETS_PATH,
+    OrcaSolvMod,
 )
 from ..assets import FUNCTIONALS, SOLVENTS
 from .qm_processor import QmProc
@@ -96,7 +97,7 @@ class OrcaProc(QmProc):
         """
 
         # check ORCA version (orca5 = True means at least ORCA version 5)
-        orca5 = not self.paths["orcaversion"].startswith("4")
+        orca5 = int(self.paths["orcaversion"][0]) > 4
 
         inp: list[str] = []
 
@@ -252,7 +253,11 @@ class OrcaProc(QmProc):
             sm = config.sm
             solv_key = f"{SOLVENTS[config.solvent][sm]}"
 
-            main.append(f"{sm.upper()}({solv_key})")
+            orca6 = int(self.paths["orcaversion"][0]) > 5
+            if orca6 or sm != OrcaSolvMod.SMD:
+                main.append(f"{sm.upper()}({solv_key})")
+            else:
+                pregeom.extend(["%cpcm", "smd true", f'smdsolvent "{solv_key}"', "end"])
 
         # additional print settings
         if "opt" in jobtype:
