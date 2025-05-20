@@ -52,13 +52,18 @@ def entry_point(argv: list[str] | None = None) -> int:
 
     # Print all active parts settings once
     if logger.level == DEBUG:
-        printf(parts_config)
+        for fieldname, config in parts_config:
+            # Revalidate
+            setattr(parts_config, fieldname, config.model_validate(config))
+
+            # Print
+            printf(config)
     else:
-        for _, config in parts_config:
+        for fieldname, config in parts_config:
             if "run" in config.model_fields:
                 if config.run:
                     # Revalidate
-                    config.model_validate(config)
+                    setattr(parts_config, fieldname, config.model_validate(config))
 
                     # Print
                     printf(config)

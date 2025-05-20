@@ -52,15 +52,11 @@ class BasePartConfig(GenericConfig):
                 "def2-svp": "SVP",
                 "def2-tzvp": "TZ",
             }
-            if (
-                getattr(self, "prog") == QmProg.TM
-                and getattr(self, "basis") in gcp_keywords
-                and disp == "d4"
-            ):
+            if getattr(self, "basis") in gcp_keywords and disp == "d4" and ():
                 warnings.warn(
                     "Small basis set detected: Current version of TM includes a bug when combining GCP with DFT-D4. Switching to D3."
                 )
-                setattr(self, "func", func.replace("d4", "d3"))
-                self.model_validate(self)
+                self.func = func.replace("d4", "d3")
+                # TODO: there should be a way to validate this afterwards
 
         return self
