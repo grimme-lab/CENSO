@@ -247,7 +247,8 @@ class TmProc(QmProc):
         # TODO: add template
 
         inp.append("$end")
-        (Path(jobdir) / "control").write_text("\n".join(inp))
+        inp = [i if i.endswith("\n") else i + "\n" for i in inp]
+        (Path(jobdir) / "control").write_text("".join(inp))
 
     def __prep_main(
         self,

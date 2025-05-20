@@ -213,6 +213,9 @@ class QmProc:
             _, errors = sub.communicate()
             errors = errors.decode(errors="replace")
             returncode = sub.returncode
+            logger.debug(
+                f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"
+            )
 
             # unregister SIGTERM handler
             # signal.signal(signal.SIGTERM, signal.SIG_DFL)
