@@ -1,3 +1,4 @@
+import traceback
 from dataclasses import dataclass, field
 from typing import Callable, Literal
 from contextlib import contextmanager
@@ -5,7 +6,6 @@ from pathlib import Path
 from multiprocessing.managers import SyncManager
 from multiprocessing import Manager
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
-from concurrent.futures.process import _RemoteTraceback
 
 from .molecules import Atom, GeometryData, MoleculeData
 from .logging import setup_logger
@@ -287,9 +287,6 @@ def execute[T: QmResult](
     failed_confs: list[MoleculeData] = []
     results: dict[str, T] = {}
 
-    # Track error details for better reporting
-    error_details: dict[str, tuple[Exception, str]] = {}
-
     # Create a managed context to be able to share the number of free cores between processes
     logger.debug("Setting up parallel environment...")
     try:
@@ -338,28 +335,12 @@ def execute[T: QmResult](
                                 conf.mo_paths[prog].append(result.mo_path)
 
                     except Exception as e:
-                        # Extract the root cause from possible nested exceptions
-                        root_cause = e
-                        error_message = str(e)
+                        # Cancel remaining jobs
+                        for t in tasks:
+                            if not t.done():
+                                t.cancel()
 
-                        # Handle process RemoteTraceback specially
-                        if isinstance(e, _RemoteTraceback):
-                            tb_str = str(e)
-                            # Find the most relevant error message in the traceback
-                            for line in tb_str.splitlines():
-                                if (
-                                    "Error:" in line
-                                    or "Exception:" in line
-                                    or "AttributeError:" in line
-                                ):
-                                    error_message = line.strip()
-                                    break
-
-                            # Look for the original exception type
-                            if "AttributeError:" in tb_str:
-                                root_cause = AttributeError(error_message)
-                            elif "FileNotFoundError:" in tb_str:
-                                root_cause = FileNotFoundError(error_message)
+                        tb = traceback.format_exc()
 
                         # If we don't know which conformer failed, try to figure it out
                         # by finding the index of the task in the tasks list
@@ -369,21 +350,10 @@ def execute[T: QmResult](
                                 conf_name = jobs[idx].conf.name
 
                         # Record the error for this conformer
-                        if conf_name:
-                            conf = next(
-                                (c for c in conformers if c.name == conf_name), None
-                            )
-                            if conf:
-                                failed_confs.append(conf)
-                                error_details[conf_name] = (root_cause, error_message)
-                                logger.warning(
-                                    f"{conf_name} job failed with error: {type(root_cause).__name__}: {error_message}"
-                                )
-                        else:
-                            # We couldn't determine which conformer failed
-                            logger.error(
-                                f"Unknown job failed with error: {type(root_cause).__name__}: {error_message}"
-                            )
+                        logger.debug(f"Job failed for {conf_name}:\n{tb}")
+                        raise RuntimeError(
+                            "One or more tasks raised an exception. Set loglevel to DEBUG for details."
+                        )
 
             except KeyboardInterrupt:
                 logger.warning(
@@ -406,21 +376,12 @@ def execute[T: QmResult](
     # Summarize results
     if len(failed_confs) == len(conformers):
         # Provide more detailed error information when all jobs fail
-        error_summary = "\n".join(
-            [f"  {name}: {details[1]}" for name, details in error_details.items()]
-        )
         raise RuntimeError(
-            f"All jobs failed to execute. Please check your set up and output files.\nError summary:\n{error_summary}"
+            f"All jobs failed to execute. Please check your setup and output files.\n"
         )
 
     if len(failed_confs) > 0:
         logger.info(f"Number of failed jobs: {len(failed_confs)}.")
-        # Log a summary of errors
-        logger.debug("Failed job details:")
-        for conf in failed_confs:
-            if conf.name in error_details:
-                _, error_msg = error_details[conf.name]
-                logger.debug(f"  {conf.name}: {error_msg}")
     else:
         logger.info("All jobs executed successfully.")
 
