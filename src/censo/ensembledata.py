@@ -4,7 +4,6 @@ functionality for program setup
 """
 
 from functools import reduce
-import os
 from pathlib import Path
 import re
 import json
@@ -13,7 +12,7 @@ from math import exp
 
 from .molecules import MoleculeData
 from .logging import setup_logger
-from .params import DIGILEN, AU2J, KB
+from .params import AU2J, KB
 from .utilities import check_for_float, printf, t2x
 
 logger = setup_logger(__name__)
@@ -265,14 +264,12 @@ class EnsembleData:
         """
         Dump the current ensemble in xyz-format.
         """
-        text = "\n".join(
-            reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self])
-        )
+        text = "".join(reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self]))
         file.write_text(text)
 
     def dump_rem_xyz(self, file: Path):
         """Dump the conformers removed via 'remove_conformers' in xyz-format."""
-        text = "\n".join(
+        text = "".join(
             reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self.rem])
         )
         file.write_text(text)
