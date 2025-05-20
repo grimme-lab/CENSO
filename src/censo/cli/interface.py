@@ -89,7 +89,7 @@ def entry_point(argv: list[str] | None = None) -> int:
             comparison[func.__name__] = {
                 conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
             }
-        except:
+        except Exception:
             # Save as much data as possible
             printf(
                 "Encountered exception. Stopping CENSO and dumping most recent ensemble."
