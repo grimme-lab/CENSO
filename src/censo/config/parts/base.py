@@ -1,9 +1,11 @@
 from typing import override, Any
+import warnings
 
 from pydantic import model_validator
 
 
-from ...params import PLENGTH, GenericConfig
+from ...assets import FUNCTIONALS
+from ...params import PLENGTH, GenericConfig, QmProg
 from ...utilities import h2
 
 
@@ -35,3 +37,30 @@ class BasePartConfig(GenericConfig):
                     data[name] = value.lower()
 
         return data
+
+    @model_validator(mode="after")
+    def tm_gcp_d4_bug_check(self):
+        """Check if the model has basis, func, and prog fields and get their values. Backcheck with GCP basis sets."""
+        if all(s in self.model_fields for s in ["func", "basis", "prog"]):
+            func: str = getattr(self, "func")
+            disp = FUNCTIONALS[func]["disp"]
+            gcp_keywords = {
+                "minis": "MINIS",
+                "sv": "SV",
+                "6-31g(d)": "631GD",
+                "def2-sv(p)": "SV(P)",
+                "def2-svp": "SVP",
+                "def2-tzvp": "TZ",
+            }
+            if (
+                getattr(self, "prog") == QmProg.TM
+                and getattr(self, "basis") in gcp_keywords
+                and disp == "d4"
+            ):
+                warnings.warn(
+                    "Small basis set detected: Current version of TM includes a bug when combining GCP with DFT-D4. Switching to D3."
+                )
+                setattr(self, "func", func.replace("d4", "d3"))
+                self.model_validate(self)
+
+        return self
