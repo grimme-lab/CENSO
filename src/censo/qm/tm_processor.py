@@ -976,7 +976,7 @@ class TmProc(QmProc):
 
         # Run sp first
         self.__prep(job, config, "nmr", jobdir)
-        _, spmeta = self.sp(job, jobdir, config, prep=False)
+        _, spmeta = self._sp(job, jobdir, config, prep=False)
 
         if not spmeta.success:
             meta.success = False
