@@ -474,8 +474,7 @@ class TmProc(QmProc):
         if not meta.success:
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
-        with open(outputpath, "r") as f:
-            lines = f.readlines()
+        lines = Path(outputpath).read_text().split("\n")
 
         # Check for errors in the output file in case returncode is 0
         if meta.success:

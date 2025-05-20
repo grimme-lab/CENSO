@@ -79,15 +79,24 @@ def entry_point(argv: list[str] | None = None) -> int:
     cut: bool = not args.keep_all
     time = 0.0
     for func in [task for enabled, task in tasks[:4] if enabled]:
-        runtime = func(ensemble, parts_config, cut=cut)
-        printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
-        time += runtime
+        try:
+            runtime = func(ensemble, parts_config, cut=cut)
+            printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
+            time += runtime
 
-        # Collect results for comparison
-        mingtot = min(conf.gtot for conf in ensemble)
-        comparison[func.__name__] = {
-            conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
-        }
+            # Collect results for comparison
+            mingtot = min(conf.gtot for conf in ensemble)
+            comparison[func.__name__] = {
+                conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
+            }
+        except:
+            # Save as much data as possible
+            printf(
+                "Encountered exception. Stopping CENSO and dumping most recent ensemble."
+            )
+            ensemble.dump_json(Path("CRASH_DUMP.json"))
+            ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
+            sys.exit(1)
 
     if len(comparison) > 0:
         print("\nFinished ensemble optimization\n")

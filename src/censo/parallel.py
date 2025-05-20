@@ -1,4 +1,5 @@
 import traceback
+import sys
 from dataclasses import dataclass, field
 from typing import Callable, Literal
 from contextlib import contextmanager
@@ -367,7 +368,7 @@ def execute[T: QmResult](
             raise
 
     if broken:
-        raise RuntimeError
+        raise RuntimeError("Exception encountered in parallel execution.")
 
     # Summarize results
     if len(failed_confs) == len(conformers):
