@@ -289,89 +289,78 @@ def execute[T: QmResult](
 
     # Create a managed context to be able to share the number of free cores between processes
     logger.debug("Setting up parallel environment...")
-    try:
-        with setup_managers(ncores // OMPMIN, ncores) as (executor, _, resources):
-            # Prepare jobs for parallel execution by assigning number of cores per job etc.
-            jobs: list[ParallelJob] = prepare_jobs(
-                conformers,
-                prog,
-                ncores,
-                omp,
-                from_part,
-                balance=balance,
-                copy_mo=copy_mo,
-            )
+    with setup_managers(ncores // OMPMIN, ncores) as (executor, _, resources):
+        # Prepare jobs for parallel execution by assigning number of cores per job etc.
+        jobs: list[ParallelJob] = prepare_jobs(
+            conformers,
+            prog,
+            ncores,
+            omp,
+            from_part,
+            balance=balance,
+            copy_mo=copy_mo,
+        )
 
-            # Execute the jobs
-            tasks: list[Future[tuple[T, MetaData]]] = []
-            for job in jobs:
-                tasks.append(executor.submit(task, job, job_config, resources))
+        # Execute the jobs
+        tasks: list[Future[tuple[T, MetaData]]] = []
+        for job in jobs:
+            tasks.append(executor.submit(task, job, job_config, resources))
 
-            logger.debug("Waiting for jobs to complete...")
-            try:
-                completed = as_completed(tasks)
+        logger.debug("Waiting for jobs to complete...")
+        try:
+            completed = as_completed(tasks)
 
-                # Process results as they come in
-                logger.debug("Iterating over results...")
-                for completed_task in completed:
-                    conf_name = None
-                    try:
-                        # Get result or raise exception if task failed
-                        result, meta = completed_task.result()
-                        conf_name = meta.conf_name
+            # Process results as they come in
+            logger.debug("Iterating over results...")
+            for completed_task in completed:
+                conf_name = None
+                try:
+                    # Get result or raise exception if task failed
+                    result, meta = completed_task.result()
+                    conf_name = meta.conf_name
 
-                        # Find the corresponding conformer
-                        conf = next(c for c in conformers if c.name == conf_name)
+                    # Find the corresponding conformer
+                    conf = next(c for c in conformers if c.name == conf_name)
 
-                        # Check for success
-                        if not meta.success:
-                            failed_confs.append(conf)
-                            logger.warning(
-                                f"{meta.conf_name} job failed. Error: {meta.error}. Check output files."
-                            )
-                        else:
-                            results[meta.conf_name] = result
-                            if prog in QmProg:
-                                conf.mo_paths[prog].append(result.mo_path)
-
-                    except Exception as e:
-                        # Cancel remaining jobs
-                        for t in tasks:
-                            if not t.done():
-                                t.cancel()
-
-                        tb = traceback.format_exc()
-
-                        # If we don't know which conformer failed, try to figure it out
-                        # by finding the index of the task in the tasks list
-                        if conf_name is None:
-                            idx = tasks.index(completed_task)
-                            if 0 <= idx < len(jobs):
-                                conf_name = jobs[idx].conf.name
-
-                        # Record the error for this conformer
-                        logger.debug(f"Job failed for {conf_name}:\n{tb}")
-                        raise RuntimeError(
-                            "One or more tasks raised an exception. Set loglevel to DEBUG for details."
+                    # Check for success
+                    if not meta.success:
+                        failed_confs.append(conf)
+                        logger.warning(
+                            f"{meta.conf_name} job failed. Error: {meta.error}. Check output files."
                         )
+                    else:
+                        results[meta.conf_name] = result
+                        if prog in QmProg:
+                            conf.mo_paths[prog].append(result.mo_path)
 
-            except KeyboardInterrupt:
-                logger.warning(
-                    "Received keyboard interrupt. Cancelling remaining tasks..."
-                )
-                for t in tasks:
-                    if not t.done():
-                        t.cancel()
-                # Re-raise to allow proper program termination
-                raise
+                except Exception as e:
+                    # Cancel remaining jobs
+                    for t in tasks:
+                        if not t.done():
+                            t.cancel()
 
-    except Exception as e:
-        # Handle setup errors
-        logger.error(f"Error setting up parallel execution environment: {str(e)}")
-        # Re-raise with clearer context
-        raise RuntimeError(
-            f"Failed to set up parallel execution environment: {str(e)}"
-        ) from e
+                    tb = traceback.format_exc()
+
+                    # If we don't know which conformer failed, try to figure it out
+                    # by finding the index of the task in the tasks list
+                    if conf_name is None:
+                        idx = tasks.index(completed_task)
+                        if 0 <= idx < len(jobs):
+                            conf_name = jobs[idx].conf.name
+
+                    # Record the error for this conformer
+                    logger.debug(f"Job failed for {conf_name}:\n{tb}")
+                    raise RuntimeError(
+                        "One or more tasks raised an exception. Set loglevel to DEBUG for details."
+                    )
+
+        except KeyboardInterrupt:
+            logger.warning("Received keyboard interrupt. Cancelling remaining tasks...")
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
+            # Re-raise to allow proper program termination
+            raise
 
     # Summarize results
     if len(failed_confs) == len(conformers):
