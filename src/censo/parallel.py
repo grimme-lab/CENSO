@@ -306,6 +306,7 @@ def execute[T: QmResult](
         for job in jobs:
             tasks.append(executor.submit(task, job, job_config, resources))
 
+        broken = False
         logger.debug("Waiting for jobs to complete...")
         try:
             completed = as_completed(tasks)
@@ -334,7 +335,12 @@ def execute[T: QmResult](
                             conf.mo_paths[prog].append(result.mo_path)
 
                 except Exception as e:
+                    logger.critical(
+                        f"Encountered exception: {type(e).__name__}. Set loglevel to DEBUG for more information."
+                    )
+
                     # Cancel remaining jobs
+                    logger.info("Cancelling remaining tasks...")
                     for t in tasks:
                         if not t.done():
                             t.cancel()
@@ -350,9 +356,7 @@ def execute[T: QmResult](
 
                     # Record the error for this conformer
                     logger.debug(f"Job failed for {conf_name}:\n{tb}")
-                    raise RuntimeError(
-                        "One or more tasks raised an exception. Set loglevel to DEBUG for details."
-                    )
+                    broken = True
 
         except KeyboardInterrupt:
             logger.warning("Received keyboard interrupt. Cancelling remaining tasks...")
@@ -361,6 +365,9 @@ def execute[T: QmResult](
                     t.cancel()
             # Re-raise to allow proper program termination
             raise
+
+    if broken:
+        raise RuntimeError
 
     # Summarize results
     if len(failed_confs) == len(conformers):
