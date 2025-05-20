@@ -5,6 +5,7 @@ from pathlib import Path
 from multiprocessing.managers import SyncManager
 from multiprocessing import Manager
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from concurrent.futures.process import _RemoteTraceback
 
 from .molecules import Atom, GeometryData, MoleculeData
 from .logging import setup_logger
@@ -268,7 +269,7 @@ def execute[T: QmResult](
     copy_mo: bool = True,
 ) -> tuple[dict[str, T], list[MoleculeData]]:
     """
-    Executes the parallel tasks using the ParallelExecutor.
+    Executes the parallel tasks using a managed environment.
 
     Args:
         conformers (list[MoleculeData]): List of conformers for which jobs will be created and executed.
@@ -286,51 +287,140 @@ def execute[T: QmResult](
     failed_confs: list[MoleculeData] = []
     results: dict[str, T] = {}
 
+    # Track error details for better reporting
+    error_details: dict[str, tuple[Exception, str]] = {}
+
     # Create a managed context to be able to share the number of free cores between processes
     logger.debug("Setting up parallel environment...")
-    with setup_managers(ncores // OMPMIN, ncores) as (executor, _, resources):
-        # Prepare jobs for parallel execution by assigning number of cores per job etc.
-        jobs: list[ParallelJob] = prepare_jobs(
-            conformers, prog, ncores, omp, from_part, balance=balance, copy_mo=copy_mo
-        )
+    try:
+        with setup_managers(ncores // OMPMIN, ncores) as (executor, _, resources):
+            # Prepare jobs for parallel execution by assigning number of cores per job etc.
+            jobs: list[ParallelJob] = prepare_jobs(
+                conformers,
+                prog,
+                ncores,
+                omp,
+                from_part,
+                balance=balance,
+                copy_mo=copy_mo,
+            )
 
-        # Execute the jobs
-        tasks: list[Future[tuple[T, MetaData]]] = []
-        for job in jobs:
-            tasks.append(executor.submit(task, job, job_config, resources))
+            # Execute the jobs
+            tasks: list[Future[tuple[T, MetaData]]] = []
+            for job in jobs:
+                tasks.append(executor.submit(task, job, job_config, resources))
 
-        logger.debug("Waiting for jobs to complete...")
-        completed = as_completed(tasks)
-
-        # determine failed jobs
-        logger.debug("Iterating over results...")
-        for completed_task in completed:
+            logger.debug("Waiting for jobs to complete...")
             try:
-                result, meta = completed_task.result()
-            except:
-                # TODO: unpacking of tasks might raise errors,
-                # these should be the errors not handled by the processor
-                # and should be proper exceptions to the programs runtime
+                completed = as_completed(tasks)
+
+                # Process results as they come in
+                logger.debug("Iterating over results...")
+                for completed_task in completed:
+                    conf_name = None
+                    try:
+                        # Get result or raise exception if task failed
+                        result, meta = completed_task.result()
+                        conf_name = meta.conf_name
+
+                        # Find the corresponding conformer
+                        conf = next(c for c in conformers if c.name == conf_name)
+
+                        # Check for success
+                        if not meta.success:
+                            failed_confs.append(conf)
+                            logger.warning(
+                                f"{meta.conf_name} job failed. Error: {meta.error}. Check output files."
+                            )
+                        else:
+                            results[meta.conf_name] = result
+                            if prog in QmProg:
+                                conf.mo_paths[prog].append(result.mo_path)
+
+                    except Exception as e:
+                        # Extract the root cause from possible nested exceptions
+                        root_cause = e
+                        error_message = str(e)
+
+                        # Handle process RemoteTraceback specially
+                        if isinstance(e, _RemoteTraceback):
+                            tb_str = str(e)
+                            # Find the most relevant error message in the traceback
+                            for line in tb_str.splitlines():
+                                if (
+                                    "Error:" in line
+                                    or "Exception:" in line
+                                    or "AttributeError:" in line
+                                ):
+                                    error_message = line.strip()
+                                    break
+
+                            # Look for the original exception type
+                            if "AttributeError:" in tb_str:
+                                root_cause = AttributeError(error_message)
+                            elif "FileNotFoundError:" in tb_str:
+                                root_cause = FileNotFoundError(error_message)
+
+                        # If we don't know which conformer failed, try to figure it out
+                        # by finding the index of the task in the tasks list
+                        if conf_name is None:
+                            idx = tasks.index(completed_task)
+                            if 0 <= idx < len(jobs):
+                                conf_name = jobs[idx].conf.name
+
+                        # Record the error for this conformer
+                        if conf_name:
+                            conf = next(
+                                (c for c in conformers if c.name == conf_name), None
+                            )
+                            if conf:
+                                failed_confs.append(conf)
+                                error_details[conf_name] = (root_cause, error_message)
+                                logger.warning(
+                                    f"{conf_name} job failed with error: {type(root_cause).__name__}: {error_message}"
+                                )
+                        else:
+                            # We couldn't determine which conformer failed
+                            logger.error(
+                                f"Unknown job failed with error: {type(root_cause).__name__}: {error_message}"
+                            )
+
+            except KeyboardInterrupt:
+                logger.warning(
+                    "Received keyboard interrupt. Cancelling remaining tasks..."
+                )
+                for t in tasks:
+                    if not t.done():
+                        t.cancel()
+                # Re-raise to allow proper program termination
                 raise
 
-            # Check for success
-            conf = next(c for c in conformers if c.name == meta.conf_name)
-            if not meta.success:
-                failed_confs.append(conf)
-                logger.warning(
-                    f"{meta.conf_name} job failed. Error: {meta.error}. Check output files."
-                )
-            else:
-                results[meta.conf_name] = result
-                if prog in QmProg:
-                    conf.mo_paths[prog].append(result.mo_path)
-
-    if len(failed_confs) == len(conformers):
+    except Exception as e:
+        # Handle setup errors
+        logger.error(f"Error setting up parallel execution environment: {str(e)}")
+        # Re-raise with clearer context
         raise RuntimeError(
-            "All jobs failed to execute. Please check your set up and output files."
+            f"Failed to set up parallel execution environment: {str(e)}"
+        ) from e
+
+    # Summarize results
+    if len(failed_confs) == len(conformers):
+        # Provide more detailed error information when all jobs fail
+        error_summary = "\n".join(
+            [f"  {name}: {details[1]}" for name, details in error_details.items()]
         )
+        raise RuntimeError(
+            f"All jobs failed to execute. Please check your set up and output files.\nError summary:\n{error_summary}"
+        )
+
     if len(failed_confs) > 0:
         logger.info(f"Number of failed jobs: {len(failed_confs)}.")
+        # Log a summary of errors
+        logger.debug("Failed job details:")
+        for conf in failed_confs:
+            if conf.name in error_details:
+                _, error_msg = error_details[conf.name]
+                logger.debug(f"  {conf.name}: {error_msg}")
     else:
         logger.info("All jobs executed successfully.")
 

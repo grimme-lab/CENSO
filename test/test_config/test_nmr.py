@@ -51,7 +51,7 @@ def test_active_nuclei_validation(nuclei, should_pass):
     """Test validation of active nuclei parameter"""
     if should_pass:
         config = NMRConfig(active_nuclei=nuclei)
-        assert config.active_nuclei == nuclei
+        assert config.active_nuclei == nuclei.lower()
     else:
         with pytest.raises(ValueError):
             NMRConfig(active_nuclei=nuclei)
