@@ -364,8 +364,6 @@ class TmProc(QmProc):
 
             """
             raise NotImplementedError("Optical rotation not available yet!")
-        elif jobtype == "xtb_opt":
-            lines.append("$grad file=gradient")
 
     @staticmethod
     def __copy_mo(
@@ -475,13 +473,8 @@ class TmProc(QmProc):
         if not meta.success:
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
-        try:
-            with open(outputpath, "r") as f:
-                lines = f.readlines()
-        except Exception:
-            meta.success = False
-            meta.error = "unknown_error"
-            return result, meta
+        with open(outputpath, "r") as f:
+            lines = f.readlines()
 
         # Check for errors in the output file in case returncode is 0
         if meta.success:
@@ -647,7 +640,7 @@ class TmProc(QmProc):
                     else self.paths["cosmorssetup"].replace("TZVP", "TZVPD_FINE")
                 )
             lines = [
-                f"ctd = {setup} cdir = {os.path.join(self.paths['cosmotherm'], 'CTDATA-FILES')}\n"
+                f"ctd = {setup} cdir = {os.path.join(self.paths['cosmotherm'], 'CTDATA-FILES')}\n",
                 "EFILE VPFILE\n",
                 "!!\n",
             ]
@@ -976,7 +969,7 @@ class TmProc(QmProc):
 
         # Run sp first
         self.__prep(job, config, "nmr", jobdir)
-        _, spmeta = self._sp(job, jobdir, config, prep=False)
+        _, spmeta = self.sp(job, jobdir, config, prep=False)
 
         if not spmeta.success:
             meta.success = False
