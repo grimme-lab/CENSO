@@ -156,26 +156,6 @@ def check_for_float(line: str) -> float | None:
     return value
 
 
-def do_md5(path):
-    """
-    Calculate md5 of file to identifly if restart happend on the same file!
-    Input is buffered into smaller sizes to ease on memory consumption.
-    Hashes entire content of ensemble input file to compare later
-    """
-    BUF_SIZE = 65536
-    md5 = hashlib.md5()
-    if os.path.isfile(path):
-        with open(path, "rb") as f:
-            while True:
-                data = f.read(BUF_SIZE)
-                if not data:
-                    break
-                md5.update(data)
-        return md5.hexdigest()
-    else:
-        raise FileNotFoundError
-
-
 def timeit(f: Callable[..., None]) -> Callable[..., float]:
     """
     time function execution
@@ -191,29 +171,6 @@ def timeit(f: Callable[..., None]) -> Callable[..., float]:
         return end - start
 
     return wrapper
-
-
-def od_insert(
-    od: OrderedDict[str, any], key: str, value: any, index: int
-) -> OrderedDict[str, any]:
-    """
-    Insert a new key/value pair into an OrderedDict at a specific position.
-    If it was a normal dict:
-        od[key] = value, with insertion before the 'index'th key.
-
-    Args:
-        od: The OrderedDict to insert into.
-        key: The key to insert.
-        value: The value associated with the key.
-        index: The index before which to insert the key/value pair.
-
-    Returns:
-        The updated OrderedDict.
-    """
-    # FIXME - somehow this doesn't work reliably, no idea why but sometimes the value is not inserted
-    items: list[tuple[str, any]] = list(od.items())
-    items.insert(index, (key, value))
-    return OrderedDict(items)
 
 
 def h1(text: str) -> str:
