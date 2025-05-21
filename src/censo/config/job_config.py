@@ -1,8 +1,8 @@
 from pydantic import ValidationInfo, field_validator
 from typing import Literal
 
+from .generic import GenericConfig
 from ..params import (
-    GenericConfig,
     OrcaSolvMod,
     TmSolvMod,
     XtbSolvMod,
