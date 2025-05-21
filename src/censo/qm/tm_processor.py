@@ -346,6 +346,7 @@ class TmProc(QmProc):
 
             # nucsel only required if not all elements are active
             if not all(element in todo for element in ["h", "c", "f", "si", "p"]):
+                todo = [f'"{e}"' for e in todo]
                 lines.extend(
                     [
                         "$nucsel " + " ".join(todo) + "\n",
@@ -1000,9 +1001,14 @@ class TmProc(QmProc):
             with open(outputpath, "r") as f:
                 lines = f.readlines()
 
-            start = lines.index(
-                next(x for x in lines if ">>>>> DFT MAGNETIC SHIELDINGS <<<<<" in x)
-            )
+            try:
+                start = lines.index(
+                    next(x for x in lines if ">>>>> DFT MAGNETIC SHIELDINGS <<<<<" in x)
+                )
+            except StopIteration:
+                meta.success = False
+                meta.error = "Could not read shieldings"
+                return result, meta
 
             lines = lines[start:]
 
@@ -1040,10 +1046,17 @@ class TmProc(QmProc):
             with open(outputpath, "r") as f:
                 lines = f.readlines()
 
-            start = (
-                lines.index(next(x for x in lines if "Nuclear coupling constants" in x))
-                + 3
-            )
+            try:
+                start = (
+                    lines.index(
+                        next(x for x in lines if "Nuclear coupling constants" in x)
+                    )
+                    + 3
+                )
+            except StopIteration:
+                meta.success = False
+                meta.error = "Could not read couplings"
+                return result, meta
 
             lines = lines[start:]
 
