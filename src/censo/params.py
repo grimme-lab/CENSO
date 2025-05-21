@@ -76,6 +76,7 @@ class GridLevel(str, Enum):
     MEDIUM = "low+"
     HIGH = "high"
     VERY_HIGH = "high+"
+    NMR = "nmr"
 
 
 SOLV_MODS = {

@@ -48,7 +48,7 @@ def nmr(
     # TODO: if some calculations fail we would need to recalculate boltzmann populations
     job_config = NMRJobConfig(
         copy_mo=config.general.copy_mo,
-        grid=GridLevel.VERY_HIGH,
+        grid=GridLevel.NMR,
         gas_phase=config.general.gas_phase,
         solvent=config.general.solvent,
         **config.nmr.model_dump(),
