@@ -2,10 +2,9 @@ from typing import override
 from pydantic import model_validator
 
 
-from ..params import OrcaSolvMod, TmSolvMod, GenericConfig
-
+from ..params import OrcaSolvMod, TmSolvMod
+from .generic import GenericConfig
 from ..assets import SOLVENTS
-
 from .parts import (
     GeneralConfig,
     PrescreeningConfig,
@@ -48,8 +47,8 @@ class PartsConfig(GenericConfig):
         """Create a formatted string for printing the settings"""
         return str("\n".join(f"{config}" for (_, config) in self))
 
-    # TODO: validate only active parts (run=True) if called from cli, otherwise check all parts
     # TODO: how to handle the case of setting settings, temporarily yielding invalid settings
+    # so: whether to use validate_assignment or not
 
     # SOLVENT/SM VALIDATION
     # NOTE: since solvent is a general settings this is validated here because we need access
