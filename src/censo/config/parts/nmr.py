@@ -11,7 +11,7 @@ class NMRConfig(BasePartConfig):
 
     prog: QmProg = QmProg.ORCA
     func: str = "pbe0-d4"
-    basis: str = "def2-TZVP"
+    basis: str = "def2-tzvp"
     sm: Literal[TmSolvMod.COSMO, TmSolvMod.DCOSMORS] | OrcaSolvMod = OrcaSolvMod.SMD
     gfnv: GfnVersion = GfnVersion.GFN2
     resonance_frequency: float = Field(gt=0, default=300.0)

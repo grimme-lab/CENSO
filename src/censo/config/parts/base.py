@@ -1,11 +1,12 @@
-from typing import override, Any
+from typing import override
 import warnings
 
 from pydantic import model_validator
 
 
 from ...assets import FUNCTIONALS
-from ...params import PLENGTH, GenericConfig, QmProg
+from ...params import PLENGTH, QmProg
+from ..generic import GenericConfig
 from ...utilities import h2
 
 
@@ -23,21 +24,6 @@ class BasePartConfig(GenericConfig):
 
         return str("\n".join(lines))
 
-    @model_validator(mode="before")
-    @classmethod
-    def convert_to_lower(cls, data: Any):
-        """Make string settings case insensitive."""
-        if isinstance(data, dict):
-            for name, value in data.items():
-                if (
-                    isinstance(value, str)
-                    and name in cls.model_fields
-                    and cls.model_fields[name].annotation is str
-                ):
-                    data[name] = value.lower()
-
-        return data
-
     @model_validator(mode="after")
     def tm_gcp_d4_bug_check(self):
         """Check if the model has basis, func, and prog fields and get their values. Backcheck with GCP basis sets."""
@@ -52,11 +38,15 @@ class BasePartConfig(GenericConfig):
                 "def2-svp": "SVP",
                 "def2-tzvp": "TZ",
             }
-            if getattr(self, "basis") in gcp_keywords and disp == "d4" and ():
+            if (
+                getattr(self, "basis") in gcp_keywords
+                and disp == "d4"
+                and getattr(self, "prog") == QmProg.TM.value
+            ):
                 warnings.warn(
                     "Small basis set detected: Current version of TM includes a bug when combining GCP with DFT-D4. Switching to D3."
                 )
-                self.func = func.replace("d4", "d3")
+                setattr(self, "func", func.replace("d4", "d3"))
                 # TODO: there should be a way to validate this afterwards
 
         return self

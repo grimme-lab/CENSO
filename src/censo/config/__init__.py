@@ -9,6 +9,7 @@ e.g. for setting the functional to something not available for the program you w
 you need to disable assignment validation manually: <model>.model_config.validate_assignment = False.
 """
 
+from .generic import GenericConfig
 from .parts_config import PartsConfig
 from .parts import (
     PrescreeningConfig,
@@ -31,4 +32,5 @@ __all__ = [
     "UVVisConfig",
     "GeneralConfig",
     "BasePartConfig",
+    "GenericConfig",
 ]
