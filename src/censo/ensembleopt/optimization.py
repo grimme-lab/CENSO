@@ -102,6 +102,7 @@ def _macrocycle_opt(
     """
     # Set up a list of unconverged conformers (perhaps a second ensemble?)
     unconverged_ensemble = deepcopy(ensemble)
+    unconverged_ensemble.clear_rem()
 
     # Set up target
     if config.optimization.xtb_opt:

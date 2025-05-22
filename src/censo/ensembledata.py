@@ -57,6 +57,10 @@ class EnsembleData:
         """Returns the list of removed conformers."""
         return self.__rem
 
+    def clear_rem(self):
+        """Clear the list of removed conformers."""
+        self.__rem = []
+
     def read_output(self, outpath: str) -> None:
         """
         Read json output file of a previous execution. Will try to load data into current conformer ensemble, matching
