@@ -29,7 +29,12 @@ class BasePartConfig(GenericConfig):
         """Check if the model has basis, func, and prog fields and get their values. Backcheck with GCP basis sets."""
         if all(s in self.model_fields for s in ["func", "basis", "prog"]):
             func: str = getattr(self, "func")
-            disp = FUNCTIONALS[func]["disp"]
+
+            try:
+                disp = FUNCTIONALS[func]["disp"]
+            except KeyError:
+                raise ValueError("Received invalid functional key.")
+
             gcp_keywords = {
                 "minis": "MINIS",
                 "sv": "SV",
