@@ -41,7 +41,7 @@ def uvvis(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.nmr.prog, "6_UVVIS")
+    proc: QmProc = Factory[QmProc].create(config.uvvis.prog, "6_UVVIS")
 
     # Run UVVis calculations
     # TODO: if some calculations fail we would need to recalculate boltzmann populations
