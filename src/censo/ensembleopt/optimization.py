@@ -170,7 +170,7 @@ def _macrocycle_opt(
                 copy_mo=config.general.copy_mo,
             )
 
-            for conf in ensemble:
+            for conf in unconverged_ensemble:
                 conf.grrho = results_rrho[conf.name].energy
 
             rrho_done = True
