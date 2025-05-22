@@ -5,6 +5,7 @@ import sys
 from os import getcwd
 from argparse import ArgumentError
 from datetime import timedelta
+import traceback
 from typing import cast, Callable
 from pathlib import Path
 from tabulate import tabulate
@@ -110,6 +111,9 @@ def entry_point(argv: list[str] | None = None) -> int:
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
     except:
+        tb = traceback.format_exc()
+        logger.debug(f"Encountered exception:\n{tb}")
+
         # Save as much data as possible
         printf(
             "Encountered exception. Stopping CENSO and dumping most recent ensemble."
