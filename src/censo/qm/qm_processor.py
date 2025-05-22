@@ -15,8 +15,10 @@ from typing import final
 
 
 from ..config.job_config import (
+    NMRJobConfig,
     RRHOJobConfig,
     SPJobConfig,
+    UVVisJobConfig,
     XTBJobConfig,
     OptJobConfig,
     XTBOptJobConfig,
@@ -721,14 +723,14 @@ class QmProc:
     @abstractmethod
     @_run
     def nmr(
-        self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
+        self, job: ParallelJob, jobdir: Path | str, config: NMRJobConfig, **kwargs
     ) -> tuple[NMRResult, MetaData]:
         raise NotImplementedError
 
     @abstractmethod
     @_run
     def uvvis(
-        self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
+        self, job: ParallelJob, jobdir: Path | str, config: UVVisJobConfig, **kwargs
     ) -> tuple[UVVisResult, MetaData]:
         raise NotImplementedError
 

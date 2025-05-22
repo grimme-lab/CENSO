@@ -706,7 +706,6 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    # TODO: split this up
     @final
     @QmProc._run
     def xtb_opt(
