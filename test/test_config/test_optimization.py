@@ -9,7 +9,7 @@ def test_optimization_config_default_values():
 
     assert config.prog == QmProg.TM
     assert config.func == "r2scan-3c"
-    assert config.basis == "def2-mTZVPP"
+    assert config.basis == "def2-mtzvpp"
     assert config.sm == TmSolvMod.DCOSMORS
     assert config.gfnv == GfnVersion.GFN2
     assert config.optcycles == 8

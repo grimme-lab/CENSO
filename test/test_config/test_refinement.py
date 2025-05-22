@@ -9,7 +9,7 @@ def test_refinement_config_default_values():
 
     assert config.prog == QmProg.TM
     assert config.func == "wb97x-v"
-    assert config.basis == "def2-TZVP"
+    assert config.basis == "def2-tzvp"
     assert config.sm == TmSolvMod.COSMORS
     assert config.gfnv == GfnVersion.GFN2
     assert config.threshold == 0.95

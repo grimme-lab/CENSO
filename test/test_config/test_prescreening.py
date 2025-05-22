@@ -8,8 +8,8 @@ def test_prescreening_config_default_values():
     config = PrescreeningConfig()
 
     assert config.prog == QmProg.TM
-    assert config.func == "pbe-d4"
-    assert config.basis == "def2-SV(P)"
+    assert config.func == "pbe-d3"  # should be changed to d3 from d4 because of GCP bug
+    assert config.basis == "def2-sv(p)"
     assert config.gfnv == GfnVersion.GFN2
     assert config.threshold == 4.0
     assert config.run is True
@@ -27,7 +27,7 @@ def test_threshold_validation():
 @pytest.mark.parametrize(
     "prog,func,should_pass",
     [
-        (QmProg.TM, "pbe-d4", True),
+        (QmProg.TM, "pbe-d3", True),
         (QmProg.ORCA, "pbe-d4", True),  # Assuming this is valid
         (QmProg.TM, "invalid-func", False),
     ],

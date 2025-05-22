@@ -9,7 +9,7 @@ def test_uvvis_config_default_values():
 
     assert config.prog == QmProg.ORCA
     assert config.func == "wb97x-d4"
-    assert config.basis == "def2-TZVP"
+    assert config.basis == "def2-tzvp"
     assert config.sm == OrcaSolvMod.SMD
     assert config.gfnv == GfnVersion.GFN2
     assert config.nroots == 20
