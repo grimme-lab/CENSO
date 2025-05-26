@@ -32,7 +32,7 @@ def uvvis(
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
     """
-    printf(h1("UVVis"))
+    printf(h1("UVVIS"))
 
     # Assert that all conformers have populations defined
     try:

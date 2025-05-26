@@ -35,7 +35,7 @@ def prescreening(
 
     The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
     """
-    printf(h1("Prescreening"))
+    printf(h1("PRESCREENING"))
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
 
