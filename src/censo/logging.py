@@ -1,11 +1,7 @@
-import os
 import logging
 import sys
 from pathlib import Path
 
-from .params import USER_ASSETS_PATH
-
-__logpath: Path = Path(USER_ASSETS_PATH) / "censo.log"
 __loglevel = logging.INFO
 
 __loggers = []
@@ -13,44 +9,45 @@ __loggers = []
 # _loglevel = logging.DEBUG
 
 
-def setup_logger(name: str, silent: bool = True) -> logging.Logger:
+def setup_logger(name: str) -> logging.Logger:
     """
     Initializes and configures a logger with the specified name.
 
     Args:
         name (str): The name of the logger.
-        silent (bool, optional): Whether to print logpath or not. Defaults to True.
 
     Returns:
         logging.Logger: The configured logger instance.
     """
-    if not silent:
-        print(f"LOGFILE CAN BE FOUND AT: {__logpath}")
-
     # Create a logger instance with the specified name
     logger = logging.getLogger(name)
     logger.setLevel(__loglevel)
 
-    # Create a FileHandler to log messages to the logpath file
-    handler = logging.FileHandler(__logpath)
+    # Create a StreamHandler to log messages to stdout (only WARNING or above)
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(logging.WARNING)
 
     # Define the log message format
-    formatter = logging.Formatter(
-        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
-    )
     stream_formatter = logging.Formatter("{levelname:<10s}- {message}", style="{")
-    handler.setFormatter(formatter)
     stream_handler.setFormatter(stream_formatter)
 
     # Add the FileHandler and StreamHandler to the logger
-    logger.addHandler(handler)
     logger.addHandler(stream_handler)
 
     __loggers.append(logger)
 
     return logger
+
+
+def set_filehandler(path: str | Path):
+    """Set filehandler for all loggers."""
+    handler = logging.FileHandler(path)
+    formatter = logging.Formatter(
+        "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
+    )
+    handler.setFormatter(formatter)
+    for logger in __loggers:
+        logger.addHandler(handler)
 
 
 def set_loglevel(loglevel: str) -> None:

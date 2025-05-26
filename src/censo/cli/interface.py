@@ -6,7 +6,7 @@ from os import getcwd
 from argparse import ArgumentError
 from datetime import timedelta
 import traceback
-from typing import cast, Callable
+from typing import cast
 from pathlib import Path
 from tabulate import tabulate
 import functools
@@ -19,7 +19,7 @@ from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
 from ..params import AU2KCAL, DESCR, __version__
 from ..utilities import printf, h1, PLENGTH
-from ..logging import setup_logger, set_loglevel
+from ..logging import set_filehandler, setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
 
@@ -157,8 +157,9 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
 
     parts_config = configure(rcpath=args.inprcpath, args=args)
 
-    if args.loglevel:
-        set_loglevel(args.loglevel)
+    # Set up logging
+    set_loglevel(args.loglevel)
+    set_filehandler(args.logpath)
 
     # initialize ensemble
     ensemble = EnsembleData()

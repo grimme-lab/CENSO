@@ -118,6 +118,13 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="loglevel",
         help="Set the loglevel for all modules to a specified level.",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+    )
+    groups[0].add_argument(
+        "--logpath",
+        dest="logpath",
+        help="Relative/absolute path to the logfile.",
+        default="censo.log",
     )
     groups[0].add_argument(
         "--reload",
