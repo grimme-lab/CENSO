@@ -30,6 +30,7 @@ from ..params import (
     WARNLEN,
     USER_ASSETS_PATH,
     OrcaSolvMod,
+    Prog,
 )
 from ..assets import FUNCTIONALS, SOLVENTS
 from .qm_processor import QmProc
@@ -41,6 +42,8 @@ class OrcaProc(QmProc):
     """
     Performs calculations with ORCA.
     """
+
+    progname = Prog.ORCA
 
     # contains grid settings for ORCA 5.0+ (True) and older versions (False)
     # can be chosen by simple keyword (low/low+/high/high+)
@@ -162,7 +165,7 @@ class OrcaProc(QmProc):
         basis = config.basis
 
         # All of this should be validated while setting up the config
-        funcname = FUNCTIONALS[func]["orca"]
+        funcname = FUNCTIONALS[func][Prog.ORCA.value]
         functype = FUNCTIONALS[func]["type"]
         disp = FUNCTIONALS[func]["disp"]
 
@@ -490,7 +493,7 @@ class OrcaProc(QmProc):
             self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # call orca
-        call = [self.paths["orca"], f"{filename}.inp"]
+        call = [self.paths[Prog.ORCA.value], f"{filename}.inp"]
         returncode, errors = self._make_call(call, outputpath, jobdir)
         # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
 
@@ -643,7 +646,7 @@ class OrcaProc(QmProc):
             self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # call orca
-        call = [self.paths["orca"], f"{filename}.inp"]
+        call = [self.paths[Prog.ORCA.value], f"{filename}.inp"]
         returncode, errors = self._make_call(call, outputpath, jobdir)
         # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
 
@@ -784,7 +787,7 @@ class OrcaProc(QmProc):
                 [
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",
-                    f"   orca bin= {self.paths['orcapath']}\n",
+                    f"   orca bin= {self.paths[Prog.ORCA.value]}\n",
                     "$end\n",
                 ]
             )
@@ -804,7 +807,7 @@ class OrcaProc(QmProc):
                     "engine=lbfgs\n",
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",
-                    f"   orca bin= {self.paths['orca']} \n",
+                    f"   orca bin= {self.paths[Prog.ORCA.value]} \n",
                 ]
             )
 
@@ -828,7 +831,7 @@ class OrcaProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.paths["xtb"],
+            self.paths[Prog.XTB.value],
             f"{filename}.coord",  # name of the coord file generated above
             "--opt",
             config.optlevel,
@@ -1115,4 +1118,4 @@ class OrcaProc(QmProc):
         return result, meta
 
 
-Factory.register_builder("orca", OrcaProc)
+Factory.register_builder(Prog.ORCA, OrcaProc)

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from ..molecules import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel
+from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel, Prog
 from ..utilities import h1, printf, Factory, timeit, DataDump
 from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
@@ -95,7 +95,7 @@ def refinement(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
-        proc_xtb: XtbProc = Factory[XtbProc].create("xtb", "3_REFINEMENT")
+        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "3_REFINEMENT")
         job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs

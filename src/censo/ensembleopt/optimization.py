@@ -14,7 +14,7 @@ from ..ensembledata import EnsembleData
 from ..molecules import MoleculeData
 from ..processing import QmProc, XtbProc
 from ..parallel import OptResult, execute
-from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel
+from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel, Prog
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
 from ..config.job_config import RRHOJobConfig, OptJobConfig, XTBOptJobConfig
@@ -56,7 +56,7 @@ def optimization(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
-        proc_xtb: XtbProc = Factory[XtbProc].create("xtb", "2_OPTIMIZATION")
+        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
         job_config = RRHOJobConfig(
             gfnv=config.optimization.gfnv,
             **config.general.model_dump(),
@@ -157,7 +157,7 @@ def _macrocycle_opt(
             and not rrho_done
         ):
             # Run mRRHO calculation
-            proc_xtb: XtbProc = Factory[XtbProc].create("xtb", "2_OPTIMIZATION")
+            proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
             job_config_rrho = RRHOJobConfig(
                 gfnv=config.optimization.gfnv,
                 **config.general.model_dump(),

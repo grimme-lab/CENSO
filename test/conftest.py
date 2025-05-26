@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 
-from censo.params import QmProg, XtbSolvMod, TmSolvMod, OrcaSolvMod
+from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
 
 
 @pytest.fixture
@@ -25,14 +25,14 @@ def mock_functionals():
     """Mock functional definitions for testing"""
     return {
         "pbe-d4": {
-            QmProg.TM: "actual_value",
-            QmProg.ORCA: "actual_value",
+            Prog.TM.value: "actual_value",
+            Prog.ORCA.value: "actual_value",
             "disp": "d4",
             "type": "gga",
         },
         "r2scan-3c": {
-            QmProg.TM: "actual_value",
-            QmProg.ORCA: "actual_value",
+            Prog.TM.value: "actual_value",
+            Prog.ORCA.value: "actual_value",
             "disp": "3c",
             "type": "mgga",
         },

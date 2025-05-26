@@ -31,6 +31,7 @@ from ..params import (
     DIGILEN,
     WARNLEN,
     ENVIRON,
+    Prog,
 )
 from ..utilities import printf
 from ..logging import setup_logger
@@ -43,10 +44,12 @@ class GenericProc:
     Generic processor class
     """
 
+    progname: Prog = Prog.GENERIC
+
     paths = {
-        "orca": "",
+        Prog.ORCA.value: "",
         "orcaversion": "",
-        "xtb": "",
+        Prog.XTB.value: "",
         "cosmorssetup": "",
         "cosmotherm": "",
         "dbpath": "",
@@ -121,9 +124,11 @@ class GenericProc:
                 jobdir.mkdir(exist_ok=True, parents=True)
                 logger.info(
                     f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
-                    + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores."
+                    + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores using {self.progname.value}."
                 )
-                printf(f"Running {jobtype} calculation for {job.conf.name}.")
+                printf(
+                    f"Running {jobtype} calculation for {job.conf.name} using {self.progname.value}."
+                )
                 result, meta = f(self, job, jobdir, job_config, **kwargs)
             return result, meta
 

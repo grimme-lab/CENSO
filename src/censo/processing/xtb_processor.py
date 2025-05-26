@@ -25,6 +25,7 @@ from ..utilities import frange, Factory
 from ..logging import setup_logger
 from ..assets import SOLVENTS
 from .processor import GenericProc
+from ..params import Prog
 
 logger = setup_logger(__name__)
 
@@ -33,6 +34,8 @@ class XtbProc(GenericProc):
     """
     XtbProcessor
     """
+
+    progname = Prog.XTB
 
     @final
     def _sp(
@@ -88,7 +91,7 @@ class XtbProc(GenericProc):
 
         # setup call for xtb single-point
         call: list[str] = [
-            self.paths["xtb"],
+            self.paths[Prog.XTB.value],
             f"{filename}.coord",
             "--" + config.gfnv,
             "--sp",
@@ -311,7 +314,7 @@ class XtbProc(GenericProc):
             file.writelines(job.conf.tocoord())
 
         call: list[str] = [
-            self.paths["xtb"],
+            self.paths[Prog.XTB.value],
             f"{filename}.coord",
             "--" + config.gfnv,
             dohess,
@@ -477,4 +480,4 @@ class XtbProc(GenericProc):
         return result, meta
 
 
-Factory.register_builder("xtb", XtbProc)
+Factory.register_builder(Prog.XTB, XtbProc)

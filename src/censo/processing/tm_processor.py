@@ -18,7 +18,7 @@ from ..parallel import (
     SPResult,
     ParallelJob,
 )
-from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH
+from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog
 from ..utilities import frange, Factory
 from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig
 from ..assets import FUNCTIONALS, SOLVENTS
@@ -30,6 +30,8 @@ class TmProc(QmProc):
     """
     Performs calculations using TURBOMOLE.
     """
+
+    progname = Prog.TM
 
     __gridsettings = {
         "low": ["    gridsize m3", "$scfconv 6"],
@@ -180,7 +182,7 @@ class TmProc(QmProc):
         inp = []
 
         func = config.func
-        func_name = FUNCTIONALS[func]["tm"]
+        func_name = FUNCTIONALS[func][Prog.TM.value]
         func_type = FUNCTIONALS[func]["type"]
 
         try:
@@ -825,7 +827,7 @@ class TmProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.paths["xtb"],
+            self.paths[Prog.XTB.value],
             "coord",  # name of the coord file generated above
             "--opt",
             config.optlevel,
@@ -1100,4 +1102,4 @@ class TmProc(QmProc):
         raise NotImplementedError
 
 
-Factory.register_builder("tm", TmProc)
+Factory.register_builder(Prog.TM, TmProc)

@@ -14,7 +14,7 @@ from ..utilities import Factory, timeit, h1, DataDump, printf
 from ..config import PartsConfig
 from ..parallel import execute
 from ..processing import QmProc
-from ..params import OMPMIN, NCORES, GridLevel, AU2KCAL, PLENGTH
+from ..params import OMPMIN, NCORES, GridLevel, AU2KCAL, PLENGTH, Prog
 from ..config.job_config import SPJobConfig, XTBJobConfig
 from ..logging import setup_logger
 
@@ -40,7 +40,7 @@ def prescreening(
 
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
-        proc_xtb: XtbProc = Factory[XtbProc].create("xtb", "0_PRESCREENING")
+        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "0_PRESCREENING")
         job_config = XTBJobConfig(
             gfnv=config.prescreening.gfnv,
             solvent=config.general.solvent,

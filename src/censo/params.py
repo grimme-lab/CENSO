@@ -66,9 +66,16 @@ class GfnVersion(str, Enum):
     GFN2 = "gfn2"
 
 
-class QmProg(str, Enum):
+class Prog(str, Enum):
     ORCA = "orca"
     TM = "tm"
+    XTB = "xtb"
+    GENERIC = "generic"
+
+
+class QmProg(str, Enum):
+    ORCA = Prog.ORCA.value
+    TM = Prog.TM.value
 
 
 class GridLevel(str, Enum):
