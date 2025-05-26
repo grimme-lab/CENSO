@@ -28,8 +28,8 @@ class TestScreening:
 
         # Mock execute results for sp only (gas phase)
         mock_execute.side_effect = [
-            (mock_execute_results["screening"]["sp"], []),
-            (mock_execute_results["screening"]["xtb_rrho"], []),
+            mock_execute_results["screening"]["sp"],
+            mock_execute_results["screening"]["xtb_rrho"],
         ]
 
         # Prepare ensemble (remove surplus confs)
@@ -61,7 +61,7 @@ class TestScreening:
 
         # Mock execute results for sp only (gas phase)
         mock_execute.side_effect = [
-            (mock_execute_results["screening"]["sp"], []),
+            mock_execute_results["screening"]["sp"],
         ]
 
         # Prepare ensemble (remove surplus confs)
@@ -88,8 +88,8 @@ class TestScreening:
         """Test screening function with solvation"""
         # Mock execute results for gsolv (not included)
         mock_execute.side_effect = [
-            (mock_execute_results["screening"]["gsolv"], []),
-            (mock_execute_results["screening"]["xtb_rrho"], []),
+            mock_execute_results["screening"]["gsolv"],
+            mock_execute_results["screening"]["xtb_rrho"],
         ]
 
         config = PartsConfig()
@@ -130,8 +130,8 @@ class TestScreening:
 
         # Mock execute results
         mock_execute.side_effect = [
-            (mock_execute_results["screening"]["gsolv"], []),
-            (mock_execute_results["screening"]["xtb_rrho"], []),
+            mock_execute_results["screening"]["gsolv"],
+            mock_execute_results["screening"]["xtb_rrho"],
         ]
 
         # Prepare ensemble (remove surplus confs)

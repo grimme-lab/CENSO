@@ -60,7 +60,7 @@ def screening(
             # trange=config.general.trange,
             temperature=config.general.temperature,
         )
-        results, _ = execute(
+        results = execute(
             ensemble.conformers,
             proc.gsolv,
             job_config,
@@ -68,6 +68,7 @@ def screening(
             ncores,
             omp,
             "screening",
+            ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -87,7 +88,7 @@ def screening(
             solvent=config.general.solvent,
             sm=config.screening.sm,
         )
-        results, _ = execute(
+        results = execute(
             ensemble.conformers,
             proc.sp,
             job_config,
@@ -95,6 +96,7 @@ def screening(
             ncores,
             omp,
             "screening",
+            ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -109,7 +111,7 @@ def screening(
             gfnv=config.screening.gfnv,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
-        results, _ = execute(
+        results = execute(
             ensemble.conformers,
             proc_xtb.xtb_rrho,
             job_config,
@@ -117,6 +119,7 @@ def screening(
             ncores,
             omp,
             "screening",
+            ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )

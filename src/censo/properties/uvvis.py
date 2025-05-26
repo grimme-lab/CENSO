@@ -53,7 +53,7 @@ def uvvis(
         **config.uvvis.model_dump(),
     )
 
-    results, _ = execute(
+    results = execute(
         ensemble.conformers,
         proc.uvvis,
         job_config,
@@ -61,6 +61,7 @@ def uvvis(
         ncores,
         omp,
         "uvvis",
+        ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )

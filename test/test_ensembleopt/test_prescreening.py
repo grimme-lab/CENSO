@@ -27,7 +27,7 @@ class TestPrescreening:
         config.general.gas_phase = True
 
         # Mock execute results for sp only (gas phase)
-        mock_execute.return_value = (mock_execute_results["prescreening"]["sp"], [])
+        mock_execute.return_value = mock_execute_results["prescreening"]["sp"]
 
         # Run prescreening
         prescreening(mock_ensemble, config, ncores=1, omp=1)
@@ -48,8 +48,8 @@ class TestPrescreening:
         """Test prescreening function with solvation"""
         # Mock execute results for both xtb_gsolv and sp
         mock_execute.side_effect = [
-            (mock_execute_results["prescreening"]["xtb_gsolv"], []),
-            (mock_execute_results["prescreening"]["sp"], []),
+            mock_execute_results["prescreening"]["xtb_gsolv"],
+            mock_execute_results["prescreening"]["sp"],
         ]
 
         config = PartsConfig()
@@ -85,8 +85,8 @@ class TestPrescreening:
 
         # Mock execute results
         mock_execute.side_effect = [
-            (mock_execute_results["prescreening"]["xtb_gsolv"], []),
-            (mock_execute_results["prescreening"]["sp"], []),
+            mock_execute_results["prescreening"]["xtb_gsolv"],
+            mock_execute_results["prescreening"]["sp"],
         ]
 
         # Run prescreening

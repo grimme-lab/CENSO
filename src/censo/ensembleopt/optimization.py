@@ -61,7 +61,7 @@ def optimization(
             gfnv=config.optimization.gfnv,
             **config.general.model_dump(),
         )
-        results, _ = execute(
+        results = execute(
             ensemble.conformers,
             proc_xtb.xtb_rrho,
             job_config,
@@ -69,6 +69,7 @@ def optimization(
             ncores,
             omp,
             "optimization",
+            ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -130,7 +131,7 @@ def _macrocycle_opt(
     while (
         len(unconverged_ensemble.conformers) > 0 and ncyc < config.optimization.maxcyc
     ):
-        results, _ = execute(
+        results = execute(
             unconverged_ensemble.conformers,
             target,
             job_config,
@@ -138,6 +139,7 @@ def _macrocycle_opt(
             ncores,
             omp,
             "optimization",
+            ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -160,7 +162,7 @@ def _macrocycle_opt(
                 gfnv=config.optimization.gfnv,
                 **config.general.model_dump(),
             )
-            results_rrho, _ = execute(
+            results_rrho = execute(
                 unconverged_ensemble.conformers,
                 proc_xtb.xtb_rrho,
                 job_config_rrho,
@@ -168,6 +170,7 @@ def _macrocycle_opt(
                 ncores,
                 omp,
                 "optimization",
+                ignore_failed=config.general.ignore_failed,
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
             )
@@ -249,7 +252,7 @@ def _full_opt(
         )
         target = proc.opt
 
-    results, _ = execute(
+    results = execute(
         ensemble.conformers,
         target,
         job_config,
@@ -257,6 +260,7 @@ def _full_opt(
         ncores,
         omp,
         "optimization",
+        ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )

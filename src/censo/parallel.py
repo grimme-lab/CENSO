@@ -1,5 +1,4 @@
 import traceback
-import sys
 from dataclasses import dataclass, field
 from typing import Callable, Literal
 from contextlib import contextmanager
@@ -266,9 +265,10 @@ def execute[T: QmResult](
     ncores: int,
     omp: int,
     from_part: str,
+    ignore_failed: bool = True,
     balance: bool = True,
     copy_mo: bool = True,
-) -> tuple[dict[str, T], list[MoleculeData]]:
+) -> dict[str, T]:
     """
     Executes the parallel tasks using a managed environment.
 
@@ -282,7 +282,6 @@ def execute[T: QmResult](
 
     Returns:
         dict[str, QmResult]: Job results.
-        list[MoleculeData]: List of failed conformers.
     """
     # Initialize lists to store failed conformers and results
     failed_confs: list[MoleculeData] = []
@@ -379,7 +378,11 @@ def execute[T: QmResult](
 
     if len(failed_confs) > 0:
         logger.info(f"Number of failed jobs: {len(failed_confs)}.")
+        logger.info("Failed conformers:")
+        logger.info(", ".join(c.name for c in failed_confs))
+        if not ignore_failed:
+            raise RuntimeError(f"Stopping CENSO due to failed jobs in {from_part}.")
     else:
         logger.info("All jobs executed successfully.")
 
-    return results, failed_confs
+    return results

@@ -54,7 +54,7 @@ def nmr(
         **config.nmr.model_dump(),
     )
 
-    results, _ = execute(
+    results = execute(
         ensemble.conformers,
         proc.nmr,
         job_config,
@@ -62,6 +62,7 @@ def nmr(
         ncores,
         omp,
         "nmr",
+        ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )

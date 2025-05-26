@@ -365,7 +365,7 @@ class TestJobExecution:
         conformers = create_mock_conformers(2)
 
         # Run execute
-        results, failed = execute(
+        results = execute(
             conformers=conformers,
             task=task_success,
             job_config=mock_job_config,
@@ -378,7 +378,6 @@ class TestJobExecution:
         # Verify results
         assert len(results) == 2
         assert all(f"CONF{i}" in results for i in range(1, 3))
-        assert len(failed) == 0
 
         # Check result contents
         for conf_name, result in results.items():
@@ -409,7 +408,7 @@ class TestJobExecution:
         conformers = create_mock_conformers(4)
 
         # Run execute
-        results, failed = execute(
+        results = execute(
             conformers=conformers,
             task=task_conditional,
             job_config=mock_job_config,
@@ -417,13 +416,25 @@ class TestJobExecution:
             ncores=4,
             omp=2,
             from_part="test",
+            ignore_failed=True,
         )
 
         # Verify results (even-numbered conformers succeed, odd ones fail)
         assert len(results) == 2
         assert all(f"CONF{i}" in results for i in [2, 4])
-        assert len(failed) == 2
-        assert all(conf.name in [f"CONF{i}" for i in [1, 3]] for conf in failed)
+
+        # Test ignore_failed
+        with pytest.raises(RuntimeError, match="failed jobs"):
+            results = execute(
+                conformers=conformers,
+                task=task_conditional,
+                job_config=mock_job_config,
+                prog=QmProg.ORCA,
+                ncores=4,
+                omp=2,
+                from_part="test",
+                ignore_failed=False,
+            )
 
     def test_execute_resource_management(self, mock_job_config, create_mock_conformers):
         """Test resource management with multiple jobs"""
@@ -433,7 +444,7 @@ class TestJobExecution:
 
         # Run execute with limited cores
         start_time = time.time()
-        results, failed = execute(
+        results = execute(
             conformers=conformers,
             task=task_success,
             job_config=mock_job_config,
@@ -441,6 +452,7 @@ class TestJobExecution:
             ncores=4,  # Limit to 4 cores
             omp=2,  # 2 cores per job
             from_part="test",
+            ignore_failed=False,
             balance=False,
             copy_mo=False,
         )
@@ -448,7 +460,6 @@ class TestJobExecution:
 
         # Verify results
         assert len(results) == n_jobs
-        assert len(failed) == 0
 
         # With 4 cores total and 2 cores per job, we should be able to run 2 jobs in parallel
         # Each job takes 0.1s, so 8 jobs should take ~0.4s (plus overhead)

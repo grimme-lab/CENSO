@@ -47,7 +47,7 @@ def prescreening(
             sm_rrho=config.general.sm_rrho,
             gas_phase=False,
         )
-        results, _ = execute(
+        results = execute(
             ensemble.conformers,
             proc_xtb.gsolv,
             job_config,
@@ -55,6 +55,7 @@ def prescreening(
             ncores,
             omp,
             "prescreening",
+            ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
@@ -71,7 +72,7 @@ def prescreening(
         template=config.prescreening.template,
         gas_phase=True,
     )
-    results, _ = execute(
+    results = execute(
         ensemble.conformers,
         proc.sp,
         job_config,
@@ -79,6 +80,7 @@ def prescreening(
         ncores,
         omp,
         "prescreening",
+        ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )
