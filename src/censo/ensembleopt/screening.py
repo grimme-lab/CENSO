@@ -15,7 +15,7 @@ from ..molecules import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel, Prog
-from ..utilities import h1, printf, Factory, timeit, DataDump
+from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
@@ -41,7 +41,7 @@ def screening(
         - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
         - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
     """
-    printf(h1("SCREENING"))
+    printf(h2("SCREENING"))
 
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")

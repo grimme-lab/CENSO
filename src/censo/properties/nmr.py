@@ -15,7 +15,7 @@ from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
 from ..params import NCORES, OMPMIN, GridLevel
 from ..parallel import NMRResult, execute
-from ..utilities import printf, Factory, h1, timeit, DataDump
+from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
 
@@ -33,7 +33,7 @@ def nmr(
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
     """
-    printf(h1("NMR"))
+    printf(h2("NMR"))
 
     # Assert that all conformers have populations defined
     try:

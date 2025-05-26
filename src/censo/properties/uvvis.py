@@ -14,7 +14,7 @@ from ..config.job_config import UVVisJobConfig
 from ..config.parts import UVVisConfig
 from ..params import NCORES, OMPMIN, GridLevel
 from ..parallel import execute, UVVisResult
-from ..utilities import printf, Factory, h1, timeit, DataDump
+from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
 
@@ -32,7 +32,7 @@ def uvvis(
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
     """
-    printf(h1("UVVIS"))
+    printf(h2("UVVIS"))
 
     # Assert that all conformers have populations defined
     try:

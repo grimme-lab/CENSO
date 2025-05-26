@@ -10,7 +10,7 @@ from censo.processing.xtb_processor import XtbProc
 from ..config.parts.prescreening import PrescreeningConfig
 from ..molecules import MoleculeData
 from ..ensembledata import EnsembleData
-from ..utilities import Factory, timeit, h1, DataDump, printf
+from ..utilities import Factory, timeit, h1, h2, DataDump, printf
 from ..config import PartsConfig
 from ..parallel import execute
 from ..processing import QmProc
@@ -35,7 +35,7 @@ def prescreening(
 
     The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
     """
-    printf(h1("PRESCREENING"))
+    printf(h2("PRESCREENING"))
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
 

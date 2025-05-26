@@ -47,7 +47,7 @@ def optimization(
 
     Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'macrocycles')
     """
-    printf(h1("OPTIMIZATION"))
+    printf(h2("OPTIMIZATION"))
 
     # Setup processor
     proc: QmProc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
