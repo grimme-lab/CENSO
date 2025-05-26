@@ -248,6 +248,9 @@ class TmProc(QmProc):
 
         # TODO: add template
 
+        if jobtype == "xtb_opt":
+            inp.append("$grad file=gradient")
+
         inp.append("$end")
         inp = [i if i.endswith("\n") else i + "\n" for i in inp]
         (Path(jobdir) / "control").write_text("".join(inp))
