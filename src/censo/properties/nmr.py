@@ -17,7 +17,7 @@ from ..params import NCORES, OMPMIN, GridLevel
 from ..parallel import NMRResult, execute
 from ..utilities import printf, Factory, h1, timeit, DataDump
 from ..logging import setup_logger
-from ..qm import QmProc
+from ..processing import QmProc
 
 logger = setup_logger(__name__)
 

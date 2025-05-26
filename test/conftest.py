@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 
-from censo.params import QmProg, GfnVersion, XtbSolvMod, TmSolvMod, OrcaSolvMod
+from censo.params import QmProg, XtbSolvMod, TmSolvMod, OrcaSolvMod
 
 
 @pytest.fixture

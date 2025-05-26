@@ -10,7 +10,7 @@ from .parts_config import PartsConfig
 from .parts import *
 from ..params import CENSORCNAME
 from ..logging import setup_logger
-from ..qm import QmProc
+from ..processing import GenericProc
 
 logger = setup_logger(__name__)
 
@@ -73,7 +73,7 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
             parts_config.general.__setattr__(field, setting)
 
     # Update the paths for the processors
-    QmProc.paths.update(paths)
+    GenericProc.paths.update(paths)
 
     return parts_config
 

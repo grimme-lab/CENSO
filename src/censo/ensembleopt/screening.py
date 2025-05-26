@@ -20,7 +20,7 @@ from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..ensembledata import EnsembleData
-from ..qm import QmProc
+from ..processing import QmProc, XtbProc
 
 logger = setup_logger(__name__)
 
@@ -104,13 +104,14 @@ def screening(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
+        proc_xtb: XtbProc = Factory.create("xtb", "1_SCREENING")
         job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
         results, _ = execute(
             ensemble.conformers,
-            proc.xtb_rrho,
+            proc_xtb.xtb_rrho,
             job_config,
             "xtb",
             ncores,

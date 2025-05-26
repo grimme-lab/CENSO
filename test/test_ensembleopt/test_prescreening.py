@@ -34,7 +34,7 @@ class TestPrescreening:
 
         # Verify calls
         assert mock_execute.call_count == 1  # Only sp calculation
-        mock_factory[QmProg].create.assert_called_once()
+        assert mock_factory[QmProg].create.call_count == 1
 
     @patch("censo.ensembleopt.prescreening.Factory")
     @patch("censo.ensembleopt.prescreening.execute")
@@ -59,7 +59,7 @@ class TestPrescreening:
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
-        mock_factory[QmProg].create.assert_called_once()
+        assert mock_factory[QmProg].create.call_count == 2
 
     @pytest.mark.parametrize(
         "threshold,expected_count",

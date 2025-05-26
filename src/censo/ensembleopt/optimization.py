@@ -13,7 +13,7 @@ from tabulate import tabulate
 
 from ..ensembledata import EnsembleData
 from ..molecules import MoleculeData
-from ..qm import QmProc
+from ..processing import QmProc, XtbProc
 from ..parallel import OptResult, execute
 from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel
 from ..config import PartsConfig
@@ -57,13 +57,14 @@ def optimization(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
+        proc_xtb: XtbProc = Factory[XtbProc].create("xtb", "2_OPTIMIZATION")
         job_config = RRHOJobConfig(
             gfnv=config.optimization.gfnv,
             **config.general.model_dump(),
         )
         results, _ = execute(
             ensemble.conformers,
-            proc.xtb_rrho,
+            proc_xtb.xtb_rrho,
             job_config,
             "xtb",
             ncores,
@@ -155,13 +156,14 @@ def _macrocycle_opt(
             and not rrho_done
         ):
             # Run mRRHO calculation
+            proc_xtb: XtbProc = Factory[XtbProc].create("xtb", "2_OPTIMIZATION")
             job_config_rrho = RRHOJobConfig(
                 gfnv=config.optimization.gfnv,
                 **config.general.model_dump(),
             )
             results_rrho, _ = execute(
                 unconverged_ensemble.conformers,
-                proc.xtb_rrho,
+                proc_xtb.xtb_rrho,
                 job_config_rrho,
                 "xtb",
                 ncores,
