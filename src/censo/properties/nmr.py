@@ -33,6 +33,8 @@ def nmr(
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
     """
+    printf(h1("NMR"))
+
     # Assert that all conformers have populations defined
     try:
         assert all(conf.bmw for conf in ensemble)

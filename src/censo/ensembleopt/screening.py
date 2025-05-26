@@ -41,6 +41,7 @@ def screening(
         - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
         - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
     """
+    printf(h1("Screening"))
 
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")

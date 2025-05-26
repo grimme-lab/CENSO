@@ -30,6 +30,7 @@ def refinement(
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
     """
+    printf(h1("Refinement"))
 
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.refinement.prog, "3_REFINEMENT")
