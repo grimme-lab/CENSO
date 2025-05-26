@@ -4,7 +4,6 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 
 from copy import deepcopy
-import os
 import json
 from pathlib import Path
 from collections.abc import Callable

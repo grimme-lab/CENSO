@@ -45,8 +45,8 @@ def refinement(
             gas_phase=False,
             solvent=config.general.solvent,
             sm=config.refinement.sm,
-            multitemp=config.general.multitemp,
-            trange=config.general.trange,
+            # multitemp=config.general.multitemp,
+            # trange=config.general.trange,
             temperature=config.general.temperature,
         )
         results, _ = execute(

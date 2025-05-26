@@ -10,8 +10,8 @@ def test_general_config_default_values():
     config = GeneralConfig()
 
     assert config.temperature == 298.15
-    assert config.multitemp is True
-    assert config.trange == (273.15, 373.15, 5)
+    # assert config.multitemp is True
+    # assert config.trange == (273.15, 373.15, 5)
     assert config.evaluate_rrho is True
     assert config.sm_rrho == XtbSolvMod.GBSA
     # assert config.consider_sym is True
@@ -32,21 +32,21 @@ def test_temperature_validation():
         GeneralConfig(temperature=-1.0)
 
 
-def test_trange_validation():
-    """Test trange validation"""
-    # Test negative temperature
-    with pytest.raises(ValueError, match="Negative temperature"):
-        GeneralConfig(trange=(-1.0, 373.15, 5))
-
-    # Test wrong order
-    with pytest.raises(ValueError, match="must be larger than"):
-        GeneralConfig(trange=(373.15, 273.15, 5))
-
-    # Test invalid step size
-    with pytest.raises(ValueError, match="must be positive"):
-        GeneralConfig(trange=(273.15, 373.15, 0))
-    with pytest.raises(ValueError, match="must be positive"):
-        GeneralConfig(trange=(273.15, 373.15, -1))
+# def test_trange_validation():
+#     """Test trange validation"""
+#     # Test negative temperature
+#     with pytest.raises(ValueError, match="Negative temperature"):
+#         GeneralConfig(trange=(-1.0, 373.15, 5))
+#
+#     # Test wrong order
+#     with pytest.raises(ValueError, match="must be larger than"):
+#         GeneralConfig(trange=(373.15, 273.15, 5))
+#
+#     # Test invalid step size
+#     with pytest.raises(ValueError, match="must be positive"):
+#         GeneralConfig(trange=(273.15, 373.15, 0))
+#     with pytest.raises(ValueError, match="must be positive"):
+#         GeneralConfig(trange=(273.15, 373.15, -1))
 
 
 def test_scale_validation():

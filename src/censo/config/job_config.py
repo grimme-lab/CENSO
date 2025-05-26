@@ -61,15 +61,15 @@ class SPJobConfig(GenericConfig):
     solvent: str | None = None
     """Solvent name to apply. Naming in solvation model will be automatically mapped."""
 
-    # Only used for COSMORS calculations
-    multitemp: bool | None = None
-    """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
+    # # Only used for COSMORS calculations
+    # multitemp: bool | None = None
+    # """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
 
     temperature: float | None = None
     """Equivalent to general settings variant. If not multitemp then use this temperature (only used in COSMORS calculations)."""
 
-    trange: tuple[float, float, float] | None = None
-    """Equivalent to general settings variant. (min, max, step) for the temperature range (only used in COSMORS calculations)."""
+    # trange: tuple[float, float, float] | None = None
+    # """Equivalent to general settings variant. (min, max, step) for the temperature range (only used in COSMORS calculations)."""
 
     @field_validator("solvent", "sm")
     @classmethod
@@ -104,8 +104,8 @@ class XTBOptJobConfig(OptJobConfig):
 
 
 class RRHOJobConfig(XTBJobConfig):
-    multitemp: bool
-    """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
+    # multitemp: bool
+    # """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
 
     sthr: float
 
@@ -116,7 +116,7 @@ class RRHOJobConfig(XTBJobConfig):
 
     temperature: float
 
-    trange: tuple[float, float, float]
+    # trange: tuple[float, float, float]
 
     # rmsdbias: bool
 
