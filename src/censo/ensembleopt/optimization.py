@@ -450,6 +450,9 @@ def _print_update(ensemble: EnsembleData):
     )
     print(table, flush=True)
 
+    for i in range(len(headers)):
+        headers[i] = headers[i].split("\n")[0]
+
     print(h1("Unconverged conformers"))
 
     rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
