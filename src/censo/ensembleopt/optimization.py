@@ -134,6 +134,7 @@ def _macrocycle_opt(
     while (
         len(unconverged_ensemble.conformers) > 0 and ncyc < config.optimization.maxcyc
     ):
+        print(h1(f"OPTIMIZATION CYCLE {ncyc // config.optimization.optcycles}"))
         results = execute(
             unconverged_ensemble.conformers,
             target,
@@ -209,7 +210,7 @@ def _macrocycle_opt(
         # so we can use the updated mRRHO contributions
         ncyc += config.optimization.optcycles
 
-        _print_update(unconverged_ensemble, results)
+        _print_update(unconverged_ensemble)
 
     # Finally sync ensembles
     for conf in unconverged_ensemble.rem:
@@ -402,5 +403,65 @@ def jsonify(
     return dump.model_dump(mode="json")
 
 
-def _print_update(ensemble: EnsembleData, results: dict[str, OptResult]):
-    pass
+def _print_update(ensemble: EnsembleData):
+
+    print(h1("Converged conformers"))
+
+    # column headers
+    headers = [
+        "CONF#",
+        "E (DFT)",
+        "GmRRHO",
+        "Gtot",
+        "ΔGtot",
+    ]
+
+    # column units
+    units = [
+        "",
+        "[Eh]",
+        "[Eh]",
+        "[Eh]",
+        "[kcal/mol]",
+    ]
+
+    # variables for printmap
+    gtotmin = min(conf.gtot for conf in ensemble.conformers + ensemble.rem)
+
+    printmap = {
+        "CONF#": lambda conf: conf.name,
+        "E (DFT)": lambda conf: f"{conf.energy:.6f}",
+        "GmRRHO": lambda conf: (f"{conf.grrho:.6f}"),
+        "Gtot": lambda conf: f"{conf.gtot:.6f}",
+        "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
+    }
+
+    rows = [[printmap[header](conf) for header in headers] for conf in ensemble.rem]
+
+    for i in range(len(headers)):
+        headers[i] += "\n" + units[i]
+
+    table = tabulate(
+        rows,
+        headers=headers,
+        colalign=["left"] + ["center" for _ in headers[1:]],
+        disable_numparse=True,
+        numalign="decimal",
+    )
+    print(table, flush=True)
+
+    print(h1("Unconverged conformers"))
+
+    rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
+
+    for i in range(len(headers)):
+        headers[i] += "\n" + units[i]
+
+    table = tabulate(
+        rows,
+        headers=headers,
+        colalign=["left"] + ["center" for _ in headers[1:]],
+        disable_numparse=True,
+        numalign="decimal",
+    )
+    print(table, flush=True)
