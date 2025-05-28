@@ -57,6 +57,8 @@ def optimization(
     else:
         _full_opt(proc, ensemble, config, ncores, omp)
 
+    printf("\n")
+
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
         proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
@@ -134,7 +136,7 @@ def _macrocycle_opt(
     while (
         len(unconverged_ensemble.conformers) > 0 and ncyc < config.optimization.maxcyc
     ):
-        print(
+        printf(
             h1(
                 f"OPTIMIZATION CYCLE {ncyc // config.optimization.optcycles} ({config.optimization.optcycles} steps)"
             )
@@ -341,7 +343,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
         disable_numparse=True,
         numalign="decimal",
     )
-    print(table, flush=True)
+    printf(table, flush=True)
 
     # list the averaged free enthalpy of the ensemble
     lines: list[str] = []
@@ -438,7 +440,7 @@ def _print_update(ensemble: EnsembleData):
     }
 
     if len(ensemble.rem) > 0:
-        print(h1("Converged conformers"))
+        printf(h1("Converged or removed conformers"))
 
         rows = [[printmap[header](conf) for header in headers] for conf in ensemble.rem]
 
@@ -452,13 +454,13 @@ def _print_update(ensemble: EnsembleData):
             disable_numparse=True,
             numalign="decimal",
         )
-        print(table, flush=True)
+        printf(table, flush=True)
 
         for i in range(len(headers)):
             headers[i] = headers[i].split("\n")[0]
 
     if len(ensemble.conformers) > 0:
-        print(h1("Unconverged conformers"))
+        printf(h1("Unconverged conformers"))
 
         rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
 
@@ -472,4 +474,4 @@ def _print_update(ensemble: EnsembleData):
             disable_numparse=True,
             numalign="decimal",
         )
-        print(table, flush=True)
+        printf(table, flush=True)
