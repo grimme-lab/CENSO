@@ -134,7 +134,11 @@ def _macrocycle_opt(
     while (
         len(unconverged_ensemble.conformers) > 0 and ncyc < config.optimization.maxcyc
     ):
-        print(h1(f"OPTIMIZATION CYCLE {ncyc // config.optimization.optcycles}"))
+        print(
+            h1(
+                f"OPTIMIZATION CYCLE {ncyc // config.optimization.optcycles} ({config.optimization.optcycles} steps)"
+            )
+        )
         results = execute(
             unconverged_ensemble.conformers,
             target,
