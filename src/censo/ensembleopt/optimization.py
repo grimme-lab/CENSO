@@ -404,9 +404,6 @@ def jsonify(
 
 
 def _print_update(ensemble: EnsembleData):
-
-    print(h1("Converged conformers"))
-
     # column headers
     headers = [
         "CONF#",
@@ -436,35 +433,39 @@ def _print_update(ensemble: EnsembleData):
         "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
     }
 
-    rows = [[printmap[header](conf) for header in headers] for conf in ensemble.rem]
+    if len(ensemble.rem) > 0:
+        print(h1("Converged conformers"))
 
-    for i in range(len(headers)):
-        headers[i] += "\n" + units[i]
+        rows = [[printmap[header](conf) for header in headers] for conf in ensemble.rem]
 
-    table = tabulate(
-        rows,
-        headers=headers,
-        colalign=["left"] + ["center" for _ in headers[1:]],
-        disable_numparse=True,
-        numalign="decimal",
-    )
-    print(table, flush=True)
+        for i in range(len(headers)):
+            headers[i] += "\n" + units[i]
 
-    for i in range(len(headers)):
-        headers[i] = headers[i].split("\n")[0]
+        table = tabulate(
+            rows,
+            headers=headers,
+            colalign=["left"] + ["center" for _ in headers[1:]],
+            disable_numparse=True,
+            numalign="decimal",
+        )
+        print(table, flush=True)
 
-    print(h1("Unconverged conformers"))
+        for i in range(len(headers)):
+            headers[i] = headers[i].split("\n")[0]
 
-    rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
+    if len(ensemble.conformers) > 0:
+        print(h1("Unconverged conformers"))
 
-    for i in range(len(headers)):
-        headers[i] += "\n" + units[i]
+        rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
 
-    table = tabulate(
-        rows,
-        headers=headers,
-        colalign=["left"] + ["center" for _ in headers[1:]],
-        disable_numparse=True,
-        numalign="decimal",
-    )
-    print(table, flush=True)
+        for i in range(len(headers)):
+            headers[i] += "\n" + units[i]
+
+        table = tabulate(
+            rows,
+            headers=headers,
+            colalign=["left"] + ["center" for _ in headers[1:]],
+            disable_numparse=True,
+            numalign="decimal",
+        )
+        print(table, flush=True)
