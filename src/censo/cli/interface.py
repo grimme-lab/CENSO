@@ -2,7 +2,7 @@ from logging import DEBUG
 import os
 import shutil
 import sys
-from argparse import ArgumentError
+from argparse import ArgumentError, Namespace
 from datetime import timedelta
 import traceback
 from typing import cast
@@ -133,7 +133,7 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
 
 
 # sets up a ensemble object using the given cml arguments and censorc
-def startup(args) -> tuple[EnsembleData, PartsConfig]:
+def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
     # get most important infos for current run
     cwd = os.getcwd()
 
@@ -205,7 +205,7 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
     return ensemble, parts_config
 
 
-def cleanup_run(cwd, complete=False):
+def cleanup_run(cwd: str | Path, complete: bool = False):
     """
     Delete all unneeded files.
     """
