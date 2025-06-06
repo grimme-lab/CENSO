@@ -133,7 +133,7 @@ DESCR = f"""
               |                                                              |
               |                   CENSO - Commandline ENSO                   |
               |{'v ' + __version__:^{62}}|
-              |    energetic sorting of CREST Conformer Rotamer Ensembles    |
+              |          energetic sorting of Conformer Rotamer Ensembles    |
               |                    University of Bonn, MCTC                  |
               |                           Oct 2024                           |
               |                 based on ENSO version 2.0.1                  |
