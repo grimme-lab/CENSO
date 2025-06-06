@@ -1,7 +1,5 @@
 """
-Contains QmProc base class,
-Additionally contains functions which should be present irrespective of the QM
-code. (xTB always available)
+Processor for xtb calculations.
 """
 
 import json

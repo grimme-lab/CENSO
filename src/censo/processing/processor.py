@@ -1,7 +1,6 @@
 """
-Contains QmProc base class,
-Additionally contains functions which should be present irrespective of the QM
-code. (xTB always available)
+Generic processor class. Only abstract methods: sp, opt (single-point and geometry optimization).
+Also implements important methods inherited by all other processors, e.g. making external program calls and creating job dirs.
 """
 
 from abc import abstractmethod

@@ -1,7 +1,5 @@
 """
-Contains QmProc base class,
-Additionally contains functions which should be present irrespective of the QM
-code. (xTB always available)
+Base class for all QM-based processors, e.g. ORCA, TM (or QChem, ...).
 """
 
 from abc import abstractmethod
