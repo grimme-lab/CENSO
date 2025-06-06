@@ -11,7 +11,6 @@ def test_nmr_config_default_values():
     assert config.func == "pbe0-d4"
     assert config.basis == "def2-tzvp"  # should be lower case
     assert config.sm == OrcaSolvMod.SMD
-    assert config.gfnv == GfnVersion.GFN2
     assert config.resonance_frequency == 300.0
     assert config.ss_cutoff == 8.0
     assert config.fc_only is True

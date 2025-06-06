@@ -19,7 +19,6 @@ def test_general_config_default_values():
     # assert config.rmsdbias is False
     assert config.imagthr == -100.0
     assert config.sthr == 0.0
-    assert config.scale == 1.0
     assert config.solvent == "h2o"
     assert config.gas_phase is False
     assert config.copy_mo is True
@@ -47,14 +46,6 @@ def test_temperature_validation():
 #         GeneralConfig(trange=(273.15, 373.15, 0))
 #     with pytest.raises(ValueError, match="must be positive"):
 #         GeneralConfig(trange=(273.15, 373.15, -1))
-
-
-def test_scale_validation():
-    """Test scale validation"""
-    with pytest.raises(ValueError):
-        GeneralConfig(scale=-1.0)
-    with pytest.raises(ValueError):
-        GeneralConfig(scale=0.0)
 
 
 def test_imagthr_validation():

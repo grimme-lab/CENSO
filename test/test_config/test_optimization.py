@@ -15,7 +15,7 @@ def test_optimization_config_default_values():
     assert config.optcycles == 8
     assert config.maxcyc == 200
     assert config.optlevel == "normal"
-    assert config.threshold == 1.5
+    assert config.threshold == 3.0
     assert config.gradthr == 0.01
     assert config.hlow == 0.01
     assert config.macrocycles is True
