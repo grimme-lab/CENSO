@@ -349,7 +349,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
         disable_numparse=True,
         numalign="decimal",
     )
-    printf(table, flush=True)
+    printf(table)
 
     # list the averaged free enthalpy of the ensemble
     lines: list[str] = []
@@ -460,7 +460,7 @@ def _print_update(ensemble: EnsembleData):
             disable_numparse=True,
             numalign="decimal",
         )
-        printf(table, flush=True)
+        printf(table)
 
         for i in range(len(headers)):
             headers[i] = headers[i].split("\n")[0]
@@ -480,4 +480,4 @@ def _print_update(ensemble: EnsembleData):
             disable_numparse=True,
             numalign="decimal",
         )
-        printf(table, flush=True)
+        printf(table)
