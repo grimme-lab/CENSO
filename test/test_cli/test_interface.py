@@ -1,13 +1,13 @@
 from pathlib import Path
-import pytest
 
 from censo.cli.cml_parser import parse
 from censo.cli.interface import startup, entry_point
+from censo.params import Returncodes
 
 
 def test_blank_startup():
-    with pytest.raises(FileNotFoundError, match="No such file or directory"):
-        entry_point([])
+    ret = entry_point([])
+    assert ret == Returncodes.INPUT_NOT_FOUND
 
 
 def test_help_startup():
