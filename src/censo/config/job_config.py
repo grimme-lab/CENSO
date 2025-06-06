@@ -102,6 +102,9 @@ class XTBOptJobConfig(OptJobConfig):
     hlow: float
     """hlow setting to be used in xtb (refer to xtb documentation)."""
 
+    constraints: str | None = None
+    """Constraints in xtb format as string."""
+
 
 class RRHOJobConfig(XTBJobConfig):
     # multitemp: bool

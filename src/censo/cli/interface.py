@@ -15,14 +15,14 @@ from .cml_parser import parse
 from ..ensembledata import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
-from ..params import AU2KCAL, DESCR, __version__
+from ..params import AU2KCAL, DESCR, __version__, Returncodes
 from ..utilities import printf, h1, PLENGTH
 from ..logging import set_filehandler, setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
 
 
-def entry_point(argv: list[str] | None = None) -> int:
+def entry_point(argv: list[str] | None = None) -> Returncodes:
     """
     Console entry point to execute CENSO from the command line.
     """
@@ -30,13 +30,13 @@ def entry_point(argv: list[str] | None = None) -> int:
         args = parse(argv)
     except ArgumentError as e:
         printf(e.message)
-        return 1
+        return Returncodes.ARGUMENT_ERROR
     except SystemExit as e:
-        return cast(int, e.code)
+        return cast(Returncodes, e.code)
 
     if not any(vars(args).values()):
         printf("CENSO needs at least one argument!")
-        return 1
+        return Returncodes.ARGUMENT_ERROR
 
     # Startup description
     print(DESCR + "\n")
@@ -47,7 +47,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     try:
         ensemble, parts_config = startup(args)
     except SystemExit as e:
-        return cast(int, e.code)
+        return cast(Returncodes, e.code)
 
     # Print all active parts settings once
     if logger.level == DEBUG:
@@ -118,7 +118,7 @@ def entry_point(argv: list[str] | None = None) -> int:
         )
         ensemble.dump_json(Path("CRASH_DUMP.json"))
         ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
-        sys.exit(1)
+        sys.exit(Returncodes.GENERIC_ERROR)
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
@@ -129,7 +129,7 @@ def entry_point(argv: list[str] | None = None) -> int:
     printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     printf("\nCENSO all done!")
-    return 0
+    return Returncodes.OK
 
 
 # sets up a ensemble object using the given cml arguments and censorc
@@ -140,18 +140,18 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
     # run actions for which no complete setup is needed
     if args.version:
         printf(__version__)
-        sys.exit()
+        sys.exit(Returncodes.OK)
     elif args.cleanup:
         cleanup_run(cwd)
         printf("Removed files and going to exit!")
-        sys.exit()
+        sys.exit(Returncodes.OK)
     elif args.cleanup_all:
         cleanup_run(cwd, complete=True)
         printf("Removed files and going to exit!")
-        sys.exit()
+        sys.exit(Returncodes.OK)
     elif args.writeconfig:
         write_rcfile(Path() / "censo2rc_NEW")
-        sys.exit()
+        sys.exit(Returncodes.OK)
 
     parts_config = configure(rcpath=args.inprcpath, args=args)
 
@@ -164,7 +164,20 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
     ensemble = EnsembleData()
 
     # read input and setup conformers
-    ensemble.read_input(args.inp, args.charge or 0, args.unpaired or 0, args.nconf)
+    try:
+        ensemble.read_input(args.inp, args.charge or 0, args.unpaired or 0, args.nconf)
+    except FileNotFoundError:
+        printf(f"Could not find input file {Path(args.inp).resolve()}.")
+        sys.exit(Returncodes.INPUT_NOT_FOUND)
+
+    if args.constraints:
+        try:
+            ensemble.constraints = Path(args.constraints).read_text()
+        except FileNotFoundError:
+            printf(
+                f"Could not find constraints file {Path(args.constraints).resolve()}."
+            )
+            sys.exit(Returncodes.CONSTRAINTS_NOT_FOUND)
 
     # if data should be reloaded, do it here
     if args.reload:

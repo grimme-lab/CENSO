@@ -13,7 +13,7 @@ from tabulate import tabulate
 from ..ensembledata import EnsembleData
 from ..molecules import MoleculeData
 from ..processing import QmProc, XtbProc
-from ..parallel import OptResult, execute
+from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel, Prog
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
@@ -119,6 +119,9 @@ def _macrocycle_opt(
             solvent=config.general.solvent,
             **config.optimization.model_dump(),
         )
+        if config.optimization.constrain:
+            job_config.constraints = ensemble.constraints
+
         target = proc.xtb_opt
     else:
         job_config = OptJobConfig(
@@ -251,6 +254,9 @@ def _full_opt(
             solvent=config.general.solvent,
             **config.optimization.model_dump(),
         )
+        if config.optimization.constrain:
+            job_config.constraints = ensemble.constraints
+
         target = proc.xtb_opt
     else:
         job_config = OptJobConfig(

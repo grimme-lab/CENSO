@@ -40,3 +40,11 @@ class OptimizationConfig(BasePartConfig):
                 f"Functional {self.func} not (fully) defined for prog {prog}."
             )
         return self
+
+    @model_validator(mode="after")
+    def constraints_only_with_ancopt(self):
+        if self.constrain and not self.xtb_opt:
+            raise ValueError(
+                "Constraints can currently only be used with ANCOPT. Enable xtb_opt to use constraints."
+            )
+        return self

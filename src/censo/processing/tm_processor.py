@@ -811,12 +811,9 @@ class TmProc(QmProc):
                 ]
             )
 
-            # # Import constraints
-            # if job.prepinfo["xtb_opt"]["constraints"] is not None:
-            #     with open(job.prepinfo["xtb_opt"]["constraints"], "r") as f:
-            #         lines = f.readlines()
-            #
-            #     out.writelines(lines)
+            # Import constraints
+            if config.constraints:
+                out.writelines(config.constraints)
 
             out.write("$end \n")
 

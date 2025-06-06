@@ -90,6 +90,11 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         " than the default (~/.censo2rc).",
     )
     groups[0].add_argument(
+        "--constraints",
+        dest="constraints",
+        help="Path to a file containing constraints in xtb format for use in geometry optimizations.",
+    )
+    groups[0].add_argument(
         "--maxcores",
         dest="maxcores",
         type=int,

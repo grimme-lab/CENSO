@@ -36,6 +36,15 @@ OMPMAX = 32
 
 CODING = "ISO-8859-1"
 
+
+class Returncodes(int, Enum):
+    OK = 0
+    ARGUMENT_ERROR = 1
+    INPUT_NOT_FOUND = 2
+    CONSTRAINTS_NOT_FOUND = 3
+    GENERIC_ERROR = 4
+
+
 ASSETS_PATH = Path(__file__).parent / "assets"
 
 USER_ASSETS_PATH = Path("~/.censo2_assets").expanduser()
