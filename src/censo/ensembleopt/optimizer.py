@@ -230,7 +230,7 @@ class EnsembleOptimizer(CensoPart):
                     "hlow": self.get_settings()["hlow"],
                     "optlevel": self.get_settings()["optlevel"],
                     "macrocycles": self.get_settings()["macrocycles"],
-                    # "constraints": self.constraints,
+                    "constraints": self.constraints,
                     # this is set to a path if constraints should be used, otherwise None
                 }
 

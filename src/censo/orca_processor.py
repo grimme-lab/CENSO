@@ -317,7 +317,7 @@ class OrcaProc(QmProc):
             else:
                 pregeom.extend([f"convergence {mapping[prepinfo['opt']['optlevel']]}"])
 
-            # Insert constraints (if provided)
+            # # Insert constraints (if provided)
             # if prepinfo["opt"]["constraints"] is not None:
             #     with open(prepinfo["opt"]["constraints"], "r") as f:
             #         constraints = f.readlines()
@@ -858,11 +858,11 @@ class OrcaProc(QmProc):
             )
 
             # Import constraints
-            # if job.prepinfo["xtb_opt"]["constraints"] is not None:
-            #     with open(job.prepinfo["xtb_opt"]["constraints"], "r") as f:
-            #         lines = f.readlines()
-            #
-            #     out.writelines(lines)
+            if job.prepinfo["xtb_opt"]["constraints"] is not None:
+                with open(job.prepinfo["xtb_opt"]["constraints"], "r") as f:
+                    lines = f.readlines()
+
+                out.writelines(lines)
 
             out.write("$end \n")
 
