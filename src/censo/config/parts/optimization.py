@@ -10,23 +10,54 @@ class OptimizationConfig(BasePartConfig):
     """Config class for Opimization"""
 
     prog: QmProg = QmProg.TM
+    """Program that should be used for calculations."""
+
     func: str = "r2scan-3c"
+    """Functional that should be used for calculations."""
+
     basis: str = "def2-mTZVPP"
+    """Basis set that should be used for calculations."""
+
     sm: OrcaSolvMod | Literal[TmSolvMod.DCOSMORS, TmSolvMod.COSMO] = TmSolvMod.DCOSMORS
+    """Solvation model that should be used for calculations."""
+
     gfnv: GfnVersion = GfnVersion.GFN2
+    """GFN version to be used for xtb calculations."""
+
     optcycles: int = Field(gt=0, default=8)
+    """Number of microcycles per macrocycle."""
+
     maxcyc: int = Field(gt=0, default=200)
+    """Maximum number of microcycles."""
+
     optlevel: Literal[
         "crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme"
     ] = "normal"
-    threshold: float = Field(gt=0, default=1.5)
+    """Optlevel (ANCOPT settings, mapped to approximately equivalent settings for ORCA native optimizer)."""
+
+    threshold: float = Field(gt=0, default=3.0)
+    """ΔGtot threshold."""
+
     gradthr: float = Field(gt=0, default=0.01)
+    """Gradnorm threshold below the normal ΔGtot threshold will be applied."""
+
     hlow: float = Field(gt=0, default=0.01)
+    """Passed to hlow keyword in xcontrol files."""
+
     macrocycles: bool = True
+    """Whether to use macrocycle optimization."""
+
     constrain: bool = False
+    """Whether to use constraints for geometry optimizations."""
+
     xtb_opt: bool = True
+    """Whether to use the ANCOPT optimizer as driver."""
+
     run: bool = True
+    """Whether to run geometry optimization."""
+
     template: bool = False
+    """Whether to use template files."""
 
     @model_validator(mode="after")
     def func_must_be_known_in_prog(self):

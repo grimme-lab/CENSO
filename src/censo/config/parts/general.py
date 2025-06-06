@@ -12,21 +12,47 @@ class GeneralConfig(BasePartConfig):
     """Config class for general settings"""
 
     temperature: float = Field(gt=0, default=298.15)
+    """Temperature evaluated for mRRHO calculations."""
+
     # multitemp: bool = True
+
     # trange: tuple[float, float, float] = (273.15, 373.15, 5)
+
     evaluate_rrho: bool = True
+    """Whether to run mRRHO calculations for GmRRHO contributions."""
+
     sm_rrho: XtbSolvMod = XtbSolvMod.GBSA
+    """Solvation model to use for mRRHO calculations."""
+
     # consider_sym: bool = True
+
     bhess: bool = True
+    """Wether to use single-point Hessians for mRRHO calculations."""
+
     # rmsdbias: bool = False
+
     imagthr: float = Field(lt=0, default=-100.0)
+    """Highest acceptable imaginary mode (used for imagthr in xcontrol files)."""
+
     sthr: float = Field(default=0.0)
-    scale: float = Field(gt=0, default=1.0)
+    """Value used for sthr in xcontrol files for mRRHO calculations."""
+
+    # scale: float = Field(gt=0, default=1.0)
+
     solvent: str = "h2o"
+    """Solvent to use for all calculations involving solvation."""
+
     gas_phase: bool = False
+    """Whether to run all calculations in the gas-phase."""
+
     copy_mo: bool = True
+    """Wether to copy MO files (.gbw for ORCA, mos/alpha, beta for TM) (can improve runtime significantly)."""
+
     balance: bool = True
+    """Wether to use static load balancing to optimize processor usage."""
+
     ignore_failed: bool = True
+    """Whether to ignore failed conformers or raise an error."""
 
     # @field_validator("trange")
     # @classmethod

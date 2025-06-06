@@ -2,7 +2,7 @@ from typing import Literal
 from pydantic import field_validator, Field, model_validator
 
 from .base import BasePartConfig
-from ...params import QmProg, TmSolvMod, OrcaSolvMod, GfnVersion
+from ...params import QmProg, TmSolvMod, OrcaSolvMod
 from ...assets import FUNCTIONALS
 
 
@@ -10,18 +10,40 @@ class NMRConfig(BasePartConfig):
     """Config class for NMR"""
 
     prog: QmProg = QmProg.ORCA
+    """Program that should be used for calculations."""
+
     func: str = "pbe0-d4"
+    """Functional that should be used for calculations."""
+
     basis: str = "def2-tzvp"
+    """Basis set that should be used for calculations."""
+
     sm: Literal[TmSolvMod.COSMO, TmSolvMod.DCOSMORS] | OrcaSolvMod = OrcaSolvMod.SMD
-    gfnv: GfnVersion = GfnVersion.GFN2
+    """Solvation model that should be used for calculations."""
+
     resonance_frequency: float = Field(gt=0, default=300.0)
+    """Resonance frequency assumed for calculation of coupling constants."""
+
     ss_cutoff: float = Field(gt=0, default=8.0)
+    """Only for ORCA: passed to SpinSpinThresh keyword."""
+
     fc_only: bool = True
+    """Whether to only calculate the Fermi-Contact term for spin-spin couplings."""
+
     shieldings: bool = True
+    """Whether to calculate shieldings."""
+
     couplings: bool = True
+    """Whether to calculate spin-spin couplings."""
+
     active_nuclei: str = "h,c"
+    """Nuclei active for NMR calculations."""
+
     run: bool = False
+    """Whether to run NMR calculations (only for CLI)."""
+
     template: bool = False
+    """Whether to use template files."""
 
     @model_validator(mode="after")
     def func_must_be_known_in_prog(self):
