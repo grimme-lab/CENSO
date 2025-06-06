@@ -1,5 +1,7 @@
 import pytest
+import os
 from pathlib import Path
+import shutil
 
 from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
 
@@ -10,14 +12,20 @@ def fixtures_path():
 
 
 @pytest.fixture
-def example_ensemble_file():
-    return Path(__file__).parent / "fixtures" / "crest_conformers.xyz"
+def example_ensemble_file(tmp_path: Path):
+    """Copies the fixture ensemble file to the test dir and yield the path to that copy."""
+    src = Path(__file__).parent / "fixtures" / "crest_conformers.xyz"
+    dst = tmp_path / src.name
+    shutil.copy(src, dst)
+    return dst
 
 
 @pytest.fixture(autouse=True)
 def tmp_wd(tmp_path, monkeypatch):
+    orig = os.getcwd()
     monkeypatch.chdir(tmp_path)
     yield
+    os.chdir(orig)
 
 
 @pytest.fixture

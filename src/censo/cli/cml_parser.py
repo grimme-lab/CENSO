@@ -123,14 +123,13 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     groups[0].add_argument(
         "--logpath",
         dest="logpath",
-        help="Relative/absolute path to the logfile.",
-        default="censo.log",
+        help="Relative/absolute path to the logfile. If no path is provided, censo.log will be written in the output directory.",
     )
     groups[0].add_argument(
         "--reload",
         dest="reload",
         nargs="+",
-        help="Reload data from json output files. List all file names separated by spaces. "
+        help="Reload data from json output files. List all file names separated by spaces. Will be loaded in order (first to last). "
         "Note that all conformers from the current ensemble need to be included in the output data keys.",
     )
     groups[0].add_argument(

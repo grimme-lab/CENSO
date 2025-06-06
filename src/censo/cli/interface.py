@@ -2,14 +2,12 @@ from logging import DEBUG
 import os
 import shutil
 import sys
-from os import getcwd
 from argparse import ArgumentError
 from datetime import timedelta
 import traceback
 from typing import cast
 from pathlib import Path
 from tabulate import tabulate
-import functools
 
 from ..config import PartsConfig
 from ..config.setup import configure, write_rcfile
@@ -137,7 +135,7 @@ def entry_point(argv: list[str] | None = None) -> int:
 # sets up a ensemble object using the given cml arguments and censorc
 def startup(args) -> tuple[EnsembleData, PartsConfig]:
     # get most important infos for current run
-    cwd = getcwd()
+    cwd = os.getcwd()
 
     # run actions for which no complete setup is needed
     if args.version:
@@ -159,7 +157,8 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
 
     # Set up logging
     set_loglevel(args.loglevel)
-    set_filehandler(args.logpath)
+    logpath = Path(args.logpath or Path(args.inp).parent / "censo.log").resolve()
+    set_filehandler(logpath)
 
     # initialize ensemble
     ensemble = EnsembleData()
@@ -170,7 +169,7 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
     # if data should be reloaded, do it here
     if args.reload:
         for filename in args.reload:
-            ensemble.read_output(os.path.join(cwd, filename))
+            ensemble.read_output(Path(filename))
 
     if args.maxcores:
         NCORES = args.maxcores
@@ -178,15 +177,17 @@ def startup(args) -> tuple[EnsembleData, PartsConfig]:
     if args.ompmin:
         OMPMIN = args.ompmin
 
-    # if data should be reloaded, do it here
-    if args.reload:
-        for filename in args.reload:
-            ensemble.read_output(os.path.join(cwd, filename))
+    # Set working directory to input parent
+    # NOTE: this is the most convenient way to solve this for CLI version
+    wd = Path(args.inp).parent.resolve()
+    printf(f"Setting working directory to {wd}")
+    os.chdir(wd)
 
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
     # -> settings are updated with cml args
     # -> output data is reloaded if wanted
+    # -> working directory is set
 
     return ensemble, parts_config
 

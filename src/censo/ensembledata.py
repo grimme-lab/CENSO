@@ -61,21 +61,20 @@ class EnsembleData:
         """Clear the list of removed conformers."""
         self.__rem = []
 
-    def read_output(self, outpath: str) -> None:
+    def read_output(self, outpath: str | Path) -> None:
         """
         Read json output file of a previous execution. Will try to load data into current conformer ensemble, matching
         based on names. If a conformer name does not exist in the current ensemble it will be ignored. If a conformer
         does not exist in the output data RuntimeError will be raised.
 
         Args:
-            outpath (str): Path to the output file.
+            outpath (str | Path): Path to the output file.
 
         Returns:
             None
         """
 
-        with open(outpath, "r") as file:
-            data = json.load(file)
+        data = json.loads(Path(outpath).read_text())
 
         # Check if all conformers from the current ensemble are also found in the output data
         if not all(conf.name in data for conf in self.conformers):
