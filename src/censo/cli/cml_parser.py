@@ -11,10 +11,10 @@ import os
 def parse(argv: list[str] | None) -> argparse.Namespace:
     """
     Process commandline arguments
-
-    NOTE: on args with the action 'store_const' with const=True, this is on purpose so as long as the flag is not set,
-    the arg Namespace evaluates to None.
     """
+
+    # NOTE: on args with the action 'store_const' with const=True, this is on purpose so as long as the flag is not set,
+    # the arg Namespace evaluates to None.
 
     parser = argparse.ArgumentParser(
         description=START_DESCR,

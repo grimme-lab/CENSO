@@ -33,9 +33,6 @@ class EnsembleData:
         # stores the conformers which were sorted out
         self.__rem: list[MoleculeData] = []
 
-        # A list containing all part references in order of execution or loading
-        self.results = []
-
         # String containing the constraints in xtb format to be applied to geometry optimizations
         # TODO: and xtb_rrho?
         self.constraints: str | None = None
