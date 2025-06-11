@@ -1,0 +1,91 @@
+[general]
+temperature = 298.15
+evaluate_rrho = True
+sm_rrho = gbsa
+bhess = True
+imagthr = -100.0
+sthr = 0.0
+solvent = h2o
+gas_phase = False
+copy_mo = True
+balance = True
+ignore_failed = True
+
+[prescreening]
+prog = tm
+func = pbe-d3
+basis = def2-sv(p)
+gfnv = gfn2
+threshold = 4.0
+run = True
+template = False
+
+[screening]
+prog = tm
+func = r2scan-3c
+basis = def2-mtzvpp
+sm = cosmors
+gfnv = gfn2
+threshold = 3.5
+gsolv_included = False
+run = True
+template = False
+
+[optimization]
+prog = tm
+func = r2scan-3c
+basis = def2-mtzvpp
+sm = dcosmors
+gfnv = gfn2
+optcycles = 8
+maxcyc = 200
+optlevel = normal
+threshold = 3.0
+gradthr = 0.01
+hlow = 0.01
+macrocycles = True
+constrain = False
+xtb_opt = True
+run = True
+template = False
+
+[refinement]
+prog = tm
+func = wb97x-v
+basis = def2-tzvp
+sm = cosmors
+gfnv = gfn2
+threshold = 0.95
+gsolv_included = False
+run = True
+template = False
+
+[nmr]
+prog = orca
+func = pbe0-d4
+basis = def2-tzvp
+sm = smd
+resonance_frequency = 300.0
+ss_cutoff = 8.0
+fc_only = True
+shieldings = True
+couplings = True
+active_nuclei = h,c
+run = False
+template = False
+
+[uvvis]
+prog = orca
+func = wb97x-d4
+basis = def2-tzvp
+sm = smd
+nroots = 20
+run = False
+template = False
+
+[paths]
+orca = 
+xtb = 
+mpshift = 
+escf = 
+
