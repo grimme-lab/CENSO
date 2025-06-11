@@ -133,7 +133,10 @@ def jsonify(
         ],
     ] = lambda conf: {
         conf.name: {
-            "bmw": conf.bmw,
+            "energy": conf.energy,
+            "gsolv": conf.gsolv,
+            "grrho": conf.grrho,
+            "gtot": conf.gtot,
             "excitations": results[conf.name].excitations,
         }
     }

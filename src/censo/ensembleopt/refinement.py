@@ -93,6 +93,7 @@ def refinement(
 
         for conf in ensemble:
             conf.energy = results[conf.name].energy
+            conf.gsolv = 0.0
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation

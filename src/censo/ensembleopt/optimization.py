@@ -226,6 +226,7 @@ def _macrocycle_opt(
         conf2 = next(_conf2 for _conf2 in ensemble if _conf2.name == conf.name)
         conf2.energy = conf.energy
         conf2.grrho = conf.grrho
+        conf2.gsolv = 0.0
 
     for conf in unconverged_ensemble:
         logger.warning(
@@ -284,6 +285,7 @@ def _full_opt(
     for conf in ensemble:
         conf.energy = results[conf.name].energy
         conf.geom.xyz = results[conf.name].geom
+        conf.gsolv = 0.0
 
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
