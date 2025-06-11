@@ -159,11 +159,11 @@ def write_nmrprop(
     # Process shieldings
     if shieldings:
         shielding_map: dict[int, float] = {s[0]: s[1] for s in shieldings}
-        for i in range(nat):
-            if i in shielding_map:
-                lines.append(f"{i + 1:4} {shielding_map[i]:.3f}\n")
-            else:
-                lines.append("\n")
+        for i, shielding in shielding_map.items():
+            lines.append(f"{i + 1:4} {shielding_map[i]:.3f}\n")
+
+        for i in range(nat - len(shielding_map)):
+            lines.append("\n")
 
     # Process couplings
     if couplings:
@@ -289,6 +289,7 @@ def main() -> None:
         write_anmr_enso(conformers, output_filename=dest_dir / "anmr_enso")
     else:
         print(f"No conformers could be read from {args.nmr_file}.")
+        dest_dir.rmdir()
         sys.exit(2)
 
     # Write the .anmrrc file
