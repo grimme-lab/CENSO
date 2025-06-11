@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import shutil
 from pathlib import Path
 import sys
 import json
@@ -21,16 +20,10 @@ def parse() -> argparse.Namespace:
 
     # Positional arguments
     parser.add_argument(
-        "energies_file",
+        "nmr_file",
         nargs="?",
-        default="3_REFINEMENT.json",
-        help="Path to the JSON file containing conformer energies and Boltzmann weights.",
-    )
-    parser.add_argument(
-        "conformers_dir",
-        nargs="?",
-        default="4_NMR",
-        help="Path to the directory containing the conformer subdirectories (e.g., CONF1, CONF2).",
+        default="4_NMR.json",
+        help="Path to the JSON file containing conformer energies and NMR parameters.",
     )
 
     # General settings
@@ -98,6 +91,9 @@ def create_conformers_list(
         print(f"Error: No 'data' key found in {json_file_path}.", file=sys.stderr)
         return None
 
+    for d in conformer_raw_data.values():
+        d["gtot"] = d["energy"] + d["gsolv"] + d["grrho"]
+
     try:
         min_gtot: float = min(d["gtot"] for d in conformer_raw_data.values())
     except (KeyError, TypeError):
@@ -133,6 +129,9 @@ def create_conformers_list(
                     "Energy": values["energy"],
                     "Gsolv": values["gsolv"],
                     "RRHO": values["grrho"],
+                    "shieldings": values["shieldings"],
+                    "couplings": values["couplings"],
+                    "nat": int(values["nat"]),
                 }
             )
         except (KeyError, ValueError) as e:
@@ -149,6 +148,37 @@ def create_conformers_list(
         file=sys.stderr,
     )
     return conformers_data
+
+
+def write_nmrprop(
+    directory: Path, nat: int, shieldings: list[Any], couplings: list[Any]
+) -> None:
+    """Writes the nmrprop.dat file for a single conformer."""
+    lines: list[str] = []
+
+    # Process shieldings
+    if shieldings:
+        shielding_map: dict[int, float] = {s[0]: s[1] for s in shieldings}
+        for i in range(nat):
+            if i in shielding_map:
+                lines.append(f"{i + 1:4} {shielding_map[i]:.3f}\n")
+            else:
+                lines.append("\n")
+
+    # Process couplings
+    if couplings:
+        for c in couplings:
+            i, j = c[0]
+            coupling_val = c[1]
+            lines.append(f"{i + 1:4} {j + 1:4} {coupling_val:.3f}\n")
+
+    # Write the file
+    file_path = directory / "nmrprop.dat"
+    try:
+        with open(file_path, "w") as f:
+            f.writelines(lines)
+    except IOError as e:
+        print(f"Error writing to file {file_path}: {e}", file=sys.stderr)
 
 
 def write_anmrrc(args: argparse.Namespace, directory: Path | str) -> None:
@@ -228,7 +258,6 @@ def main() -> None:
     """Main execution function."""
     args: argparse.Namespace = parse()
 
-    src_dir: Path = Path(args.conformers_dir)
     dest_dir: Path = Path("anmr")
 
     if args.ref is None:
@@ -254,33 +283,25 @@ def main() -> None:
 
     # Process JSON and write anmr_enso file
     conformers: list[ConformerData] | None = create_conformers_list(
-        args.energies_file, args.T
+        args.nmr_file, args.T
     )
     if conformers:
         write_anmr_enso(conformers, output_filename=dest_dir / "anmr_enso")
+    else:
+        print(f"No conformers could be read from {args.nmr_file}.")
+        sys.exit(2)
 
     # Write the .anmrrc file
     write_anmrrc(args, dest_dir)
 
-    # Copy all files matching anmr_* into dest_dir (except the one we just wrote)
-    for file in Path.cwd().glob("anmr_*"):
-        if file.is_file() and file.name != "anmr_enso":
-            shutil.copy(file, dest_dir / file.name)
+    # Loop through conformers
+    for conf in conformers:
+        conf_dir = dest_dir / ("CONF" + str(conf["CONF"]))
 
-    # Loop through CONF* subdirectories in src_dir
-    for conf_dir in src_dir.glob("CONF*"):
-        if not conf_dir.is_dir():
-            continue
-
-        new_nmr_dir: Path = dest_dir / conf_dir.name / "NMR"
+        new_nmr_dir: Path = conf_dir / "NMR"
         new_nmr_dir.mkdir(parents=True, exist_ok=True)
 
-        for fname in ("nmrprop.dat",):
-            src_file: Path = conf_dir / fname
-            if src_file.exists():
-                shutil.copy(src_file, new_nmr_dir / fname)
-            else:
-                print(f"Warning: {src_file} not found", file=sys.stderr)
+        write_nmrprop(new_nmr_dir, conf["nat"], conf["shieldings"], conf["couplings"])
 
     print("\nFinished setting up anmr directory. Please check .anmrrc for correctness.")
     print("Run anmr -plain")

@@ -171,6 +171,7 @@ def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRRes
             "energy": conf.energy,
             "gsolv": conf.gsolv,
             "grrho": conf.grrho,
+            "nat": conf.geom.nat,
             "shieldings": results[conf.name].shieldings,
             "couplings": results[conf.name].couplings,
         }
