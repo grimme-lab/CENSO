@@ -138,7 +138,7 @@ def jsonify(
         }
     }
 
-    dump = DataDump(part_name="prescreening")
+    dump = DataDump(part_name="uvvis")
 
     for conf in ensemble:
         dump.data.update(per_conf(conf))

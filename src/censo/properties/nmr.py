@@ -174,7 +174,7 @@ def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRRes
         }
     }
 
-    dump = DataDump(part_name="prescreening")
+    dump = DataDump(part_name="nmr")
 
     for conf in ensemble:
         dump.data.update(per_conf(conf))
