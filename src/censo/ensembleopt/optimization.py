@@ -110,6 +110,10 @@ def _macrocycle_opt(
     unconverged_ensemble = deepcopy(ensemble)
     unconverged_ensemble.clear_rem()
 
+    # Set gsolv to 0
+    for conf in unconverged_ensemble:
+        conf.gsolv = 0.0
+
     # Set up target
     if config.optimization.xtb_opt:
         job_config = XTBOptJobConfig(
