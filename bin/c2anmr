@@ -5,6 +5,7 @@ import sys
 import json
 import math
 from typing import Any
+import shutil
 
 # A type alias for the conformer data structure
 ConformerData = dict[str, int | float | str]
@@ -294,6 +295,14 @@ def main() -> None:
 
     # Write the .anmrrc file
     write_anmrrc(args, dest_dir)
+
+    # Copy anmr_nucinfo and anmr_rotamer
+    for file in ("anmr_rotamer", "anmr_nucinfo"):
+        file_path = Path(file)
+        if not file_path.is_file():
+            print(f"Warning: {file} not found. ANMR cannot run without it!")
+        else:
+            shutil.copy(file_path, dest_dir)
 
     # Loop through conformers
     for conf in conformers:
