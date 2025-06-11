@@ -1,8 +1,13 @@
-# NEW: CENSO 2.0
-This is the updated version of the former CENSO 1.3 program. New features include the possibility to use CENSO as a package from within Python, template files, json outputs, and more! For more information about the use and the capabilities of CENSO 2.0 visit the documentation [here](https://xtb-docs.readthedocs.io/en/latest/CENSO_docs/censo.html).
+# CENSO - Commandline ENergetic SOrting of Conformer-Rotamer Ensembles
+![censo_logo_300dpi](https://github.com/user-attachments/assets/0e6bac6a-2637-4207-8eca-3122ab90112a)
+CENSO is a Python package meant to automate refinement of Conformer-Rotamer ensembles on DFT level, as well as calculation of some ensemble properties, e.g. NMR parameters.
+It can be used from the command line as well as to define custom pipelines.
 
 ## Update: CENSO 2.2
 The new update 2.2 improves upon version 2.0 by significantly upgrading the program's architecture, which is especially important for usage as a Python package.
+Configuration is handled using Pydantic V2.
+Some keywords were modified, please refer to the example rcfile for reference.
+Also, new auxiliary command line scripts were added (`nmrplot`, `uvvisplot`, `c2anmr`).
 
 # Installation
 Can be installed using `pip` by running
@@ -11,18 +16,23 @@ Can be installed using `pip` by running
 
 If you want to install and run CENSO without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
 
-# Usage
-An entry point `censo` will be installed by pip. Furthermore the scripts under the `bin` directory will be added to your path.
+To install further entry points (new command line auxiliary scripts) and their dependencies run
+```
+    pip install .[scripts]
+```
 
+# Usage
+An entry point `censo` will be installed by pip.
 For information about command line options use the `-h` option.
 
-The helper script is also called via `censo`.
+The helper script located in `CENSO/bin` is also called via `censo`.
 
-Previous versions required the ``-i`` and ``--maxcores`` keywords. Since version 2.1.3 these are no longer required 
-and instead assume default values, ``crest_conformers.xyz`` and the total number of CPU cores on the machine 
-running CENSO, respectively.
+> Previous versions required the ``-i`` and ``--maxcores`` keywords. Since version 2.1.3 these are no longer required 
+> and instead assume default values, ``crest_conformers.xyz`` and the total number of CPU cores on the machine 
+> running CENSO, respectively.
 
-CENSO can also be used as a package within Python. A basic setup for a CENSO run in a Python file could look like this:
+CENSO can also be used as a package within Python to define custom pipelines. 
+A basic setup for a CENSO run in a Python file could look like this:
 ```python
 from censo.ensembledata import EnsembleData
 from censo.configuration import configure
