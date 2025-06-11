@@ -32,6 +32,7 @@ from censo.params import NCORES, OMP
 from censo.config import GeneralConfig
 
 # CENSO will put all files in the current working directory (os.getcwd())
+# To output to different dirs you need to start subprocesses in different working directories using e.g. subprocess.Popen
 input_path = "rel/path/to/your/inputfile" # path relative to the working directory
 ensemble = EnsembleData(input_file=input_path) 
 # the above can be used if you molecule is neutral and closed shell, otherwise
@@ -40,7 +41,7 @@ ensemble = EnsembleData(input_file=input_path)
 # ensemble.read_input(input_path, charge=-1, unpaired=1)
 
 # If the user wants to use a specific rcfile:
-configure("/abs/path/to/rcfile")
+config = configure(rcpath="/path/to/rcfile")
 
 # Get the number of available cpu cores on this machine
 # This is also the default value that CENSO uses
@@ -51,19 +52,12 @@ NCORES = os.cpu_count()
 # load balancing in the settings
 OMP = 4
 
-# The user can also choose to change specific settings of the parts
-# Please take note of the following:
-
-# It is also possible to use a dict to set multiple values in one step
-settings = {
-    "threshold": 3.5,
-    "func": "pbeh-3c",
-    "implicit": True,
-}
-
-# To temporarily disable assignment validation for a specific config:
-GeneralConfig.model_config["validate_assignment"] = False
+# After changing a setting you should revalidate
+# Alternatively you could also enable assignment validation using:
+# GeneralConfig.model_config["validate_assignment"] = True
+# This can however temporarily lead to blocked combinations (like trying to use COSMORS with ORCA)
 config.general.solvent = "dmso"
+config = config.model_validate(config)
 
 # Setup and run all the parts that the user wants to run
 # Running the parts in order here, while it is also possible to use a custom order or run some parts multiple times
@@ -73,8 +67,7 @@ config.general.solvent = "dmso"
 # (you could circumvent this by moving/renaming the folders)
 timings = [part(ensemble, config) for part in [prescreening, screening, optimization, nmr]]
 
-# You access the results using the ensemble object
-# You can also find all the results the <part>.json output files
+# You can also find all the results in the <part>.json output files
 ```
 
 # License
