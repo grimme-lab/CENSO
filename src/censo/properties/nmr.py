@@ -168,7 +168,9 @@ def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRRes
         ],
     ] = lambda conf: {
         conf.name: {
-            "bmw": conf.bmw,
+            "energy": conf.energy,
+            "gsolv": conf.gsolv,
+            "grrho": conf.grrho,
             "shieldings": results[conf.name].shieldings,
             "couplings": results[conf.name].couplings,
         }
