@@ -86,7 +86,7 @@ def frange(start: float, end: float, step: float = 1) -> list[float]:
 
 def t2x(
     path: str, writexyz: bool = False, outfile: str = "original.xyz"
-) -> tuple[list, int, str]:
+) -> tuple[list[str], int, str]:
     """
     convert TURBOMOLE coord file to xyz data and/or write *.xyz output
 
@@ -99,7 +99,7 @@ def t2x(
      - number of atoms
     """
     # read lines from coord file
-    with open(path, "r", encoding=Config.CODING, newline=None) as f:
+    with open(path, "r", newline=None) as f:
         coord = f.readlines()
 
     # read coordinates with atom labels directly into a string
@@ -131,7 +131,7 @@ def t2x(
 
     # write converted coordinates to xyz outfile if wanted
     if writexyz:
-        with open(os.path.join(outpath, outfile), "w", encoding=Config.CODING) as out:
+        with open(os.path.join(outpath, outfile), "w") as out:
             out.write(str(len(xyzatom)) + "\n")
             for line in xyzatom:
                 out.write(line)
