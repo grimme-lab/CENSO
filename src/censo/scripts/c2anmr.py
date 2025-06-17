@@ -186,7 +186,9 @@ def write_anmrrc(args: argparse.Namespace, directory: Path | str) -> None:
     """Writes the .anmrrc file to the specified directory."""
     lines: list[str] = []
     lines.append("7 8 XH acid atoms")
-    lines.append(f"ENSO qm= TM mf= {args.mf} lw= {args.lw}  J= {args.j} S= {args.s}")
+    lines.append(
+        f"ENSO qm= TM mf= {args.mf} lw= {args.lw}  J= {args.j} S= {args.s} T= {args.T}"
+    )
     lines.append("TMS[chcl3] pbe0[COSMO]/def2-TZVP//pbeh-3c[DCOSMO-RS]/def2-mSVP")
     for ref_data in args.ref:
         lines.append(
