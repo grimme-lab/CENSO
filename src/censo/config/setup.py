@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 from argparse import Namespace
 from typing import Any, cast
@@ -8,7 +9,7 @@ from configparser import ConfigParser
 
 from .parts_config import PartsConfig
 from .parts import *
-from ..params import CENSORCNAME
+from ..params import CENSORCNAME, Prog
 from ..logging import setup_logger
 from ..processing import GenericProc
 
@@ -175,7 +176,7 @@ def find_program_paths() -> dict[str, str]:
     """
     Try to determine program paths automatically
     """
-    programs = ["orca", "xtb", "mpshift", "escf"]
+    programs = [Prog.ORCA.value, Prog.XTB.value, "cosmotherm"]
     paths = {}
 
     for program in programs:
@@ -190,13 +191,24 @@ def find_program_paths() -> dict[str, str]:
             paths[program] = ""
 
     # if orca was found try to determine orca version from the path (kinda hacky)
-    if paths["orca"] != "":
-        try:
-            paths["orcaversion"] = (
-                paths["orca"].split(os.sep)[-2][5:10].replace("_", ".")
-            )
-        except Exception:
-            paths["orcaversion"] = ""
+    if paths[Prog.ORCA.value] != "":
+        version_string = re.match(r"(\d+\.\d+\.\d+)", paths[Prog.ORCA.value])
+        if version_string:
+            paths["orcaversion"] = version_string
+        else:
+            # Try to extract version from binary content
+            with open(paths[Prog.ORCA.value], "rb") as f:
+                binary_content = f.read()
+
+            version_pattern = rb"Program Version (\d+\.\d+\.\d+)"
+            match = re.match(version_pattern, binary_content)
+
+            if not match:
+                paths["orcaversion"] = ""
+            else:
+                version_bytes = match.group(1)
+                decoded_version = version_bytes.decode("utf-8")
+                paths["orcaversion"] = decoded_version
 
     return paths
 
