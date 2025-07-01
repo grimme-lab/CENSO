@@ -16,7 +16,7 @@ Can be installed using `pip` by running
 
     pip install .
 
-If you want to install and run `CENSO` without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO/bin` to your `$PATH`.
+If you want to install and run `CENSO` without `pip` you can add the `CENSO/src` directory to your `$PYTHONPATH` and add `CENSO` to your `$PATH`.
 
 # Usage
 After installing CENSO via `pip`, it can be called using either
@@ -31,7 +31,7 @@ as now the CLI is implemented as entry point. As of version 2.1.3, it is also no
 
 For information about command line options use the `-h` option.
 
-If you chose not to install it using `pip` and you added the `bin` directory to your `$PATH`, you can also just invoke `censo`.
+If you chose not to install it using `pip` and you added the `CENSO` directory to your `$PATH`, you can also just invoke `censo`.
 
 CENSO can also be used as a package. A basic setup for a CENSO run in a Python file could look like this:
 ```python
