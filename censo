@@ -3,7 +3,7 @@ import sys
 import os
 
 parentdir = os.path.split(__file__)[0]
-sys.path.insert(0, f"{os.path.join(parentdir, '..', '..')}")
+sys.path.insert(0, f"{os.path.join(parentdir, 'src')}")
 from censo.cli.interface import entry_point
 
 sys.exit(entry_point())
