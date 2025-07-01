@@ -32,7 +32,7 @@ c2anmr = "censo.scripts.c2anmr:main"
 uvvisplot = "censo.scripts.uvvisplot:main"
 nmrplot = "censo.scripts.nmrplot:main"
 
-[tool.setuptool.packages.find]
+[tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.dynamic]
