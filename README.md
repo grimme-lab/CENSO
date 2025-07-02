@@ -38,8 +38,8 @@ from censo.ensembledata import EnsembleData
 from censo.configuration import configure
 from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
-from censo.params import NCORES, OMP
 from censo.config import GeneralConfig
+from censo.config.parallel_config import ParallelConfig
 from censo.parallel import Config
 
 # CENSO will put all files in the current working directory (os.getcwd())
@@ -54,6 +54,10 @@ ensemble = EnsembleData(input_file=input_path)
 # If the user wants to use a specific rcfile:
 config = configure(rcpath="/path/to/rcfile")
 
+# Configure specific settings for parallelization
+parallel_config = ParallelConfig(ncores=os.cpu_count(), omp=1)
+# Note that os.cpu_count() can return None which is an invalid value for ncores
+
 # After changing a setting you should revalidate
 # Alternatively you could also enable assignment validation using:
 # GeneralConfig.model_config["validate_assignment"] = True
@@ -67,7 +71,8 @@ config = config.model_validate(config)
 # References to the resulting part instances will be appended to a list in the EnsembleData object (ensemble.results)
 # Note though, that currently this will lead to results being overwritten in your working directory
 # (you could circumvent this by moving/renaming the folders)
-timings = [part(ensemble, config) for part in [prescreening, screening, optimization, nmr]]
+timings = [part(ensemble, config, parallel_config=parallel_config) for part in [prescreening, screening, optimization, nmr]]
+# parallel_config does not need to be provided
 
 # You can also find all the results in the <part>.json output files
 ```
