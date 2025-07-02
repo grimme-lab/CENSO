@@ -7,6 +7,8 @@ from ..params import START_DESCR
 import argparse
 import os
 
+from ..params import OMPMIN_DEFAULT
+
 
 def parse(argv: list[str] | None) -> argparse.Namespace:
     """
@@ -99,7 +101,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="maxcores",
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
-        "the maximum number available. For a default run this is REQUIRED.",
+        "the maximum number available.",
         default=os.cpu_count(),
     )
     # groups[0].add_argument(
@@ -117,6 +119,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="ompmin",
         type=int,
         help="Minimum number of OpenMP threads per process, default is 4. This is mostly important if load balancing is enabled.",
+        default=OMPMIN_DEFAULT,
     )
     groups[0].add_argument(
         "--loglevel",

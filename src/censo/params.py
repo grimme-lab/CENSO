@@ -28,12 +28,6 @@ if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
         ENVIRON.pop(LP_KEY, None)
     # end workaround
 
-OMPMIN = 1
-
-NCORES = os.cpu_count() or OMPMIN
-
-OMPMAX = 32
-
 CODING = "ISO-8859-1"
 
 
@@ -44,6 +38,9 @@ class Returncodes(int, Enum):
     CONSTRAINTS_NOT_FOUND = 3
     GENERIC_ERROR = 4
 
+
+OMPMIN_DEFAULT = 1
+OMPMAX_DEFAULT = 32
 
 ASSETS_PATH = Path(__file__).parent / "assets"
 

@@ -1,5 +1,5 @@
 import traceback
-from dataclasses import dataclass, field
+import os
 from typing import Callable, Literal
 from contextlib import contextmanager
 from pathlib import Path
@@ -7,10 +7,13 @@ from multiprocessing.managers import SyncManager
 from multiprocessing import Manager
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
 
-from .molecules import Atom, GeometryData, MoleculeData
+from .molecules import GeometryData, MoleculeData
 from .logging import setup_logger
-from .params import QmProg, OMPMIN, OMPMAX, ENVIRON
+from .params import QmProg, ENVIRON
 from .config.job_config import XTBJobConfig, SPJobConfig
+from .config.parallel_config import ParallelConfig
+from .data import QmResult, MetaData
+
 
 logger = setup_logger(__name__)
 
@@ -45,90 +48,14 @@ class ResourceMonitor:
                 self.__enough_cores.notify()  # TODO: try this with notify_all instead
 
 
-@dataclass
-class QmResult:
-    """Base class for results returned by QM calculations."""
-
-    mo_path: str | tuple[str, str] = ""
-
-
-@dataclass
-class SPResult(QmResult):
-    """Results class for single-point calculations."""
-
-    energy: float = 0.0
-
-
-@dataclass
-class GsolvResult(QmResult):
-    """Results class for Gsolv calculations."""
-
-    gsolv: float = 0.0
-    energy_gas: float = 0.0
-    energy_solv: float = 0.0
-
-
-@dataclass
-class RRHOResult(QmResult):
-    """Results class for mRRHO calculations."""
-
-    energy: float = 0.0
-    rmsd: float = 0.0
-    gibbs: dict[float, float] = field(default_factory=dict)
-    enthalpy: dict[float, float] = field(default_factory=dict)
-    entropy: dict[float, float] = field(default_factory=dict)
-    symmetry: str = "c1"
-    symnum: int = 1
-    linear: bool = False
-
-
-@dataclass
-class OptResult(QmResult):
-    """Results class for geometry optimizations."""
-
-    # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
-    ecyc: list[float] = field(default_factory=list)
-    # 'gncyc' contains the gradient norms for all cycles
-    gncyc: list[float] = field(default_factory=list)
-    # 'energy' contains the final energy of the optimization (converged or unconverged)
-    energy: float = 0.0
-    # 'geom' stores the optimized geometry in GeometryData.xyz format
-    geom: list[Atom] = field(default_factory=list)
-    grad_norm: float = 0.0
-    cycles: int = 0
-    converged: bool = False
-
-
-@dataclass
-class NMRResult(QmResult):
-    """Results class for NMR calculations."""
-
-    shieldings: list[tuple[int, float]] = field(default_factory=list)
-    couplings: list[tuple[tuple[int, int], float]] = field(default_factory=list)
-
-
-@dataclass
-class UVVisResult(QmResult):
-    """Results class for UVVis calculations."""
-
-    excitations: list[dict[str, float]] = field(default_factory=list)
-
-
-@dataclass
-class MetaData:
-    conf_name: str
-    success: bool = False
-    error: str = ""
-
-
 class ParallelJob:
 
-    def __init__(self, conf: GeometryData, charge: int, unpaired: int):
+    def __init__(self, conf: GeometryData, charge: int, unpaired: int, omp: int):
         # conformer for the job
         self.conf: GeometryData = conf
 
         # number of cores to use
-        self.omp: int = OMPMIN
+        self.omp: int = omp
 
         # stores path to an mo file which is supposed to be used as a guess
         # In case of open shell tm calculation this can be a tuple of files
@@ -143,7 +70,9 @@ class ParallelJob:
         self.flags: dict[str, str] = {}
 
 
-def set_omp_tmproc(jobs: list[ParallelJob], balance: bool, omp: int, ncores: int):
+def set_omp_tmproc(
+    jobs: list[ParallelJob], balance: bool, omp: int, ncores: int, ompmin: int
+):
     """
     Configures the number of cores for TURBOMOLE processor or when automatic load balancing ('balancing 2.0')
     is disabled.
@@ -153,17 +82,17 @@ def set_omp_tmproc(jobs: list[ParallelJob], balance: bool, omp: int, ncores: int
             "Load balancing 2.0 is not supported for TURBOMOLE. Falling back to old behaviour."
         )
         # Set the number of cores per process to the (effective) minimum because this is expected to be most efficient
-        omp = ncores // len(jobs) if len(jobs) < ncores // OMPMIN else OMPMIN
+        omp = ncores // len(jobs) if len(jobs) < ncores // ompmin else ompmin
         ENVIRON["PARA_ARCH"] = "SMP"
         ENVIRON["PARNODES"] = str(omp)
         for job in jobs:
             job.omp = omp
     else:
-        if omp < OMPMIN:
+        if omp < ompmin:
             logger.warning(
-                f"User OMP setting is below the minimum value of {OMPMIN}. Using {OMPMIN} instead."
+                f"User OMP setting is below the minimum value of {ompmin}. Using {ompmin} instead."
             )
-            omp = OMPMIN
+            omp = ompmin
         elif omp > ncores:
             logger.warning(
                 f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
@@ -173,7 +102,14 @@ def set_omp_tmproc(jobs: list[ParallelJob], balance: bool, omp: int, ncores: int
             job.omp = omp
 
 
-def set_omp(jobs: list[ParallelJob], balance: bool, omp: int, ncores: int):
+def set_omp(
+    jobs: list[ParallelJob],
+    balance: bool,
+    omp: int,
+    ncores: int,
+    ompmin: int,
+    ompmax: int,
+):
     """
     Sets the number of cores to be used for every job.
     """
@@ -181,8 +117,8 @@ def set_omp(jobs: list[ParallelJob], balance: bool, omp: int, ncores: int):
         jobs_left, tot_jobs = len(jobs), len(jobs)
 
         # Maximum/minimum number of parallel processes
-        maxprocs = ncores // OMPMIN
-        minprocs = max(1, ncores // OMPMAX)
+        maxprocs = ncores // ompmin
+        minprocs = max(1, ncores // ompmax)
 
         while jobs_left > 0:
             # Find the optimal number of parallel processes to maximize core utilization while avoiding
@@ -210,9 +146,11 @@ def set_omp(jobs: list[ParallelJob], balance: bool, omp: int, ncores: int):
 def prepare_jobs(
     conformers: list[MoleculeData],
     prog: str,
-    omp: int,
     ncores: int,
+    omp: int,
     from_part: str,
+    ompmin: int,
+    ompmax: int,
     balance: bool = True,
     copy_mo: bool = True,
 ) -> list[ParallelJob]:
@@ -220,7 +158,10 @@ def prepare_jobs(
     Prepares the jobs from the conformers data.
     """
     # Create ParallelJob instances from the conformers, sharing the prepinfo dict
-    jobs = [ParallelJob(conf.geom, conf.charge, conf.unpaired) for conf in conformers]
+    jobs = [
+        ParallelJob(conf.geom, conf.charge, conf.unpaired, ompmin)
+        for conf in conformers
+    ]
     if copy_mo:
         for job in jobs:
             # Insert mo guess file path
@@ -249,10 +190,10 @@ def prepare_jobs(
 
     # Check if the the execution uses TM, because here OMP cannot be assigned on a job-variable basis
     if balance and prog != "tm":
-        set_omp(jobs, balance, omp, ncores)
+        set_omp(jobs, balance, omp, ncores, ompmin, ompmax)
     # Similar steps will be taken if balancing 2.0 is disabled
     else:
-        set_omp_tmproc(jobs, balance, omp, ncores)
+        set_omp_tmproc(jobs, balance, omp, ncores, ompmin)
 
     return jobs
 
@@ -262,9 +203,8 @@ def execute[T: QmResult](
     task: Callable[..., tuple[T, MetaData]],
     job_config: XTBJobConfig | SPJobConfig,
     prog: QmProg | Literal["xtb"],
-    ncores: int,
-    omp: int,
     from_part: str,
+    parallel_config: ParallelConfig | None = None,
     ignore_failed: bool = True,
     balance: bool = True,
     copy_mo: bool = True,
@@ -287,16 +227,33 @@ def execute[T: QmResult](
     failed_confs: list[MoleculeData] = []
     results: dict[str, T] = {}
 
+    # Set up parallel config if not configured
+    if parallel_config is None:
+        ncores = os.cpu_count()
+        if ncores is None:
+            raise RuntimeError(
+                "ParallelConfig not provided and could not determine number of available cores."
+            )
+        parallel_config = ParallelConfig(ncores=ncores, omp=1)
+
     # Create a managed context to be able to share the number of free cores between processes
     logger.debug("Setting up parallel environment...")
-    with setup_managers(ncores // OMPMIN, ncores) as (executor, _, resources):
+    with setup_managers(
+        parallel_config.ncores // parallel_config.ompmin, parallel_config.ncores
+    ) as (
+        executor,
+        _,
+        resources,
+    ):
         # Prepare jobs for parallel execution by assigning number of cores per job etc.
         jobs: list[ParallelJob] = prepare_jobs(
             conformers,
             prog,
-            ncores,
-            omp,
+            parallel_config.ncores,
+            parallel_config.omp,
             from_part,
+            parallel_config.ompmin,
+            parallel_config.ompmax,
             balance=balance,
             copy_mo=copy_mo,
         )

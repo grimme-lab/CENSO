@@ -14,10 +14,11 @@ from ..ensembledata import EnsembleData
 from ..molecules import MoleculeData
 from ..processing import QmProc, XtbProc
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel, Prog
+from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
 from ..config.job_config import RRHOJobConfig, OptJobConfig, XTBOptJobConfig
+from ..config.parallel_config import ParallelConfig
 from ..utilities import (
     printf,
     h1,
@@ -35,8 +36,7 @@ logger = setup_logger(__name__)
 def optimization(
     ensemble: EnsembleData,
     config: PartsConfig,
-    ncores: int = NCORES or OMPMIN,
-    omp: int = OMPMIN,
+    parallel_config: ParallelConfig | None,
     cut: bool = True,
 ):
     """
@@ -53,9 +53,9 @@ def optimization(
     proc: QmProc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
 
     if config.optimization.macrocycles:
-        _macrocycle_opt(proc, ensemble, config, ncores, omp, cut)
+        _macrocycle_opt(proc, ensemble, config, parallel_config, cut)
     else:
-        _full_opt(proc, ensemble, config, ncores, omp)
+        _full_opt(proc, ensemble, config, parallel_config)
 
     printf("\n")
 
@@ -71,9 +71,8 @@ def optimization(
             proc_xtb.xtb_rrho,
             job_config,
             "xtb",
-            ncores,
-            omp,
             "optimization",
+            parallel_config=parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -99,8 +98,7 @@ def _macrocycle_opt(
     proc: QmProc,
     ensemble: EnsembleData,
     config: PartsConfig,
-    ncores: int,
-    omp: int,
+    parallel_config: ParallelConfig | None,
     cut: bool,
 ):
     """
@@ -153,9 +151,8 @@ def _macrocycle_opt(
             target,
             job_config,
             config.optimization.prog,
-            ncores,
-            omp,
             "optimization",
+            parallel_config=parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -184,9 +181,8 @@ def _macrocycle_opt(
                 proc_xtb.xtb_rrho,
                 job_config_rrho,
                 "xtb",
-                ncores,
-                omp,
                 "optimization",
+                parallel_config=parallel_config,
                 ignore_failed=config.general.ignore_failed,
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
@@ -244,8 +240,7 @@ def _full_opt(
     proc: QmProc,
     ensemble: EnsembleData,
     config: PartsConfig,
-    ncores: int,
-    omp: int,
+    parallel_config: ParallelConfig | None,
 ):
     """
     Full geometry optimization of every conformer.
@@ -278,9 +273,8 @@ def _full_opt(
         target,
         job_config,
         config.optimization.prog,
-        ncores,
-        omp,
         "optimization",
+        parallel_config=parallel_config,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,

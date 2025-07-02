@@ -11,12 +11,14 @@ from typing import cast
 from .qm_processor import QmProc
 from ..logging import setup_logger
 from ..parallel import (
+    ParallelJob,
+)
+from ..data import (
     GsolvResult,
     MetaData,
     NMRResult,
     OptResult,
     SPResult,
-    ParallelJob,
 )
 from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog
 from ..utilities import frange, Factory

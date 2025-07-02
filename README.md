@@ -40,6 +40,7 @@ from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
 from censo.params import NCORES, OMP
 from censo.config import GeneralConfig
+from censo.parallel import Config
 
 # CENSO will put all files in the current working directory (os.getcwd())
 # To output to different dirs you need to start subprocesses in different working directories using e.g. subprocess.Popen
@@ -52,15 +53,6 @@ ensemble = EnsembleData(input_file=input_path)
 
 # If the user wants to use a specific rcfile:
 config = configure(rcpath="/path/to/rcfile")
-
-# Get the number of available cpu cores on this machine
-# This is also the default value that CENSO uses
-# This number can also be set to any other integer value and automatically checked for validity
-NCORES = os.cpu_count()
-
-# Another possibly important setting is OMP, which will get used if you disabled the automatic 
-# load balancing in the settings
-OMP = 4
 
 # After changing a setting you should revalidate
 # Alternatively you could also enable assignment validation using:

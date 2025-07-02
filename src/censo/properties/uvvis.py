@@ -12,8 +12,10 @@ from ..molecules import MoleculeData
 from ..config import PartsConfig
 from ..config.job_config import UVVisJobConfig
 from ..config.parts import UVVisConfig
-from ..params import NCORES, OMPMIN, GridLevel
-from ..parallel import execute, UVVisResult
+from ..config.parallel_config import ParallelConfig
+from ..params import GridLevel
+from ..parallel import execute
+from ..data import UVVisResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
@@ -25,8 +27,7 @@ logger = setup_logger(__name__)
 def uvvis(
     ensemble: EnsembleData,
     config: PartsConfig,
-    ncores: int = NCORES or OMPMIN,
-    omp: int = OMPMIN,
+    parallel_config: ParallelConfig | None,
 ):
     """
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
@@ -60,9 +61,8 @@ def uvvis(
         proc.uvvis,
         job_config,
         config.uvvis.prog,
-        ncores,
-        omp,
         "uvvis",
+        parallel_config=parallel_config,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,

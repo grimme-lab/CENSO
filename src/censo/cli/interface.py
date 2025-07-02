@@ -11,12 +11,13 @@ from tabulate import tabulate
 
 from ..config import PartsConfig
 from ..config.setup import configure, write_rcfile
+from ..config.parallel_config import ParallelConfig
 from .cml_parser import parse
 from ..ensembledata import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
-from ..params import AU2KCAL, DESCR, __version__, Returncodes
-from ..utilities import printf, h1, PLENGTH
+from ..params import AU2KCAL, DESCR, __version__, Returncodes, PLENGTH
+from ..utilities import printf, h1
 from ..logging import set_filehandler, setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
@@ -71,6 +72,24 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
 
     printf("\n" + "".ljust(int(PLENGTH), "-") + "\n")
 
+    if args.maxcores is None:
+        printf(
+            "Could not determine number of available number of cores using os.cpu_count(). Cannot run without this information!"
+        )
+        return Returncodes.GENERIC_ERROR
+
+    try:
+        parallel_config = ParallelConfig(
+            ncores=args.maxcores, omp=args.ompmin, ompmin=args.ompmin
+        )
+    except ValueError as e:
+        tb = traceback.format_exc()
+        logger.debug(f"Encountered exception:\n{tb}")
+        printf(
+            "Encountered error in setting up parallelization settings. Stopping CENSO."
+        )
+        return Returncodes.ARGUMENT_ERROR
+
     tasks = [
         (parts_config.prescreening.run, prescreening),
         (parts_config.screening.run, screening),
@@ -85,7 +104,9 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
     time = 0.0
     try:
         for func in [task for enabled, task in tasks[:4] if enabled]:
-            runtime = func(ensemble, parts_config, cut=cut)
+            runtime = func(
+                ensemble, parts_config, parallel_config=parallel_config, cut=cut
+            )
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
 
@@ -105,7 +126,7 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
             print("\nRunning property calculations\n")
 
         for func in [task for enabled, task in tasks[4:] if enabled]:
-            runtime = func(ensemble, parts_config)
+            runtime = func(ensemble, parts_config, parallel_config=parallel_config)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
     except:
@@ -183,12 +204,6 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
     if args.reload:
         for filename in args.reload:
             ensemble.read_output(Path(filename))
-
-    if args.maxcores:
-        NCORES = args.maxcores
-
-    if args.ompmin:
-        OMPMIN = args.ompmin
 
     # Set working directory to input parent
     # NOTE: this is the most convenient way to solve this for CLI version

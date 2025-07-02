@@ -15,11 +15,13 @@ from ..config.job_config import (
     XTBOptJobConfig,
 )
 from ..parallel import (
+    ParallelJob,
+)
+from ..data import (
     GsolvResult,
     NMRResult,
     OptResult,
     MetaData,
-    ParallelJob,
     SPResult,
     UVVisResult,
 )

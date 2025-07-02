@@ -18,11 +18,13 @@ from ..config.job_config import (
     OptJobConfig,
 )
 from ..parallel import (
+    ResourceMonitor,
+    ParallelJob,
+)
+from ..data import (
     OptResult,
     QmResult,
     MetaData,
-    ResourceMonitor,
-    ParallelJob,
     SPResult,
 )
 from ..params import (

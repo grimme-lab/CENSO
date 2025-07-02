@@ -13,8 +13,10 @@ from ..molecules import MoleculeData
 from ..config import PartsConfig
 from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
-from ..params import NCORES, OMPMIN, GridLevel
-from ..parallel import NMRResult, execute
+from ..config.parallel_config import ParallelConfig
+from ..params import GridLevel
+from ..parallel import execute
+from ..data import NMRResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
@@ -24,10 +26,7 @@ logger = setup_logger(__name__)
 
 @timeit
 def nmr(
-    ensemble: EnsembleData,
-    config: PartsConfig,
-    ncores: int = NCORES or OMPMIN,
-    omp: int = OMPMIN,
+    ensemble: EnsembleData, config: PartsConfig, parallel_config: ParallelConfig | None
 ):
     """
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
@@ -61,9 +60,8 @@ def nmr(
         proc.nmr,
         job_config,
         config.nmr.prog,
-        ncores,
-        omp,
         "nmr",
+        parallel_config=parallel_config,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,

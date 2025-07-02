@@ -7,11 +7,12 @@ from collections.abc import Callable
 from ..molecules import MoleculeData
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, NCORES, OMPMIN, GridLevel, Prog
+from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
+from ..config.parallel_config import ParallelConfig
 from ..ensembledata import EnsembleData
 from ..processing import QmProc, XtbProc
 
@@ -23,8 +24,7 @@ logger = setup_logger(__name__)
 def refinement(
     ensemble: EnsembleData,
     config: PartsConfig,
-    ncores: int = NCORES or OMPMIN,
-    omp: int = OMPMIN,
+    parallel_config: ParallelConfig | None,
     cut: bool = True,
 ):
     """
@@ -55,9 +55,8 @@ def refinement(
             proc.gsolv,
             job_config,
             config.refinement.prog,
-            ncores,
-            omp,
             "refinement",
+            parallel_config=parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -83,9 +82,8 @@ def refinement(
             proc.sp,
             job_config,
             config.refinement.prog,
-            ncores,
-            omp,
             "refinement",
+            parallel_config=parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -107,9 +105,8 @@ def refinement(
             proc_xtb.xtb_rrho,
             job_config,
             "xtb",
-            ncores,
-            omp,
             "refinement",
+            parallel_config=parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,

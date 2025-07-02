@@ -13,10 +13,12 @@ from ..config.job_config import (
     XTBJobConfig,
 )
 from ..parallel import (
+    ParallelJob,
+)
+from ..data import (
     GsolvResult,
     MetaData,
     RRHOResult,
-    ParallelJob,
     SPResult,
 )
 from ..utilities import frange, Factory

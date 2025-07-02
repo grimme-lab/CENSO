@@ -14,8 +14,9 @@ from ..utilities import Factory, timeit, h1, h2, DataDump, printf
 from ..config import PartsConfig
 from ..parallel import execute
 from ..processing import QmProc
-from ..params import OMPMIN, NCORES, GridLevel, AU2KCAL, PLENGTH, Prog
+from ..params import GridLevel, AU2KCAL, PLENGTH, Prog
 from ..config.job_config import SPJobConfig, XTBJobConfig
+from ..config.paralell_config import ParallelConfig
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -25,8 +26,7 @@ logger = setup_logger(__name__)
 def prescreening(
     ensemble: EnsembleData,
     config: PartsConfig,
-    ncores: int = NCORES or OMPMIN,
-    omp: int = OMPMIN,
+    parallel_config: ParallelConfig | None,
     cut: bool = True,
 ):
     """
@@ -53,9 +53,8 @@ def prescreening(
             proc_xtb.gsolv,
             job_config,
             config.prescreening.prog,
-            ncores,
-            omp,
             "prescreening",
+            parallel_config=parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -78,9 +77,8 @@ def prescreening(
         proc.sp,
         job_config,
         config.prescreening.prog,
-        ncores,
-        omp,
         "prescreening",
+        parallel_config=parallel_config,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
