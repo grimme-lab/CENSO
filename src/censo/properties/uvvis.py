@@ -62,7 +62,7 @@ def uvvis(
         job_config,
         config.uvvis.prog,
         "uvvis",
-        parallel_config=parallel_config,
+        parallel_config,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,

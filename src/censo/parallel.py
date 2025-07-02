@@ -204,7 +204,7 @@ def execute[T: QmResult](
     job_config: XTBJobConfig | SPJobConfig,
     prog: QmProg | Literal["xtb"],
     from_part: str,
-    parallel_config: ParallelConfig | None = None,
+    parallel_config: ParallelConfig | None,
     ignore_failed: bool = True,
     balance: bool = True,
     copy_mo: bool = True,
