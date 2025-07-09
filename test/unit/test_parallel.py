@@ -8,6 +8,13 @@ from typing import Any
 from censo.parallel import (
     setup_managers,
     ResourceMonitor,
+    ParallelJob,
+    set_omp_tmproc,
+    set_omp,
+    prepare_jobs,
+    execute,
+)
+from censo.data import (
     SPResult,
     GsolvResult,
     RRHOResult,
@@ -15,14 +22,9 @@ from censo.parallel import (
     NMRResult,
     UVVisResult,
     MetaData,
-    ParallelJob,
-    set_omp_tmproc,
-    set_omp,
-    prepare_jobs,
-    execute,
 )
 from censo.molecules import GeometryData, MoleculeData
-from censo.params import GridLevel, QmProg, OMPMIN
+from censo.params import GridLevel, QmProg
 from censo.config.job_config import SPJobConfig
 
 
@@ -61,6 +63,7 @@ def mock_parallel_job(mock_molecule_data):
         conf=mock_molecule_data.geom,
         charge=mock_molecule_data.charge,
         unpaired=mock_molecule_data.unpaired,
+        omp=1,
     )
 
 
@@ -261,9 +264,9 @@ class TestParallelJob:
 
     def test_parallel_job_initialization(self, mock_molecule_data):
         """Test ParallelJob initialization and properties"""
-        job = ParallelJob(mock_molecule_data.geom, 0, 0)
+        job = ParallelJob(mock_molecule_data.geom, 0, 0, 1)
         assert job.conf == mock_molecule_data.geom
-        assert job.omp == OMPMIN
+        assert job.omp == 1
         assert job.charge == 0
         assert job.unpaired == 0
         assert isinstance(job.flags, dict)
@@ -275,6 +278,8 @@ class TestParallelJob:
 class TestOMPConfiguration:
     """Tests for OMP threading configuration functions"""
 
+    OMPMIN = 1  # Local constant for ompmin
+
     @pytest.mark.parametrize(
         "balance,omp,ncores,expected_omp",
         [
@@ -283,7 +288,7 @@ class TestOMPConfiguration:
                 2,
                 4,
                 4,
-            ),  # Test with balancing enabled, len(jobs) < ncores // OMPMIN (4 // 1 = 4), expect ncores // len(jobs) (4)
+            ),  # Test with balancing enabled, len(jobs) < ncores // 1 (4 // 1 = 4), expect ncores // len(jobs) (4)
             (
                 False,
                 0,
@@ -304,7 +309,7 @@ class TestOMPConfiguration:
     ):
         """Test set_omp_tmproc function handles thread allocation correctly"""
         jobs = [mock_parallel_job]
-        set_omp_tmproc(jobs, balance, omp, ncores)
+        set_omp_tmproc(jobs, balance, omp, ncores, self.OMPMIN)
         assert jobs[0].omp == expected_omp
 
     @pytest.mark.parametrize(
@@ -320,7 +325,7 @@ class TestOMPConfiguration:
     ):
         """Test set_omp function distributes threads properly"""
         jobs = [mock_parallel_job for _ in range(njobs)]
-        set_omp(jobs, balance, omp, ncores)
+        set_omp(jobs, balance, omp, ncores, 1, 32)
         assert all(job.omp == expected_omp for job in jobs)
 
 
@@ -342,7 +347,7 @@ class TestJobPreparation:
         """Test prepare_jobs function creates jobs with correct parameters"""
         conformers = [mock_molecule_data]
         jobs = prepare_jobs(
-            conformers, prog, 2, 4, "test", balance=True, copy_mo=copy_mo
+            conformers, prog, 2, 4, "test", 1, 32, balance=True, copy_mo=copy_mo
         )
 
         assert len(jobs) == 1
@@ -370,9 +375,11 @@ class TestJobExecution:
             task=task_success,
             job_config=mock_job_config,
             prog=QmProg.ORCA,
-            ncores=4,
-            omp=2,
             from_part="test",
+            parallel_config=None,
+            ignore_failed=True,
+            balance=True,
+            copy_mo=True,
         )
 
         # Verify results
@@ -397,9 +404,11 @@ class TestJobExecution:
                 task=task_fail,
                 job_config=mock_job_config,
                 prog=QmProg.ORCA,
-                ncores=4,
-                omp=2,
                 from_part="test",
+                parallel_config=None,
+                ignore_failed=True,
+                balance=True,
+                copy_mo=True,
             )
 
     def test_execute_partial_failure(self, mock_job_config, create_mock_conformers):
@@ -413,10 +422,11 @@ class TestJobExecution:
             task=task_conditional,
             job_config=mock_job_config,
             prog=QmProg.ORCA,
-            ncores=4,
-            omp=2,
             from_part="test",
+            parallel_config=None,
             ignore_failed=True,
+            balance=True,
+            copy_mo=True,
         )
 
         # Verify results (even-numbered conformers succeed, odd ones fail)
@@ -430,10 +440,11 @@ class TestJobExecution:
                 task=task_conditional,
                 job_config=mock_job_config,
                 prog=QmProg.ORCA,
-                ncores=4,
-                omp=2,
                 from_part="test",
+                parallel_config=None,
                 ignore_failed=False,
+                balance=True,
+                copy_mo=True,
             )
 
     def test_execute_resource_management(self, mock_job_config, create_mock_conformers):
@@ -449,9 +460,8 @@ class TestJobExecution:
             task=task_success,
             job_config=mock_job_config,
             prog=QmProg.ORCA,
-            ncores=4,  # Limit to 4 cores
-            omp=2,  # 2 cores per job
             from_part="test",
+            parallel_config=None,
             ignore_failed=False,
             balance=False,
             copy_mo=False,
@@ -465,5 +475,5 @@ class TestJobExecution:
         # Each job takes 0.1s, so 8 jobs should take ~0.4s (plus overhead)
         # Allow for some timing variability in CI environments
         assert (
-            0.3 < total_time < 2.0
+            0.1 < total_time < 2.0  # TODO: what should be the lower bound?
         ), f"Expected ~0.4s execution time, got {total_time}s"

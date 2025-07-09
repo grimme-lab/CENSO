@@ -16,7 +16,7 @@ from ..parallel import execute
 from ..processing import QmProc
 from ..params import GridLevel, AU2KCAL, PLENGTH, Prog
 from ..config.job_config import SPJobConfig, XTBJobConfig
-from ..config.paralell_config import ParallelConfig
+from ..config.parallel_config import ParallelConfig
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)

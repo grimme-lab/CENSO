@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 tabulate = "*"
 pydantic = "*"
+censo = {extras = ["scripts"], file = "."}
 
 [dev-packages]
 pytest = "*"

@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 
 from censo.ensembledata import EnsembleData
-from censo.parallel import (
+from censo.data import (
     SPResult,
     OptResult,
     GsolvResult,

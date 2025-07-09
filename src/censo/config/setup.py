@@ -68,7 +68,7 @@ def configure(rcpath: str | None = None, args: Namespace | None = None) -> Parts
         paths = find_program_paths()
 
     # Override general settings only for now
-    for field in parts_config.general.model_fields:
+    for field in parts_config.general.__class__.model_fields:
         setting = getattr(args, field, None)
         if setting is not None:
             parts_config.general.__setattr__(field, setting)

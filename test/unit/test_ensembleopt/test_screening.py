@@ -38,7 +38,7 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, ncores=1, omp=1)
+        screening(mock_ensemble, config, None)
 
         # Verify calls
         assert mock_execute.call_count == 2  # sp and xtb_rrho
@@ -70,7 +70,7 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, ncores=1, omp=1)
+        screening(mock_ensemble, config, None)
 
         # Verify calls
         assert mock_execute.call_count == 1
@@ -100,7 +100,7 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, ncores=1, omp=1)
+        screening(mock_ensemble, config, None)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -140,7 +140,7 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, ncores=1, omp=1)
+        screening(mock_ensemble, config, None)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count
