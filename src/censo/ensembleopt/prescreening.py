@@ -153,6 +153,8 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     # minimal total free enthalpy
     gtotmin = min(conf.gtot for conf in ensemble)
 
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
     # determines what to print for each conformer in each column
     printmap = {
         "CONF#": lambda conf: conf.name,
@@ -174,7 +176,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
         # if "xtb_gsolv" in self.data["results"][conf.name].keys()
         # else "---",
         "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
-        "Boltzmann weight": lambda conf: f"{conf.bmw * 100:.2f}",
+        "Boltzmann weight": lambda conf: f"{boltzmann_populations[conf.name] * 100:.2f}",
     }
 
     rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
@@ -197,8 +199,6 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
         "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):"
     )
     lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
-
-    boltzmann_populations = ensemble.get_populations(config.general.temperature)
 
     # calculate averaged free enthalpy
     avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
