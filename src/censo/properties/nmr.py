@@ -34,10 +34,9 @@ def nmr(
     """
     printf(h2("NMR"))
 
-    # Assert that all conformers have populations defined
-    try:
-        assert all(conf.bmw for conf in ensemble)
-    except AssertionError:
+    # Assert that all conformers have energies defined
+    # TODO: this is not optimal since == 0 does not mean that no ensembleopt has been performed before
+    if not all(conf.energy != 0 for conf in ensemble):
         raise RuntimeError(
             "Before calculating an ensemble property one has to run at least one ensemble refinement step (prescreening, screening, optimization or refinement)."
         )
@@ -46,7 +45,6 @@ def nmr(
     proc: QmProc = Factory[QmProc].create(config.nmr.prog, "4_NMR")
 
     # Run NMR calculations
-    # TODO: if some calculations fail we would need to recalculate boltzmann populations
     job_config = NMRJobConfig(
         copy_mo=config.general.copy_mo,
         grid=GridLevel.NMR,
@@ -73,9 +71,11 @@ def nmr(
 def _write_results(
     ensemble: EnsembleData, config: PartsConfig, results: dict[str, NMRResult]
 ):
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
     # Average shielding and coupling values
     shieldings = [
-        (i, s * conf.bmw)
+        (i, s * boltzmann_populations[conf.name])
         for conf in ensemble
         for (i, s) in results[conf.name].shieldings
     ]
@@ -84,7 +84,7 @@ def _write_results(
         averaged_shieldings[i] += v
 
     couplings = [
-        (i, j, c * conf.bmw)
+        (i, j, c * boltzmann_populations[conf.name])
         for conf in ensemble
         for ((i, j), c) in results[conf.name].couplings
     ]

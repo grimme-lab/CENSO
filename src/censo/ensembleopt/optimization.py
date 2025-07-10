@@ -3,7 +3,7 @@ Optimization == part2
 performing geometry optimization of the CRE and provide low level free energies.
 """
 
-from copy import deepcopy
+from copy import copy
 import json
 from pathlib import Path
 from collections.abc import Callable
@@ -11,7 +11,7 @@ from typing import Any
 from tabulate import tabulate
 
 from ..ensembledata import EnsembleData
-from ..molecules import MoleculeData
+from ..molecules import MoleculeData, Contributions
 from ..processing import QmProc, XtbProc
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
@@ -53,12 +53,15 @@ def optimization(
     proc: QmProc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
 
     if config.optimization.macrocycles:
-        _macrocycle_opt(proc, ensemble, config, parallel_config, cut)
+        contributions_dict = _macrocycle_opt(
+            proc, ensemble, config, parallel_config, cut
+        )
     else:
-        _full_opt(proc, ensemble, config, parallel_config)
+        contributions_dict = _full_opt(proc, ensemble, config, parallel_config)
 
     printf("\n")
 
+    # Potentially reevaluate rrho contributions
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
         proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
@@ -79,7 +82,9 @@ def optimization(
         )
 
         for conf in ensemble:
-            conf.grrho = results[conf.name].energy
+            contributions_dict[conf.name].grrho = results[conf.name].energy
+
+    ensemble.update_contributions(contributions_dict)
 
     if cut:
         threshold = (
@@ -87,8 +92,6 @@ def optimization(
             + config.optimization.threshold / AU2KCAL
         )
         ensemble.remove_conformers(lambda conf: conf.gtot > threshold)
-
-    ensemble.set_populations(config.general.temperature)
 
     # Print/write out results
     _write_results(ensemble, config)
@@ -104,13 +107,16 @@ def _macrocycle_opt(
     """
     Geometry optimization using macrocycles, whereafter every macrocycle cutting conditions are checked (if cut == True).
     """
-    # Set up a list of unconverged conformers (perhaps a second ensemble?)
-    unconverged_ensemble = deepcopy(ensemble)
-    unconverged_ensemble.clear_rem()
+    # Second, independent ensemble containing unconverged conformers
+    unconverged_ensemble = EnsembleData()
 
-    # Set gsolv to 0
-    for conf in unconverged_ensemble:
-        conf.gsolv = 0.0
+    # Copy the references to the original conformers into the unconverged_ensemble
+    # This way all modifications to the MoleculeData objects will be made on the original objects
+    # But the ensembles themselves are independent
+    unconverged_ensemble.conformers = copy(ensemble.conformers)
+
+    # Set up contributions_dict
+    contributions_dict = {conf.name: Contributions() for conf in ensemble}
 
     # Set up target
     if config.optimization.xtb_opt:
@@ -160,9 +166,9 @@ def _macrocycle_opt(
 
         for conf in unconverged_ensemble:
             # Update energies
-            conf.energy = results[conf.name].energy
+            contributions_dict[conf.name].energy = results[conf.name].energy
 
-            # Update geometries
+            # Update geometries in both ensemble objects
             conf.geom.xyz = results[conf.name].geom
 
         if (
@@ -189,7 +195,7 @@ def _macrocycle_opt(
             )
 
             for conf in unconverged_ensemble:
-                conf.grrho = results_rrho[conf.name].energy
+                contributions_dict[conf.name].grrho = results_rrho[conf.name].energy
 
             rrho_done = True
 
@@ -199,6 +205,9 @@ def _macrocycle_opt(
         unconverged_ensemble.remove_conformers(
             lambda conf: results[conf.name].converged
         )
+
+        # Update contributions
+        unconverged_ensemble.update_contributions(contributions_dict)
 
         if len(unconverged_ensemble.conformers) != 0 and cut:
             gradthr = config.optimization.gradthr
@@ -221,19 +230,15 @@ def _macrocycle_opt(
 
         _print_update(unconverged_ensemble)
 
-    # Finally sync ensembles
-    for conf in unconverged_ensemble.rem:
-        conf2 = next(_conf2 for _conf2 in ensemble if _conf2.name == conf.name)
-        conf2.energy = conf.energy
-        conf2.grrho = conf.grrho
-        conf2.gsolv = 0.0
-
     for conf in unconverged_ensemble:
         logger.warning(
             f"{conf.name} did not converge after {config.optimization.maxcyc} cycles."
         )
 
     ensemble.remove_conformers(lambda conf: conf in unconverged_ensemble)
+
+    # Return most up to date information
+    return contributions_dict
 
 
 def _full_opt(
@@ -268,6 +273,9 @@ def _full_opt(
         )
         target = proc.opt
 
+    # Set up contributions_dict
+    contributions_dict = {conf.name: Contributions() for conf in ensemble}
+
     results = execute(
         ensemble.conformers,
         target,
@@ -281,9 +289,10 @@ def _full_opt(
     )
 
     for conf in ensemble:
-        conf.energy = results[conf.name].energy
+        contributions_dict[conf.name].energy = results[conf.name].energy
         conf.geom.xyz = results[conf.name].geom
-        conf.gsolv = 0.0
+
+    return contributions_dict
 
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
@@ -358,11 +367,13 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     )
     lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
 
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
     # calculate averaged free enthalpy
-    avG = sum([conf.bmw * conf.gtot for conf in ensemble])
+    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
     # calculate averaged free energy (?)
-    avE = sum([conf.bmw * conf.energy for conf in ensemble])
+    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
     # append the lines for the free energy/enthalpy
     lines.append(

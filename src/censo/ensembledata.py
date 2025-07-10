@@ -10,7 +10,7 @@ import json
 from typing import Callable
 from math import exp
 
-from .molecules import MoleculeData
+from .molecules import MoleculeData, Contributions
 from .logging import setup_logger
 from .params import AU2J, KB
 from .utilities import check_for_float, printf, t2x
@@ -50,17 +50,14 @@ class EnsembleData:
 
     @conformers.setter
     def conformers(self, confs):
-        assert all(isinstance(conf, MoleculeData) for conf in confs)
+        if not all(isinstance(conf, MoleculeData) for conf in confs):
+            raise ValueError("All objects need to be MoleculeData instances.")
         self.__conformers = confs
 
     @property
     def rem(self) -> list[MoleculeData]:
         """Returns the list of removed conformers."""
         return self.__rem
-
-    def clear_rem(self):
-        """Clear the list of removed conformers."""
-        self.__rem = []
 
     def read_output(self, outpath: str | Path) -> None:
         """
@@ -84,9 +81,12 @@ class EnsembleData:
             )
 
         for conf in self.conformers:
-            conf.energy = data[conf.name]["energy"]
-            conf.gsolv = data[conf.name]["gsolv"]
-            conf.grrho = data[conf.name]["grrho"]
+            contributions = Contributions(
+                data[conf.name]["energy"],
+                data[conf.name]["gsolv"],
+                data[conf.name]["grrho"],
+            )
+            conf.update(contributions)
 
         logger.info(f"Reloaded results from {outpath}.")
 
@@ -148,7 +148,7 @@ class EnsembleData:
             f"Read {len(self.conformers)} conformers.\n\n",
         )
 
-    def set_populations(self, temperature: float) -> None:
+    def get_populations(self, temperature: float) -> dict[str, float]:
         """
         Calculate populations for boltzmann distribution of ensemble at given
         temperature given values for free enthalpy.
@@ -167,8 +167,19 @@ class EnsembleData:
         bsum: float = sum(bmfactors.values())
 
         # Set Boltzmann populations
+        populations: dict[str, float] = {}
         for conf in self.conformers:
-            conf.bmw = bmfactors[conf.name] / bsum
+            populations[conf.name] = bmfactors[conf.name] / bsum
+
+        return populations
+
+    def update_contributions(self, contributions_dict: dict[str, Contributions]):
+        """Update contributions for all conformers in the ensemble. Convenience wrapper to call update on all conformers with correct mapping."""
+        assert all(
+            conf.name in contributions_dict for conf in self.conformers
+        ), "Attempted to pass incomplete contributions dict to update_contributions."
+        for conf in self.conformers:
+            conf.update(contributions_dict[conf.name])
 
     def __setup_conformers(self, input_path: str) -> list[MoleculeData]:
         """

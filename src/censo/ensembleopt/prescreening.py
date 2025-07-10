@@ -8,7 +8,7 @@ from censo.processing.xtb_processor import XtbProc
 
 
 from ..config.parts.prescreening import PrescreeningConfig
-from ..molecules import MoleculeData
+from ..molecules import Contributions, MoleculeData
 from ..ensembledata import EnsembleData
 from ..utilities import Factory, timeit, h1, h2, DataDump, printf
 from ..config import PartsConfig
@@ -39,6 +39,7 @@ def prescreening(
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
 
+    contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
         proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "0_PRESCREENING")
@@ -61,7 +62,7 @@ def prescreening(
         )
 
         for conf in ensemble:
-            conf.gsolv = results[conf.name].gsolv
+            contributions_dict[conf.name].gsolv = results[conf.name].gsolv
 
     # Calculate gas-phase single-point
     job_config = SPJobConfig(
@@ -84,7 +85,10 @@ def prescreening(
         copy_mo=config.general.copy_mo,
     )
     for conf in ensemble:
-        conf.energy = results[conf.name].energy
+        contributions_dict[conf.name].energy = results[conf.name].energy
+
+    # Update molecules
+    ensemble.update_contributions(contributions_dict)
 
     if cut:
         threshold = (
@@ -92,8 +96,6 @@ def prescreening(
             + config.prescreening.threshold / AU2KCAL
         )
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
-
-    ensemble.set_populations(config.general.temperature)
 
     # print results
     _write_results(ensemble, config)
@@ -196,11 +198,13 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     )
     lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
 
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
     # calculate averaged free enthalpy
-    avG = sum([conf.bmw * conf.gtot for conf in ensemble])
+    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
     # calculate averaged free energy (?)
-    avE = sum([conf.bmw * conf.energy for conf in ensemble])
+    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
     # append the lines for the free energy/enthalpy
     lines.append(

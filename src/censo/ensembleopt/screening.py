@@ -11,7 +11,7 @@ from typing import Any
 import json
 from collections.abc import Callable
 
-from ..molecules import MoleculeData
+from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
@@ -46,6 +46,7 @@ def screening(
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
 
+    contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase and not config.screening.gsolv_included:
         # Calculate Gsolv using qm
         job_config = SPJobConfig(
@@ -74,8 +75,8 @@ def screening(
         )
 
         for conf in ensemble:
-            conf.gsolv = results[conf.name].gsolv
-            conf.energy = results[conf.name].energy_gas
+            contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+            contributions_dict[conf.name].energy = results[conf.name].energy_gas
     else:
         # Run single-point calculation with solvation or in gas phase
         job_config = SPJobConfig(
@@ -101,8 +102,7 @@ def screening(
         )
 
         for conf in ensemble:
-            conf.energy = results[conf.name].energy
-            conf.gsolv = 0.0
+            contributions_dict[conf.name].energy = results[conf.name].energy
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
@@ -124,7 +124,10 @@ def screening(
         )
 
         for conf in ensemble:
-            conf.grrho = results[conf.name].energy
+            contributions_dict[conf.name].grrho = results[conf.name].energy
+
+    # Update molecules
+    ensemble.update_contributions(contributions_dict)
 
     if cut:
         # Threshold in kcal/mol
@@ -140,8 +143,6 @@ def screening(
         threshold = min(conf.gtot for conf in ensemble) + threshold / AU2KCAL
 
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
-
-    ensemble.set_populations(config.general.temperature)
 
     # Print/write out results
     _write_results(ensemble, config)
@@ -349,11 +350,13 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     )
     lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
 
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
     # calculate averaged free enthalpy
-    avG = sum([conf.bmw * conf.gtot for conf in ensemble])
+    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
     # calculate averaged free energy (?)
-    avE = sum([conf.bmw * conf.energy for conf in ensemble])
+    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
     # append the lines for the free energy/enthalpy
     lines.append(

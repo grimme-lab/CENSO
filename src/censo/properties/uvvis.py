@@ -35,10 +35,9 @@ def uvvis(
     """
     printf(h2("UVVIS"))
 
-    # Assert that all conformers have populations defined
-    try:
-        assert all(conf.bmw for conf in ensemble)
-    except AssertionError:
+    # Assert that all conformers have energies defined
+    # TODO: this is not optimal since == 0 does not mean that no ensembleopt has been performed before
+    if not all(conf.energy != 0 for conf in ensemble):
         raise RuntimeError(
             "Before calculating an ensemble property one has to run at least one ensemble refinement step (prescreening, screening, optimization or refinement)."
         )
@@ -74,9 +73,15 @@ def uvvis(
 def _write_results(
     ensemble: EnsembleData, config: PartsConfig, results: dict[str, UVVisResult]
 ):
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
     # Average excitations
     excitations = [
-        (conf.name, excitation["wavelength"], excitation["osc_str"] * conf.bmw)
+        (
+            conf.name,
+            excitation["wavelength"],
+            excitation["osc_str"] * boltzmann_populations[conf.name],
+        )
         for conf in ensemble
         for excitation in results[conf.name].excitations
     ]

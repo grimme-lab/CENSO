@@ -1,6 +1,14 @@
+from dataclasses import dataclass
 from pydantic import BaseModel
 
 from .params import BOHR2ANG, QmProg
+
+
+@dataclass
+class Contributions:
+    energy: float = 0.0
+    gsolv: float = 0.0
+    grrho: float = 0.0
 
 
 class Atom(BaseModel):
@@ -135,16 +143,9 @@ class MoleculeData:
         # stores the initial (biased) xtb energy from CREST (or whatever was used before)
         self.xtb_energy: float | None = None
 
-        # self.__energies: list[float] = []
-        # self.__gsolvs: list[float] = []
-        # self.__grrhos: list[float] = []
-        self.energy: float = 0.0
-        self.gsolv: float = 0.0
-        self.grrho: float = 0.0
-
-        # Stores Boltzmann populations in order of calculation
-        # self.__bmws: list[float] = []
-        self.bmw: float = 0.0
+        self.__energy: float = 0.0
+        self.__gsolv: float = 0.0
+        self.__grrho: float = 0.0
 
         # list to store the paths to all MO-files from the jobs run for this conformer
         # might also include tuples if open shell and tm is used
@@ -153,56 +154,28 @@ class MoleculeData:
             QmProg.TM: [],
         }
 
-    # @property
-    # def energy(self) -> float:
-    #     """Most recent electronic gas-phase energy."""
-    #     # TODO: is this really a good solution?
-    #     # NOTE: this is the only time we don't check for the list length, since this really shouldn't be the case
-    #     # when you want to access it
-    #     return self.__energies[-1]
-    #
-    # @energy.setter
-    # def energy(self, energy: float):
-    #     """Set most recent gas-phase/implicitly solvated energy."""
-    #     self.__energies.append(energy)
-    #
-    # @property
-    # def gsolv(self) -> float:
-    #     """Most recent solvation Gibbs free energy."""
-    #     if len(self.__gsolvs) > 0:
-    #         return self.__gsolvs[-1]
-    #     else:
-    #         return 0.0
-    #
-    # @gsolv.setter
-    # def gsolv(self, gsolv: float):
-    #     """Set most recent solvation Gibbs free energy."""
-    #     self.__gsolvs.append(gsolv)
-    #
-    # @property
-    # def grrho(self) -> float:
-    #     """Most recent mRRHO contribution."""
-    #     if len(self.__grrhos) > 0:
-    #         return self.__grrhos[-1]
-    #     else:
-    #         return 0.0
-    #
-    # @grrho.setter
-    # def grrho(self, grrho: float):
-    #     """Set most recent mRRHO contribution."""
-    #     self.__grrhos.append(grrho)
-    #
-    #
-    # @property
-    # def bmw(self) -> float:
-    #     """Most recent Boltzmann population."""
-    #     return self.__bmws[-1]
-    #
-    # @bmw.setter
-    # def bmw(self, bmw: float):
-    #     """Set most recent Boltzmann weight."""
-    #     self.__bmws.append(bmw)
+    @property
+    def energy(self) -> float:
+        """Current energy."""
+        return self.__energy
+
+    @property
+    def gsolv(self) -> float:
+        """Current gsolv."""
+        return self.__gsolv
+
+    @property
+    def grrho(self) -> float:
+        """Current grrho."""
+        return self.__grrho
+
     @property
     def gtot(self) -> float:
-        """Most recent energy+gsolv+grrho."""
-        return self.energy + self.gsolv + self.grrho
+        """Current energy+gsolv+grrho."""
+        return self.__energy + self.__gsolv + self.__grrho
+
+    def update(self, contributions: Contributions):
+        """Update contributions."""
+        self.__energy = contributions.energy
+        self.__gsolv = contributions.gsolv
+        self.__grrho = contributions.grrho
