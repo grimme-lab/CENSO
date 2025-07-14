@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from pathlib import Path
 from tabulate import tabulate
+from itertools import product
 import json
 
 from ..ensembledata import EnsembleData
@@ -68,10 +69,36 @@ def nmr(
     _write_results(ensemble, config, results)
 
 
+def read_chemeq() -> dict[int, list[int]]:
+    """
+    Read chemical equivalent nuclei from anmr_nucinfo.
+    NOTE: crest starts counting from 1. In CENSO, we're counting from 0.
+    """
+    lines = Path("anmr_nucinfo").read_text().split("\n")
+    atoms = []
+    equiv: dict[int, list[int]] = {}
+    for line in lines[1::2]:
+        atoms.append(int(line.split()[0]))
+
+    for i, line in enumerate(lines[2::2]):
+        equiv[atoms[i]] = [int(x) for x in line.split()]
+
+    return equiv
+
+
 def _write_results(
     ensemble: EnsembleData, config: PartsConfig, results: dict[str, NMRResult]
 ):
     boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
+    try:
+        equiv = read_chemeq()
+        printf("Applying chemical equivalence as predicted by CREST.")
+    except FileNotFoundError:
+        printf("Could not find anmr_nucinfo file. Did you run crest with -nmr?")
+        # In this case set every atom equivalent to only itself
+        conf = next(iter(ensemble.conformers))
+        equiv = {i: [i] for (i, _) in results[conf.name].shieldings}
 
     # Average shielding and coupling values
     shieldings = [
@@ -81,7 +108,9 @@ def _write_results(
     ]
     averaged_shieldings: defaultdict[int, float] = defaultdict(float)
     for i, v in shieldings:
-        averaged_shieldings[i] += v
+        # Apply chemical equivalence
+        for j in equiv[i]:
+            averaged_shieldings[j] += v / len(equiv[i])
 
     couplings = [
         (i, j, c * boltzmann_populations[conf.name])
@@ -90,7 +119,12 @@ def _write_results(
     ]
     averaged_couplings: defaultdict[tuple[int, int], float] = defaultdict(float)
     for i, j, v in couplings:
-        averaged_couplings[(i, j)] += v
+        # Apply chemical equivalence
+        equiv_i = equiv[i]
+        equiv_j = equiv[j]
+        n_pairs = len(equiv_i) * len(equiv_j)
+        for ieq, jeq in product(equiv_i, equiv_j):
+            averaged_couplings[(ieq, jeq)] += v / n_pairs
 
     filepath = Path("4_NMR.out")
     text = ""

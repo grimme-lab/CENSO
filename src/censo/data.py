@@ -61,7 +61,9 @@ class OptResult(QmResult):
 class NMRResult(QmResult):
     """Results class for NMR calculations."""
 
+    # atom index mapped onto shielding value, starting from 0
     shieldings: list[tuple[int, float]] = field(default_factory=list)
+    # two atom indices mapped onto coupling value, starting from 0
     couplings: list[tuple[tuple[int, int], float]] = field(default_factory=list)
 
 
