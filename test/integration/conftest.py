@@ -1,13 +1,23 @@
 import pytest
-import os
 from pathlib import Path
 import shutil
 from censo.ensembledata import EnsembleData
 from censo.config.parts_config import PartsConfig
 from censo.config.parallel_config import ParallelConfig
 from censo.params import QmProg
+from censo.config.setup import find_program_paths
 
 
+@pytest.fixture(autouse=True)
+def set_program_paths():
+    program_paths = find_program_paths()
+    for prog in ["xtb", "orca"]:
+        if program_paths[prog] == "":
+            raise RuntimeError(f"{prog} is not present in your path.")
+
+    from censo.processing import GenericProc
+
+    GenericProc.paths.update(program_paths)
 
 
 @pytest.fixture

@@ -3,10 +3,14 @@ import os
 from pathlib import Path
 import shutil
 
+from censo.logging import set_filehandler, set_loglevel
+
 
 @pytest.fixture(autouse=True)
 def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     orig = os.getcwd()
+    set_filehandler(Path(orig) / "censo.log")
+    set_loglevel("DEBUG")
     monkeypatch.chdir(tmp_path)
     yield
     os.chdir(orig)
