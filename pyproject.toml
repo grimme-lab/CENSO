@@ -44,3 +44,6 @@ version_file = "src/censo/__version__.py"
 [tool.pytest.ini_options]
 testpaths = ["test"]
 pythonpath = ["src"]
+markers = [
+    "optional: mark test as optional (add --run-optional to run)",
+]
