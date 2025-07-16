@@ -1,4 +1,21 @@
 import pytest
+import os
+from pathlib import Path
+import shutil
+
+
+@pytest.fixture(autouse=True)
+def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    orig = os.getcwd()
+    monkeypatch.chdir(tmp_path)
+    yield
+    os.chdir(orig)
+    # Clean up temporary directory
+    for item in tmp_path.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
 
 
 def pytest_addoption(parser):

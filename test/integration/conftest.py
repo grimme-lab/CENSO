@@ -8,12 +8,6 @@ from censo.config.parallel_config import ParallelConfig
 from censo.params import QmProg
 
 
-@pytest.fixture(autouse=True)
-def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    orig = os.getcwd()
-    monkeypatch.chdir(tmp_path)
-    yield
-    os.chdir(orig)
 
 
 @pytest.fixture
