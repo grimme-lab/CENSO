@@ -14,7 +14,11 @@ def set_program_paths():
     program_paths = find_program_paths()
     for prog in ["xtb", "orca"]:
         if program_paths[prog] == "":
-            raise RuntimeError(f"{prog} is not present in your path.")
+            pytest.skip(f"{prog} is not present in your path.")
+
+    ridft_path = shutil.which("ridft")
+    if ridft_path is None:
+        pytest.skip(f"Turbomole (ridft) binary is not present in your path.")
 
     from censo.processing import GenericProc
 
