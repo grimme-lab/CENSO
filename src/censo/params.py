@@ -40,7 +40,7 @@ class Returncodes(int, Enum):
 
 
 OMPMIN_DEFAULT = 1
-OMPMAX_DEFAULT = 32
+OMPMAX_DEFAULT = os.cpu_count() or 32
 
 ASSETS_PATH = Path(__file__).parent / "assets"
 
