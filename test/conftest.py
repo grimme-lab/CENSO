@@ -7,9 +7,10 @@ from censo.logging import set_filehandler, set_loglevel
 
 
 @pytest.fixture(autouse=True)
-def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request):
     orig = os.getcwd()
-    set_filehandler(Path(orig) / "censo.log")
+    if request.config.getoption("--keep-log"):
+        set_filehandler(Path(orig) / "censo.log")
     set_loglevel("DEBUG")
     monkeypatch.chdir(tmp_path)
     yield
@@ -25,6 +26,12 @@ def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def pytest_addoption(parser):
     parser.addoption(
         "--run-optional", action="store_true", default=False, help="run optional tests"
+    )
+    parser.addoption(
+        "--keep-log",
+        action="store_true",
+        default=False,
+        help="keep the log file during test execution",
     )
 
 
