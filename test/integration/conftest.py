@@ -1,4 +1,5 @@
 import pytest
+import os
 from pathlib import Path
 import shutil
 from censo.ensembledata import EnsembleData
@@ -35,7 +36,8 @@ def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
 
 @pytest.fixture
 def mock_parallel_config():
-    return ParallelConfig(ncores=4, omp=2, ompmin=1, ompmax=4)
+    ncores = os.cpu_count() or 4
+    return ParallelConfig(ncores=ncores, omp=1)
 
 
 @pytest.fixture
