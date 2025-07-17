@@ -192,23 +192,23 @@ def find_program_paths() -> dict[str, str]:
 
     # if orca was found try to determine orca version from the path (kinda hacky)
     if paths[Prog.ORCA.value] != "":
-        version_string = re.match(r"(\d+\.\d+\.\d+)", paths[Prog.ORCA.value])
+        version_string = re.search(r"(\d+\.\d+\.\d+)", paths[Prog.ORCA.value])
         if version_string:
-            paths["orcaversion"] = version_string
+            paths["orcaversion"] = version_string.group(1)
         else:
             # Try to extract version from binary content
             with open(paths[Prog.ORCA.value], "rb") as f:
                 binary_content = f.read()
 
             version_pattern = rb"Program Version (\d+\.\d+\.\d+)"
-            match = re.match(version_pattern, binary_content)
+            match = re.search(version_pattern, binary_content)
 
             if not match:
                 paths["orcaversion"] = ""
             else:
                 version_bytes = match.group(1)
-                decoded_version = version_bytes.decode("utf-8")
-                paths["orcaversion"] = decoded_version
+                version_string = version_bytes.decode("utf-8")
+                paths["orcaversion"] = version_string
 
     return paths
 
