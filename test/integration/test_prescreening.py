@@ -4,14 +4,15 @@ from censo.ensembledata import EnsembleData
 from censo.config.parts_config import PartsConfig
 from censo.config.parallel_config import ParallelConfig
 
+
 @pytest.mark.optional
 @pytest.mark.parametrize(
     "prog_name, gas_phase",
     [
-        ("ORCA", True),
-        ("ORCA", False),
-        ("TM", True),
-        ("TM", False),
+        pytest.param("ORCA", True, marks=pytest.mark.requires_orca),
+        pytest.param("ORCA", False, marks=pytest.mark.requires_orca),
+        pytest.param("TM", True, marks=pytest.mark.requires_turbomole),
+        pytest.param("TM", False, marks=pytest.mark.requires_turbomole),
     ],
 )
 def test_prescreening_parameterized(

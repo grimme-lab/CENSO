@@ -9,19 +9,35 @@ from censo.params import QmProg
 from censo.config.setup import find_program_paths
 
 
+def pytest_runtest_setup(item):
+    if 'requires_xtb' in item.keywords and not has_xtb():
+        pytest.skip("xtb is not present in your path.")
+    if 'requires_orca' in item.keywords and not has_orca():
+        pytest.skip("ORCA is not present in your path.")
+    if 'requires_turbomole' in item.keywords and not has_turbomole():
+        pytest.skip("Turbomole (ridft) is not present in your path.")
+
+
+# Utility functions for program availability checks
+
+def has_xtb():
+    program_paths = find_program_paths()
+    return program_paths.get("xtb", "") != ""
+
+def has_orca():
+    program_paths = find_program_paths()
+    return program_paths.get("orca", "") != ""
+
+def has_turbomole():
+    return shutil.which("ridft") is not None
+
 @pytest.fixture(autouse=True)
 def set_program_paths():
+    """
+    Always set GenericProc.paths, but do not skip tests globally
+    """
     program_paths = find_program_paths()
-    for prog in ["xtb", "orca"]:
-        if program_paths[prog] == "":
-            pytest.skip(f"{prog} is not present in your path.")
-
-    ridft_path = shutil.which("ridft")
-    if ridft_path is None:
-        pytest.skip(f"Turbomole (ridft) binary is not present in your path.")
-
     from censo.processing import GenericProc
-
     GenericProc.paths.update(program_paths)
 
 
