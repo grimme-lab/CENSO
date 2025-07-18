@@ -42,7 +42,7 @@ def refinement(
             copy_mo=config.general.copy_mo,
             func=config.refinement.func,
             basis=config.refinement.basis,
-            grid=GridLevel.MEDIUM,
+            grid=GridLevel.VERY_HIGH,
             template=config.refinement.template,
             gas_phase=False,
             solvent=config.general.solvent,
@@ -62,6 +62,8 @@ def refinement(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
         for conf in ensemble:
             contributions_dict[conf.name].gsolv = results[conf.name].gsolv
@@ -72,7 +74,7 @@ def refinement(
             copy_mo=config.general.copy_mo,
             func=config.refinement.func,
             basis=config.refinement.basis,
-            grid=GridLevel.MEDIUM,
+            grid=GridLevel.VERY_HIGH,
             template=config.refinement.template,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
@@ -89,6 +91,8 @@ def refinement(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
         for conf in ensemble:
             contributions_dict[conf.name].energy = results[conf.name].energy
@@ -111,6 +115,8 @@ def refinement(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
         for conf in ensemble:
             contributions_dict[conf.name].grrho = results[conf.name].energy

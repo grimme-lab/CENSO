@@ -73,6 +73,8 @@ def screening(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
         for conf in ensemble:
             contributions_dict[conf.name].gsolv = results[conf.name].gsolv
@@ -100,6 +102,8 @@ def screening(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
         for conf in ensemble:
             contributions_dict[conf.name].energy = results[conf.name].energy
@@ -122,6 +126,8 @@ def screening(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
         for conf in ensemble:
             contributions_dict[conf.name].grrho = results[conf.name].energy

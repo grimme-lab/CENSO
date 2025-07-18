@@ -51,7 +51,7 @@ class GeneralConfig(BasePartConfig):
     balance: bool = True
     """Wether to use static load balancing to optimize processor usage."""
 
-    ignore_failed: bool = True
+    ignore_failed: bool = False
     """Whether to ignore failed conformers or raise an error."""
 
     # @field_validator("trange")

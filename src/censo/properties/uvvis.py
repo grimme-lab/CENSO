@@ -66,6 +66,8 @@ def uvvis(
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )
+    if config.general.ignore_failed:
+        ensemble.remove_conformers(lambda conf: conf.name not in results)
 
     _write_results(ensemble, config, results)
 

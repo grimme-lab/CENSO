@@ -81,6 +81,9 @@ def optimization(
             copy_mo=config.general.copy_mo,
         )
 
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
+
         for conf in ensemble:
             contributions_dict[conf.name].grrho = results[conf.name].energy
 
@@ -121,7 +124,7 @@ def _macrocycle_opt(
     # Set up target
     if config.optimization.xtb_opt:
         job_config = XTBOptJobConfig(
-            grid=GridLevel.MEDIUM,
+            grid=GridLevel.HIGH,
             copy_mo=config.general.copy_mo,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
@@ -133,7 +136,7 @@ def _macrocycle_opt(
         target = proc.xtb_opt
     else:
         job_config = OptJobConfig(
-            grid=GridLevel.MEDIUM,
+            grid=GridLevel.HIGH,
             copy_mo=config.general.copy_mo,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
@@ -163,6 +166,14 @@ def _macrocycle_opt(
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
         )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(
+                lambda conf: conf in unconverged_ensemble.conformers
+                and conf.name not in results_rrho
+            )
+            unconverged_ensemble.remove_conformers(
+                lambda conf: conf.name not in results
+            )
 
         for conf in unconverged_ensemble:
             # Update energies
@@ -193,6 +204,14 @@ def _macrocycle_opt(
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
             )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(
+                    lambda conf: conf in unconverged_ensemble.conformers
+                    and conf.name not in results_rrho
+                )
+                unconverged_ensemble.remove_conformers(
+                    lambda conf: conf.name not in results_rrho
+                )
 
             for conf in unconverged_ensemble:
                 contributions_dict[conf.name].grrho = results_rrho[conf.name].energy
@@ -254,7 +273,7 @@ def _full_opt(
     if config.optimization.xtb_opt:
         job_config = XTBOptJobConfig(
             copy_mo=config.general.copy_mo,
-            grid=GridLevel.MEDIUM,
+            grid=GridLevel.HIGH,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
             **config.optimization.model_dump(),
@@ -266,7 +285,7 @@ def _full_opt(
     else:
         job_config = OptJobConfig(
             copy_mo=config.general.copy_mo,
-            grid=GridLevel.MEDIUM,
+            grid=GridLevel.HIGH,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
             **config.optimization.model_dump(),
@@ -287,6 +306,9 @@ def _full_opt(
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
     )
+
+    if config.general.ignore_failed:
+        ensemble.remove_conformers(lambda conf: conf.name not in results)
 
     for conf in ensemble:
         contributions_dict[conf.name].energy = results[conf.name].energy

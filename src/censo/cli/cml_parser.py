@@ -146,6 +146,12 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help="Do not cut down the ensemble, keep all conformers from start to end.",
     )
+    groups[0].add_argument(
+        "--ignore-failed",
+        dest="ignore_failed",
+        action="store_true",
+        help="Ignore failed calculations. If this is not set, failed calculations will raise RuntimeError.",
+    )
 
     # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))
