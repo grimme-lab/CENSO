@@ -237,7 +237,9 @@ def execute[T: QmResult](
         parallel_config = ParallelConfig(ncores=ncores, omp=1)
 
     # Create a managed context to be able to share the number of free cores between processes
-    logger.debug("Setting up parallel environment...")
+    logger.debug(
+        f"Setting up parallel environment with {parallel_config.ncores} cores..."
+    )
     with setup_managers(
         parallel_config.ncores // parallel_config.ompmin, parallel_config.ncores
     ) as (

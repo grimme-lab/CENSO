@@ -17,21 +17,21 @@ from censo.config.parallel_config import ParallelConfig
 )
 def test_prescreening_parameterized(
     ensemble_from_xyz: EnsembleData,
-    mock_parallel_config: ParallelConfig,
-    mock_parts_config_orca: PartsConfig,  # For ORCA configuration
-    mock_parts_config_tm: PartsConfig,  # For TM configuration
+    parallel_config: ParallelConfig,
+    parts_config_orca: PartsConfig,  # For ORCA configuration
+    parts_config_tm: PartsConfig,  # For TM configuration
     prog_name: str,
     gas_phase: bool,
 ):
     if prog_name == "ORCA":
-        config = mock_parts_config_orca
+        config = parts_config_orca
     elif prog_name == "TM":
-        config = mock_parts_config_tm
+        config = parts_config_tm
     else:
         raise ValueError("Invalid program name")
 
     config.general.gas_phase = gas_phase
-    result = prescreening(ensemble_from_xyz, config, mock_parallel_config, cut=True)
+    result = prescreening(ensemble_from_xyz, config, parallel_config, cut=True)
 
     assert result is not None
     # Add more assertions to verify the output

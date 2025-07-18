@@ -10,26 +10,30 @@ from censo.config.setup import find_program_paths
 
 
 def pytest_runtest_setup(item):
-    if 'requires_xtb' in item.keywords and not has_xtb():
+    if "requires_xtb" in item.keywords and not has_xtb():
         pytest.skip("xtb is not present in your path.")
-    if 'requires_orca' in item.keywords and not has_orca():
+    if "requires_orca" in item.keywords and not has_orca():
         pytest.skip("ORCA is not present in your path.")
-    if 'requires_turbomole' in item.keywords and not has_turbomole():
+    if "requires_turbomole" in item.keywords and not has_turbomole():
         pytest.skip("Turbomole (ridft) is not present in your path.")
 
 
 # Utility functions for program availability checks
 
+
 def has_xtb():
     program_paths = find_program_paths()
     return program_paths.get("xtb", "") != ""
+
 
 def has_orca():
     program_paths = find_program_paths()
     return program_paths.get("orca", "") != ""
 
+
 def has_turbomole():
     return shutil.which("ridft") is not None
+
 
 @pytest.fixture(autouse=True)
 def set_program_paths():
@@ -38,6 +42,7 @@ def set_program_paths():
     """
     program_paths = find_program_paths()
     from censo.processing import GenericProc
+
     GenericProc.paths.update(program_paths)
 
 
@@ -55,13 +60,13 @@ def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
 
 
 @pytest.fixture
-def mock_parallel_config():
+def parallel_config():
     ncores = os.cpu_count() or 4
     return ParallelConfig(ncores=ncores, omp=1)
 
 
 @pytest.fixture
-def mock_parts_config_orca():
+def parts_config_orca():
     config = PartsConfig()
     config.prescreening.prog = QmProg.ORCA
     config.general.gas_phase = True
@@ -69,7 +74,7 @@ def mock_parts_config_orca():
 
 
 @pytest.fixture
-def mock_parts_config_tm():
+def parts_config_tm():
     config = PartsConfig()
     config.prescreening.prog = QmProg.TM
     config.general.gas_phase = False
