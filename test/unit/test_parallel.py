@@ -1,4 +1,5 @@
 import time
+from censo.config.parallel_config import ParallelConfig
 import pytest
 from unittest.mock import Mock
 from concurrent.futures import ProcessPoolExecutor
@@ -461,7 +462,7 @@ class TestJobExecution:
             job_config=mock_job_config,
             prog=QmProg.ORCA,
             from_part="test",
-            parallel_config=None,
+            parallel_config=ParallelConfig(ncores=4, omp=1),
             ignore_failed=False,
             balance=False,
             copy_mo=False,
@@ -471,9 +472,9 @@ class TestJobExecution:
         # Verify results
         assert len(results) == n_jobs
 
-        # With 4 cores total and 2 cores per job, we should be able to run 2 jobs in parallel
-        # Each job takes 0.1s, so 8 jobs should take ~0.4s (plus overhead)
+        # With 4 cores total and 1 core per job, we should be able to run 4 jobs in parallel
+        # Each job takes 0.1s, so 8 jobs should take ~0.2s (plus overhead)
         # Allow for some timing variability in CI environments
         assert (
-            0.1 < total_time < 2.0  # TODO: what should be the lower bound?
+            0.2 < total_time < 0.4  # TODO: what should be the lower bound?
         ), f"Expected ~0.4s execution time, got {total_time}s"

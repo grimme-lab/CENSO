@@ -41,10 +41,16 @@ class ResourceMonitor:
             with self.__enough_cores:
                 self.__enough_cores.wait_for(lambda: self.__free_cores.value >= ncores)
                 self.__free_cores.value -= ncores
+                logger.debug(
+                    f"Occupied {ncores} cores. Free cores: {self.__free_cores.value}."
+                )
             yield
         finally:
             with self.__enough_cores:
                 self.__free_cores.value += ncores
+                logger.debug(
+                    f"Released {ncores} cores. Free cores: {self.__free_cores.value}."
+                )
                 self.__enough_cores.notify()  # TODO: try this with notify_all instead
 
 
