@@ -195,7 +195,7 @@ def prepare_jobs(
     else:
         set_omp_tmproc(jobs, balance, omp, ncores, ompmin)
 
-    return jobs
+    return sorted(jobs, key=lambda job: job.omp)
 
 
 def execute[T: QmResult](
