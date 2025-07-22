@@ -462,7 +462,7 @@ class TestJobExecution:
             job_config=mock_job_config,
             prog=QmProg.ORCA,
             from_part="test",
-            parallel_config=ParallelConfig(ncores=4, omp=1),
+            parallel_config=ParallelConfig(ncores=4, omp=1, ompmin=1),
             ignore_failed=False,
             balance=False,
             copy_mo=False,
