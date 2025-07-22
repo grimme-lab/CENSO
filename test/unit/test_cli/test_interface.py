@@ -2,12 +2,12 @@ from pathlib import Path
 
 from censo.cli.cml_parser import parse
 from censo.cli.interface import startup, entry_point
-from censo.params import Returncodes
+from censo.params import Returncode
 
 
 def test_blank_startup():
     ret = entry_point([])
-    assert ret == Returncodes.INPUT_NOT_FOUND
+    assert ret == Returncode.INPUT_NOT_FOUND
 
 
 def test_help_startup():

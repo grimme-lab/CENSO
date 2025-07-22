@@ -16,14 +16,14 @@ from .cml_parser import parse
 from ..ensembledata import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
-from ..params import AU2KCAL, DESCR, __version__, Returncodes, PLENGTH
+from ..params import AU2KCAL, DESCR, __version__, Returncode, PLENGTH
 from ..utilities import printf, h1
 from ..logging import set_filehandler, setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
 
 
-def entry_point(argv: list[str] | None = None) -> Returncodes:
+def entry_point(argv: list[str] | None = None) -> Returncode:
     """
     Console entry point to execute CENSO from the command line.
     """
@@ -31,13 +31,13 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
         args = parse(argv)
     except ArgumentError as e:
         printf(e.message)
-        return Returncodes.ARGUMENT_ERROR
+        return Returncode.ARGUMENT_ERROR
     except SystemExit as e:
-        return cast(Returncodes, e.code)
+        return cast(Returncode, e.code)
 
     if not any(vars(args).values()):
         printf("CENSO needs at least one argument!")
-        return Returncodes.ARGUMENT_ERROR
+        return Returncode.ARGUMENT_ERROR
 
     # Startup description
     print(DESCR + "\n")
@@ -48,35 +48,13 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
     try:
         ensemble, parts_config = startup(args)
     except SystemExit as e:
-        return cast(Returncodes, e.code)
-
-    # Print all active parts settings once
-    if logger.level == DEBUG:
-        for fieldname, config in parts_config:
-            # Revalidate
-            setattr(parts_config, fieldname, config.model_validate(config))
-
-            # Print
-            printf(config)
-    else:
-        for fieldname, config in parts_config:
-            if "run" in config.model_fields:
-                if config.run:
-                    # Revalidate
-                    setattr(parts_config, fieldname, config.model_validate(config))
-
-                    # Print
-                    printf(config)
-            else:
-                printf(config)
-
-    printf("\n" + "".ljust(int(PLENGTH), "-") + "\n")
+        return cast(Returncode, e.code)
 
     if args.maxcores is None:
         printf(
             "Could not determine number of available number of cores using os.cpu_count(). Cannot run without this information!"
         )
-        return Returncodes.GENERIC_ERROR
+        return Returncode.GENERIC_ERROR
 
     try:
         parallel_config = ParallelConfig(
@@ -88,7 +66,7 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
         printf(
             "Encountered error in setting up parallelization settings. Stopping CENSO."
         )
-        return Returncodes.ARGUMENT_ERROR
+        return Returncode.ARGUMENT_ERROR
 
     tasks = [
         (parts_config.prescreening.run, prescreening),
@@ -139,7 +117,7 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
         )
         ensemble.dump_json(Path("CRASH_DUMP.json"))
         ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
-        sys.exit(Returncodes.GENERIC_ERROR)
+        sys.exit(Returncode.GENERIC_ERROR)
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
@@ -150,29 +128,29 @@ def entry_point(argv: list[str] | None = None) -> Returncodes:
     printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     printf("\nCENSO all done!")
-    return Returncodes.OK
+    return Returncode.OK
 
 
 # sets up a ensemble object using the given cml arguments and censorc
 def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
-    # get most important infos for current run
+    # Load up the ensemble and configure settings
     cwd = os.getcwd()
 
     # run actions for which no complete setup is needed
     if args.version:
         printf(__version__)
-        sys.exit(Returncodes.OK)
+        sys.exit(Returncode.OK)
     elif args.cleanup:
         cleanup_run(cwd)
         printf("Removed files and going to exit!")
-        sys.exit(Returncodes.OK)
+        sys.exit(Returncode.OK)
     elif args.cleanup_all:
         cleanup_run(cwd, complete=True)
         printf("Removed files and going to exit!")
-        sys.exit(Returncodes.OK)
+        sys.exit(Returncode.OK)
     elif args.writeconfig:
         write_rcfile(Path() / "censo2rc_NEW")
-        sys.exit(Returncodes.OK)
+        sys.exit(Returncode.OK)
 
     parts_config = configure(rcpath=args.inprcpath, args=args)
 
@@ -189,7 +167,7 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
         ensemble.read_input(args.inp, args.charge or 0, args.unpaired or 0, args.nconf)
     except FileNotFoundError:
         printf(f"Could not find input file {Path(args.inp).resolve()}.")
-        sys.exit(Returncodes.INPUT_NOT_FOUND)
+        sys.exit(Returncode.INPUT_NOT_FOUND)
 
     if args.constraints:
         try:
@@ -198,7 +176,7 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
             printf(
                 f"Could not find constraints file {Path(args.constraints).resolve()}."
             )
-            sys.exit(Returncodes.CONSTRAINTS_NOT_FOUND)
+            sys.exit(Returncode.CONSTRAINTS_NOT_FOUND)
 
     # if data should be reloaded, do it here
     if args.reload:
@@ -210,6 +188,28 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
     wd = Path(args.inp).parent.resolve()
     printf(f"Setting working directory to {wd}")
     os.chdir(wd)
+
+    # Print all active parts settings once
+    if logger.level == DEBUG:
+        for fieldname, config in parts_config:
+            # Revalidate
+            setattr(parts_config, fieldname, config.model_validate(config))
+
+            # Print
+            printf(config)
+    else:
+        for fieldname, config in parts_config:
+            if "run" in config.model_fields:
+                if config.run:
+                    # Revalidate
+                    setattr(parts_config, fieldname, config.model_validate(config))
+
+                    # Print
+                    printf(config)
+            else:
+                printf(config)
+
+    printf("\n" + "".ljust(int(PLENGTH), "-") + "\n")
 
     # END of setup
     # -> ensemble.conformers contains all conformers with their info from input (sorted by CREST energy if possible)
