@@ -23,18 +23,21 @@ def setup_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(__loglevel)
 
-    # Create a StreamHandler to log messages to stdout (only WARNING or above)
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.WARNING)
+    # Only add handlers if the logger doesn't have any
+    if not logger.handlers:
+        # Create a StreamHandler to log messages to stdout (only WARNING or above)
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(logging.WARNING)
 
-    # Define the log message format
-    stream_formatter = logging.Formatter("{levelname:<10s}- {message}", style="{")
-    stream_handler.setFormatter(stream_formatter)
+        # Define the log message format
+        stream_formatter = logging.Formatter("{levelname:<10s}- {message}", style="{")
+        stream_handler.setFormatter(stream_formatter)
 
-    # Add the FileHandler and StreamHandler to the logger
-    logger.addHandler(stream_handler)
+        # Add the StreamHandler to the logger
+        logger.addHandler(stream_handler)
 
-    __loggers.append(logger)
+    if logger not in __loggers:
+        __loggers.append(logger)
 
     return logger
 
