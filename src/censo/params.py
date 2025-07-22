@@ -31,7 +31,7 @@ if getattr(sys, "frozen", False):  # if bundled by pyinstaller ...
 CODING = "ISO-8859-1"
 
 
-class Returncodes(int, Enum):
+class Returncode(int, Enum):
     OK = 0
     ARGUMENT_ERROR = 1
     INPUT_NOT_FOUND = 2
@@ -39,7 +39,7 @@ class Returncodes(int, Enum):
     GENERIC_ERROR = 4
 
 
-OMPMIN_DEFAULT = 1
+OMPMIN_DEFAULT = 3  # we use 3 because ORCA has a bug with 2 threads -.-
 OMPMAX_DEFAULT = os.cpu_count() or 32
 
 ASSETS_PATH = Path(__file__).parent / "assets"
