@@ -3,9 +3,7 @@ import os
 from pathlib import Path
 import shutil
 from censo.ensembledata import EnsembleData
-from censo.config.parts_config import PartsConfig
 from censo.config.parallel_config import ParallelConfig
-from censo.params import QmProg
 from censo.config.setup import find_program_paths
 
 
@@ -16,9 +14,17 @@ def pytest_runtest_setup(item):
         pytest.skip("ORCA is not present in your path.")
     if "requires_turbomole" in item.keywords and not has_turbomole():
         pytest.skip("Turbomole (ridft) is not present in your path.")
+    if "requires_cosmotherm" in item.keywords and not has_cosmotherm():
+        pytest.skip("CosmoTherm is not present in your path.")
 
 
 # Utility functions for program availability checks
+
+
+def has_cosmotherm():
+    # Check for the presence of the CosmoTherm binary in PATH or via env variable
+    # This logic may need to be adapted to your environment
+    return shutil.which("cosmotherm") is not None
 
 
 def has_xtb():
@@ -63,19 +69,3 @@ def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
 def parallel_config():
     ncores = os.cpu_count() or 4
     return ParallelConfig(ncores=ncores, omp=1)
-
-
-@pytest.fixture
-def parts_config_orca():
-    config = PartsConfig()
-    config.prescreening.prog = QmProg.ORCA
-    config.general.gas_phase = True
-    return config
-
-
-@pytest.fixture
-def parts_config_tm():
-    config = PartsConfig()
-    config.prescreening.prog = QmProg.TM
-    config.general.gas_phase = False
-    return config

@@ -9,45 +9,41 @@ from censo.params import SOLV_MODS, OrcaSolvMod, QmProg, TmSolvMod
 PROGS = [QmProg.ORCA.value, QmProg.TM.value]
 
 
-# Generate test cases (prog_name, solvation_model, gas_phase)
-def generate_screening_test_cases() -> list[tuple[str, str | None, bool]]:
-    cases: list[tuple[str, str | None, bool]] = []
-    # For gas_phase True: no solvation model
-    for prog in PROGS:
-        cases.append((prog, None, True))
-    # For gas_phase False: all solvation models for orca and tm
-    for prog in PROGS:
-        for solv_mod in SOLV_MODS[prog]:
-            cases.append((prog, solv_mod.value, False))
-    return cases
-
-
+# Parameterized test cases for screening
 @pytest.mark.optional
 @pytest.mark.parametrize(
-    "prog_name, solvation_model, gas_phase",
-    generate_screening_test_cases(),
+    "prog, solvation_model, gas_phase",
+    [
+        pytest.param(QmProg.ORCA, None, True, marks=pytest.mark.requires_orca),
+        pytest.param(QmProg.TM, None, True, marks=pytest.mark.requires_turbomole),
+        *[
+            pytest.param(QmProg.ORCA, sm, False, marks=pytest.mark.requires_orca)
+            for sm in SOLV_MODS[QmProg.ORCA.value]
+        ],
+        *[
+            pytest.param(
+                QmProg.TM, sm, False,
+                marks=(pytest.mark.requires_turbomole, pytest.mark.requires_cosmotherm)
+                if sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]
+                else pytest.mark.requires_turbomole,
+            )
+            for sm in SOLV_MODS[QmProg.TM.value]
+        ],
+    ],
 )
-def test_screening_parameterized(
+def test_screening_integration(
     ensemble_from_xyz: EnsembleData,
     parallel_config: ParallelConfig,
-    parts_config_orca: PartsConfig,
-    parts_config_tm: PartsConfig,
-    prog_name: str,
-    solvation_model: TmSolvMod | OrcaSolvMod,
+    prog: QmProg,
+    solvation_model: TmSolvMod | OrcaSolvMod | None,
     gas_phase: bool,
 ):
-    if prog_name == QmProg.ORCA.value:
-        config = parts_config_orca
-    elif prog_name == QmProg.TM.value:
-        config = parts_config_tm
-    else:
-        pytest.skip("Screening only tested for ORCA and TM.")
-
+    config = PartsConfig()
     config.general.gas_phase = gas_phase
+    config.screening.prog = prog
     if not gas_phase and solvation_model is not None:
         config.screening.sm = solvation_model
         config.general.solvent = "h2o"
-
-    result = screening(ensemble_from_xyz, config, parallel_config, cut=True)
-    assert result is not None
+    timing = screening(ensemble_from_xyz, config, parallel_config, cut=True)
+    assert timing is not None
     # Optionally add more output checks
