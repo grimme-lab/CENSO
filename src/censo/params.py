@@ -39,8 +39,8 @@ class Returncode(int, Enum):
     GENERIC_ERROR = 4
 
 
-OMPMIN_DEFAULT = 3  # we use 3 because ORCA has a bug with 2 threads -.-
-OMPMAX_DEFAULT = os.cpu_count() or 32
+OMPMIN_DEFAULT = 3  # we use 3 because ORCA/OpenMPI has a bug with 2 threads -.-
+OMPMAX_DEFAULT = os.cpu_count() or 16
 
 ASSETS_PATH = Path(__file__).parent / "assets"
 
