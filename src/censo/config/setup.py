@@ -180,15 +180,22 @@ def find_program_paths() -> dict[str, str]:
     paths = {}
 
     for program in programs:
-        if program is not None:
-            path = shutil.which(program)
-        else:
-            path = None
+        path = shutil.which(program)
 
         if path is not None:
-            paths[program] = path
+            if program == "cosmotherm":
+                paths[program] = Path(path).parent
+            else:
+                paths[program] = path
         else:
             paths[program] = ""
+
+    # If cosmotherm is found try to set cosmorssetup automatically
+    if paths["cosmotherm"] != "":
+        ctdata = Path(paths["cosmotherm"]) / "CTDATA-FILES"
+        for file in ctdata.glob("*.ctd"):
+            if "BP_TZVP" in file.name and file.is_file():
+                paths["cosmorssetup"] = file.name
 
     # if orca was found try to determine orca version from the path (kinda hacky)
     if paths[Prog.ORCA.value] != "":
