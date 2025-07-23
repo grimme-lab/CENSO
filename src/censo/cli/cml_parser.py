@@ -118,7 +118,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         "--omp-min",
         dest="ompmin",
         type=int,
-        help="Minimum number of OpenMP threads per process, default is 4. This is mostly important if load balancing is enabled.",
+        help=f"Minimum number of OpenMP threads per process, default is {OMPMIN_DEFAULT}. This is mostly important if load balancing is enabled.",
         default=OMPMIN_DEFAULT,
     )
     groups[0].add_argument(
