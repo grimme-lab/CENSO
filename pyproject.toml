@@ -49,4 +49,5 @@ markers = [
     "requires_xtb: skip test if xtb is not available",
     "requires_orca: skip test if ORCA is not available",
     "requires_turbomole: skip test if Turbomole is not available",
+    "requires_cosmotherm: skip test if COSMOtherm is not available",
 ]
