@@ -12,7 +12,6 @@ def test_uvvis_config_default_values():
     assert config.basis == "def2-tzvp"
     assert config.sm == OrcaSolvMod.SMD
     assert config.nroots == 20
-    assert config.run is False
     assert config.template is False
 
 

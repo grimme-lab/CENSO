@@ -53,9 +53,6 @@ class OptimizationConfig(BasePartConfig):
     xtb_opt: bool = True
     """Whether to use the ANCOPT optimizer as driver."""
 
-    run: bool = True
-    """Whether to run geometry optimization."""
-
     template: bool = False
     """Whether to use template files."""
 

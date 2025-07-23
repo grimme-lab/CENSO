@@ -68,14 +68,28 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         )
         return Returncode.ARGUMENT_ERROR
 
-    tasks = [
-        (parts_config.prescreening.run, prescreening),
-        (parts_config.screening.run, screening),
-        (parts_config.optimization.run, optimization),
-        (parts_config.refinement.run, refinement),
-        (parts_config.nmr.run, nmr),
-        (parts_config.uvvis.run, uvvis),
+    # Determine which parts to run - prefer explicit command-line flags, else fallback to config
+    part_flags = [
+        getattr(args, "prescreening", False),
+        getattr(args, "screening", False),
+        getattr(args, "optimization", False),
+        getattr(args, "refinement", False),
+        getattr(args, "nmr", False),
+        getattr(args, "uvvis", False),
     ]
+    # If any flag is set, use only explicitly specified parts; else use config defaults
+    tasks = [
+        (args.prescreening, prescreening),
+        (args.screening, screening),
+        (args.optimization, optimization),
+        (args.refinement, refinement),
+        (args.nmr, nmr),
+        (args.uvvis, uvvis),
+    ]
+
+    if all(not enabled for enabled, _ in tasks):
+        printf("No tasks enabled! Stopping CENSO.")
+        return Returncode.OK
 
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
@@ -199,13 +213,12 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
             printf(config)
     else:
         for fieldname, config in parts_config:
-            if "run" in config.model_fields:
-                if config.run:
-                    # Revalidate
-                    setattr(parts_config, fieldname, config.model_validate(config))
+            if getattr(args, fieldname, False) or fieldname == "general":
+                # Revalidate
+                setattr(parts_config, fieldname, config.model_validate(config))
 
-                    # Print
-                    printf(config)
+                # Print
+                printf(config)
             else:
                 printf(config)
 

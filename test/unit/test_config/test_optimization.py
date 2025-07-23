@@ -21,7 +21,6 @@ def test_optimization_config_default_values():
     assert config.macrocycles is True
     assert config.constrain is False
     assert config.xtb_opt is True
-    assert config.run is True
     assert config.template is False
 
 

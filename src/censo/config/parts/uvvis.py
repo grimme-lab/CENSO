@@ -24,9 +24,6 @@ class UVVisConfig(BasePartConfig):
     nroots: int = Field(gt=0, default=20)
     """Number of roots to calculate."""
 
-    run: bool = False
-    """Whether to run UVVis calculations."""
-
     template: bool = False
     """Whether to use template files."""
 

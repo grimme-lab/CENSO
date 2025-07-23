@@ -14,7 +14,6 @@ def test_screening_config_default_values():
     assert config.gfnv == GfnVersion.GFN2
     assert config.threshold == 3.5
     assert config.gsolv_included is False
-    assert config.run is True
     assert config.template is False
 
 

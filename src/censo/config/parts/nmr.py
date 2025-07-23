@@ -39,9 +39,6 @@ class NMRConfig(BasePartConfig):
     active_nuclei: str = "h,c"
     """Nuclei active for NMR calculations."""
 
-    run: bool = False
-    """Whether to run NMR calculations (only for CLI)."""
-
     template: bool = False
     """Whether to use template files."""
 

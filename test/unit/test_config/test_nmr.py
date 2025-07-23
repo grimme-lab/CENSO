@@ -17,7 +17,6 @@ def test_nmr_config_default_values():
     assert config.shieldings is True
     assert config.couplings is True
     assert config.active_nuclei == "h,c"
-    assert config.run is False
     assert config.template is False
 
 

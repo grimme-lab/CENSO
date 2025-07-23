@@ -12,7 +12,6 @@ def test_prescreening_config_default_values():
     assert config.basis == "def2-sv(p)"
     assert config.gfnv == GfnVersion.GFN2
     assert config.threshold == 4.0
-    assert config.run is True
     assert config.template is False
 
 

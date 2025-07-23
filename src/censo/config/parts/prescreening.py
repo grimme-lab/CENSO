@@ -23,9 +23,6 @@ class PrescreeningConfig(BasePartConfig):
     threshold: float = Field(gt=0, default=4.0)
     """ΔGtot threshold."""
 
-    run: bool = True
-    """Whether to run prescreening."""
-
     template: bool = False
     """Whether to use template files."""
 

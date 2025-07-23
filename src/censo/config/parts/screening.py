@@ -29,9 +29,6 @@ class ScreeningConfig(BasePartConfig):
     gsolv_included: bool = False
     """Whether to explicitly calculate Gsolv contributions."""
 
-    run: bool = True
-    """Whether to run screening."""
-
     template: bool = False
     """Whether to use template files."""
 

@@ -28,6 +28,42 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     # RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
     groups[0].add_argument(
+        "--prescreening",
+        dest="prescreening",
+        action="store_true",
+        help="Enable the prescreening part.",
+    )
+    groups[0].add_argument(
+        "--screening",
+        dest="screening",
+        action="store_true",
+        help="Enable the screening part.",
+    )
+    groups[0].add_argument(
+        "--optimization",
+        dest="optimization",
+        action="store_true",
+        help="Enable the optimization part.",
+    )
+    groups[0].add_argument(
+        "--refinement",
+        dest="refinement",
+        action="store_true",
+        help="Enable the refinement part.",
+    )
+    groups[0].add_argument(
+        "--nmr",
+        dest="nmr",
+        action="store_true",
+        help="Enable the NMR calculation part.",
+    )
+    groups[0].add_argument(
+        "--uvvis",
+        dest="uvvis",
+        action="store_true",
+        help="Enable the UV/Vis calculation part.",
+    )
+    groups[0].add_argument(
         "-i",
         "--input",
         dest="inp",
