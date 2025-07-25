@@ -475,7 +475,7 @@ class TmProc(QmProc):
             self.__prep(job, config, "sp", jobdir, no_solv=config.gas_phase or no_solv)
 
         # call turbomole
-        call = [str(Path(config.paths.turbomole) / "ridft")]
+        call = [str(Path(config.paths.tm) / "ridft")]
         returncode, errors = self._make_call(call, outputpath, jobdir)
 
         meta.success = returncode == 0
@@ -989,7 +989,7 @@ class TmProc(QmProc):
             outputpath = os.path.join(jobdir, "mpshift.out")
 
             call = [
-                str(Path(config.paths.turbomole) / "mpshift"),
+                str(Path(config.paths.tm) / "mpshift"),
                 "-smpcpus",
                 f"{job.omp}",
             ]
@@ -1038,7 +1038,7 @@ class TmProc(QmProc):
             outputpath = os.path.join(jobdir, "escf.out")
 
             call = [
-                str(Path(config.paths.turbomole) / "escf"),
+                str(Path(config.paths.tm) / "escf"),
                 "-smpcpus",
                 f"{job.omp}",
             ]
