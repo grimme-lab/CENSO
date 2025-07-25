@@ -22,28 +22,33 @@ PROGS = [QmProg.ORCA.value, QmProg.TM.value]
         ],
         *[
             pytest.param(
-                QmProg.TM, sm, False,
-                marks=(pytest.mark.requires_turbomole, pytest.mark.requires_cosmotherm)
-                if sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]
-                else pytest.mark.requires_turbomole,
+                QmProg.TM,
+                sm,
+                False,
+                marks=(
+                    (pytest.mark.requires_turbomole, pytest.mark.requires_cosmotherm)
+                    if sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]
+                    else pytest.mark.requires_turbomole
+                ),
             )
             for sm in SOLV_MODS[QmProg.TM.value]
         ],
     ],
 )
 def test_screening_integration(
+    config: PartsConfig,
     ensemble_from_xyz: EnsembleData,
     parallel_config: ParallelConfig,
     prog: QmProg,
     solvation_model: TmSolvMod | OrcaSolvMod | None,
     gas_phase: bool,
 ):
-    config = PartsConfig()
     config.general.gas_phase = gas_phase
     config.screening.prog = prog
     if not gas_phase and solvation_model is not None:
         config.screening.sm = solvation_model
         config.general.solvent = "h2o"
+    config = PartsConfig.model_validate(config, context={"check": "screening"})
     timing = screening(ensemble_from_xyz, config, parallel_config, cut=True)
     assert timing is not None
     # Optionally add more output checks
