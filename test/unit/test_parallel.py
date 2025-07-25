@@ -6,6 +6,7 @@ from concurrent.futures import ProcessPoolExecutor
 from multiprocessing.managers import SyncManager
 from typing import Any
 
+from censo.config.paths import PathsConfig
 from censo.parallel import (
     setup_managers,
     ResourceMonitor,
@@ -78,6 +79,7 @@ def mock_job_config():
         grid=GridLevel.LOW,
         template=False,
         gas_phase=True,
+        paths=PathsConfig.model_construct(**{}),
     )
 
 
