@@ -32,6 +32,8 @@ def refinement(
     """
     printf(h2("REFINEMENT"))
 
+    config.model_validate(config, context={"check": "refinement"})
+
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.refinement.prog, "3_REFINEMENT")
 

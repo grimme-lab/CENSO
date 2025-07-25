@@ -36,6 +36,9 @@ def prescreening(
     The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
     """
     printf(h2("PRESCREENING"))
+
+    config.model_validate(config, context={"check": "prescreening"})
+
     # Setup processor and target
     proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
 

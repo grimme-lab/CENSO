@@ -49,7 +49,7 @@ def optimization(
     """
     printf(h2("OPTIMIZATION"))
 
-    config.model_validate(config)
+    config.model_validate(config, context={"check": "optimization"})
 
     # Setup processor
     proc: QmProc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")

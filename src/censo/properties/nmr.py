@@ -35,6 +35,8 @@ def nmr(
     """
     printf(h2("NMR"))
 
+    config.model_validate(config, context={"check": "nmr"})
+
     # Assert that all conformers have energies defined
     # TODO: this is not optimal since == 0 does not mean that no ensembleopt has been performed before
     if not all(conf.energy != 0 for conf in ensemble):
