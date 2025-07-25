@@ -2,8 +2,10 @@ import pytest
 import os
 from pathlib import Path
 import shutil
+from censo.config.paths import PathsConfig
 from censo.ensembledata import EnsembleData
 from censo.config.parallel_config import ParallelConfig
+from censo.config.parts_config import PartsConfig
 from censo.config.setup import find_program_paths
 
 
@@ -41,17 +43,6 @@ def has_turbomole():
     return shutil.which("ridft") is not None
 
 
-@pytest.fixture(autouse=True)
-def set_program_paths():
-    """
-    Always set GenericProc.paths, but do not skip tests globally
-    """
-    program_paths = find_program_paths()
-    from censo.processing import GenericProc
-
-    GenericProc.paths.update(program_paths)
-
-
 @pytest.fixture
 def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
     def load_xyz(filepath: str) -> EnsembleData:
@@ -69,3 +60,10 @@ def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
 def parallel_config():
     ncores = os.cpu_count() or 4
     return ParallelConfig(ncores=ncores, omp=1)
+
+
+@pytest.fixture
+def config():
+    config = PartsConfig()
+    config.paths = PathsConfig.model_construct(**find_program_paths())
+    return config

@@ -69,11 +69,11 @@ def test_solvent_model_validation(solvent, sm_model, should_pass):
 
     if should_pass:
         # Should not raise any validation errors
-        config.model_validate(config)
+        config.model_validate(config, context={"check_all": True, "check_paths": False})
     else:
         # Should raise ValueError for invalid combinations
         with pytest.raises(ValueError, match="not available with") as exc_info:
-            config.model_validate(config)
+            config.model_validate(config, context={"check_all": True})
 
 
 def test_custom_config_values():
@@ -98,4 +98,12 @@ def test_invalid_solvent_combination():
 
     # Should raise ValueError due to incompatible solvent/model combination
     with pytest.raises(ValueError):
-        config.model_validate(config)
+        config.model_validate(config, context={"check_all": True})
+
+
+def test_paths_model_validation():
+    """Test that missing paths raise proper validation errors when check_paths=True"""
+    config = PartsConfig()
+    # Do not set required paths; assume default config is missing some required paths
+    with pytest.raises(ValueError, match="path is not set in the configuration"):
+        config.model_validate(config, context={"check_all": True, "check_paths": True})

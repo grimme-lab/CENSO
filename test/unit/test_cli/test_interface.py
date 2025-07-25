@@ -5,9 +5,11 @@ from censo.cli.interface import startup, entry_point
 from censo.params import Returncode
 
 
-def test_blank_startup():
+def test_blank_startup(capsys):
     ret = entry_point([])
-    assert ret == Returncode.INPUT_NOT_FOUND
+    captured = capsys.readouterr()
+    assert ret == Returncode.OK
+    assert "No tasks enabled" in captured.out
 
 
 def test_help_startup():
@@ -16,8 +18,10 @@ def test_help_startup():
 
 
 def test_general_startup(example_ensemble_file):
-    argv = str(f"-i {example_ensemble_file} --solvent water -c 0 -u 0").split()
-    ensemble, config = startup(parse(argv))
+    argv = str(
+        f"-i {example_ensemble_file} --prescreening --solvent water -c 0 -u 0"
+    ).split()
+    ensemble, config = startup(parse(argv), {"check": ["prescreening"]})
 
 
 def test_writeconfig():
@@ -32,9 +36,9 @@ def test_writereadconfig(example_ensemble_file):
     entry_point(argv)
 
     argv = str(
-        f"-i {example_ensemble_file} --solvent water -c 0 -u 0 --inprc censo2rc_NEW"
+        f"-i {example_ensemble_file} --prescreening --solvent water -c 0 -u 0 --inprc censo2rc_NEW"
     ).split()
-    ensemble, config = startup(parse(argv))
+    ensemble, config = startup(parse(argv), {"check": ["prescreening"]})
 
 
 def test_rc_override(example_ensemble_file):
@@ -42,10 +46,10 @@ def test_rc_override(example_ensemble_file):
     entry_point(argv)
 
     argv = str(
-        f"--inprc censo2rc_NEW -i {example_ensemble_file} --solvent water -c 1 -u 1 --gas-phase"
+        f"--inprc censo2rc_NEW -i {example_ensemble_file} --prescreening --solvent water -c 1 -u 1 --gas-phase"
     ).split()
     args = parse(argv)
-    ensemble, config = startup(args)
+    ensemble, config = startup(args, {"check": ["prescreening"]})
 
     assert config.general.gas_phase is True
     assert config.general.solvent == "water"

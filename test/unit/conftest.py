@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 
 from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
+from censo.config.parts_config import PartsConfig
 
 
 @pytest.fixture
@@ -62,3 +63,25 @@ def mock_solvents():
             OrcaSolvMod.CPCM: "actual_value",
         },
     }
+
+
+# Patch PartsConfig.model_validate to default context['check_paths'] = False unless explicitly set
+@pytest.fixture(autouse=True)
+def patch_model_validate(monkeypatch):
+    original_model_validate = PartsConfig.model_validate
+
+    def patched_model_validate(self, *args, **kwargs):
+        # Support both positional and keyword context
+        context = kwargs.get("context")
+        if context is None and len(args) > 0:
+            context = args[0]
+        if context is None:
+            context = {}
+        # If check_paths is not set, default to False
+        if "check_paths" not in context:
+            context["check_paths"] = False
+        # Ensure context is passed as a kwarg for consistency
+        kwargs["context"] = context
+        return original_model_validate(self, **kwargs)
+
+    monkeypatch.setattr(PartsConfig, "model_validate", patched_model_validate)
