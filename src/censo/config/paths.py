@@ -73,7 +73,7 @@ class PathsConfig(BaseModel):
             raise ValueError(f"orca executable not found at {value}.")
         return value
 
-    @field_validator("turbomole")
+    @field_validator("tm")
     def validate_turbomole(cls, value: str):
         tmp = Path(value)
         if not all(
