@@ -16,7 +16,7 @@ from censo.params import QmProg
         pytest.param(QmProg.TM, False, marks=pytest.mark.requires_turbomole),
     ],
 )
-def test_prescreening_parameterized(
+def test_prescreening_integration(
     config: PartsConfig,
     ensemble_from_xyz: EnsembleData,
     parallel_config: ParallelConfig,
