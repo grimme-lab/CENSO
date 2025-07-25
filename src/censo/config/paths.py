@@ -27,7 +27,7 @@ class PathsConfig(BaseModel):
     _orcaversion: str = PrivateAttr("")
     """ORCA version string. Should be extracted from somewhere."""
 
-    turbomole: str = Field("")
+    tm: str = Field("")
     """Absolute path to the turbomole binary directory."""
 
     xtb: str = Field("")

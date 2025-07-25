@@ -132,7 +132,7 @@ class PartsConfig(GenericConfig):
             # Check for main program
             prog: QmProg | None = getattr(part, "prog", None)
             if prog is not None:
-                required_progs.add(prog)
+                required_progs.add(prog.value)
 
             # Special cases
             if name == "general":
@@ -143,7 +143,7 @@ class PartsConfig(GenericConfig):
                     required_progs.add("xtb")
 
             # Check for solvent model specific programs
-            sm = getattr(part, "sm", None)
+            sm: TmSolvMod | OrcaSolvMod | None = getattr(part, "sm", None)
             if sm is not None:
                 if sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]:
                     required_progs.add("cosmotherm")
