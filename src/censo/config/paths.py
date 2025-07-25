@@ -124,9 +124,9 @@ class PathsConfig(BaseModel):
     def get_orca_version(self):
         # if orca was found try to determine orca version from the path (kinda hacky)
         if self.orca:
-            version_string = re.search(r"(\d+\.\d+\.\d+)", str(self.orca))
-            if version_string:
-                self._orcaversion = version_string.group(1)
+            match = re.search(r"(\d+\.\d+\.\d+)", str(self.orca))
+            if match:
+                self._orcaversion = match.group(1)
             else:
                 # Try to extract version from binary content
                 with open(self.orca, "rb") as f:
