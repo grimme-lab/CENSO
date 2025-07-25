@@ -115,7 +115,7 @@ class PathsConfig(BaseModel):
 
             # Now validate cosmorssetup
             if value:
-                setupfile = cosmotherm_path.parent / "CTDATA-FILES" / value
+                setupfile = cosmotherm_path.parent / ".." / "CTDATA-FILES" / value
                 if not setupfile.is_file():
                     raise ValueError(f"{setupfile} not found.")
         return value

@@ -171,8 +171,8 @@ def find_program_paths() -> dict[str, str]:
         if path:
             paths[program] = path
 
-    # If cosmotherm is found try to set cosmorssetup automatically (and cosmorssetup not set already)
-    if "cosmotherm" in paths and "cosmorssetup" not in paths:
+    # If cosmotherm is found try to set cosmorssetup automatically
+    if "cosmotherm" in paths:
         # cosmotherm path parent should be BIN-LINUX, CTDATA-FILES is on the same level
         ctdata = (Path(paths["cosmotherm"]).parent / ".." / "CTDATA-FILES").resolve()
         for file in ctdata.glob("*.ctd"):

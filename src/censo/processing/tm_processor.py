@@ -638,30 +638,31 @@ class TmProc(QmProc):
             # Prepare cosmotherm.inp
             if config.sm == TmSolvMod.COSMORS:
                 setup = (
-                    self.paths["cosmorssetup"]
-                    if not "FINE" in self.paths["cosmorssetup"]
-                    else self.paths["cosmorssetup"].replace("TZVPD_FINE", "TZVP")
+                    config.paths.cosmorssetup
+                    if not "FINE" in config.paths.cosmorssetup
+                    else config.paths.cosmorssetup.replace("TZVPD_FINE", "TZVP")
                 )
             else:
                 setup = (
-                    self.paths["cosmorssetup"]
-                    if "FINE" in self.paths["cosmorssetup"]
-                    else self.paths["cosmorssetup"].replace("TZVP", "TZVPD_FINE")
+                    config.paths.cosmorssetup
+                    if "FINE" in config.paths.cosmorssetup
+                    else config.paths.cosmorssetup.replace("TZVP", "TZVPD_FINE")
                 )
             lines = [
-                f"ctd = {setup} cdir = {os.path.join(self.paths['cosmotherm'], 'CTDATA-FILES')}\n",
+                f"ctd = {setup} cdir = {(Path(config.paths.cosmotherm).parent / '..' / 'CTDATA-FILES').resolve()}\n",
                 "EFILE VPFILE\n",
                 "!!\n",
             ]
-            db = os.path.join(
-                self.paths["cosmotherm"],
-                "DATABASE-COSMO",
-                (
+            db = (
+                Path(config.paths.cosmotherm).parent
+                / ".."
+                / "DATABASE-COSMO"
+                / (
                     "BP-TZVP-COSMO"
                     if config.sm == TmSolvMod.COSMORS
                     else "BP-TZVPD-FINE"
-                ),
-            )
+                )
+            ).resolve()
 
             solv_key = SOLVENTS[config.solvent][config.sm]
             if solv_key == "woctanol":
@@ -700,7 +701,7 @@ class TmProc(QmProc):
 
             # Run cosmotherm
             outputpath = os.path.join(jobdir, "cosmotherm.out")
-            call = [str(Path(config.paths.cosmotherm) / "cosmotherm"), "cosmotherm.inp"]
+            call = [config.paths.cosmotherm, "cosmotherm.inp"]
             returncode, errors = self._make_call(call, outputpath, jobdir)
 
             meta.success = returncode == 0
