@@ -102,7 +102,7 @@ class OrcaProc(QmProc):
         """
 
         # check ORCA version (orca5 = True means at least ORCA version 5)
-        orca5 = int(self.paths["orcaversion"][0]) > 4
+        orca5 = int(config.paths.orcaversion[0]) > 4
 
         inp: list[str] = []
 
@@ -160,7 +160,7 @@ class OrcaProc(QmProc):
     def __prep_main(
         self, jobtype: str, config: SPJobConfig, no_solv: bool
     ) -> list[str]:
-        orca5 = int(self.paths["orcaversion"][0]) > 4
+        orca5 = int(config.paths.orcaversion[0]) > 4
 
         # grab func, basis
         func = config.func
@@ -258,7 +258,7 @@ class OrcaProc(QmProc):
             sm = config.sm
             solv_key = f"{SOLVENTS[config.solvent][sm]}"
 
-            orca6 = int(self.paths["orcaversion"][0]) > 5
+            orca6 = int(config.paths.orcaversion[0]) > 5
             if orca6 or sm != OrcaSolvMod.SMD:
                 main.append(f"{sm.upper()}({solv_key})")
             else:
@@ -278,7 +278,7 @@ class OrcaProc(QmProc):
         config: SPJobConfig,
         nprocs: int,
     ) -> list[str]:
-        orca5 = int(self.paths["orcaversion"][0]) > 4
+        orca5 = int(config.paths.orcaversion[0]) > 4
         pregeom = []
 
         # Check ORCA version (important for grid keywords)
@@ -495,7 +495,7 @@ class OrcaProc(QmProc):
             self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # call orca
-        call = [self.paths[Prog.ORCA.value], f"{filename}.inp"]
+        call = [config.paths.orca, f"{filename}.inp"]
         returncode, errors = self._make_call(call, outputpath, jobdir)
         # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
 
@@ -648,7 +648,7 @@ class OrcaProc(QmProc):
             self.__copy_mo(jobdir, filename, job.mo_guess)
 
         # call orca
-        call = [self.paths[Prog.ORCA.value], f"{filename}.inp"]
+        call = [config.paths.orca, f"{filename}.inp"]
         returncode, errors = self._make_call(call, outputpath, jobdir)
         # NOTE: using orca returncodes it is not possible to determine wether the calculation converged
 
@@ -789,7 +789,7 @@ class OrcaProc(QmProc):
                 [
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",
-                    f"   orca bin= {self.paths[Prog.ORCA.value]}\n",
+                    f"   orca bin= {config.paths.orca}\n",
                     "$end\n",
                 ]
             )
@@ -809,7 +809,7 @@ class OrcaProc(QmProc):
                     "engine=lbfgs\n",
                     "$external\n",
                     f"   orca input file= {filename}.inp\n",
-                    f"   orca bin= {self.paths[Prog.ORCA.value]} \n",
+                    f"   orca bin= {config.paths.orca} \n",
                 ]
             )
 
@@ -830,7 +830,7 @@ class OrcaProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.paths[Prog.XTB.value],
+            config.paths.xtb,
             f"{filename}.coord",  # name of the coord file generated above
             "--opt",
             config.optlevel,

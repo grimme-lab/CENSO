@@ -91,7 +91,7 @@ class XtbProc(GenericProc):
 
         # setup call for xtb single-point
         call: list[str] = [
-            self.paths[Prog.XTB.value],
+            config.paths.xtb,
             f"{filename}.coord",
             "--" + config.gfnv,
             "--sp",
@@ -314,7 +314,7 @@ class XtbProc(GenericProc):
             file.writelines(job.conf.tocoord())
 
         call: list[str] = [
-            self.paths[Prog.XTB.value],
+            config.paths.xtb,
             f"{filename}.coord",
             "--" + config.gfnv,
             dohess,

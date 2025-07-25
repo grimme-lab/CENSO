@@ -475,7 +475,7 @@ class TmProc(QmProc):
             self.__prep(job, config, "sp", jobdir, no_solv=config.gas_phase or no_solv)
 
         # call turbomole
-        call = ["ridft"]
+        call = [str(Path(config.paths.turbomole) / "ridft")]
         returncode, errors = self._make_call(call, outputpath, jobdir)
 
         meta.success = returncode == 0
@@ -595,6 +595,7 @@ class TmProc(QmProc):
                 grid=config.grid,
                 template=config.template,
                 gas_phase=True,
+                paths=config.paths,
             )
 
             spres, spmeta = self._sp(job, jobdir, spconfig, no_solv=True)
@@ -699,7 +700,7 @@ class TmProc(QmProc):
 
             # Run cosmotherm
             outputpath = os.path.join(jobdir, "cosmotherm.out")
-            call = ["cosmotherm", "cosmotherm.inp"]
+            call = [str(Path(config.paths.cosmotherm) / "cosmotherm"), "cosmotherm.inp"]
             returncode, errors = self._make_call(call, outputpath, jobdir)
 
             meta.success = returncode == 0
@@ -829,7 +830,7 @@ class TmProc(QmProc):
 
         # prepare xtb call
         call = [
-            self.paths[Prog.XTB.value],
+            config.paths.xtb,
             "coord",  # name of the coord file generated above
             "--opt",
             config.optlevel,
@@ -986,7 +987,11 @@ class TmProc(QmProc):
             # Set in/out path
             outputpath = os.path.join(jobdir, "mpshift.out")
 
-            call = ["mpshift", "-smpcpus", f"{job.omp}"]
+            call = [
+                str(Path(config.paths.turbomole) / "mpshift"),
+                "-smpcpus",
+                f"{job.omp}",
+            ]
 
             # Run mpshift for shielding calculation
             returncode, errors = self._make_call(call, outputpath, jobdir)
@@ -1031,7 +1036,11 @@ class TmProc(QmProc):
             # Set in/out path
             outputpath = os.path.join(jobdir, "escf.out")
 
-            call = ["escf", "-smpcpus", f"{job.omp}"]
+            call = [
+                str(Path(config.paths.turbomole) / "escf"),
+                "-smpcpus",
+                f"{job.omp}",
+            ]
 
             # Run escf for couplings calculation
             returncode, errors = self._make_call(call, outputpath, jobdir)
