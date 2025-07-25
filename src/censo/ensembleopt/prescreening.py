@@ -48,6 +48,7 @@ def prescreening(
             solvent=config.general.solvent,
             sm_rrho=config.general.sm_rrho,
             gas_phase=False,
+            paths=config.paths,
         )
         results = execute(
             ensemble.conformers,
@@ -75,6 +76,7 @@ def prescreening(
         grid=GridLevel.LOW,
         template=config.prescreening.template,
         gas_phase=True,
+        paths=config.paths,
     )
     results = execute(
         ensemble.conformers,

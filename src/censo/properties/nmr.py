@@ -51,6 +51,7 @@ def nmr(
         grid=GridLevel.NMR,
         gas_phase=config.general.gas_phase,
         solvent=config.general.solvent,
+        paths=config.paths,
         **config.nmr.model_dump(),
     )
 

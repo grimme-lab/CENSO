@@ -50,6 +50,7 @@ def refinement(
             # multitemp=config.general.multitemp,
             # trange=config.general.trange,
             temperature=config.general.temperature,
+            paths=config.paths,
         )
         results = execute(
             ensemble.conformers,
@@ -79,6 +80,7 @@ def refinement(
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
             sm=config.refinement.sm,
+            paths=config.paths,
         )
         results = execute(
             ensemble.conformers,
@@ -102,6 +104,7 @@ def refinement(
         proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "3_REFINEMENT")
         job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
+            paths=config.paths,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
         results = execute(

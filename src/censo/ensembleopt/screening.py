@@ -61,6 +61,7 @@ def screening(
             # multitemp=config.general.multitemp,
             # trange=config.general.trange,
             temperature=config.general.temperature,
+            paths=config.paths,
         )
         results = execute(
             ensemble.conformers,
@@ -90,6 +91,7 @@ def screening(
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
             sm=config.screening.sm,
+            paths=config.paths,
         )
         results = execute(
             ensemble.conformers,
@@ -113,6 +115,7 @@ def screening(
         proc_xtb: XtbProc = Factory.create(Prog.XTB, "1_SCREENING")
         job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
+            paths=config.paths,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
         results = execute(

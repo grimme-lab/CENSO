@@ -69,6 +69,7 @@ def optimization(
         proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
         job_config = RRHOJobConfig(
             gfnv=config.optimization.gfnv,
+            paths=config.paths,
             **config.general.model_dump(),
         )
         results = execute(
@@ -130,6 +131,7 @@ def _macrocycle_opt(
             copy_mo=config.general.copy_mo,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
+            paths=config.paths,
             **config.optimization.model_dump(),
         )
         if config.optimization.constrain:
@@ -142,6 +144,7 @@ def _macrocycle_opt(
             copy_mo=config.general.copy_mo,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
+            paths=config.paths,
             **config.optimization.model_dump(),
         )
         target = proc.opt
@@ -193,6 +196,7 @@ def _macrocycle_opt(
             proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
             job_config_rrho = RRHOJobConfig(
                 gfnv=config.optimization.gfnv,
+                paths=config.paths,
                 **config.general.model_dump(),
             )
             results_rrho = execute(
@@ -278,6 +282,7 @@ def _full_opt(
             grid=GridLevel.HIGH,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
+            paths=config.paths,
             **config.optimization.model_dump(),
         )
         if config.optimization.constrain:
@@ -290,6 +295,7 @@ def _full_opt(
             grid=GridLevel.HIGH,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
+            paths=config.paths,
             **config.optimization.model_dump(),
         )
         target = proc.opt

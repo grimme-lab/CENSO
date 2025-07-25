@@ -52,6 +52,7 @@ def uvvis(
         grid=GridLevel.VERY_HIGH,
         gas_phase=config.general.gas_phase,
         solvent=config.general.solvent,
+        paths=config.paths,
         **config.uvvis.model_dump(),
     )
 

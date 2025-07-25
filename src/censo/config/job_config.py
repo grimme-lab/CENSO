@@ -1,6 +1,8 @@
 from pydantic import ValidationInfo, field_validator
 from typing import Literal
 
+from censo.config.paths import PathsConfig
+
 from .generic import GenericConfig
 from ..params import (
     OrcaSolvMod,
@@ -12,6 +14,9 @@ from ..params import (
 
 
 class XTBJobConfig(GenericConfig):
+    paths: PathsConfig
+    """Paths to external programs."""
+
     gfnv: GfnVersion
     """Version of GFN to use (GFN1-xTB, GFN2-xTB, GFN-FF)."""
 
@@ -36,6 +41,9 @@ class XTBJobConfig(GenericConfig):
 
 
 class SPJobConfig(GenericConfig):
+    paths: PathsConfig
+    """Paths to external programs."""
+
     # DFT related
     copy_mo: bool
     """Whether to copy MO files for better guesses."""
