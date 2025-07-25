@@ -28,8 +28,6 @@ from ..data import (
     SPResult,
 )
 from ..params import (
-    PLENGTH,
-    DIGILEN,
     WARNLEN,
     ENVIRON,
     Prog,
@@ -46,16 +44,6 @@ class GenericProc:
     """
 
     progname: Prog = Prog.GENERIC
-
-    paths = {
-        Prog.ORCA.value: "",
-        "orcaversion": "",
-        Prog.XTB.value: "",
-        "cosmorssetup": "",
-        "cosmotherm": "",
-        "dbpath": "",
-        "cosmothermversion": "",
-    }
 
     # rotational entropy from symmetry
     # https://cccbdb.nist.gov/thermo.asp
@@ -134,32 +122,6 @@ class GenericProc:
             return result, meta
 
         return wrapper
-
-    @classmethod
-    def print_paths(cls) -> None:
-        """
-        Print out the paths of all external QM programs.
-        """
-        # Create an empty list to store the lines of the output.
-        lines = []
-
-        # Append a separator line to the output.
-        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-
-        # Append the title of the section to the output, centered.
-        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
-
-        # Append a separator line to the output.
-        lines.append("".ljust(PLENGTH, "-") + "\n")
-
-        # Iterate over each program and its path in the settings.
-        for program, path in cls.paths.items():
-            # Append a line with the program and its path to the output.
-            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
-
-        # Print each line of the output.
-        for line in lines:
-            printf(line)
 
     def __init__(self, workdir: Path):
         """QM processor base class containing only xtb-related functions."""

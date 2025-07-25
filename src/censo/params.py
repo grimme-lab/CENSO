@@ -37,6 +37,7 @@ class Returncode(int, Enum):
     INPUT_NOT_FOUND = 2
     CONSTRAINTS_NOT_FOUND = 3
     GENERIC_ERROR = 4
+    CONFIG_ERROR = 5
 
 
 OMPMIN_DEFAULT = 3  # we use 3 because ORCA/OpenMPI has a bug with 2 threads -.-

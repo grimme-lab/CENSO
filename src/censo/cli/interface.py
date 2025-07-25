@@ -2,12 +2,14 @@ from logging import DEBUG
 import os
 import shutil
 import sys
+import json
 from argparse import ArgumentError, Namespace
 from datetime import timedelta
 import traceback
 from typing import cast
 from pathlib import Path
 from tabulate import tabulate
+from pydantic import ValidationError
 
 from ..config import PartsConfig
 from ..config.setup import configure, write_rcfile
@@ -45,8 +47,19 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     # Print program call
     printf("CALL: " + " ".join(arg for arg in sys.argv))
 
+    tasks = [
+        ("prescreening", getattr(args, "prescreening", False), prescreening),
+        ("screening", getattr(args, "screening", False), screening),
+        ("optimization", getattr(args, "optimization", False), optimization),
+        ("refinement", getattr(args, "refinement", False), refinement),
+        ("nmr", getattr(args, "nmr", False), nmr),
+        ("uvvis", getattr(args, "uvvis", False), uvvis),
+    ]
+
+    context = {"check": [name for name, enabled, _ in tasks if enabled]}
+
     try:
-        ensemble, parts_config = startup(args)
+        ensemble, parts_config = startup(args, context)
     except SystemExit as e:
         return cast(Returncode, e.code)
 
@@ -60,7 +73,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         parallel_config = ParallelConfig(
             ncores=args.maxcores, omp=args.ompmin, ompmin=args.ompmin
         )
-    except ValueError as e:
+    except ValidationError as e:
         tb = traceback.format_exc()
         logger.debug(f"Encountered exception:\n{tb}")
         printf(
@@ -68,34 +81,11 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         )
         return Returncode.ARGUMENT_ERROR
 
-    # Determine which parts to run - prefer explicit command-line flags, else fallback to config
-    part_flags = [
-        getattr(args, "prescreening", False),
-        getattr(args, "screening", False),
-        getattr(args, "optimization", False),
-        getattr(args, "refinement", False),
-        getattr(args, "nmr", False),
-        getattr(args, "uvvis", False),
-    ]
-    # If any flag is set, use only explicitly specified parts; else use config defaults
-    tasks = [
-        (args.prescreening, prescreening),
-        (args.screening, screening),
-        (args.optimization, optimization),
-        (args.refinement, refinement),
-        (args.nmr, nmr),
-        (args.uvvis, uvvis),
-    ]
-
-    if all(not enabled for enabled, _ in tasks):
-        printf("No tasks enabled! Stopping CENSO.")
-        return Returncode.OK
-
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
     time = 0.0
     try:
-        for func in [task for enabled, task in tasks[:4] if enabled]:
+        for func in [task for _, enabled, task in tasks[:4] if enabled]:
             runtime = func(
                 ensemble, parts_config, parallel_config=parallel_config, cut=cut
             )
@@ -114,10 +104,10 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             # Print final comparison
             print_comparison(comparison)
 
-        if any(enabled for enabled, _ in tasks[4:]):
+        if any(enabled for _, enabled, _ in tasks[4:]):
             print("\nRunning property calculations\n")
 
-        for func in [task for enabled, task in tasks[4:] if enabled]:
+        for func in [task for _, enabled, task in tasks[4:] if enabled]:
             runtime = func(ensemble, parts_config, parallel_config=parallel_config)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
@@ -146,7 +136,9 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
 
 
 # sets up a ensemble object using the given cml arguments and censorc
-def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
+def startup(
+    args: Namespace, context: dict[str, list[str]]
+) -> tuple[EnsembleData, PartsConfig]:
     # Load up the ensemble and configure settings
     cwd = os.getcwd()
 
@@ -166,7 +158,15 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
         write_rcfile(Path() / "censo2rc_NEW")
         sys.exit(Returncode.OK)
 
-    parts_config = configure(rcpath=args.inprcpath, args=args)
+    if len(context.get("check", [])) == 0:
+        printf("No tasks enabled! Stopping CENSO.")
+        sys.exit(Returncode.OK)
+
+    try:
+        parts_config = configure(rcpath=args.inprcpath, args=args, context=context)
+    except ValidationError as e:
+        print_validation_errors(e)
+        sys.exit(Returncode.CONFIG_ERROR)
 
     # Set up logging
     set_loglevel(args.loglevel)
@@ -205,21 +205,13 @@ def startup(args: Namespace) -> tuple[EnsembleData, PartsConfig]:
 
     # Print all active parts settings once
     if logger.level == DEBUG:
-        for fieldname, config in parts_config:
-            # Revalidate
-            setattr(parts_config, fieldname, config.model_validate(config))
-
+        for _, config in parts_config:
             # Print
             printf(config)
     else:
         for fieldname, config in parts_config:
             if getattr(args, fieldname, False) or fieldname == "general":
-                # Revalidate
-                setattr(parts_config, fieldname, config.model_validate(config))
-
                 # Print
-                printf(config)
-            else:
                 printf(config)
 
     printf("\n" + "".ljust(int(PLENGTH), "-") + "\n")
@@ -275,7 +267,7 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
         sys.exit(0)
 
     # iterate over files in cwd and subdirs recursively and remove them if to delete
-    for subdir, dirs, files in os.walk(cwd):
+    for subdir, _, files in os.walk(cwd):
         if any(s in subdir for s in to_delete):
             printf(f"Removing: {subdir}")
             shutil.rmtree(subdir)
@@ -288,6 +280,30 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
             ):
                 printf(f"Removing: {file}")
                 os.remove(os.path.join(subdir, file))
+
+
+def print_validation_errors(e: ValidationError) -> None:
+    """Prints Pydantic validation errors in a human-readable format."""
+    printf(f"Found {e.error_count()} validation error(s):\n")
+    for error in e.errors():
+        field = " -> ".join(map(str, error["loc"]))
+        message = error["msg"]
+        user_input = error["input"]
+        # Handle model-level validator errors differently
+        if not error["loc"] or (
+            len(error["loc"]) == 1 and error["loc"][0] == "__root__"
+        ):
+            printf(f"  - Model-level error:")
+            printf(f"    Message: {message}")
+        else:
+            try:
+                user_input_str = json.dumps(user_input)
+            except TypeError:
+                user_input_str = str(user_input)
+            printf(f"  - Field: '{field}'")
+            printf(f"    Message: {message}")
+            printf(f"    Your input: {user_input_str}")
+        printf("-" * 20)
 
 
 def print_comparison(comparison: dict[str, dict[str, float]]):

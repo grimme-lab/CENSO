@@ -49,6 +49,8 @@ def optimization(
     """
     printf(h2("OPTIMIZATION"))
 
+    config.model_validate(config)
+
     # Setup processor
     proc: QmProc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
 
