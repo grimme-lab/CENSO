@@ -12,9 +12,34 @@ from typing import Any
 
 from .params import BOHR2ANG, PLENGTH
 from .logging import setup_logger
+import json
+from pydantic import ValidationError
 
 logger = setup_logger(__name__)
 
+
+def print_validation_errors(e: ValidationError) -> None:
+    """Prints Pydantic validation errors in a human-readable format."""
+    printf(f"Found {e.error_count()} validation error(s):\n")
+    for error in e.errors():
+        field = " -> ".join(map(str, error["loc"]))
+        message = error["msg"]
+        user_input = error["input"]
+        # Handle model-level validator errors differently
+        if not error["loc"] or (
+            len(error["loc"]) == 1 and error["loc"][0] == "__root__"
+        ):
+            printf(f"  - Model-level error:")
+            printf(f"    Message: {message}")
+        else:
+            try:
+                user_input_str = json.dumps(user_input)
+            except TypeError:
+                user_input_str = str(user_input)
+            printf(f"  - Field: '{field}'")
+            printf(f"    Message: {message}")
+            printf(f"    Your input: {user_input_str}")
+        printf("-" * 20)
 
 class Factory[T]:
     """

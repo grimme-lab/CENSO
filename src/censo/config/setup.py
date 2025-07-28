@@ -4,6 +4,7 @@ from argparse import Namespace
 from typing import Any
 from pathlib import Path
 from configparser import ConfigParser
+import warnings
 
 from censo.config.paths import PathsConfig
 
@@ -125,7 +126,9 @@ def write_rcfile(path: Path) -> None:
         paths = find_program_paths()
 
         # collect all default settings from parts and feed them into the parser
-        parts_config = PartsConfig.model_validate({"paths": paths})
+        # Mute warnings
+        with warnings.catch_warnings():
+            parts_config = PartsConfig.model_validate({"paths": paths})
 
         parser.read_dict(parts_config.model_dump(mode="json"))
 
