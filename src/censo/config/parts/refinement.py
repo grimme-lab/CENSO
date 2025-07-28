@@ -11,7 +11,7 @@ class RefinementConfig(BasePartConfig):
     prog: QmProg = QmProg.TM
     """Program that should be used for calculations."""
 
-    func: str = "wb97x-v"
+    func: str = "wb97m-v"
     """Functional that should be used for calculations."""
 
     basis: str = "def2-TZVP"

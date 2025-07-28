@@ -12,7 +12,7 @@ class UVVisConfig(BasePartConfig):
     prog: Literal[QmProg.ORCA] = QmProg.ORCA
     """Program that should be used for calculations."""
 
-    func: str = "wb97x-d4"
+    func: str = "wb97x-v"
     """Functional that should be used for calculations."""
 
     basis: str = "def2-TZVP"
