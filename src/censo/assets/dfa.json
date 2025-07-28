@@ -189,7 +189,12 @@
     "disp": "included",
     "type": "rs_hybrid"
   },
-  "wb97m-v": { "orca": "wb97m-v", "disp": "included", "type": "rs_hybrid" },
+  "wb97m-v": {
+    "orca": "wb97m-v",
+    "tm": "wb97m-v",
+    "disp": "included",
+    "type": "rs_hybrid"
+  },
   "chyf-b95-novdw": {
     "tm": "chyf-b95",
     "disp": "novdw",
