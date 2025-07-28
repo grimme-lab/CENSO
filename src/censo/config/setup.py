@@ -174,7 +174,7 @@ def find_program_paths() -> dict[str, str]:
     if QmProg.TM.value in PathsConfig.model_fields.keys():
         path = shutil.which("ridft")
         if path:
-            paths[QmProg.TM.value] = path
+            paths[QmProg.TM.value] = str(Path(path).parent)
 
     # If cosmotherm is found try to set cosmorssetup automatically
     if "cosmotherm" in paths:

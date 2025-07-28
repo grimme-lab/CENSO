@@ -30,13 +30,11 @@ def has_cosmotherm():
 
 
 def has_xtb():
-    program_paths = find_program_paths()
-    return program_paths.get("xtb", "") != ""
+    return shutil.which("xtb") is not None
 
 
 def has_orca():
-    program_paths = find_program_paths()
-    return program_paths.get("orca", "") != ""
+    return shutil.which("orca") is not None
 
 
 def has_turbomole():
@@ -65,5 +63,5 @@ def parallel_config():
 @pytest.fixture
 def config():
     config = PartsConfig()
-    config.paths = PathsConfig.model_construct(**find_program_paths())
+    config.paths = PathsConfig.model_construct(None, **find_program_paths())
     return config
