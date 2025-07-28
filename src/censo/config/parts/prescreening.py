@@ -11,7 +11,7 @@ class PrescreeningConfig(BasePartConfig):
     prog: QmProg = QmProg.TM
     """Program that should be used for calculations."""
 
-    func: str = "pbe-d4"
+    func: str = "pbe-d3"
     """Functional that should be used for calculations."""
 
     basis: str = "def2-SV(P)"
