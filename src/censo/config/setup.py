@@ -51,7 +51,8 @@ def configure(
         settings_dict = read_rcfile(censorc_path, silent=False)
 
         # Create configurations without solvlent and paths validation for now (will be validated in the end after cml args)
-        parts_config = PartsConfig.model_validate(settings_dict)
+        with warnings.catch_warnings():
+            parts_config = PartsConfig.model_validate(settings_dict)
     else:
         # Try to find paths
         paths = find_program_paths()
