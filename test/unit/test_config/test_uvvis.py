@@ -1,6 +1,6 @@
 import pytest
 from censo.config.parts.uvvis import UVVisConfig
-from censo.params import QmProg, GfnVersion, OrcaSolvMod
+from censo.params import QmProg, OrcaSolvMod
 
 
 def test_uvvis_config_default_values():
@@ -8,7 +8,7 @@ def test_uvvis_config_default_values():
     config = UVVisConfig()
 
     assert config.prog == QmProg.ORCA
-    assert config.func == "wb97x-d4"
+    assert config.func == "wb97x-v"
     assert config.basis == "def2-tzvp"
     assert config.sm == OrcaSolvMod.SMD
     assert config.nroots == 20

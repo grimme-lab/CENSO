@@ -8,7 +8,7 @@ def test_refinement_config_default_values():
     config = RefinementConfig()
 
     assert config.prog == QmProg.TM
-    assert config.func == "wb97x-v"
+    assert config.func == "wb97m-v"
     assert config.basis == "def2-tzvp"
     assert config.sm == TmSolvMod.COSMORS
     assert config.gfnv == GfnVersion.GFN2

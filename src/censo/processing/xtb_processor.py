@@ -303,11 +303,11 @@ class XtbProc(GenericProc):
 
             xcout.write("$end\n")
 
-        if config.bhess:
-            # set ohess or bhess
-            dohess = "--bhess"
-        else:
-            dohess = "--ohess"
+        # if config.bhess:
+        #     # set ohess or bhess
+        #     dohess = "--bhess"
+        # else:
+        #     dohess = "--ohess"
 
         # generate coord file for xtb
         with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
@@ -317,7 +317,7 @@ class XtbProc(GenericProc):
             config.paths.xtb,
             f"{filename}.coord",
             "--" + config.gfnv,
-            dohess,
+            "--bhess",
             "vtight",
             "--chrg",
             f"{job.charge}",

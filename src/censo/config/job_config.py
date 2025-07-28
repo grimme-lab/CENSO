@@ -122,8 +122,8 @@ class RRHOJobConfig(XTBJobConfig):
 
     imagthr: float
 
-    bhess: bool
-    """Whether to utilize a single-point Hessian calculation for frequencies. Otherwise geometry will be optimized (equivalent to `--bhess` vs `--ohess` for xtb)."""
+    # bhess: bool
+    # """Whether to utilize a single-point Hessian calculation for frequencies. Otherwise geometry will be optimized (equivalent to `--bhess` vs `--ohess` for xtb)."""
 
     temperature: float
 

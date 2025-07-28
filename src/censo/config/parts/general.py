@@ -26,16 +26,16 @@ class GeneralConfig(BasePartConfig):
 
     # consider_sym: bool = True
 
-    bhess: bool = True
-    """Wether to use single-point Hessians for mRRHO calculations."""
+    # bhess: bool = True
+    # """Wether to use single-point Hessians for mRRHO calculations."""
 
     # rmsdbias: bool = False
 
     imagthr: float = Field(lt=0, default=-100.0)
     """Highest acceptable imaginary mode (used for imagthr in xcontrol files)."""
 
-    sthr: float = Field(default=0.0)
-    """Value used for sthr in xcontrol files for mRRHO calculations."""
+    sthr: float = Field(default=50.0)
+    """Value used for RR cutoff for mRRHO calculations using xtb."""
 
     # scale: float = Field(gt=0, default=1.0)
 
