@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import shutil
 from censo.config.paths import PathsConfig
-from censo.ensembledata import EnsembleData
+from censo.ensemble import EnsembleData
 from censo.config.parallel_config import ParallelConfig
 from censo.config.parts_config import PartsConfig
 from censo.config.setup import find_program_paths

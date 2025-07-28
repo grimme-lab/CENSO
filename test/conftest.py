@@ -33,12 +33,6 @@ def pytest_addoption(parser):
         default=False,
         help="keep the log file during test execution",
     )
-    parser.addoption(
-        "--no-mute-warnings",
-        action="store_true",
-        default=False,
-        help="Do not mute warnings during tests."
-    )
 
 
 def pytest_collection_modifyitems(config, items):

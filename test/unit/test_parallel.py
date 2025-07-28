@@ -16,7 +16,7 @@ from censo.parallel import (
     prepare_jobs,
     execute,
 )
-from censo.data import (
+from censo.config.job_config import (
     SPResult,
     GsolvResult,
     RRHOResult,

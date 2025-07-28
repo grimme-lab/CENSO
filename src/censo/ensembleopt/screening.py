@@ -20,7 +20,7 @@ from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..config.parallel_config import ParallelConfig
-from ..ensembledata import EnsembleData
+from ..ensemble import EnsembleData
 from ..processing import QmProc, XtbProc
 
 logger = setup_logger(__name__)

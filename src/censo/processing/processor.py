@@ -21,7 +21,7 @@ from ..parallel import (
     ResourceMonitor,
     ParallelJob,
 )
-from ..data import (
+from ..config.job_config import (
     OptResult,
     QmResult,
     MetaData,

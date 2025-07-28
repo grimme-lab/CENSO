@@ -7,7 +7,7 @@ from collections.abc import Callable
 from tabulate import tabulate
 import json
 
-from ..ensembledata import EnsembleData
+from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
 from ..config import PartsConfig
 from ..config.job_config import UVVisJobConfig
@@ -15,7 +15,7 @@ from ..config.parts import UVVisConfig
 from ..config.parallel_config import ParallelConfig
 from ..params import GridLevel
 from ..parallel import execute
-from ..data import UVVisResult
+from ..config.job_config import UVVisResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc

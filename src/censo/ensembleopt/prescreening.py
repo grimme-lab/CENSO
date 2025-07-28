@@ -9,7 +9,7 @@ from censo.processing.xtb_processor import XtbProc
 
 from ..config.parts.prescreening import PrescreeningConfig
 from ..molecules import Contributions, MoleculeData
-from ..ensembledata import EnsembleData
+from ..ensemble import EnsembleData
 from ..utilities import Factory, timeit, h1, h2, DataDump, printf
 from ..config import PartsConfig
 from ..parallel import execute

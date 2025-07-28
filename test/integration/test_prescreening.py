@@ -1,6 +1,6 @@
 import pytest
 from censo.ensembleopt.prescreening import prescreening
-from censo.ensembledata import EnsembleData
+from censo.ensemble import EnsembleData
 from censo.config.parts_config import PartsConfig
 from censo.config.parallel_config import ParallelConfig
 from censo.params import QmProg

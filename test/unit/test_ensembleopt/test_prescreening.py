@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 
 from censo.config.parts_config import PartsConfig
-from censo.ensembledata import EnsembleData
+from censo.ensemble import EnsembleData
 from censo.ensembleopt.prescreening import prescreening, jsonify
 from censo.params import QmProg
 

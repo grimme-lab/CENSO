@@ -120,7 +120,7 @@ class GeometryData:
 
 class MoleculeData:
     """
-    The confomers' MoleculeData are set up in censo.ensembledata.EnsembleData.setup_conformers
+    The confomers' MoleculeData are set up in censo.ensemble.EnsembleData.setup_conformers
     """
 
     def __init__(self, name: str, xyz: list[str], charge: int = 0, unpaired: int = 0):

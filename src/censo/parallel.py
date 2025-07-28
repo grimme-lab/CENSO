@@ -12,7 +12,7 @@ from .logging import setup_logger
 from .params import QmProg, ENVIRON
 from .config.job_config import XTBJobConfig, SPJobConfig
 from .config.parallel_config import ParallelConfig
-from .data import QmResult, MetaData
+from .config.job_config import QmResult, MetaData
 
 
 logger = setup_logger(__name__)

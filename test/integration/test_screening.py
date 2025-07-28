@@ -1,6 +1,6 @@
 import pytest
 from censo.ensembleopt.screening import screening
-from censo.ensembledata import EnsembleData
+from censo.ensemble import EnsembleData
 from censo.config.parts_config import PartsConfig
 from censo.config.parallel_config import ParallelConfig
 from censo.params import SOLV_MODS, OrcaSolvMod, QmProg, TmSolvMod

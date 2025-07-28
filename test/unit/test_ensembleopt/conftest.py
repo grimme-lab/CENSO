@@ -5,8 +5,8 @@ from collections.abc import Mapping
 import pytest
 from pathlib import Path
 
-from censo.ensembledata import EnsembleData
-from censo.data import (
+from censo.ensemble import EnsembleData
+from censo.config.job_config import (
     SPResult,
     OptResult,
     GsolvResult,

@@ -1,9 +1,7 @@
-
 import pytest
 import os
 from pathlib import Path
 import shutil
-import warnings
 
 from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
 from censo.config.parts_config import PartsConfig
@@ -21,17 +19,6 @@ def example_ensemble_file(tmp_path: Path):
     dst = tmp_path / src.name
     shutil.copy(src, dst)
     return dst
-
-
-@pytest.fixture(autouse=True)
-def mute_warnings(request):
-    # Use the custom pytest flag to optionally disable muting warnings
-    if not request.config.getoption("--no-mute-warnings"):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            yield
-    else:
-        yield
 
 
 @pytest.fixture(autouse=True)

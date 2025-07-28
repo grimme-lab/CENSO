@@ -9,7 +9,7 @@ from tabulate import tabulate
 from itertools import product
 import json
 
-from ..ensembledata import EnsembleData
+from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
 from ..config import PartsConfig
 from ..config.parts import NMRConfig
@@ -17,7 +17,7 @@ from ..config.job_config import NMRJobConfig
 from ..config.parallel_config import ParallelConfig
 from ..params import GridLevel
 from ..parallel import execute
-from ..data import NMRResult
+from ..config.job_config import NMRResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc

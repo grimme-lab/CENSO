@@ -13,7 +13,7 @@ from ..logging import setup_logger
 from ..parallel import (
     ParallelJob,
 )
-from ..data import (
+from ..config.job_config import (
     GsolvResult,
     MetaData,
     NMRResult,

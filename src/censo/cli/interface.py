@@ -15,7 +15,7 @@ from ..config import PartsConfig
 from ..config.setup import configure, write_rcfile
 from ..config.parallel_config import ParallelConfig
 from .cml_parser import parse
-from ..ensembledata import EnsembleData
+from ..ensemble import EnsembleData
 from ..ensembleopt import prescreening, screening, optimization, refinement
 from ..properties import nmr, uvvis
 from ..params import AU2KCAL, DESCR, __version__, Returncode, PLENGTH

@@ -10,7 +10,7 @@ from collections.abc import Callable
 from typing import Any
 from tabulate import tabulate
 
-from ..ensembledata import EnsembleData
+from ..ensemble import EnsembleData
 from ..molecules import MoleculeData, Contributions
 from ..processing import QmProc, XtbProc
 from ..parallel import execute
