@@ -145,7 +145,10 @@ class PartsConfig(GenericConfig):
             # Check for solvent model specific programs
             sm: TmSolvMod | OrcaSolvMod | None = getattr(part, "sm", None)
             if sm is not None:
-                if sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]:
+                if sm in [
+                    TmSolvMod.COSMORS,
+                    TmSolvMod.COSMORS_FINE,
+                ]:
                     required_progs.add("cosmotherm")
                     required_progs.add("cosmorssetup")
 

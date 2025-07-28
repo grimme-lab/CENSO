@@ -1,4 +1,5 @@
 from typing import override
+import enum
 import warnings
 
 from pydantic import model_validator
@@ -20,7 +21,8 @@ class BasePartConfig(GenericConfig):
         kv = [(k, v) for k, v in self]
         kv.sort(key=lambda x: type(x[1]).__name__)
         for name, value in kv:
-            lines.append(f"{name:>{PLENGTH // 2 - 2}} : {value}")
+            display_value = value.value if isinstance(value, enum.Enum) else value
+            lines.append(f"{name:>{PLENGTH // 2 - 2}} : {display_value}")
 
         return str("\n".join(lines))
 

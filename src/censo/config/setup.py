@@ -9,7 +9,7 @@ from censo.config.paths import PathsConfig
 
 
 from .parts_config import PartsConfig
-from ..params import CENSORCNAME
+from ..params import CENSORCNAME, QmProg
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -170,6 +170,11 @@ def find_program_paths() -> dict[str, str]:
 
         if path:
             paths[program] = path
+
+    if QmProg.TM.value in PathsConfig.model_fields.keys():
+        path = shutil.which("ridft")
+        if path:
+            paths[QmProg.TM.value] = path
 
     # If cosmotherm is found try to set cosmorssetup automatically
     if "cosmotherm" in paths:
