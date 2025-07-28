@@ -52,6 +52,7 @@ def configure(
 
         # Create configurations without solvlent and paths validation for now (will be validated in the end after cml args)
         with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
             parts_config = PartsConfig.model_validate(settings_dict)
     else:
         # Try to find paths
@@ -129,6 +130,7 @@ def write_rcfile(path: Path) -> None:
         # collect all default settings from parts and feed them into the parser
         # Mute warnings
         with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             parts_config = PartsConfig.model_validate({"paths": paths})
 
         parser.read_dict(parts_config.model_dump(mode="json"))
