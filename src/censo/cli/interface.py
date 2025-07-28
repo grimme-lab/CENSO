@@ -210,7 +210,11 @@ def startup(
             printf(config)
     else:
         for fieldname, config in parts_config:
-            if getattr(args, fieldname, False) or fieldname == "general":
+            if (
+                getattr(args, fieldname, False)
+                or fieldname == "general"
+                or fieldname == "paths"
+            ):
                 # Print
                 printf(config)
 

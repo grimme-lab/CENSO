@@ -11,7 +11,8 @@ from pydantic import (
 )
 from pathlib import Path
 
-from ..params import PLENGTH, DIGILEN
+from ..params import PLENGTH
+from ..utilities import h2
 
 
 class PathsConfig(BaseModel):
@@ -41,27 +42,14 @@ class PathsConfig(BaseModel):
 
     @override
     def __str__(self):
-        """
-        Print out the paths of all external QM programs.
-        """
-        # Create an empty list to store the lines of the output.
-        lines = []
+        lines: list[str] = []
+        lines.append(h2(f"PATHS of External Programs"))
+        kv = [(k, v) for k, v in self]
+        kv.sort(key=lambda x: type(x[1]).__name__)
+        for name, value in kv:
+            lines.append(f"{name:>{PLENGTH // 2 - 2}} : {value}")
 
-        # Append a separator line to the output.
-        lines.append("\n" + "".ljust(PLENGTH, "-") + "\n")
-
-        # Append the title of the section to the output, centered.
-        lines.append("PATHS of external QM programs".center(PLENGTH, " ") + "\n")
-
-        # Append a separator line to the output.
-        lines.append("".ljust(PLENGTH, "-") + "\n")
-
-        # Iterate over each program and its path in the settings.
-        for program, path in self:
-            # Append a line with the program and its path to the output.
-            lines.append(f"{program}:".ljust(DIGILEN, " ") + f"{path}\n")
-
-        return "".join(lines)
+        return str("\n".join(lines))
 
     @property
     def orcaversion(self) -> str:
