@@ -2,6 +2,7 @@ import pytest
 import os
 from pathlib import Path
 import shutil
+import warnings
 
 from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
 from censo.config.parts_config import PartsConfig
@@ -19,6 +20,13 @@ def example_ensemble_file(tmp_path: Path):
     dst = tmp_path / src.name
     shutil.copy(src, dst)
     return dst
+
+
+@pytest.fixture(autouse=True)
+def mute_warnings():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        yield
 
 
 @pytest.fixture(autouse=True)
