@@ -1,3 +1,4 @@
+
 import pytest
 import os
 from pathlib import Path
@@ -23,9 +24,13 @@ def example_ensemble_file(tmp_path: Path):
 
 
 @pytest.fixture(autouse=True)
-def mute_warnings():
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+def mute_warnings(request):
+    # Use the custom pytest flag to optionally disable muting warnings
+    if not request.config.getoption("--no-mute-warnings"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            yield
+    else:
         yield
 
 
