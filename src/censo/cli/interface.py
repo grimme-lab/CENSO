@@ -11,6 +11,8 @@ from pathlib import Path
 from tabulate import tabulate
 from pydantic import ValidationError
 
+from censo.parallel import setup_parallel
+
 from ..config import PartsConfig
 from ..config.setup import configure, write_rcfile
 from ..config.parallel_config import ParallelConfig
@@ -65,7 +67,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
 
     if args.maxcores is None:
         printf(
-            "Could not determine number of available number of cores using os.cpu_count(). Cannot run without this information!"
+            "Could not determine number of available number of cores. Cannot run without this information!"
         )
         return Returncode.GENERIC_ERROR
 
@@ -74,8 +76,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             ncores=args.maxcores, omp=args.ompmin, ompmin=args.ompmin
         )
     except ValidationError as e:
-        tb = traceback.format_exc()
-        logger.debug(f"Encountered exception:\n{tb}")
+        print_validation_errors(e)
         printf(
             "Encountered error in setting up parallelization settings. Stopping CENSO."
         )
@@ -121,7 +122,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         )
         ensemble.dump_json(Path("CRASH_DUMP.json"))
         ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
-        sys.exit(Returncode.GENERIC_ERROR)
+        return Returncode.GENERIC_ERROR
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
