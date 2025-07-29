@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 
 
 @contextmanager
-def setup_managers(max_workers: int, ncores: int):
+def setup_parallel(max_workers: int, ncores: int):
     executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=max_workers)
     manager: SyncManager = Manager()
     resource_manager: ResourceMonitor = ResourceMonitor(manager, ncores)
@@ -246,7 +246,7 @@ def execute[T: QmResult](
     logger.debug(
         f"Setting up parallel environment with {parallel_config.ncores} cores..."
     )
-    with setup_managers(
+    with setup_parallel(
         parallel_config.ncores // parallel_config.ompmin, parallel_config.ncores
     ) as (
         executor,

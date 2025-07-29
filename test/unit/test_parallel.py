@@ -8,7 +8,7 @@ from typing import Any
 
 from censo.config.paths import PathsConfig
 from censo.parallel import (
-    setup_managers,
+    setup_parallel,
     ResourceMonitor,
     ParallelJob,
     set_omp_tmproc,
@@ -152,7 +152,7 @@ class TestCoreParallelComponents:
         max_workers = 2
         ncores = 4
 
-        with setup_managers(max_workers, ncores) as (
+        with setup_parallel(max_workers, ncores) as (
             executor,
             manager,
             resource_manager,
@@ -163,7 +163,7 @@ class TestCoreParallelComponents:
 
     def test_resource_monitor(self):
         """Test ResourceMonitor core management functionality"""
-        with setup_managers(2, 4) as (_, manager, resource_monitor):
+        with setup_parallel(2, 4) as (_, manager, resource_monitor):
             # Test initial state
             assert resource_monitor._ResourceMonitor__free_cores.value == 4
 
