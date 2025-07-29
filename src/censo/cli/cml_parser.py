@@ -137,8 +137,12 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="maxcores",
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
-        "the maximum number available.",
-        default=os.cpu_count(),
+        "the maximum number available (also checks for slurm environment variables).",
+        default=(
+            os.cpu_count()
+            if "SLURM_JOBID" not in os.environ
+            else os.environ.get("SLURM_NTASKS", None)
+        ),
     )
     # groups[0].add_argument(
     #     "-O",
