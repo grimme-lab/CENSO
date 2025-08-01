@@ -1,28 +1,19 @@
-from logging import DEBUG
 import os
-import shutil
 import sys
-import json
 from argparse import ArgumentError, Namespace
-from datetime import timedelta
-import traceback
-from typing import cast
+from typing import cast, TYPE_CHECKING
 from pathlib import Path
-from tabulate import tabulate
+
 from pydantic import ValidationError
 
-from censo.parallel import setup_parallel
+if TYPE_CHECKING:
+    from ..ensemble import EnsembleData
+    from ..config import PartsConfig
 
-from ..config import PartsConfig
-from ..config.setup import configure, write_rcfile
-from ..config.parallel_config import ParallelConfig
+from ..params import DESCR, __version__, Returncode, PLENGTH
+from ..utilities import printf
+from ..logging import setup_logger, set_loglevel
 from .cml_parser import parse
-from ..ensemble import EnsembleData
-from ..ensembleopt import prescreening, screening, optimization, refinement
-from ..properties import nmr, uvvis
-from ..params import AU2KCAL, DESCR, __version__, Returncode, PLENGTH
-from ..utilities import printf, h1
-from ..logging import set_filehandler, setup_logger, set_loglevel
 
 logger = setup_logger(__name__)
 
@@ -49,6 +40,9 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     # Print program call
     printf("CALL: " + " ".join(arg for arg in sys.argv))
 
+    from ..ensembleopt import prescreening, screening, optimization, refinement
+    from ..properties import nmr, uvvis
+
     tasks = [
         ("prescreening", getattr(args, "prescreening", False), prescreening),
         ("screening", getattr(args, "screening", False), screening),
@@ -70,6 +64,8 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             "Could not determine number of available number of cores. Cannot run without this information!"
         )
         return Returncode.GENERIC_ERROR
+
+    from ..config.parallel_config import ParallelConfig
 
     try:
         parallel_config = ParallelConfig(
@@ -94,6 +90,8 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             time += runtime
 
             # Collect results for comparison
+            from ..params import AU2KCAL
+
             mingtot = min(conf.gtot for conf in ensemble)
             comparison[func.__name__] = {
                 conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
@@ -113,6 +111,8 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
     except:
+        import traceback
+
         tb = traceback.format_exc()
         logger.debug(f"Encountered exception:\n{tb}")
 
@@ -123,6 +123,8 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         ensemble.dump_json(Path("CRASH_DUMP.json"))
         ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
         return Returncode.GENERIC_ERROR
+
+    from datetime import timedelta
 
     time = timedelta(seconds=int(time))
     hours, r = divmod(time.seconds, 3600)
@@ -139,7 +141,14 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
 # sets up a ensemble object using the given cml arguments and censorc
 def startup(
     args: Namespace, context: dict[str, list[str]]
-) -> tuple[EnsembleData, PartsConfig]:
+) -> tuple["EnsembleData", "PartsConfig"]:
+    from logging import DEBUG
+
+    from ..config import PartsConfig
+    from ..config.setup import configure, write_rcfile
+    from ..ensemble import EnsembleData
+    from ..logging import set_filehandler
+
     # Load up the ensemble and configure settings
     cwd = os.getcwd()
 
@@ -234,6 +243,7 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
     """
     Delete all unneeded files.
     """
+    import shutil
 
     # files containing these patterns are deleted
     to_delete = [
@@ -252,8 +262,10 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
         )
 
     printf(
-        f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
-        f"will be deleted:"
+        (
+            f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
+            f"will be deleted:"
+        )
     )
     for sub in to_delete:
         printf(sub)
@@ -287,11 +299,13 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
                 os.remove(os.path.join(subdir, file))
 
 
-# Import print_validation_errors from utilities after moving
 from ..utilities import print_validation_errors
 
 
 def print_comparison(comparison: dict[str, dict[str, float]]):
+    from tabulate import tabulate
+    from ..utilities import h1
+
     if len(comparison) > 1:
         printf(h1(f"FINAL RANKING COMPARISON"))
 
