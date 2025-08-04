@@ -41,7 +41,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     printf("CALL: " + " ".join(arg for arg in sys.argv))
 
     from ..ensembleopt import prescreening, screening, optimization, refinement
-    from ..properties import nmr, uvvis
+    from ..properties import nmr, uvvis, rot
 
     tasks = [
         ("prescreening", getattr(args, "prescreening", False), prescreening),
@@ -49,6 +49,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         ("optimization", getattr(args, "optimization", False), optimization),
         ("refinement", getattr(args, "refinement", False), refinement),
         ("nmr", getattr(args, "nmr", False), nmr),
+        ("rot", getattr(args, "rot", False), rot),
         ("uvvis", getattr(args, "uvvis", False), uvvis),
     ]
 
@@ -144,7 +145,6 @@ def startup(
 ) -> tuple["EnsembleData", "PartsConfig"]:
     from logging import DEBUG
 
-    from ..config import PartsConfig
     from ..config.setup import configure, write_rcfile
     from ..ensemble import EnsembleData
     from ..logging import set_filehandler

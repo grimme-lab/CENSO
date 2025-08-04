@@ -58,6 +58,12 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         help="Enable the NMR calculation part.",
     )
     groups[0].add_argument(
+        "--rot",
+        dest="rot",
+        action="store_true",
+        help="Enable the optical rotation calculation part.",
+    )
+    groups[0].add_argument(
         "--uvvis",
         dest="uvvis",
         action="store_true",

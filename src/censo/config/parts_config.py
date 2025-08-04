@@ -14,6 +14,7 @@ from .parts import (
     RefinementConfig,
     NMRConfig,
     UVVisConfig,
+    RotConfig,
 )
 from .paths import PathsConfig
 
@@ -41,6 +42,9 @@ class PartsConfig(GenericConfig):
     nmr: NMRConfig = Field(default_factory=NMRConfig)
     """NMR settings"""
 
+    rot: RotConfig = Field(default_factory=RotConfig)
+    """Optical rotation settings"""
+
     uvvis: UVVisConfig = Field(default_factory=UVVisConfig)
     """UV/Vis settings"""
 
@@ -57,6 +61,7 @@ class PartsConfig(GenericConfig):
             ("optimization", self.optimization),
             ("refinement", self.refinement),
             ("nmr", self.nmr),
+            ("rot", self.rot),
             ("uvvis", self.uvvis),
         ]
         if context:

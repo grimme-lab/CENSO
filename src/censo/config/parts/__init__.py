@@ -6,6 +6,7 @@ from .refinement import RefinementConfig
 from .nmr import NMRConfig
 from .uvvis import UVVisConfig
 from .base import BasePartConfig
+from .rot import RotConfig
 
 __all__ = [
     "GeneralConfig",
@@ -16,4 +17,5 @@ __all__ = [
     "NMRConfig",
     "UVVisConfig",
     "BasePartConfig",
+    "RotConfig",
 ]

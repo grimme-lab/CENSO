@@ -1,4 +1,4 @@
-from pydantic import ValidationInfo, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 from typing import Literal
 from dataclasses import dataclass, field
 
@@ -18,23 +18,30 @@ from ..params import (
 @dataclass
 class QmResult:
     """Base class for results returned by QM calculations."""
+
     mo_path: str | tuple[str, str] = ""
+
 
 @dataclass
 class SPResult(QmResult):
     """Results class for single-point calculations."""
+
     energy: float = 0.0
+
 
 @dataclass
 class GsolvResult(QmResult):
     """Results class for Gsolv calculations."""
+
     gsolv: float = 0.0
     energy_gas: float = 0.0
     energy_solv: float = 0.0
 
+
 @dataclass
 class RRHOResult(QmResult):
     """Results class for mRRHO calculations."""
+
     energy: float = 0.0
     rmsd: float = 0.0
     gibbs: dict[float, float] = field(default_factory=dict)
@@ -44,9 +51,11 @@ class RRHOResult(QmResult):
     symnum: int = 1
     linear: bool = False
 
+
 @dataclass
 class OptResult(QmResult):
     """Results class for geometry optimizations."""
+
     # 'ecyc' contains the energies for all cycles, 'cycles' stores the number of required cycles
     ecyc: list[float] = field(default_factory=list)
     # 'gncyc' contains the gradient norms for all cycles
@@ -59,18 +68,30 @@ class OptResult(QmResult):
     cycles: int = 0
     converged: bool = False
 
+
 @dataclass
 class NMRResult(QmResult):
     """Results class for NMR calculations."""
+
     # atom index mapped onto shielding value, starting from 0
     shieldings: list[tuple[int, float]] = field(default_factory=list)
     # two atom indices mapped onto coupling value, starting from 0
     couplings: list[tuple[tuple[int, int], float]] = field(default_factory=list)
 
+
+@dataclass
+class RotResult(QmResult):
+    """Results class for optical rotation calculations."""
+
+    rotations: list[tuple[float, float]] = field(default_factory=list)
+
+
 @dataclass
 class UVVisResult(QmResult):
     """Results class for UVVis calculations."""
+
     excitations: list[dict[str, float]] = field(default_factory=list)
+
 
 @dataclass
 class MetaData:
@@ -209,6 +230,10 @@ class NMRJobConfig(SPJobConfig):
     fc_only: bool
 
     ss_cutoff: float
+
+
+class RotJobConfig(SPJobConfig):
+    freq: list[float]
 
 
 class UVVisJobConfig(SPJobConfig):

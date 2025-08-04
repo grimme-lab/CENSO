@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import cast
 
 from .qm_processor import QmProc
+from .processor import GenericProc
 from ..logging import setup_logger
 from ..parallel import (
     ParallelJob,
@@ -17,12 +18,13 @@ from ..config.job_config import (
     GsolvResult,
     MetaData,
     NMRResult,
+    RotResult,
     OptResult,
     SPResult,
 )
 from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog
 from ..utilities import frange, Factory
-from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig
+from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig, RotJobConfig
 from ..assets import FUNCTIONALS, SOLVENTS
 
 logger = setup_logger(__name__)
@@ -363,16 +365,12 @@ class TmProc(QmProc):
 
             lines.append("$rpaconv 8\n")
         elif jobtype == "rot":
-            # TODO:
-            """
-            controlappend.append("$scfinstab dynpol nm")
-            for i in self.job["freq_or"]:
-                controlappend.append(f" {i}")  # e.g. 589
-            controlappend.append("$velocity gauge")
-            controlappend.append("$rpaconv 4")
-
-            """
-            raise NotImplementedError("Optical rotation not available yet!")
+            assert isinstance(config, RotJobConfig)
+            lines.extend(
+                ["$scfinstab dynpol nm"]
+                + [f" {i}" for i in config.freq]
+                + ["$velocity gauge", "$rpaconv 4"]
+            )
 
     @staticmethod
     def __copy_mo(
@@ -516,11 +514,11 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @QmProc._run
+    @GenericProc._run
     def sp(self, *args, **kwargs):
         return self._sp(*args, **kwargs)
 
-    @QmProc._run
+    @GenericProc._run
     def gsolv(
         self,
         job: ParallelJob,
@@ -759,7 +757,7 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @QmProc._run
+    @GenericProc._run
     def xtb_opt(
         self,
         job: ParallelJob,
@@ -938,13 +936,13 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @QmProc._run
+    @GenericProc._run
     def opt(self, *args, **kwargs):
         raise NotImplementedError(
             "Pure TURBOMOLE geometry optimization not available yet."
         )
 
-    @QmProc._run
+    @GenericProc._run
     def nmr(
         self,
         job: ParallelJob,
@@ -1109,9 +1107,75 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @QmProc._run
-    def rot(self):
-        raise NotImplementedError
+    @GenericProc._run
+    def rot(
+        self,
+        job: ParallelJob,
+        jobdir: str,
+        config: RotJobConfig,
+    ):
+        # Set results
+        result = RotResult()
+        meta = MetaData(job.conf.name)
+
+        # Run sp first
+        # NOTE: optical rotation always run in gas-phase (as in old censo)
+        self.__prep(job, config, "rot", jobdir, no_solv=True)
+        _, spmeta = self._sp(job, jobdir, config, prep=False)
+
+        if not spmeta.success:
+            meta.success = False
+            meta.error = spmeta.error
+            return result, meta
+
+        # Set in/out path
+        outputpath = os.path.join(jobdir, "escf.out")
+
+        call = [
+            str(Path(config.paths.tm) / "escf"),
+            "-smpcpus",
+            f"{job.omp}",
+        ]
+
+        # Run escf
+        returncode, errors = self._make_call(call, outputpath, jobdir)
+
+        meta.success = returncode == 0
+        if not meta.success:
+            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
+            meta.error = "unknown_error"
+            return result, meta
+
+        # Grab shieldings from the output
+        with open(outputpath, "r") as f:
+            lines = f.readlines()
+
+        try:
+            start = lines.index(next(x for x in lines if "" in x))
+        except StopIteration:
+            meta.success = False
+            meta.error = "Could not read specific rotations"
+            return result, meta
+
+        lines = lines[start:]
+
+        frequencies = [float(line.strip().split()[-1]) for line in lines]
+        rotations = [float(line.split("(-1)")[-1]) for line in lines]
+
+        if not len(frequencies) == len(rotations):
+            meta.success = False
+            meta.error = "Mismatch in number of frequencies and rotations"
+            return result, meta
+
+        for i in range(len(frequencies)):
+            result.rotations.append(
+                (
+                    frequencies[i],
+                    rotations[i],
+                )
+            )
+
+        return result, meta
 
 
 Factory.register_builder(Prog.TM, TmProc)

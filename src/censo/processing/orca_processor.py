@@ -35,6 +35,7 @@ from ..params import (
     Prog,
 )
 from ..assets import FUNCTIONALS, SOLVENTS
+from .processor import GenericProc
 from .qm_processor import QmProc
 
 logger = setup_logger(__name__)
@@ -538,12 +539,12 @@ class OrcaProc(QmProc):
         return result, meta
 
     @final
-    @QmProc._run
+    @GenericProc._run
     def sp(self, *args, **kwargs):
         return self._sp(*args, **kwargs)
 
     @final
-    @QmProc._run
+    @GenericProc._run
     def gsolv(
         self, job: ParallelJob, jobdir: str | Path, config: SPJobConfig
     ) -> tuple[GsolvResult, MetaData]:
@@ -600,7 +601,7 @@ class OrcaProc(QmProc):
         return result, meta
 
     @final
-    @QmProc._run
+    @GenericProc._run
     def opt(
         self,
         job: ParallelJob,
@@ -713,7 +714,7 @@ class OrcaProc(QmProc):
         return result, meta
 
     @final
-    @QmProc._run
+    @GenericProc._run
     def xtb_opt(
         self,
         job: ParallelJob,
@@ -932,7 +933,7 @@ class OrcaProc(QmProc):
         return result, meta
 
     @final
-    @QmProc._run
+    @GenericProc._run
     def nmr(
         self,
         job: ParallelJob,
@@ -1057,7 +1058,7 @@ class OrcaProc(QmProc):
         return result, meta
 
     @final
-    @QmProc._run
+    @GenericProc._run
     def uvvis(
         self,
         job: ParallelJob,

@@ -72,6 +72,11 @@ class QmProc(GenericProc):
 
     @abstractmethod
     @GenericProc._run
+    def rot(self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    @GenericProc._run
     def uvvis(
         self, job: ParallelJob, jobdir: Path | str, config: UVVisJobConfig, **kwargs
     ) -> tuple[UVVisResult, MetaData]:
