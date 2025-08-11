@@ -85,7 +85,6 @@ class PartsConfig(GenericConfig):
         we set up the model using model_construct to avoid immediate validation.
         """
         if isinstance(value, dict):
-            print("model_construct")
             return PathsConfig.model_construct(**value)
         return value
 
