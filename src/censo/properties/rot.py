@@ -85,18 +85,26 @@ def _write_results(
     frequencies = config.rot.freq
 
     # Collect rotation data for each conformer
-    rotation_data: list[list[str | float]] = []
+    rotation_data_length: list[list[str | float]] = []
+    rotation_data_velocity: list[list[str | float]] = []
     for conf in ensemble:
-        conf_data: list[str | float] = [conf.name]
-        # Create a dictionary to map frequencies to rotation values
-        freq_to_rotation = {
-            freq: rotation for freq, rotation in results[conf.name].rotations
+        conf_data_length: list[str | float] = [conf.name]
+        conf_data_velocity: list[str | float] = [conf.name]
+        # Create dictionaries to map frequencies to rotation values
+        freq_to_rotation_length = {
+            freq: rotation for freq, rotation in results[conf.name].rotations_length
+        }
+        freq_to_rotation_velocity = {
+            freq: rotation for freq, rotation in results[conf.name].rotations_velocity
         }
         # Add rotation values in the order of frequencies
         for freq in frequencies:
-            rotation_val = freq_to_rotation.get(freq, 0.0)
-            conf_data.append(rotation_val)
-        rotation_data.append(conf_data)
+            rotation_val_length = freq_to_rotation_length.get(freq, 0.0)
+            rotation_val_velocity = freq_to_rotation_velocity.get(freq, 0.0)
+            conf_data_length.append(rotation_val_length)
+            conf_data_velocity.append(rotation_val_velocity)
+        rotation_data_length.append(conf_data_length)
+        rotation_data_velocity.append(conf_data_velocity)
 
     filepath = Path("6_ROT.out")
 
@@ -104,32 +112,60 @@ def _write_results(
     headers = ["CONF#"] + [f"{freq:.1f} nm" for freq in frequencies]
     units = [""] + ["[deg·mL·g⁻¹·dm⁻¹]" for _ in frequencies]
 
-    # Create table rows
-    rows = []
-    for conf_data in rotation_data:
+    # Create table rows for length representation
+    rows_length = []
+    for conf_data in rotation_data_length:
         row = [conf_data[0]]  # conformer name
         for i, rotation_val in enumerate(conf_data[1:]):
             row.append(f"{rotation_val:.3f}")
-        rows.append(row)
+        rows_length.append(row)
 
-    # Add ensemble averaged values
-    ensemble_avg = ["Ensemble avg."]
+    # Create table rows for velocity representation
+    rows_velocity = []
+    for conf_data in rotation_data_velocity:
+        row = [conf_data[0]]  # conformer name
+        for i, rotation_val in enumerate(conf_data[1:]):
+            row.append(f"{rotation_val:.3f}")
+        rows_velocity.append(row)
+
+    # Add ensemble averaged values for length representation
+    ensemble_avg_length = ["Ensemble avg."]
     for i, freq in enumerate(frequencies):
         avg_rotation = sum(
             rotation * boltzmann_populations[conf.name]
             for conf in ensemble
-            for f, rotation in results[conf.name].rotations
+            for f, rotation in results[conf.name].rotations_length
             if abs(f - freq) < 0.1  # Match frequency within tolerance
         )
-        ensemble_avg.append(f"{avg_rotation:.3f}")
-    rows.append(ensemble_avg)
+        ensemble_avg_length.append(f"{avg_rotation:.3f}")
+    rows_length.append(ensemble_avg_length)
+
+    # Add ensemble averaged values for velocity representation
+    ensemble_avg_velocity = ["Ensemble avg."]
+    for i, freq in enumerate(frequencies):
+        avg_rotation = sum(
+            rotation * boltzmann_populations[conf.name]
+            for conf in ensemble
+            for f, rotation in results[conf.name].rotations_velocity
+            if abs(f - freq) < 0.1  # Match frequency within tolerance
+        )
+        ensemble_avg_velocity.append(f"{avg_rotation:.3f}")
+    rows_velocity.append(ensemble_avg_velocity)
 
     # Add units to headers
     for i in range(len(headers)):
         headers[i] += "\n" + units[i]
 
-    table = tabulate(
-        rows,
+    table_length = tabulate(
+        rows_length,
+        headers=headers,
+        colalign=["left"] + ["center" for _ in headers[1:]],
+        disable_numparse=True,
+        numalign="decimal",
+    )
+
+    table_velocity = tabulate(
+        rows_velocity,
         headers=headers,
         colalign=["left"] + ["center" for _ in headers[1:]],
         disable_numparse=True,
@@ -137,10 +173,13 @@ def _write_results(
     )
 
     # Print everything
-    printf(h1("Optical Rotation Values"))
-    printf(table)
+    printf(h1("Optical Rotation Values (Length Representation)"))
+    printf(table_length)
+    printf(h1("Optical Rotation Values (Velocity Representation)"))
+    printf(table_velocity)
 
-    filepath.write_text(table)
+    filepath.write_text(table_length)
+    filepath.write_text(table_velocity)
 
     # Additionally, write results in json format
     Path("6_ROT.json").write_text(
@@ -163,7 +202,8 @@ def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotRes
             "energy": conf.energy,
             "gsolv": conf.gsolv,
             "grrho": conf.grrho,
-            "rotations": results[conf.name].rotations,
+            "rotations_length": results[conf.name].rotations_length,
+            "rotations_velocity": results[conf.name].rotations_velocity,
         }
     }
 
