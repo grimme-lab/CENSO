@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from multiprocessing.managers import SyncManager
 from multiprocessing import Manager
-from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from concurrent.futures import CancelledError, Future, ProcessPoolExecutor, as_completed
 
 from .molecules import GeometryData, MoleculeData
 from .logging import setup_logger
@@ -298,6 +298,10 @@ def execute[T: QmResult](
                         results[meta.conf_name] = result
                         if prog in QmProg:
                             conf.mo_paths[prog].append(result.mo_path)
+
+                except CancelledError as e:
+                    logger.debug(f"Future cancelled: {e}")
+                    broken = True
 
                 except Exception as e:
                     logger.critical(

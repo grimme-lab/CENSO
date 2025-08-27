@@ -44,7 +44,7 @@ def rot(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.uvvis.prog, "5_ROT")
+    proc: QmProc = Factory[QmProc].create(config.rot.prog, "5_ROT")
 
     # Run optical rotation calculations
     job_config = RotJobConfig(
@@ -63,7 +63,7 @@ def rot(
         ensemble.conformers,
         proc.rot,
         job_config,
-        config.uvvis.prog,
+        config.rot.prog,
         "rot",
         parallel_config,
         ignore_failed=config.general.ignore_failed,
