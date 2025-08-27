@@ -29,6 +29,7 @@ Version **3.0** introduces significant architectural improvements, particularly 
 - improved clarity for printout,
 - improved logging,
 - more configuration options for command-line interface.
+
 Configuration is now managed using **Pydantic V2**, and several keywords have been updated. Refer to `example.censo2rc` for details.
 
 New auxiliary command-line scripts (`nmrplot`, `uvvisplot`, `c2anmr`) have been added for improved workflow support.
