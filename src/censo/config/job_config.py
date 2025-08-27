@@ -83,7 +83,8 @@ class NMRResult(QmResult):
 class RotResult(QmResult):
     """Results class for optical rotation calculations."""
 
-    rotations: list[tuple[float, float]] = field(default_factory=list)
+    rotations_velocity: list[tuple[float, float]] = field(default_factory=list)
+    rotations_length: list[tuple[float, float]] = field(default_factory=list)
 
 
 @dataclass

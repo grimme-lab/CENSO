@@ -1151,7 +1151,7 @@ class TmProc(QmProc):
             lines = f.readlines()
 
         try:
-            start = lines.index(next(x for x in lines if "" in x))
+            start = lines.index(next(x for x in lines if "1st frequency" in x))
         except StopIteration:
             meta.success = False
             meta.error = "Could not read specific rotations"
@@ -1159,19 +1159,50 @@ class TmProc(QmProc):
 
         lines = lines[start:]
 
-        frequencies = [float(line.strip().split()[-1]) for line in lines]
-        rotations = [float(line.split("(-1)")[-1]) for line in lines]
+        frequencies = [
+            float(line.strip().split()[-1])
+            for line in lines
+            if "Frequency / nm:" in line
+        ]
+        velocity_lines = [
+            lines[i : i + 15]
+            for i in range(len(lines))
+            if "rotatory dispersion (velocity" in lines[i]
+        ]
+        length_lines = [
+            lines[i : i + 15]
+            for i in range(len(lines))
+            if "rotatory dispersion (length" in lines[i]
+        ]
+        rotations_velocity = [
+            float(line.split("(-1)")[-1])
+            for linesv in velocity_lines
+            for line in linesv
+            if "specific" in line
+        ]
+        rotations_length = [
+            float(line.split("(-1)")[-1])
+            for linesl in length_lines
+            for line in linesl
+            if "specific" in line
+        ]
 
-        if not len(frequencies) == len(rotations):
+        if not len(frequencies) == len(rotations_velocity) == len(rotations_length):
             meta.success = False
             meta.error = "Mismatch in number of frequencies and rotations"
             return result, meta
 
         for i in range(len(frequencies)):
-            result.rotations.append(
+            result.rotations_velocity.append(
                 (
                     frequencies[i],
-                    rotations[i],
+                    rotations_velocity[i],
+                )
+            )
+            result.rotations_length.append(
+                (
+                    frequencies[i],
+                    rotations_length[i],
                 )
             )
 
