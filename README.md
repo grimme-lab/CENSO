@@ -35,6 +35,8 @@ Version **3.0** introduces significant architectural improvements, particularly 
 Configuration is now managed using **Pydantic V2**, and several keywords have been updated. Refer to `example.censo2rc` for details.
 
 New auxiliary command-line scripts (`nmrplot`, `uvvisplot`, `c2anmr`) have been added for improved workflow support.
+`nmrplot` and `uvvisplot` are utilities for immediate visualization of NMR and UV/Vis data, respectively.
+`c2anmr` is a tool to ensure backwards compatibility with ANMR, due to the new directory structure since CENSO 2.0.
 
 ---
 
