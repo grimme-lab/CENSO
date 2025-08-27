@@ -21,6 +21,7 @@
   - **Optical Rotation**: Turbomole
   - **UV/Vis**: ORCA
 - **Agnostic to global optimizer**, input files just need to be in xyz-format
+- CLI and Python API
 
 ---
 
