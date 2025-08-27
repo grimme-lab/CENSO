@@ -24,7 +24,12 @@
 ---
 
 ## **Update: CENSO 3.0**
-Version **3.0** introduces significant architectural improvements, particularly enhancing its usability as a **Python package**. Configuration is now managed using **Pydantic V2**, and several keywords have been updated. Refer to the example `rcfile` for details.
+Version **3.0** introduces significant architectural improvements, particularly enhancing its usability as a **Python package**. Overall usage is also improved, e.g.:
+- automatic system path exploration (finding program binaries, program versions, etc.),
+- improved clarity for printout,
+- improved logging,
+- more configuration options for command-line interface.
+Configuration is now managed using **Pydantic V2**, and several keywords have been updated. Refer to `example.censo2rc` for details.
 
 New auxiliary command-line scripts (`nmrplot`, `uvvisplot`, `c2anmr`) have been added for improved workflow support.
 
