@@ -10,7 +10,7 @@ from ...params import QmProg
 class RotConfig(BasePartConfig):
     """Config class for optical rotation calculations (gas-phase only)."""
 
-    prog: Literal[QmProg.ORCA] = QmProg.ORCA
+    prog: Literal[QmProg.TM] = QmProg.TM
     """Program that should be used for calculations."""
 
     func: str = "wb97x-v"
