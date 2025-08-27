@@ -13,10 +13,10 @@ class RotConfig(BasePartConfig):
     prog: Literal[QmProg.TM] = QmProg.TM
     """Program that should be used for calculations."""
 
-    func: str = "wb97x-v"
+    func: str = "pbe-d4"
     """Functional that should be used for calculations."""
 
-    basis: str = "def2-TZVP"
+    basis: str = "def2-SVPD"
     """Basis set that should be used for calculations."""
 
     freq: list[float] = Field(default_factory=lambda: [589.0, 633.0])
