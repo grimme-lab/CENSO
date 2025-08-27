@@ -2,7 +2,7 @@
 
 ![CENSO Logo](https://github.com/user-attachments/assets/0e6bac6a-2637-4207-8eca-3122ab90112a)
 
-**CENSO** is a Python package designed to automate the refinement of **Conformer-Rotamer Ensembles** at the **DFT level**. It supports both **command-line usage** and integration as a **fully customizable Python package**. CENSO enables calculations of ensemble properties like **NMR parameters**, **optical rotation**, and **UV-Vis spectra**.
+**CENSO** is a Python package designed to automate the refinement of **Conformer-Rotamer Ensembles** at the **DFT level**. It supports both **command-line usage** and usage via a fully implemented **Python API**. CENSO enables calculations of ensemble properties like **NMR parameters**, **optical rotation**, and **UV-Vis spectra**.
 
 ---
 
