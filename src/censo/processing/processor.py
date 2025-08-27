@@ -8,7 +8,9 @@ import functools
 import os
 from pathlib import Path
 import subprocess
+from multiprocessing import Event
 from collections.abc import Callable
+import time
 from typing import final
 
 
@@ -109,7 +111,7 @@ class GenericProc:
         ) -> tuple[T, MetaData]:
             with resources.occupy_cores(job.omp):
                 jobtype = f.__name__
-                jobdir = Path(self.workdir) / job.conf.name / jobtype
+                jobdir = Path(self._workdir) / job.conf.name / jobtype
                 jobdir.mkdir(exist_ok=True, parents=True)
                 logger.info(
                     f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
@@ -125,7 +127,8 @@ class GenericProc:
 
     def __init__(self, workdir: Path):
         """QM processor base class containing only xtb-related functions."""
-        self.workdir: Path = workdir
+        self._workdir: Path = workdir
+        self.stop_event = Event()
 
     @final
     def _make_call(
@@ -166,6 +169,15 @@ class GenericProc:
             # signal.signal(
             #     signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
             # )
+
+            while sub.poll() is None:
+                if self.stop_event.is_set():
+                    logger.info(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}}Terminating subprocess {sub.pid}."
+                    )
+                    sub.terminate()
+                    break
+                time.sleep(1)
 
             # wait for process to finish
             _, errors = sub.communicate()

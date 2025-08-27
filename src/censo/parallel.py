@@ -1,6 +1,7 @@
 import traceback
 import os
-from typing import Callable, Literal
+from typing import Literal
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 from multiprocessing.managers import SyncManager
@@ -313,6 +314,14 @@ def execute[T: QmResult](
                     for t in tasks:
                         if not t.done():
                             t.cancel()
+
+                    # NOTE: this is a kind of goofy workaround to actually passing the processor everywhere...
+                    if hasattr(task, "__self__"):
+                        logger.info("Terminating running tasks...")
+                        proc = task.__self__
+                        proc.stop_event.set()
+                    else:
+                        logger.info("Could not terminate running tasks.")
 
                     tb = traceback.format_exc()
 
