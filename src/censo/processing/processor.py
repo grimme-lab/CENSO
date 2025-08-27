@@ -8,8 +8,8 @@ import functools
 import os
 from pathlib import Path
 import subprocess
-from multiprocessing import Event
 from collections.abc import Callable
+from threading import Event
 import time
 from typing import final
 
@@ -128,7 +128,7 @@ class GenericProc:
     def __init__(self, workdir: Path):
         """QM processor base class containing only xtb-related functions."""
         self._workdir: Path = workdir
-        self.stop_event = Event()
+        self.stop_event: Event | None = None
 
     @final
     def _make_call(
@@ -170,14 +170,15 @@ class GenericProc:
             #     signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
             # )
 
-            while sub.poll() is None:
-                if self.stop_event.is_set():
-                    logger.info(
-                        f"{f'worker{os.getpid()}:':{WARNLEN}}Terminating subprocess {sub.pid}."
-                    )
-                    sub.terminate()
-                    break
-                time.sleep(1)
+            if self.stop_event is not None:
+                while sub.poll() is None:
+                    if self.stop_event.is_set():
+                        logger.info(
+                            f"{f'worker{os.getpid()}:':{WARNLEN}}Terminating subprocess {sub.pid}."
+                        )
+                        sub.terminate()
+                        break
+                    time.sleep(1)
 
             # wait for process to finish
             _, errors = sub.communicate()

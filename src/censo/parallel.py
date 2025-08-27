@@ -251,7 +251,7 @@ def execute[T: QmResult](
         parallel_config.ncores // parallel_config.ompmin, parallel_config.ncores
     ) as (
         executor,
-        _,
+        manager,
         resources,
     ):
         # Prepare jobs for parallel execution by assigning number of cores per job etc.
@@ -266,6 +266,12 @@ def execute[T: QmResult](
             balance=balance,
             copy_mo=copy_mo,
         )
+
+        # NOTE: this is a kind of goofy workaround to actually passing the processor everywhere...
+        if hasattr(task, "__self__"):
+            logger.debug("Creating stop_event")
+            proc = task.__self__
+            proc.stop_event = manager.Event()
 
         # Execute the jobs
         tasks: list[Future[tuple[T, MetaData]]] = []
