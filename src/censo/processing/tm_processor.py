@@ -199,6 +199,9 @@ class TmProc(QmProc):
 
         inp.extend(["$atoms", f"    basis={basis}"])
 
+        if basis.endswith("D"):
+            inp.append("    jbas=universal")
+
         inp.extend(["$dft", f"   functional {func_name}"])
 
         # Configure grid
