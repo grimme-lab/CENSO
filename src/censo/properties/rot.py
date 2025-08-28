@@ -106,7 +106,7 @@ def _write_results(
         rotation_data_length.append(conf_data_length)
         rotation_data_velocity.append(conf_data_velocity)
 
-    filepath = Path("6_ROT.out")
+    filepath = Path("5_ROT.out")
 
     # Create table headers with frequencies as columns
     headers = ["CONF#"] + [f"{freq:.1f} nm" for freq in frequencies]
@@ -182,7 +182,7 @@ def _write_results(
     filepath.write_text(table_velocity)
 
     # Additionally, write results in json format
-    Path("6_ROT.json").write_text(
+    Path("5_ROT.json").write_text(
         json.dumps(jsonify(ensemble, config.rot, results), indent=4)
     )
 
