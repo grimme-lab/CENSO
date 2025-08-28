@@ -13,7 +13,7 @@ from ..config import PartsConfig
 from ..config.job_config import UVVisJobConfig
 from ..config.parts import UVVisConfig
 from ..config.parallel_config import ParallelConfig
-from ..params import GridLevel
+from ..params import GridLevel, PLENGTH
 from ..parallel import execute
 from ..config.job_config import UVVisResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
@@ -120,6 +120,7 @@ def _write_results(
     # Print everything
     printf(h1("Averaged UVVis excitations"))
     printf(table)
+    printf("".ljust(int(PLENGTH), "-"))
 
     filepath.write_text(table)
 

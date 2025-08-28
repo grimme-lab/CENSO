@@ -13,7 +13,7 @@ from ..config import PartsConfig
 from ..config.job_config import RotJobConfig, RotResult
 from ..config.parts import RotConfig
 from ..config.parallel_config import ParallelConfig
-from ..params import GridLevel
+from ..params import GridLevel, PLENGTH
 from ..parallel import execute
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
@@ -177,6 +177,7 @@ def _write_results(
     printf(table_length)
     printf(h1("Optical Rotation Values (Velocity Representation)"))
     printf(table_velocity)
+    printf("".ljust(int(PLENGTH), "-"))
 
     filepath.write_text(table_length)
     filepath.write_text(table_velocity)

@@ -15,7 +15,7 @@ from ..config import PartsConfig
 from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
 from ..config.parallel_config import ParallelConfig
-from ..params import GridLevel
+from ..params import GridLevel, PLENGTH
 from ..parallel import execute
 from ..config.job_config import NMRResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
@@ -172,7 +172,7 @@ def _write_results(
         for i in range(len(headers)):
             headers[i] += "\n" + units[i]
 
-        print(h1("Averaged NMR Spin-Spin Coupling Constants"))
+        printf(h1("Averaged NMR Spin-Spin Coupling Constants"))
         table = tabulate(
             rows,
             headers=headers,
@@ -185,6 +185,7 @@ def _write_results(
     else:
         printf("No couplings calculated.")
 
+    printf("".ljust(int(PLENGTH), "-"))
     filepath.write_text(text)
 
     # Additionally, write results in json format
