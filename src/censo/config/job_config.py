@@ -2,9 +2,9 @@ from pydantic import Field, ValidationInfo, field_validator
 from typing import Literal
 from dataclasses import dataclass, field
 
-from censo.config.paths import PathsConfig
-from censo.molecules import Atom
 
+from ..molecules import Atom
+from ..config.paths import PathsConfig
 from .generic import GenericConfig
 from ..params import (
     OrcaSolvMod,

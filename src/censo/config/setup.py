@@ -6,9 +6,8 @@ from pathlib import Path
 from configparser import ConfigParser
 import warnings
 
-from censo.config.paths import PathsConfig
 
-
+from ..config.paths import PathsConfig
 from .parts_config import PartsConfig
 from ..params import CENSORCNAME, QmProg
 from ..logging import setup_logger

@@ -4,9 +4,8 @@ from typing import Any
 import json
 from tabulate import tabulate
 
-from censo.processing.xtb_processor import XtbProc
 
-
+from ..processing.xtb_processor import XtbProc
 from ..config.parts.prescreening import PrescreeningConfig
 from ..molecules import Contributions, MoleculeData
 from ..ensemble import EnsembleData
