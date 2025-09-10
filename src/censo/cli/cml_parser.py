@@ -29,24 +29,28 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
     groups.append(parser.add_argument_group("RUN SETTINGS"))
     groups[0].add_argument(
         "--prescreening",
+        "-P",
         dest="prescreening",
         action="store_true",
         help="Enable the prescreening part.",
     )
     groups[0].add_argument(
         "--screening",
+        "-S",
         dest="screening",
         action="store_true",
         help="Enable the screening part.",
     )
     groups[0].add_argument(
         "--optimization",
+        "-O",
         dest="optimization",
         action="store_true",
         help="Enable the optimization part.",
     )
     groups[0].add_argument(
         "--refinement",
+        "-R",
         dest="refinement",
         action="store_true",
         help="Enable the refinement part.",
@@ -254,7 +258,6 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         help="Evaluate mRRHO contribution.",
     )
     groups[1].add_argument(
-        "-s",
         "--solvent",
         dest="solvent",
         type=str,
