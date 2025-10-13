@@ -96,12 +96,16 @@ class UVVisResult(QmResult):
 
 @dataclass
 class MetaData:
+    """Metadata for job execution results."""
+
     conf_name: str
     success: bool = False
     error: str = ""
 
 
 class XTBJobConfig(GenericConfig):
+    """Configuration for XTB jobs."""
+
     paths: PathsConfig
     """Paths to external programs."""
 
@@ -120,6 +124,13 @@ class XTBJobConfig(GenericConfig):
     @field_validator("solvent", "sm_rrho")
     @classmethod
     def need_solvent_when_no_gp(cls, v: str | None, info: ValidationInfo):
+        """
+        Validate that solvent and solvation model are provided if not gas-phase.
+
+        :param v: The value to validate.
+        :param info: Validation info.
+        :return: The validated value.
+        """
         if not info.data["gas_phase"] and v is None:
             raise ValueError(
                 "Solvent and solvation model need to be provided if not doing a gas-phase calculation."
@@ -129,6 +140,8 @@ class XTBJobConfig(GenericConfig):
 
 
 class SPJobConfig(GenericConfig):
+    """Configuration for single-point jobs."""
+
     paths: PathsConfig
     """Paths to external programs."""
 
@@ -170,6 +183,13 @@ class SPJobConfig(GenericConfig):
     @field_validator("solvent", "sm")
     @classmethod
     def need_solvent_when_no_gp(cls, v: str | None, info: ValidationInfo):
+        """
+        Validate that solvent and solvation model are provided if not gas-phase.
+
+        :param v: The value to validate.
+        :param info: Validation info.
+        :return: The validated value.
+        """
         if not info.data["gas_phase"] and v is None:
             raise ValueError(
                 "Solvent and solvation model need to be provided if not doing a gas-phase calculation."
@@ -178,6 +198,8 @@ class SPJobConfig(GenericConfig):
 
 
 class OptJobConfig(SPJobConfig):
+    """Configuration for optimization jobs."""
+
     # Optimization
     macrocycles: bool
     """Whether to use macrocycle optimization."""
@@ -195,6 +217,8 @@ class OptJobConfig(SPJobConfig):
 
 
 class XTBOptJobConfig(OptJobConfig):
+    """Configuration for XTB optimization jobs."""
+
     hlow: float
     """hlow setting to be used in xtb (refer to xtb documentation)."""
 
@@ -203,6 +227,8 @@ class XTBOptJobConfig(OptJobConfig):
 
 
 class RRHOJobConfig(XTBJobConfig):
+    """Configuration for RRHO jobs."""
+
     # multitemp: bool
     # """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
 
@@ -221,6 +247,8 @@ class RRHOJobConfig(XTBJobConfig):
 
 
 class NMRJobConfig(SPJobConfig):
+    """Configuration for NMR jobs."""
+
     # NMR
     couplings: bool
 
@@ -234,9 +262,13 @@ class NMRJobConfig(SPJobConfig):
 
 
 class RotJobConfig(SPJobConfig):
+    """Configuration for optical rotation jobs."""
+
     freq: list[float]
 
 
 class UVVisJobConfig(SPJobConfig):
+    """Configuration for UVVis jobs."""
+
     # UVVis
     nroots: int

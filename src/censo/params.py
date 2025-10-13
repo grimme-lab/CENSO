@@ -32,6 +32,10 @@ CODING = "ISO-8859-1"
 
 
 class Returncode(int, Enum):
+    """
+    Return codes for the application.
+    """
+
     OK = 0
     ARGUMENT_ERROR = 1
     INPUT_NOT_FOUND = 2
@@ -51,11 +55,19 @@ PROGS = ("orca", "tm")
 
 
 class OrcaSolvMod(str, Enum):
+    """
+    ORCA solvation models.
+    """
+
     CPCM = "cpcm"
     SMD = "smd"
 
 
 class TmSolvMod(str, Enum):
+    """
+    TURBOMOLE solvation models.
+    """
+
     COSMO = "cosmo"
     DCOSMORS = "dcosmors"
     COSMORS = "cosmors"
@@ -63,17 +75,29 @@ class TmSolvMod(str, Enum):
 
 
 class XtbSolvMod(str, Enum):
+    """
+    xTB solvation models.
+    """
+
     ALPB = "alpb"
     GBSA = "gbsa"
 
 
 class GfnVersion(str, Enum):
+    """
+    GFN versions.
+    """
+
     GFNFF = "gfnff"
     GFN1 = "gfn1"
     GFN2 = "gfn2"
 
 
 class Prog(str, Enum):
+    """
+    Programs.
+    """
+
     ORCA = "orca"
     TM = "tm"
     XTB = "xtb"
@@ -81,11 +105,19 @@ class Prog(str, Enum):
 
 
 class QmProg(str, Enum):
+    """
+    Quantum chemistry programs.
+    """
+
     ORCA = Prog.ORCA.value
     TM = Prog.TM.value
 
 
 class GridLevel(str, Enum):
+    """
+    Grid levels.
+    """
+
     LOW = "low"
     MEDIUM = "low+"
     HIGH = "high"

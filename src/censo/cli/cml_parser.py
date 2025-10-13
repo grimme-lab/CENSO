@@ -13,6 +13,9 @@ from ..params import OMPMIN_DEFAULT
 def parse(argv: list[str] | None) -> argparse.Namespace:
     """
     Process commandline arguments
+
+    :param argv: Command line arguments
+    :return: Parsed arguments namespace
     """
 
     # NOTE: on args with the action 'store_const' with const=True, this is on purpose so as long as the flag is not set,

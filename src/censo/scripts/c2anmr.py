@@ -12,7 +12,11 @@ ConformerData = dict[str, int | float | str]
 
 
 def parse() -> argparse.Namespace:
-    """Parses command-line arguments for ANMR setup."""
+    """
+    Parses command-line arguments for ANMR setup.
+
+    :return: Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(
         "c2anmr",
         description="Generates files and sets up directory for calculation of NMR spectra using ANMR from a CENSO run.",
@@ -74,6 +78,10 @@ def create_conformers_list(
     """
     Reads conformer data from a JSON file, calculates Boltzmann weights,
     and returns a list of dictionaries for the anmr_enso file.
+
+    :param json_file_path: Path to the JSON file containing conformer data.
+    :param temperature: Temperature in K for Boltzmann weighting.
+    :return: List of conformer data dictionaries or None if error.
     """
     K_HARTREE: float = 3.1668114e-6  # Boltzmann constant in Hartree/K
 
@@ -154,7 +162,15 @@ def create_conformers_list(
 def write_nmrprop(
     directory: Path, nat: int, shieldings: list[Any], couplings: list[Any]
 ) -> None:
-    """Writes the nmrprop.dat file for a single conformer."""
+    """
+    Writes the nmrprop.dat file for a single conformer.
+
+    :param directory: Directory to write the file in.
+    :param nat: Number of atoms.
+    :param shieldings: List of shieldings.
+    :param couplings: List of couplings.
+    :return: None
+    """
     lines: list[str] = []
 
     # Process shieldings
@@ -183,7 +199,13 @@ def write_nmrprop(
 
 
 def write_anmrrc(args: argparse.Namespace, directory: Path | str) -> None:
-    """Writes the .anmrrc file to the specified directory."""
+    """
+    Writes the .anmrrc file to the specified directory.
+
+    :param args: Parsed command-line arguments.
+    :param directory: Directory to write the file in.
+    :return: None
+    """
     lines: list[str] = []
     lines.append("7 8 XH acid atoms")
     lines.append(
@@ -207,7 +229,13 @@ def write_anmrrc(args: argparse.Namespace, directory: Path | str) -> None:
 def write_anmr_enso(
     conformers_data: list[ConformerData], output_filename: Path | str
 ) -> None:
-    """Writes the anmr_enso file from a list of conformer data."""
+    """
+    Writes the anmr_enso file from a list of conformer data.
+
+    :param conformers_data: List of conformer data dictionaries.
+    :param output_filename: Path to the output file.
+    :return: None
+    """
     header: str = (
         f"{'ONOFF':<6}{'NMR':<5}{'CONF':<5}{'BW':>10}{'Energy':>12}{'Gsolv':>10}{'RRHO':>10}\n"
     )
@@ -235,7 +263,12 @@ def write_anmr_enso(
 def load_references_from_config(
     config_path: Path | str,
 ) -> list[list[str]] | None:
-    """Loads reference shieldings from a local config file."""
+    """
+    Loads reference shieldings from a local config file.
+
+    :param config_path: Path to the config file.
+    :return: List of reference shieldings or None if error.
+    """
     refs: list[list[str]] = []
     try:
         with open(config_path, "r") as f:
@@ -258,7 +291,11 @@ def load_references_from_config(
 
 
 def main() -> None:
-    """Main execution function."""
+    """
+    Main execution function.
+
+    :return: None
+    """
     args: argparse.Namespace = parse()
 
     dest_dir: Path = Path("anmr")

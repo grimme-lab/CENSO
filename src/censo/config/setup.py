@@ -21,16 +21,15 @@ def configure(
     context: dict[str, list[str]] | None = None,
 ) -> PartsConfig:
     """
-    Configures the application based on the provided configuration file path.
+    Configure the application based on the provided configuration file path.
+
     If no configuration file path is provided, it searches for the default configuration file.
     If no configuration file is found, it raises a FileNotFoundError.
 
-    Args:
-        rcpath (str, optional): Path to the configuration file.
-        args (Namespace, optional): Parsed command line arguments. Defaults to None.
-
-    Returns:
-        PartsConfig: Configuration instance.
+    :param rcpath: Path to the configuration file.
+    :param args: Parsed command line arguments. Defaults to None.
+    :param context: Additional context for validation. Defaults to None.
+    :return: Configuration instance.
     """
     # Try to find the .censo2rc in the user's home directory
     # if no configuration file path is provided
@@ -76,12 +75,9 @@ def read_rcfile(path: Path, silent: bool = True) -> dict[str, dict[str, Any]]:
     """
     Read the configuration file at 'path' and return the settings as a dictionary.
 
-    Args:
-        path (Path): Path to the configuration file.
-        silent (bool): If True, no messages will be printed.
-
-    Returns:
-        dict[str, dict[str, Any]]: Dictionary containing the settings read from the configuration file.
+    :param path: Path to the configuration file.
+    :param silent: If True, no messages will be printed.
+    :return: Dictionary containing the settings read from the configuration file.
     """
     # read config file
     if not silent:
@@ -96,14 +92,12 @@ def read_rcfile(path: Path, silent: bool = True) -> dict[str, dict[str, Any]]:
 def write_rcfile(path: Path) -> None:
     """
     Write new configuration file with default settings into file at 'path'.
+
     Also reads program paths from preexisting configuration file or tries to
     determine the paths automatically.
 
-    Args:
-        path (Path): Path to the new configuration file.
-
-    Returns:
-        None
+    :param path: Path to the new configuration file.
+    :return: None
     """
     # what to do if there is an existing configuration file
     paths = None
@@ -152,7 +146,10 @@ def write_rcfile(path: Path) -> None:
 
 def read_program_paths(path: Path) -> dict[str, str]:
     """
-    Read program paths from the configuration file at 'path'
+    Read program paths from the configuration file at 'path'.
+
+    :param path: Path to the configuration file.
+    :return: Dictionary of program paths.
     """
     parser = ConfigParser()
     parser.read_string(path.read_text())
@@ -167,7 +164,9 @@ def read_program_paths(path: Path) -> dict[str, str]:
 
 def find_program_paths() -> dict[str, str]:
     """
-    Try to determine program paths automatically
+    Try to determine program paths automatically.
+
+    :return: Dictionary of found program paths.
     """
     paths: dict[str, str] = {}
     for program in PathsConfig.model_fields.keys():
@@ -195,6 +194,8 @@ def find_program_paths() -> dict[str, str]:
 def find_rcfile() -> Path | None:
     """
     Check for existing .censorc2 in $home dir or rcfile path in environment variable.
+
+    :return: Path to the configuration file if found, else None.
     """
 
     rcpath = None

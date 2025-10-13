@@ -21,6 +21,9 @@ logger = setup_logger(__name__)
 def entry_point(argv: list[str] | None = None) -> Returncode:
     """
     Console entry point to execute CENSO from the command line.
+
+    :param argv: Command line arguments
+    :return: Return code
     """
     try:
         args = parse(argv)
@@ -143,6 +146,13 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
 def startup(
     args: Namespace, context: dict[str, list[str]]
 ) -> tuple["EnsembleData", "PartsConfig"]:
+    """
+    Set up the ensemble and configuration using command line arguments and context.
+
+    :param args: Parsed command line arguments
+    :param context: Context dictionary with enabled tasks
+    :return: Tuple of ensemble data and parts configuration
+    """
     from logging import DEBUG
 
     from ..config.setup import configure, write_rcfile
@@ -242,6 +252,9 @@ def startup(
 def cleanup_run(cwd: str | Path, complete: bool = False):
     """
     Delete all unneeded files.
+
+    :param cwd: Current working directory
+    :param complete: If true, delete all files including ensembles and outputs
     """
     import shutil
 
@@ -303,6 +316,11 @@ from ..utilities import print_validation_errors
 
 
 def print_comparison(comparison: dict[str, dict[str, float]]):
+    """
+    Print a comparison table of the final rankings.
+
+    :param comparison: Dictionary of comparison data
+    """
     from tabulate import tabulate
     from ..utilities import h1
 

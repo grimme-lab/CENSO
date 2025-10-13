@@ -31,6 +31,11 @@ def rot(
     """
     Calculation of the ensemble optical rotation spectrum of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :return: None
     """
     printf(h2("ROT"))
 
@@ -189,6 +194,14 @@ def _write_results(
 
 
 def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotResult]):
+    """
+    Prepare optical rotation results for JSON serialization.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: RotConfig object with optical rotation configuration settings.
+    :param results: Dictionary of RotResult objects for each conformer.
+    :return: Dictionary ready for JSON serialization.
+    """
     per_conf: Callable[
         [MoleculeData],
         dict[

@@ -21,6 +21,13 @@ logger = setup_logger(__name__)
 
 @contextmanager
 def setup_parallel(max_workers: int, ncores: int):
+    """
+    Set up parallel execution environment.
+
+    :param max_workers: Maximum number of worker processes.
+    :param ncores: Total number of cores available.
+    :return: Yields executor, manager, resource_manager.
+    """
     executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=max_workers)
     manager: SyncManager = Manager()
     resource_manager: ResourceMonitor = ResourceMonitor(manager, ncores)
@@ -32,12 +39,28 @@ def setup_parallel(max_workers: int, ncores: int):
 
 
 class ResourceMonitor:
+    """
+    Monitors available cores for parallel jobs.
+    """
+
     def __init__(self, manager: SyncManager, ncores: int):
+        """
+        Initialize resource monitor.
+
+        :param manager: SyncManager for shared state.
+        :param ncores: Total number of cores.
+        """
         self.__free_cores = manager.Value(int, ncores)
         self.__enough_cores = manager.Condition()
 
     @contextmanager
     def occupy_cores(self, ncores: int):
+        """
+        Occupy cores for a job.
+
+        :param ncores: Number of cores to occupy.
+        :return: Context manager.
+        """
         try:
             with self.__enough_cores:
                 self.__enough_cores.wait_for(lambda: self.__free_cores.value >= ncores)
@@ -56,8 +79,19 @@ class ResourceMonitor:
 
 
 class ParallelJob:
+    """
+    Represents a job for parallel execution.
+    """
 
     def __init__(self, conf: GeometryData, charge: int, unpaired: int, omp: int):
+        """
+        Initialize parallel job.
+
+        :param conf: Geometry data.
+        :param charge: Charge.
+        :param unpaired: Unpaired electrons.
+        :param omp: Number of cores.
+        """
         # conformer for the job
         self.conf: GeometryData = conf
 
@@ -83,6 +117,13 @@ def set_omp_tmproc(
     """
     Configures the number of cores for TURBOMOLE processor or when automatic load balancing ('balancing 2.0')
     is disabled.
+
+    :param jobs: List of parallel jobs.
+    :param balance: Whether to balance.
+    :param omp: OMP value.
+    :param ncores: Total cores.
+    :param ompmin: Minimum OMP.
+    :return: None
     """
     if balance:
         logger.warning(
@@ -119,6 +160,14 @@ def set_omp(
 ):
     """
     Sets the number of cores to be used for every job.
+
+    :param jobs: List of parallel jobs.
+    :param balance: Whether to balance.
+    :param omp: OMP value.
+    :param ncores: Total cores.
+    :param ompmin: Minimum OMP.
+    :param ompmax: Maximum OMP.
+    :return: None
     """
     if balance:
         jobs_left, tot_jobs = len(jobs), len(jobs)
@@ -163,6 +212,17 @@ def prepare_jobs(
 ) -> list[ParallelJob]:
     """
     Prepares the jobs from the conformers data.
+
+    :param conformers: List of conformers.
+    :param prog: Program name.
+    :param ncores: Total cores.
+    :param omp: OMP value.
+    :param from_part: From part.
+    :param ompmin: Minimum OMP.
+    :param ompmax: Maximum OMP.
+    :param balance: Whether to balance.
+    :param copy_mo: Whether to copy MO.
+    :return: List of parallel jobs.
     """
     # Create ParallelJob instances from the conformers, sharing the prepinfo dict
     jobs = [
@@ -219,16 +279,16 @@ def execute[T: QmResult](
     """
     Executes the parallel tasks using a managed environment.
 
-    Args:
-        conformers (list[MoleculeData]): List of conformers for which jobs will be created and executed.
-        task (Callable): Callable to be mapped onto the list of jobs created from conformers.
-        job_config (XTBJobConfig | SPJobConfig): instructions for the execution of the task.
-        prog (QmProg | "xtb"): Name of the QM program.
-        balance (bool, optional): Whether to balance the number of cores used per job. Defaults to True.
-        copy_mo (bool, optional): Whether to store the paths to the MO files for reuse. Defaults to True.
-
-    Returns:
-        dict[str, QmResult]: Job results.
+    :param conformers: List of conformers for which jobs will be created and executed.
+    :param task: Callable to be mapped onto the list of jobs created from conformers.
+    :param job_config: Instructions for the execution of the task.
+    :param prog: Name of the QM program.
+    :param from_part: From part.
+    :param parallel_config: Parallel configuration.
+    :param ignore_failed: Whether to ignore failed jobs.
+    :param balance: Whether to balance the number of cores used per job.
+    :param copy_mo: Whether to store the paths to the MO files for reuse.
+    :return: Job results.
     """
     # Initialize lists to store failed conformers and results
     failed_confs: list[MoleculeData] = []

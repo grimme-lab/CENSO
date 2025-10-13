@@ -149,7 +149,13 @@ class XtbProc(GenericProc):
     @final
     @GenericProc._run
     def sp(self, *args, **kwargs):
-        """Wrapped version of xtb_sp."""
+        """
+        Wrapped version of xtb_sp.
+
+        :param args: Arguments.
+        :param kwargs: Keyword arguments.
+        :return: Tuple of (SPResult, MetaData).
+        """
         return self._sp(*args, **kwargs)
 
     @final
@@ -160,19 +166,10 @@ class XtbProc(GenericProc):
         """
         Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
 
-        Args:
-            job (ParallelJob): job to run
-            jobdir (str): path to the jobdir
-
-        Returns:
-            result (GsolvResult): result of the gsolv calculation
-            meta (MetaData): metadata about the calculation
-
-        result = {
-            "gsolv": None,
-            "energy_xtb_gas": None,
-            "energy_xtb_solv": None,
-        }
+        :param job (ParallelJob): ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir (str | Path): path to the jobdir
+        :param config (XTBJobConfig): XTB configuration
+        :return (tuple[GsolvResult, MetaData]): Tuple of (GsolvResult, MetaData)
         """
         result = GsolvResult()
         meta = MetaData(job.conf.name)
@@ -214,24 +211,11 @@ class XtbProc(GenericProc):
         """
         Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
 
-        Args:
-            job (ParallelJob): job to run
-            jobdir (str): path to the jobdir
-            filename (str, optional): filename to use for the coord file. Defaults to "xtb_rrho".
-
-        Returns:
-            result (dict[str, any]): result of the rrho calculation
-            meta (dict[str, str | bool | None]): metadata about the calculation
-
-        result = {
-            "energy": None, # contains the gibbs energy at given temperature (might be ZPVE if T = 0K)
-            "rmsd": None,
-            "gibbs": None,
-            "enthalpy": None,
-            "entropy": None,
-            "symmetry": None,
-            "symnum": None,
-        }
+        :param job (ParallelJob): job to run
+        :param jobdir (str | Path): path to the jobdir
+        :param config (RRHOJobConfig): RRHO configuration
+        :param filename (str): filename to use for the coord file. Defaults to "xtb_rrho".
+        :return (tuple[RRHOResult, MetaData]): result of the rrho calculation and metadata
         """
         # what is returned in the end
         result = RRHOResult()

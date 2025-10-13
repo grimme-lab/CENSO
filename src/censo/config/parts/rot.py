@@ -28,6 +28,12 @@ class RotConfig(BasePartConfig):
     @field_validator("freq")
     @classmethod
     def freq_must_be_valid(cls, v: list[float]):
+        """
+        Validate that frequencies are positive and non-empty.
+
+        :param v: The list of frequencies.
+        :return: The validated list.
+        """
         if len(v) == 0:
             raise ValueError("No frequencies provided.")
         if any(x <= 0 for x in v):
@@ -38,6 +44,12 @@ class RotConfig(BasePartConfig):
     @field_validator("freq", mode="before")
     @classmethod
     def freq_cast(cls, v: Any):
+        """
+        Cast string input to list of floats.
+
+        :param v: The input value.
+        :return: The casted list.
+        """
         if isinstance(v, str):
             parsed = ast.literal_eval(v)
             if not isinstance(parsed, list) or not all(
@@ -51,6 +63,11 @@ class RotConfig(BasePartConfig):
 
     @model_validator(mode="after")
     def func_must_be_known_in_prog(self):
+        """
+        Validate that the functional is known for the chosen program.
+
+        :return: The validated instance.
+        """
         prog: str = self.prog
         try:
             assert FUNCTIONALS[self.func][prog] is not None

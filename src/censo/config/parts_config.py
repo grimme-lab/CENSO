@@ -81,8 +81,10 @@ class PartsConfig(GenericConfig):
     @field_validator("paths", mode="before")
     def setup_paths_without_validation(cls, value: PathsConfig | dict[str, set[str]]):
         """
-        In case a specific instance is passed, we do not need to do anything. In case a dict is passed
-        we set up the model using model_construct to avoid immediate validation.
+        Set up paths without validation if a dict is passed.
+
+        :param value: The paths configuration or dict.
+        :return: The paths configuration instance.
         """
         if isinstance(value, dict):
             return PathsConfig.model_construct(**value)
@@ -90,7 +92,12 @@ class PartsConfig(GenericConfig):
 
     @model_validator(mode="after")
     def validate_sm_and_paths(self, info: ValidationInfo):
-        """Collective validation of solvent model availability and paths."""
+        """
+        Validate solvent models and paths for selected parts.
+
+        :param info: Validation info.
+        :return: The validated instance.
+        """
         context = info.context
         if context:
             parts_to_check = self._selected_parts(context)

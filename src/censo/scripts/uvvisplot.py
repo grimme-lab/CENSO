@@ -47,6 +47,11 @@ descr = """
 
 
 def get_args():
+    """
+    Parse command-line arguments.
+
+    :return: Parsed arguments.
+    """
     parser = argparse.ArgumentParser(
         description="",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -60,7 +65,7 @@ def get_args():
         default="wavenumber",
         type=str,
         choices=["wavenumber", "energy", "wavelength"],
-        help="Set the unit of the x-axis. Can be wavenumber [cm-1], energy [eV] or wavelength [nm]."
+        help="Set the unit of the x-axis. Can be wavenumber [cm-1], energy [eV] or wavelength [nm].",
     )
     parser.add_argument(
         "-start",
@@ -86,8 +91,7 @@ def get_args():
         required=False,
         default="UVVis-PLOT",
         type=str,
-        help="Set title of entire plot. If no title is required use "
-             "'<--title ''>'.",
+        help="Set title of entire plot. If no title is required use " "'<--title ''>'.",
     )
     parser.add_argument(
         "-lw",
@@ -131,6 +135,12 @@ def get_args():
 
 
 def read_data(inp):
+    """
+    Read data from input file.
+
+    :param inp: Input file path.
+    :return: Loaded data.
+    """
     cwd = os.getcwd()
     with open(os.path.join(cwd, inp), "r") as f:
         data = json.load(f)
@@ -139,29 +149,27 @@ def read_data(inp):
 
 
 def plot(data, args):
-    # Get plotting mode
+    """
+    Plot the UV-Vis spectrum.
+
+    :param data: The data to plot.
+    :param args: Parsed arguments.
+    :return: The figure.
+    """
     mode = args.mode
 
     # Select start value
     if args.start is not None:
         start = args.start
     else:
-        defaults = {
-            "wavelength": 300,
-            "wavenumber": 14000,
-            "energy": 1.8
-        }
+        defaults = {"wavelength": 300, "wavenumber": 14000, "energy": 1.8}
         start = defaults[mode]
 
     # Select end value
     if args.end is not None:
         end = args.end
     else:
-        defaults = {
-            "wavelength": 700,
-            "wavenumber": 33000,
-            "energy": 4.2
-        }
+        defaults = {"wavelength": 700, "wavenumber": 33000, "energy": 4.2}
         end = defaults[mode]
 
     assert end > start
@@ -200,25 +208,47 @@ def plot(data, args):
 
 
 def gaussian_signal(xrange, center_wl, eps_max, lw, mode="wavelength"):
-    # E = h ν = h c/λ
+    """
+    Generate gaussian signal.
+
+    :param xrange: Range of x values.
+    :param center_wl: Center wavelength.
+    :param eps_max: Maximum epsilon.
+    :param lw: Linewidth.
+    :param mode: Mode for units.
+    :return: The signal array.
+    """
     # <=> 1/λ = E / (h c)
     # 1 nm = 1e-7 cm
     # 1 cm-1 = 1e7 nm-1
     if mode == "wavelength":
-        return eps_max * np.exp(- ((1 / xrange - 1 / center_wl) / (lw * 1e7))**2)
+        return eps_max * np.exp(-(((1 / xrange - 1 / center_wl) / (lw * 1e7)) ** 2))
     elif mode == "wavenumber":
-        return eps_max * np.exp(- ((xrange - 1 / center_wl * 1e7) / lw)**2)
+        return eps_max * np.exp(-(((xrange - 1 / center_wl * 1e7) / lw) ** 2))
     elif mode == "energy":
-        return eps_max * np.exp(- ((xrange * COULOMB / (PLANCK * C) - 1 / center_wl * 1e9) / (lw * 1e2))**2)
+        return eps_max * np.exp(
+            -(
+                ((xrange * COULOMB / (PLANCK * C) - 1 / center_wl * 1e9) / (lw * 1e2))
+                ** 2
+            )
+        )
 
 
 def save_plot(fig, out):
+    """
+    Save the plot to file.
+
+    :param fig: The figure.
+    :param out: Output file path.
+    """
     cwd = os.getcwd()
     fig.savefig(os.path.join(cwd, out), format="pdf")
 
 
 def main():
-    print(descr)
+    """
+    Main execution function.
+    """
 
     # Parse cml args
     args = get_args()

@@ -11,11 +11,8 @@ def setup_logger(name: str) -> logging.Logger:
     """
     Initializes and configures a logger with the specified name.
 
-    Args:
-        name (str): The name of the logger.
-
-    Returns:
-        logging.Logger: The configured logger instance.
+    :param name: The name of the logger.
+    :return: The configured logger instance.
     """
     # Create a logger instance with the specified name
     logger = logging.getLogger(name)
@@ -38,7 +35,12 @@ def setup_logger(name: str) -> logging.Logger:
 
 
 def set_filehandler(path: str | Path):
-    """Set filehandler for all censo loggers, avoiding duplicates."""
+    """
+    Set filehandler for all censo loggers, avoiding duplicates.
+
+    :param path: Path to the log file.
+    :return: None
+    """
     filehandler_path = str(path)
     formatter = logging.Formatter(
         "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
@@ -62,11 +64,8 @@ def set_loglevel(loglevel: str) -> None:
     """
     Set the log level for all censo loggers.
 
-    Args:
-        loglevel (str): The log level to set.
-
-    Returns:
-        None
+    :param loglevel: The log level to set.
+    :return: None
     """
     global __loglevel
     __loglevel = getattr(logging, loglevel)

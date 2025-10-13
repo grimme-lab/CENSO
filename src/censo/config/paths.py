@@ -16,6 +16,10 @@ from ..utilities import h2
 
 
 class PathsConfig(BaseModel):
+    """
+    Configuration for paths to external programs.
+    """
+
     model_config = ConfigDict(
         str_strip_whitespace=True,
         use_attribute_docstrings=True,
@@ -53,16 +57,33 @@ class PathsConfig(BaseModel):
 
     @property
     def orcaversion(self) -> str:
+        """
+        Get the ORCA version string.
+
+        :return: The ORCA version.
+        """
         return self._orcaversion
 
     @field_validator("orca")
     def validate_orca(cls, value: str):
+        """
+        Validate the ORCA executable path.
+
+        :param value: The path to validate.
+        :return: The validated path.
+        """
         if not Path(value).is_file():
             raise ValueError(f"orca executable not found at {value}.")
         return value
 
     @field_validator("tm")
     def validate_turbomole(cls, value: str):
+        """
+        Validate the Turbomole binary directory.
+
+        :param value: The path to validate.
+        :return: The validated path.
+        """
         tmp = Path(value)
         if not all(
             (
@@ -78,12 +99,24 @@ class PathsConfig(BaseModel):
 
     @field_validator("xtb")
     def validate_xtb(cls, value: str):
+        """
+        Validate the XTB executable path.
+
+        :param value: The path to validate.
+        :return: The validated path.
+        """
         if not Path(value).is_file():
             raise ValueError(f"xtb executable not found at {value}.")
         return value
 
     @field_validator("cosmotherm")
     def validate_cosmotherm(cls, value: str):
+        """
+        Validate the COSMOtherm executable path.
+
+        :param value: The path to validate.
+        :return: The validated path.
+        """
         if not Path(value).is_file():
             raise ValueError(f"cosmotherm executable not found at {value}.")
         return value
@@ -92,6 +125,10 @@ class PathsConfig(BaseModel):
     def validate_cosmors(cls, value: str, info: ValidationInfo):
         """
         Validate cosmotherm and cosmorssetup.
+
+        :param value: The cosmorssetup value.
+        :param info: Validation info.
+        :return: The validated value.
         """
         if "cosmotherm" in info.data and info.data["cosmotherm"]:
             cosmotherm_path = Path(info.data["cosmotherm"])
@@ -112,6 +149,11 @@ class PathsConfig(BaseModel):
 
     @model_validator(mode="after")
     def get_orca_version(self):
+        """
+        Extract and set the ORCA version.
+
+        :return: The validated instance.
+        """
         # if orca was found try to determine orca version from the path (kinda hacky)
         if self.orca:
             match = re.search(r"(\d+\.\d+\.\d+)", str(self.orca))

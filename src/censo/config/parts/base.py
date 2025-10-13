@@ -28,7 +28,11 @@ class BasePartConfig(GenericConfig):
 
     @model_validator(mode="after")
     def tm_gcp_d4_bug_check(self):
-        """Check if the model has basis, func, and prog fields and get their values. Backcheck with GCP basis sets."""
+        """
+        Check if the model has basis, func, and prog fields and get their values. Backcheck with GCP basis sets.
+
+        :return: The validated instance.
+        """
         if all(s in self.__class__.model_fields for s in ["func", "basis", "prog"]):
             func: str = getattr(self, "func")
 

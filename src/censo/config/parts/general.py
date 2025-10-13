@@ -81,6 +81,11 @@ class GeneralConfig(BasePartConfig):
 
     @model_validator(mode="after")
     def solvent_must_be_valid_for_sm(self):
+        """
+        Validate that the solvent is available for the chosen solvation model.
+
+        :return: The validated instance.
+        """
         available_solvents = [
             solvent
             for solvent, keywords in SOLVENTS.items()

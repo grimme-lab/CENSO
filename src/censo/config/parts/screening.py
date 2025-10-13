@@ -34,6 +34,11 @@ class ScreeningConfig(BasePartConfig):
 
     @model_validator(mode="after")
     def func_must_be_known_in_prog(self):
+        """
+        Validate that the functional is known for the chosen program.
+
+        :return: The validated instance.
+        """
         prog: str = self.prog
         try:
             assert FUNCTIONALS[self.func][prog] is not None

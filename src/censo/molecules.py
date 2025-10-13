@@ -6,12 +6,20 @@ from .params import BOHR2ANG, QmProg
 
 @dataclass
 class Contributions:
+    """
+    Energy contributions for a molecule.
+    """
+
     energy: float = 0.0
     gsolv: float = 0.0
     grrho: float = 0.0
 
 
 class Atom(BaseModel):
+    """
+    Represents an atom with element and coordinates.
+    """
+
     element: str
     xyz: list[float]
 
@@ -24,7 +32,10 @@ class GeometryData:
 
     def __init__(self, name: str, xyz: list[str]):
         """
-        takes an identifier and the geometry lines from the xyz-file as input
+        Takes an identifier and the geometry lines from the xyz-file as input.
+
+        :param name: Name of the geometry.
+        :param xyz: List of xyz lines.
         """
         # name of the linked MoleculeData
         self.name: str = name
@@ -45,7 +56,9 @@ class GeometryData:
 
     def toorca(self) -> list[str]:
         """
-        method to convert the internal cartesian coordinates to a data format usable by the OrcaParser
+        Method to convert the internal cartesian coordinates to a data format usable by the OrcaParser.
+
+        :return: List of coordinate strings.
         """
         coord = []
         for atom in self.xyz:
@@ -55,7 +68,9 @@ class GeometryData:
 
     def tocoord(self) -> list[str]:
         """
-        method to convert the internal cartesian coordinates (self.xyz) to coord file format (for tm or xtb)
+        Method to convert the internal cartesian coordinates (self.xyz) to coord file format (for tm or xtb).
+
+        :return: List of coord lines.
         """
         coord = ["$coord\n"]
         for atom in self.xyz:
@@ -72,7 +87,10 @@ class GeometryData:
 
     def fromcoord(self, path: str) -> None:
         """
-        method to convert the content of a coord file to cartesian coordinates for the 'xyz' attribute
+        Method to convert the content of a coord file to cartesian coordinates for the 'xyz' attribute.
+
+        :param path: Path to the coord file.
+        :return: None
         """
         with open(path, "r") as file:
             lines = file.readlines()
@@ -89,7 +107,10 @@ class GeometryData:
 
     def fromxyz(self, path: str) -> None:
         """
-        Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute
+        Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute.
+
+        :param path: Path to the xyz file.
+        :return: None
         """
         with open(path, "r") as file:
             lines = file.readlines()
@@ -104,7 +125,9 @@ class GeometryData:
 
     def toxyz(self) -> list[str]:
         """
-        method to convert self.xyz to xyz-file format
+        Method to convert self.xyz to xyz-file format.
+
+        :return: List of xyz lines.
         """
         lines = [
             f"{self.nat}\n",
@@ -125,7 +148,12 @@ class MoleculeData:
 
     def __init__(self, name: str, xyz: list[str], charge: int = 0, unpaired: int = 0):
         """
-        takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor
+        Takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor.
+
+        :param name: Name of the molecule.
+        :param xyz: List of xyz lines.
+        :param charge: Charge of the molecule.
+        :param unpaired: Number of unpaired electrons.
         """
 
         # stores a name for printing and (limited) between-run comparisons
@@ -156,26 +184,47 @@ class MoleculeData:
 
     @property
     def energy(self) -> float:
-        """Current energy."""
+        """
+        Current energy.
+
+        :return: Energy value.
+        """
         return self.__energy
 
     @property
     def gsolv(self) -> float:
-        """Current gsolv."""
+        """
+        Current gsolv.
+
+        :return: Gsolv value.
+        """
         return self.__gsolv
 
     @property
     def grrho(self) -> float:
-        """Current grrho."""
+        """
+        Current grrho.
+
+        :return: Grrho value.
+        """
         return self.__grrho
 
     @property
     def gtot(self) -> float:
-        """Current energy+gsolv+grrho."""
+        """
+        Current energy+gsolv+grrho.
+
+        :return: Total free energy.
+        """
         return self.__energy + self.__gsolv + self.__grrho
 
     def update(self, contributions: Contributions):
-        """Update contributions."""
+        """
+        Update contributions.
+
+        :param contributions: Contributions to update with.
+        :return: None
+        """
         self.__energy = contributions.energy
         self.__gsolv = contributions.gsolv
         self.__grrho = contributions.grrho

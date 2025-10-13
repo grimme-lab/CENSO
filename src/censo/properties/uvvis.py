@@ -32,6 +32,11 @@ def uvvis(
     """
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :return: None
     """
     printf(h2("UVVIS"))
 
@@ -133,6 +138,14 @@ def _write_results(
 def jsonify(
     ensemble: EnsembleData, config: UVVisConfig, results: dict[str, UVVisResult]
 ):
+    """
+    Prepare UV/Vis results for JSON serialization.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: UVVisConfig object with UV/Vis configuration settings.
+    :param results: Dictionary of UVVisResult objects for each conformer.
+    :return: Dictionary ready for JSON serialization.
+    """
     per_conf: Callable[
         [MoleculeData],
         dict[

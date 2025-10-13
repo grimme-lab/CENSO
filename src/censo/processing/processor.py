@@ -96,9 +96,10 @@ class GenericProc:
         ],
     ) -> Callable[..., tuple[T, MetaData]]:
         """
-        Wrapper function to manager resources and create job directory.
-        Takes a callable as input which returns a tuple (results and metadata),
-        and returns a the wrapped function.
+        Wrapper function to manage resources and create job directory.
+
+        :param f: Callable that returns a tuple (results and metadata).
+        :return: The wrapped function.
         """
 
         @functools.wraps(f)
@@ -126,7 +127,11 @@ class GenericProc:
         return wrapper
 
     def __init__(self, workdir: Path):
-        """QM processor base class containing only xtb-related functions."""
+        """
+        QM processor base class containing only xtb-related functions.
+
+        :param workdir: Working directory.
+        """
         self._workdir: Path = workdir
         self.stop_event: Event | None = None
 
@@ -137,14 +142,10 @@ class GenericProc:
         """
         Make a call to an external program and write output into outputfile.
 
-        Args:
-            call (list): list containing the call args to the external program
-            outputpath (str): path to the outputfile
-            jobdir (str): path to the jobdir
-
-        Returns:
-            returncode (int): returncode of the external program
-            errors (str): stderr output
+        :param call: List containing the call args to the external program.
+        :param outputpath: Path to the outputfile.
+        :param jobdir: Path to the jobdir.
+        :return: Tuple of (returncode of the external program, stderr output).
         """
         # call external program and write output into outputfile
         with open(outputpath, "w", newline=None) as outputfile:
@@ -197,7 +198,13 @@ class GenericProc:
 
     @final
     def _get_sym_num(self, sym: str | None = None, linear: bool = False) -> int:
-        """Get rotational symmetry number from Schoenfließ symbol"""
+        """
+        Get rotational symmetry number from Schoenfließ symbol.
+
+        :param sym: Symmetry symbol.
+        :param linear: Whether the molecule is linear.
+        :return: Symmetry number.
+        """
         if sym is None:
             sym = "c1"
         symnum = 1
@@ -218,6 +225,15 @@ class GenericProc:
     def sp(
         self, job: ParallelJob, jobdir: Path | str, config: SPJobConfig, **kwargs
     ) -> tuple[SPResult, MetaData]:
+        """
+        Perform single-point calculation.
+
+        :param job: Parallel job.
+        :param jobdir: Job directory.
+        :param config: SP configuration.
+        :param kwargs: Additional arguments.
+        :return: Tuple of (SP result, metadata).
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -225,4 +241,13 @@ class GenericProc:
     def opt(
         self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
     ) -> tuple[OptResult, MetaData]:
+        """
+        Perform geometry optimization.
+
+        :param job: Parallel job.
+        :param jobdir: Job directory.
+        :param config: Optimization configuration.
+        :param kwargs: Additional arguments.
+        :return: Tuple of (optimization result, metadata).
+        """
         raise NotImplementedError

@@ -541,6 +541,13 @@ class OrcaProc(QmProc):
     @final
     @GenericProc._run
     def sp(self, *args, **kwargs):
+        """
+        Perform single-point calculation.
+
+        :param args: Arguments.
+        :param kwargs: Keyword arguments.
+        :return: Tuple of (SP result, metadata).
+        """
         return self._sp(*args, **kwargs)
 
     @final
@@ -551,15 +558,10 @@ class OrcaProc(QmProc):
         """
         Calculates the solvation free enthalpy of a conformer using ORCA.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            config:
-
-        Returns:
-            result (GsolvResult): results of the calculation
-            meta (MetaData): metadata about the job
-
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: SP configuration
+        :return: Tuple of (GsolvResult, MetaData)
         """
         # Check required settings
 
@@ -613,15 +615,11 @@ class OrcaProc(QmProc):
         Geometry optimization using ORCA optimizer.
         Note that solvation in handled here always implicitly.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            config:
-            filename (optional): name of the input file
-
-        Returns:
-            result (OptResult): results of the calculation
-            meta (MetaData): metadata about the job
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: Optimization configuration
+        :param filename: name of the input file
+        :return: Tuple of (OptResult, MetaData)
         """
         # prepare result
         result = OptResult()
@@ -726,14 +724,10 @@ class OrcaProc(QmProc):
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            config:
-
-        Returns:
-            result (OptResult): results of the calculation
-            meta (MetaData): metadata about the job
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: XTB optimization configuration
+        :return: Tuple of (OptResult, MetaData)
         """
         # NOTE: some "intuitivity problems":
         # the geometry of the conformer is written into a coord file and also into an xyz-file to be used by orca
@@ -951,14 +945,10 @@ class OrcaProc(QmProc):
             in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
             to tuple to be serializable.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            config:
-
-        Returns:
-            result (NMRResult): results of the calculation
-            meta (MetaData): metadata about the job
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: NMR configuration
+        :return: Tuple of (NMRResult, MetaData)
         """
         # Set results
         result = NMRResult()
@@ -1068,6 +1058,12 @@ class OrcaProc(QmProc):
     ) -> tuple[UVVisResult, MetaData]:
         """
         Run a single-point to calculate the oscillator strengths and excitation wavelengths.
+
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: UV-Vis configuration
+        :param filename: name of the input file
+        :return: Tuple of (UVVisResult, MetaData)
         """
         # Set results
         result = UVVisResult()

@@ -43,20 +43,32 @@ class EnsembleData:
     @property
     def conformers(self):
         """
-        Returns the conformers list. Includes a check wether there are any conformers left.
+        Returns the conformers list. Includes a check whether there are any conformers left.
+
+        :return: List of conformers.
         """
         # TODO - no checks for now
         return self.__conformers
 
     @conformers.setter
     def conformers(self, confs):
+        """
+        Set the conformers list.
+
+        :param confs: List of MoleculeData instances.
+        :raises ValueError: If not all objects are MoleculeData instances.
+        """
         if not all(isinstance(conf, MoleculeData) for conf in confs):
             raise ValueError("All objects need to be MoleculeData instances.")
         self.__conformers = confs
 
     @property
     def rem(self) -> list[MoleculeData]:
-        """Returns the list of removed conformers."""
+        """
+        Returns the list of removed conformers.
+
+        :return: List of removed conformers.
+        """
         return self.__rem
 
     def read_output(self, outpath: str | Path) -> None:
@@ -65,11 +77,8 @@ class EnsembleData:
         based on names. If a conformer name does not exist in the current ensemble it will be ignored. If a conformer
         does not exist in the output data RuntimeError will be raised.
 
-        Args:
-            outpath (str | Path): Path to the output file.
-
-        Returns:
-            None
+        :param outpath: Path to the output file.
+        :return: None
         """
 
         data = json.loads(Path(outpath).read_text())
@@ -101,15 +110,12 @@ class EnsembleData:
         """
         Read ensemble input file. Should be a file in xyz-file format with all the conformers in consecutive order.
 
-        Args:
-            input_path (str): Path to the ensemble input file.
-            charge (int, optional): Sets the charge of all molecules to this value. Defaults to 0.
-            unpaired (int, optional): Sets the unpaired electrons of all molecules to this value. Defaults to 0.
-            nconf (int, optional): Number of conformers to consider. Defaults to None, so all conformers are read.
-            append (bool, optional): If True, the conformers will be appended to the existing ensemble. Defaults to False.
-
-        Returns:
-            None
+        :param input_path: Path to the ensemble input file.
+        :param charge: Sets the charge of all molecules to this value. Defaults to 0.
+        :param unpaired: Sets the unpaired electrons of all molecules to this value. Defaults to 0.
+        :param nconf: Number of conformers to consider. Defaults to None, so all conformers are read.
+        :param append: If True, the conformers will be appended to the existing ensemble. Defaults to False.
+        :return: None
         """
         # If $coord in file => tm format, needs to be converted to xyz
         with open(input_path, "r") as inp:
@@ -152,6 +158,9 @@ class EnsembleData:
         """
         Calculate populations for boltzmann distribution of ensemble at given
         temperature given values for free enthalpy.
+
+        :param temperature: Temperature for Boltzmann distribution.
+        :return: Dictionary of conformer names to populations.
         """
         # find lowest gtot value
         minfree: float = min(conf.gtot for conf in self.conformers)
@@ -174,7 +183,12 @@ class EnsembleData:
         return populations
 
     def update_contributions(self, contributions_dict: dict[str, Contributions]):
-        """Update contributions for all conformers in the ensemble. Convenience wrapper to call update on all conformers with correct mapping."""
+        """
+        Update contributions for all conformers in the ensemble. Convenience wrapper to call update on all conformers with correct mapping.
+
+        :param contributions_dict: Dictionary mapping conformer names to Contributions.
+        :raises AssertionError: If contributions dict is incomplete.
+        """
         assert all(
             conf.name in contributions_dict for conf in self.conformers
         ), "Attempted to pass incomplete contributions dict to update_contributions."
@@ -183,17 +197,11 @@ class EnsembleData:
 
     def __setup_conformers(self, input_path: str) -> list[MoleculeData]:
         """
-        open ensemble input
-        split into conformers
-        create MoleculeData objects out of coord input
-        read out energy from xyz file if possible
+        Open ensemble input, split into conformers, create MoleculeData objects out of coord input, read out energy from xyz file if possible.
         In principle this can also read xyz-files with molecules of different sizes.
 
-        Args:
-            input_path (str): Path to the ensemble input file.
-
-        Returns:
-            list[MoleculeData]: A list of MoleculeData objects.
+        :param input_path: Path to the ensemble input file.
+        :return: A list of MoleculeData objects.
         """
         # open ensemble input
         with open(input_path, "r") as file:
@@ -261,11 +269,8 @@ class EnsembleData:
         Remove conformers from further consideration if 'cond' evaluates to True.
         The removed conformers will be stored in self.rem.
 
-        Args:
-            cond (Callable[[MoleculeData], bool]): Condition to check for the conf objects.
-
-        Returns:
-            None
+        :param cond: Condition to check for the conf objects.
+        :return: None
         """
         filtered = list(filter(cond, self.conformers))
         for conf in filtered:
@@ -278,19 +283,32 @@ class EnsembleData:
     def dump_xyz(self, file: Path):
         """
         Dump the current ensemble in xyz-format.
+
+        :param file: Path to write the xyz file.
+        :return: None
         """
         text = "".join(reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self]))
         file.write_text(text)
 
     def dump_rem_xyz(self, file: Path):
-        """Dump the conformers removed via 'remove_conformers' in xyz-format."""
+        """
+        Dump the conformers removed via 'remove_conformers' in xyz-format.
+
+        :param file: Path to write the xyz file.
+        :return: None
+        """
         text = "".join(
             reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self.rem])
         )
         file.write_text(text)
 
     def dump_json(self, file: Path):
-        """Dump the ensemble with most recent rankings and values in json-format."""
+        """
+        Dump the ensemble with most recent rankings and values in json-format.
+
+        :param file: Path to write the json file.
+        :return: None
+        """
         dump = {
             conf.name: {
                 "energy": conf.energy,

@@ -19,7 +19,13 @@ logger = setup_logger(__name__)
 
 
 def print_validation_errors(e: ValidationError) -> None:
-    """Prints Pydantic validation errors in a human-readable format."""
+    """
+    Print Pydantic validation errors in a human-readable format.
+
+    :param e: The ValidationError instance containing the errors.
+    :return: None
+    """
+    printf(f"Found {e.error_count()} validation error(s):\n")
     printf(f"Found {e.error_count()} validation error(s):\n")
     for error in e.errors():
         field = " -> ".join(map(str, error["loc"]))
@@ -41,6 +47,7 @@ def print_validation_errors(e: ValidationError) -> None:
             printf(f"    Your input: {user_input_str}")
         printf("-" * 20)
 
+
 class Factory[T]:
     """
     Abstract object factory class.
@@ -51,18 +58,22 @@ class Factory[T]:
     @classmethod
     def register_builder(cls, name: str, builder: Callable[..., T]) -> None:
         """
-        Registers a builder.
+        Register a builder.
 
-        Args:
-            name (str): name of the builder.
-            builder (Callable[..., T]): type of the builder.
+        :param name: Name of the builder.
+        :param builder: The builder callable.
+        :return: None
         """
+        cls._registry[name] = builder
         cls._registry[name] = builder
 
     @classmethod
     def create(cls, name: str, *args, **kwargs) -> T:
         """
-        Generic factory method
+        Generic factory method.
+
+        :param name: Name of the builder to create.
+        :return: The created instance.
         """
         if name not in cls._registry:
             raise TypeError(f"No type was found for '{name}' in {list(cls._registry)}.")
@@ -71,6 +82,10 @@ class Factory[T]:
 
 
 class DataDump(BaseModel):
+    """
+    Model for dumping data with part name and settings.
+    """
+
     part_name: str
     data: dict[
         str,
@@ -91,15 +106,12 @@ def printf(*args, **kwargs):
 
 def frange(start: float, end: float, step: float = 1) -> list[float]:
     """
-    Creates a range of floats, adding 'step' to 'start' while it's less or equal than 'end'.
+    Create a range of floats, adding 'step' to 'start' while it's less or equal than 'end'.
 
-    Args:
-        start (float): The start of the range.
-        end (float): The end of the range.
-        step (float, optional): The step size. Defaults to 1.
-
-    Returns:
-        list[float]: The list of floats.
+    :param start: The start of the range.
+    :param end: The end of the range.
+    :param step: The step size. Defaults to 1.
+    :return: The list of floats.
     """
     result = []
     current = start
@@ -113,15 +125,12 @@ def t2x(
     path: str, writexyz: bool = False, outfile: str = "original.xyz"
 ) -> tuple[list[str], int, str]:
     """
-    convert TURBOMOLE coord file to xyz data and/or write *.xyz output
+    Convert TURBOMOLE coord file to xyz data and/or write *.xyz output.
 
-     - path [abs. path] either to dir or file directly
-     - writexyz [bool] default=False, directly write to outfile
-     - outfile [filename] default = 'original.xyz' filename of xyz file which
-                        is written into the same directory as
-     returns:
-     - coordxyz --> list of strings including atom x y z information
-     - number of atoms
+    :param path: Absolute path either to dir or file directly.
+    :param writexyz: If True, directly write to outfile. Defaults to False.
+    :param outfile: Filename of xyz file which is written into the same directory as path.
+    :return: Tuple of (coordxyz list of strings, number of atoms, output path).
     """
     # read lines from coord file
     with open(path, "r", newline=None) as f:
@@ -164,7 +173,12 @@ def t2x(
 
 
 def check_for_float(line: str) -> float | None:
-    """Go through line and check for float, return first float"""
+    """
+    Go through line and check for float, return first float.
+
+    :param line: The line to check.
+    :return: The first float found, or None.
+    """
     elements = line.strip().split()
     value = None
     for element in elements:
@@ -179,9 +193,10 @@ def check_for_float(line: str) -> float | None:
 
 def timeit(f: Callable[..., None]) -> Callable[..., float]:
     """
-    time function execution
-    timed function should have no return value, since it is lost in the process
-    calling a decorated function returns the time spent for it's execution
+    Time function execution.
+
+    :param f: The function to time (should have no return value).
+    :return: A wrapper that returns the execution time.
     """
 
     @functools.wraps(f)
@@ -196,30 +211,20 @@ def timeit(f: Callable[..., None]) -> Callable[..., float]:
 
 def h1(text: str) -> str:
     """
-    Creates a formatted header of type 1:
-        ---- text ----
+    Create a formatted header of type 1.
 
-    Args:
-        text: The text to be formatted.
-
-    Returns:
-        The formatted header.
+    :param text: The text to be formatted.
+    :return: The formatted header.
     """
     return "\n" + f" {text} ".center(PLENGTH, "-") + "\n"
 
 
 def h2(text: str) -> str:
     """
-    Creates a formatted header of type 2:
-        ----------
-           text
-        ----------
+    Create a formatted header of type 2.
 
-    Args:
-        text: The text to be formatted.
-
-    Returns:
-        The formatted header.
+    :param text: The text to be formatted.
+    :return: The formatted header.
     """
     return f"""
 {'-' * PLENGTH}

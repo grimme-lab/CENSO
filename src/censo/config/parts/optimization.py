@@ -58,6 +58,11 @@ class OptimizationConfig(BasePartConfig):
 
     @model_validator(mode="after")
     def func_must_be_known_in_prog(self):
+        """
+        Validate that the functional is known for the chosen program.
+
+        :return: The validated instance.
+        """
         prog: str = self.prog
         try:
             assert FUNCTIONALS[self.func][prog] is not None
@@ -71,6 +76,11 @@ class OptimizationConfig(BasePartConfig):
 
     @model_validator(mode="after")
     def constraints_only_with_ancopt(self):
+        """
+        Validate that constraints are only used with ANCOPT.
+
+        :return: The validated instance.
+        """
         if self.constrain and not self.xtb_opt:
             raise ValueError(
                 "Constraints can currently only be used with ANCOPT. Enable xtb_opt to use constraints."

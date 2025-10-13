@@ -44,6 +44,11 @@ class NMRConfig(BasePartConfig):
 
     @model_validator(mode="after")
     def func_must_be_known_in_prog(self):
+        """
+        Validate that the functional is known for the chosen program.
+
+        :return: The validated instance.
+        """
         prog: str = self.prog
         try:
             assert FUNCTIONALS[self.func][prog] is not None
@@ -58,6 +63,12 @@ class NMRConfig(BasePartConfig):
     @field_validator("active_nuclei")
     @classmethod
     def active_nuclei_must_be_available(cls, v: str):
+        """
+        Validate that active nuclei are available.
+
+        :param v: The nuclei string.
+        :return: The validated nuclei string.
+        """
         nuclei = [s.lower() for s in v.split(",")]
         if not all(n in ["h", "c", "f", "si", "p"] for n in nuclei):
             raise ValueError(

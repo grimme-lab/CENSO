@@ -33,6 +33,12 @@ def prescreening(
     solvation contributions calculated using xtb.
 
     The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :param cut: Whether to apply cutting conditions.
+    :return: None
     """
     printf(h2("PRESCREENING"))
 
@@ -247,6 +253,14 @@ def jsonify(
     config: PrescreeningConfig,
     fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
 ):
+    """
+    Convert ensemble data to JSON format for prescreening results.
+
+    :param ensemble: EnsembleData object.
+    :param config: PrescreeningConfig object.
+    :param fields: Optional callable to customize fields.
+    :return: JSON-serializable dictionary.
+    """
     per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
         lambda conf: {
             conf.name: {

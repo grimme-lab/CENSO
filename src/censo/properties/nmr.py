@@ -32,6 +32,11 @@ def nmr(
     """
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :return: None
     """
     printf(h2("NMR"))
 
@@ -78,6 +83,8 @@ def read_chemeq() -> dict[int, list[int]]:
     """
     Read chemical equivalent nuclei from anmr_nucinfo.
     NOTE: crest starts counting from 1. In CENSO, we're counting from 0.
+
+    :return: dict[int, list[int]]
     """
     lines = Path("anmr_nucinfo").read_text().split("\n")
     atoms = []
@@ -195,6 +202,14 @@ def _write_results(
 
 
 def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRResult]):
+    """
+    Prepare NMR results for JSON serialization.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: NMRConfig object with NMR configuration settings.
+    :param results: Dictionary of NMRResult objects for each conformer.
+    :return: Dictionary ready for JSON serialization.
+    """
     per_conf: Callable[
         [MoleculeData],
         dict[

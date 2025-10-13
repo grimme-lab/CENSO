@@ -70,7 +70,13 @@ useit = """\
 
 
 def checkval(value):
-    """check if value larger than 0.0 or smaller than 1.0"""
+    """
+    Check if value is between 0.0 and 1.0.
+
+    :param value: The value to check.
+    :return: The float value if valid.
+    :raises argparse.ArgumentTypeError: If value is out of range.
+    """
     x = float(value)
     if x < 0 or x > 1.0:
         raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
@@ -78,8 +84,14 @@ def checkval(value):
 
 
 def cml(descr):
-    """Get args object from commandline interface.
-    Needs argparse module."""
+    """
+    Get args object from commandline interface.
+
+    Needs argparse module.
+
+    :param descr: Description for the parser.
+    :return: Tuple of parsed args and defaults.
+    """
     parser = argparse.ArgumentParser(
         description="",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -278,7 +290,15 @@ def cml(descr):
 
 
 def readinput(filename, ppm, intensit, number):
-    """read input from given filename into x and y"""
+    """
+    Read input from given filename into ppm and intensit lists.
+
+    :param filename: Path to the input file.
+    :param ppm: List to append ppm values.
+    :param intensit: List to append intensity values.
+    :param number: Number (unused).
+    :return: Updated ppm and intensit lists.
+    """
     with open(filename, "r") as inp:
         data = inp.readlines()
     x = []
@@ -292,7 +312,12 @@ def readinput(filename, ppm, intensit, number):
 
 
 def axdefaultsettings(ax, args):
-    ax.spines["right"].set_visible(False)
+    """
+    Set default settings for the axis.
+
+    :param ax: The matplotlib axis.
+    :param args: Parsed arguments.
+    """
     ax.spines["top"].set_visible(False)
     ax.spines["left"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
@@ -313,6 +338,14 @@ def axdefaultsettings(ax, args):
 
 
 def equal_ticks(axes1, axes2, args):
+    """
+    Equalize ticks between two axes.
+
+    :param axes1: First axis.
+    :param axes2: Second axis.
+    :param args: Parsed arguments.
+    :return: Modified axes1 and axes2.
+    """
     xticksax1 = abs(axes1.get_xticks()[0] - axes1.get_xticks()[1])
     xticksax2 = abs(axes2.get_xticks()[0] - axes2.get_xticks()[1])
     if round(xticksax1, 2) >= round(xticksax2, 2):
@@ -344,7 +377,9 @@ def equal_ticks(axes1, axes2, args):
 
 
 def debug():
-    print("    Current python version: {}".format(version_info))
+    """
+    Print debug information and exit.
+    """
     print("    {}".format(plt.__file__))
     print("    {}".format(gridspec.__file__))
     print("    {}".format(np.__file__))
@@ -352,7 +387,11 @@ def debug():
 
 
 def main():
-    print(descr)  ### Program description
+    """
+    Main execution function.
+
+    :return: None
+    """
     args, args_defaults = cml(descr)
     print("    provided arguments: {}".format(" ".join(sysargv)))
 

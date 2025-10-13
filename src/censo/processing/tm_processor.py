@@ -519,6 +519,13 @@ class TmProc(QmProc):
 
     @GenericProc._run
     def sp(self, *args, **kwargs):
+        """
+        Perform single-point calculation.
+
+        :param args: Arguments.
+        :param kwargs: Keyword arguments.
+        :return: Tuple of (SP result, metadata).
+        """
         return self._sp(*args, **kwargs)
 
     @GenericProc._run
@@ -531,13 +538,10 @@ class TmProc(QmProc):
         """
         Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-
-        Returns:
-            result (dict[str, any]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: SP configuration
+        :return: Tuple of (GsolvResult, MetaData)
         """
         # what is returned in the end
         result = GsolvResult()
@@ -772,14 +776,11 @@ class TmProc(QmProc):
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            filename: name of the input file
-
-        Returns:
-            result (dict[str, any]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: XTB optimization configuration
+        :param filename: name of the input file
+        :return: Tuple of (OptResult, MetaData)
         """
         result = OptResult()
         meta = MetaData(job.conf.name)
@@ -941,6 +942,13 @@ class TmProc(QmProc):
 
     @GenericProc._run
     def opt(self, *args, **kwargs):
+        """
+        Perform geometry optimization.
+
+        :param args: Arguments.
+        :param kwargs: Keyword arguments.
+        :return: Tuple of (OptResult, MetaData).
+        """
         raise NotImplementedError(
             "Pure TURBOMOLE geometry optimization not available yet."
         )
@@ -961,13 +969,10 @@ class TmProc(QmProc):
             in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
             to tuple to be serializable.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-
-        Returns:
-            result (dict[str, any]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: NMR configuration
+        :return: Tuple of (NMRResult, MetaData)
         """
         # Set results
         result = NMRResult()
@@ -1117,6 +1122,14 @@ class TmProc(QmProc):
         jobdir: str,
         config: RotJobConfig,
     ):
+        """
+        Perform rotational calculation.
+
+        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param jobdir: path to the job directory
+        :param config: Rotational configuration
+        :return: Tuple of (RotResult, MetaData)
+        """
         # Set results
         result = RotResult()
         meta = MetaData(job.conf.name)

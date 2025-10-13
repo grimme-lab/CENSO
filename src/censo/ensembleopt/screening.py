@@ -40,6 +40,12 @@ def screening(
     Basically consists of two parts:
         - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
         - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :param cut: Whether to apply cutting conditions.
+    :return: None
     """
     printf(h2("SCREENING"))
 
@@ -399,6 +405,14 @@ def jsonify(
     config: ScreeningConfig,
     fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
 ):
+    """
+    Convert ensemble data to JSON format for screening results.
+
+    :param ensemble: EnsembleData object.
+    :param config: ScreeningConfig object.
+    :param fields: Optional callable to customize fields.
+    :return: JSON-serializable dictionary.
+    """
     per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
         lambda conf: {
             conf.name: {

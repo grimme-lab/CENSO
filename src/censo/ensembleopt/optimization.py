@@ -46,6 +46,12 @@ def optimization(
     by calculating the thermodynamics of the optimized geometries
 
     Alternatively just run the complete geometry optimization for every conformer with xtb as driver (decide with 'macrocycles')
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :param cut: Whether to apply cutting conditions during optimization.
+    :return: None
     """
     printf(h2("OPTIMIZATION"))
 
@@ -174,7 +180,7 @@ def _macrocycle_opt(
         if config.general.ignore_failed:
             ensemble.remove_conformers(
                 lambda conf: conf in unconverged_ensemble.conformers
-                and conf.name not in results_rrho
+                and conf.name not in results
             )
             unconverged_ensemble.remove_conformers(
                 lambda conf: conf.name not in results
@@ -435,6 +441,14 @@ def jsonify(
     config: OptimizationConfig,
     fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
 ):
+    """
+    Convert ensemble data to JSON format for optimization results.
+
+    :param ensemble: EnsembleData object.
+    :param config: OptimizationConfig object.
+    :param fields: Optional callable to customize fields.
+    :return: JSON-serializable dictionary.
+    """
     per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
         lambda conf: {
             conf.name: {
