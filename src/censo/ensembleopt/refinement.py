@@ -9,8 +9,7 @@ from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, timeit, DataDump
-from ..config import PartsConfig
-from ..config.parts import ScreeningConfig
+from ..config import PartsConfig, RefinementConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..config.parallel_config import ParallelConfig
 from ..ensemble import EnsembleData
@@ -29,6 +28,12 @@ def refinement(
 ):
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param parallel_config: ParallelConfig object for parallel execution.
+    :param cut: Whether to apply cutting conditions.
+    :return: None
     """
     printf(h2("REFINEMENT"))
 
@@ -254,7 +259,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
 
     # Additionally, write results in json format
     Path("3_REFINEMENT.json").write_text(
-        json.dumps(jsonify(ensemble, config.screening), indent=4)
+        json.dumps(jsonify(ensemble, config.refinement), indent=4)
     )
 
     ensemble.dump_xyz(Path("3_REFINEMENT.xyz"))
@@ -263,9 +268,17 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
 # TODO: generalize this
 def jsonify(
     ensemble: EnsembleData,
-    config: ScreeningConfig,
+    config: RefinementConfig,
     fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
 ):
+    """
+    Convert ensemble data to JSON format for refinement results.
+
+    :param ensemble: EnsembleData object.
+    :param config: RefinementConfig object.
+    :param fields: Optional callable to customize fields.
+    :return: JSON-serializable dictionary.
+    """
     per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
         lambda conf: {
             conf.name: {
