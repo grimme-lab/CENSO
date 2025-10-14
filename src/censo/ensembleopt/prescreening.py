@@ -40,9 +40,6 @@ def prescreening(
     :param config: PartsConfig object with configuration settings.
     :param parallel_config: ParallelConfig object for parallel execution.
     :param cut: Whether to apply cutting conditions.
-    :param executor: Optional ProcessPoolExecutor.
-    :param manager: Optional SyncManager.
-    :param resource_monitor: Optional ResourceMonitor.
     :return: None
     """
     printf(h2("PRESCREENING"))

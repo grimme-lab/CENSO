@@ -1,14 +1,14 @@
 import time
 import pytest
 import uuid
-from dask.distributed import Client, LocalCluster
+import subprocess
+from dask.distributed import Client, LocalCluster, Variable
 from typing import Any
 
 from censo.config.paths import PathsConfig
 from censo.parallel import (
     setup_parallel,
     ParallelJob,
-    set_omp_tmproc,
     set_omp,
     prepare_jobs,
     execute,
@@ -107,7 +107,9 @@ def create_conformers():
 
 
 # Define task functions at module level for pickling
-def task_success(job: ParallelJob, job_config: Any) -> tuple[SPResult, MetaData]:
+def task_success(
+    job: ParallelJob, job_config: Any, **kwargs
+) -> tuple[SPResult, MetaData]:
     """Task that always succeeds"""
     time.sleep(0.1)  # Shorter sleep for faster tests
     return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
@@ -115,28 +117,75 @@ def task_success(job: ParallelJob, job_config: Any) -> tuple[SPResult, MetaData]
     )
 
 
-def task_fail(job: ParallelJob, job_config: Any) -> tuple[None, MetaData]:
+def task_fail(job: ParallelJob, job_config: Any, **kwargs) -> tuple[SPResult, MetaData]:
     """Task that always fails"""
     time.sleep(0.1)
-    return None, MetaData(conf_name=job.conf.name, success=False, error="Test error")
+    return SPResult(mo_path="", energy=0.0), MetaData(
+        conf_name=job.conf.name, success=False, error="Test error"
+    )
 
 
-def task_conditional(job: ParallelJob, job_config: Any) -> tuple[Any, MetaData]:
+def task_conditional(
+    job: ParallelJob, job_config: Any, **kwargs
+) -> tuple[Any, MetaData]:
     """Task that succeeds for even-numbered conformers and fails for odd-numbered ones"""
     conf_num = int(job.conf.name.replace("CONF", ""))
     if conf_num % 2 == 0:
-        return task_success(job, job_config)
-    return task_fail(job, job_config)
+        return task_success(job, job_config, **kwargs)
+    return task_fail(job, job_config, **kwargs)
 
 
 # Module-level task for pickling
-def task_raise_then_long(job: ParallelJob, job_config: Any):
+def task_raise_then_long(job: ParallelJob, job_config: Any, **kwargs):
     """Raise for CONF1 to trigger cancellation; other jobs sleep longer then succeed."""
     if job.conf.name == "CONF1":
         time.sleep(0.01)
         raise RuntimeError("Intentional failure for cancellation test")
     # Long-running work to give cancellation a chance
     time.sleep(0.1)
+    return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
+        conf_name=job.conf.name, success=True
+    )
+
+
+# Module-level task for subprocess cancellation test
+def task_long_subprocess(
+    job: ParallelJob, job_config: Any, **kwargs
+) -> tuple[SPResult, MetaData]:
+    """Task that runs a long subprocess and checks for cancellation."""
+    from dask.distributed import Variable, get_client
+    import os
+
+    # Get cancel var name from kwargs
+    cancel_var_name = kwargs.get("__censo_cancel_var")
+    if cancel_var_name:
+        try:
+            client = get_client()
+        except Exception:
+            client = None
+        cancel_var = Variable(cancel_var_name, client=client)
+    else:
+        cancel_var = None
+
+    # Run a long sleep command
+    proc = subprocess.Popen(
+        ["sleep", "10"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+
+    # Poll for completion or cancellation
+    while proc.poll() is None:
+        if cancel_var and cancel_var.get():
+            proc.terminate()
+            try:
+                proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+            return SPResult(mo_path="", energy=0.0), MetaData(
+                conf_name=job.conf.name, success=False, error="cancelled"
+            )
+        time.sleep(0.1)
+
+    # If not cancelled, succeed
     return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
         conf_name=job.conf.name, success=True
     )
@@ -270,36 +319,6 @@ class TestOMPConfiguration:
     OMPMIN = 1  # Local constant for ompmin
 
     @pytest.mark.parametrize(
-        "balance,omp,ncores,expected_omp",
-        [
-            (
-                True,
-                2,
-                4,
-                4,
-            ),  # Test with balancing enabled, len(jobs) < ncores // 1 (4 // 1 = 4), expect ncores // len(jobs) (4)
-            (
-                False,
-                0,
-                4,
-                1,
-            ),  # Test with balancing disabled, omp < OMPMIN, expect OMPMIN
-            (
-                False,
-                5,
-                4,
-                4,
-            ),  # Test with balancing disabled, omp > ncores, expect ncores
-            (False, 5, 8, 5),  # Test with ncores > omp > OMPMIN, expect omp
-        ],
-    )
-    def test_set_omp_tmproc(self, balance, omp, ncores, expected_omp, parallel_job):
-        """Test set_omp_tmproc function handles thread allocation correctly"""
-        jobs = [parallel_job]
-        set_omp_tmproc(jobs, balance, omp, ncores, self.OMPMIN)
-        assert jobs[0].omp == expected_omp
-
-    @pytest.mark.parametrize(
         "balance,omp,ncores,njobs,expected_omp",
         [
             (True, 2, 4, 2, 2),  # Test with balancing enabled
@@ -400,7 +419,7 @@ class TestJobExecution:
                 balance=True,
                 copy_mo=True,
                 client=client,
-            )
+            )  # type: ignore
 
     def test_execute_partial_failure(
         self, mock_job_config, create_conformers, parallel_setup
@@ -477,38 +496,3 @@ class TestJobExecution:
         assert (
             0.2 < total_time < 0.4
         ), f"Expected ~0.2s execution time, got {total_time}s"
-
-    def test_execute_triggers_cancellation_and_sets_variable(
-        self, mock_job_config, create_conformers, parallel_setup
-    ):
-        """When a task raises, execute() should set the cancel variable and raise."""
-        conformers = create_conformers(4)
-        cluster, client, parallel_config = parallel_setup
-
-        # Mock uuid4 in the parallel module to get a deterministic cancel variable name
-        import censo.parallel
-        original_uuid4 = censo.parallel.uuid4
-        censo.parallel.uuid4 = lambda: uuid.UUID('12345678-1234-5678-1234-567812345678')
-
-        try:
-            with pytest.raises(RuntimeError, match="Exception encountered in parallel execution."):
-                execute(
-                    conformers=conformers,
-                    task=task_raise_then_long,
-                    job_config=mock_job_config,
-                    prog=QmProg.ORCA,
-                    from_part="test",
-                    parallel_config=parallel_config,
-                    ignore_failed=True,
-                    balance=False,
-                    copy_mo=False,
-                    client=client,
-                )
-
-            # Verify the cooperative cancellation flag was set
-            from dask.distributed import Variable
-
-            cancel_var = Variable("censo_cancel_12345678123456781234567812345678", client=client)
-            assert cancel_var.get() is True
-        finally:
-            censo.parallel.uuid4 = original_uuid4

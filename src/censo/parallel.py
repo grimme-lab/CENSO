@@ -4,14 +4,13 @@ from typing import Literal
 from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
-from multiprocessing.managers import SyncManager
 from concurrent.futures import CancelledError
 from uuid import uuid4
 from dask.distributed import Variable, Client, as_completed as dask_as_completed
 
 from .molecules import GeometryData, MoleculeData
 from .logging import setup_logger
-from .params import QmProg, ENVIRON
+from .params import QmProg
 from .config.job_config import XTBJobConfig, SPJobConfig
 from .config.parallel_config import ParallelConfig
 from .config.job_config import QmResult, MetaData
@@ -42,46 +41,6 @@ def setup_parallel(ncores: int, threads_per_worker: int):
     finally:
         client.close()
         cluster.close()
-
-
-class ResourceMonitor:
-    """
-    Monitors available cores for parallel jobs.
-    """
-
-    def __init__(self, manager: SyncManager, ncores: int):
-        """
-        Initialize resource monitor.
-
-        :param manager: SyncManager for shared state.
-        :param ncores: Total number of cores.
-        """
-        self.__free_cores = manager.Value(int, ncores)
-        self.__enough_cores = manager.Condition()
-
-    @contextmanager
-    def occupy_cores(self, ncores: int):
-        """
-        Occupy cores for a job.
-
-        :param ncores: Number of cores to occupy.
-        :return: Context manager.
-        """
-        try:
-            with self.__enough_cores:
-                self.__enough_cores.wait_for(lambda: self.__free_cores.value >= ncores)
-                self.__free_cores.value -= ncores
-                logger.debug(
-                    f"Occupied {ncores} cores. Free cores: {self.__free_cores.value}."
-                )
-            yield
-        finally:
-            with self.__enough_cores:
-                self.__free_cores.value += ncores
-                logger.debug(
-                    f"Released {ncores} cores. Free cores: {self.__free_cores.value}."
-                )
-                self.__enough_cores.notify()  # TODO: try this with notify_all instead
 
 
 class ParallelJob:
@@ -115,45 +74,6 @@ class ParallelJob:
 
         # stores all flags for the jobtypes
         self.flags: dict[str, str] = {}
-
-
-def set_omp_tmproc(
-    jobs: list[ParallelJob], balance: bool, omp: int, ncores: int, ompmin: int
-):
-    """
-    Configures the number of cores for TURBOMOLE processor or when automatic load balancing ('balancing 2.0')
-    is disabled.
-
-    :param jobs: List of parallel jobs.
-    :param balance: Whether to balance.
-    :param omp: OMP value.
-    :param ncores: Total cores.
-    :param ompmin: Minimum OMP.
-    :return: None
-    """
-    if balance:
-        logger.warning(
-            "Load balancing 2.0 is not supported for TURBOMOLE. Falling back to old behaviour."
-        )
-        # Set the number of cores per process to the (effective) minimum because this is expected to be most efficient
-        omp = ncores // len(jobs) if len(jobs) < ncores // ompmin else ompmin
-        ENVIRON["PARA_ARCH"] = "SMP"
-        ENVIRON["PARNODES"] = str(omp)
-        for job in jobs:
-            job.omp = omp
-    else:
-        if omp < ompmin:
-            logger.warning(
-                f"User OMP setting is below the minimum value of {ompmin}. Using {ompmin} instead."
-            )
-            omp = ompmin
-        elif omp > ncores:
-            logger.warning(
-                f"Value of {omp} for OMP is larger than the number of available cores {ncores}. Using OMP = {ncores}."
-            )
-            omp = ncores
-        for job in jobs:
-            job.omp = omp
 
 
 def set_omp(
@@ -261,12 +181,8 @@ def prepare_jobs(
                 )
             job.from_part = from_part
 
-    # Check if the the execution uses TM, because here OMP cannot be assigned on a job-variable basis
-    if balance and prog != "tm":
+    if balance:
         set_omp(jobs, balance, omp, ncores, ompmin, ompmax)
-    # Similar steps will be taken if balancing 2.0 is disabled
-    else:
-        set_omp_tmproc(jobs, balance, omp, ncores, ompmin)
 
     return sorted(jobs, key=lambda job: job.omp)
 
@@ -328,11 +244,21 @@ def execute[T: QmResult](
     cancel_var = Variable(cancel_var_name, client=client)
     cancel_var.set(False)
 
+    # Set cancellation variable in processor
+    if hasattr(task, "__self__"):
+        proc = task.__self__
+        proc.cancel_var = cancel_var
+
     # Submit jobs directly; tasks must accept (job, job_config) and may poll Variable(cancel_var_name)
     futures = []
     for job in jobs:
         resources = {"CPU": int(job.omp)}
-        fut = client.submit(task, job, job_config, resources=resources)
+        fut = client.submit(
+            task,
+            job,
+            job_config,
+            resources=resources,
+        )
         futures.append(fut)
 
     failed_confs: list[MoleculeData] = []
