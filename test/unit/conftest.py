@@ -5,6 +5,8 @@ import shutil
 
 from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
 from censo.config.parts_config import PartsConfig
+from censo.parallel import setup_parallel
+from censo.config.parallel_config import ParallelConfig
 
 
 @pytest.fixture
@@ -85,3 +87,13 @@ def patch_model_validate(monkeypatch):
         return original_model_validate(self, **kwargs)
 
     monkeypatch.setattr(PartsConfig, "model_validate", patched_model_validate)
+
+
+@pytest.fixture
+def parallel_setup():
+    """Provide real parallel setup for tests that need it."""
+    parallel_config = ParallelConfig(ncores=4, omp=1, ompmin=1)
+    with setup_parallel(
+        parallel_config.ncores // parallel_config.ompmin, parallel_config.ncores
+    ) as (executor, manager, resource_monitor):
+        yield executor, manager, resource_monitor, parallel_config

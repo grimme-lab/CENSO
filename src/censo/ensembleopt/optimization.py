@@ -40,9 +40,10 @@ def optimization(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool = True,
-    executor: ProcessPoolExecutor | None = None,
-    manager: SyncManager | None = None,
-    resource_monitor: ResourceMonitor | None = None,
+    *,
+    executor: ProcessPoolExecutor,
+    manager: SyncManager,
+    resource_monitor: ResourceMonitor,
 ):
     """
     Geometry optimization of the ensemble at DFT level (possibly with implicit solvation)
@@ -60,9 +61,6 @@ def optimization(
     """
     printf(h2("OPTIMIZATION"))
 
-    if executor is None or manager is None or resource_monitor is None:
-        raise ValueError("executor, manager, and resource_monitor must be provided")
-
     config.model_validate(config, context={"check": "optimization"})
 
     # Setup processor
@@ -70,10 +68,10 @@ def optimization(
 
     if config.optimization.macrocycles:
         contributions_dict = _macrocycle_opt(
-            proc, ensemble, config, parallel_config, cut, executor, manager, resource_monitor
+            proc, ensemble, config, parallel_config, cut, executor=executor, manager=manager, resource_monitor=resource_monitor
         )
     else:
-        contributions_dict = _full_opt(proc, ensemble, config, parallel_config, executor, manager, resource_monitor)
+        contributions_dict = _full_opt(proc, ensemble, config, parallel_config, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
     printf("\n")
 
@@ -96,9 +94,9 @@ def optimization(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,  # type: ignore
-            manager=manager,  # type: ignore
-            resource_monitor=resource_monitor,  # type: ignore
+            executor=executor,
+            manager=manager,
+            resource_monitor=resource_monitor,
         )
 
         if config.general.ignore_failed:
@@ -126,9 +124,10 @@ def _macrocycle_opt(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool,
-    executor: ProcessPoolExecutor | None,
-    manager: SyncManager | None,
-    resource_monitor: ResourceMonitor | None,
+    *,
+    executor: ProcessPoolExecutor,
+    manager: SyncManager,
+    resource_monitor: ResourceMonitor,
 ):
     """
     Geometry optimization using macrocycles, whereafter every macrocycle cutting conditions are checked (if cut == True).
@@ -190,9 +189,9 @@ def _macrocycle_opt(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,  # type: ignore
-            manager=manager,  # type: ignore
-            resource_monitor=resource_monitor,  # type: ignore
+            executor=executor,
+            manager=manager,
+            resource_monitor=resource_monitor,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(
@@ -232,9 +231,9 @@ def _macrocycle_opt(
                 ignore_failed=config.general.ignore_failed,
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
-                executor=executor,  # type: ignore
-                manager=manager,  # type: ignore
-                resource_monitor=resource_monitor,  # type: ignore
+                executor=executor,
+                manager=manager,
+                resource_monitor=resource_monitor,
             )
             if config.general.ignore_failed:
                 ensemble.remove_conformers(
@@ -297,9 +296,10 @@ def _full_opt(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
-    executor: ProcessPoolExecutor | None,
-    manager: SyncManager | None,
-    resource_monitor: ResourceMonitor | None,
+    *,
+    executor: ProcessPoolExecutor,
+    manager: SyncManager,
+    resource_monitor: ResourceMonitor,
 ):
     """
     Full geometry optimization of every conformer.
@@ -342,9 +342,9 @@ def _full_opt(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        executor=executor,  # type: ignore
-        manager=manager,  # type: ignore
-        resource_monitor=resource_monitor,  # type: ignore
+        executor=executor,
+        manager=manager,
+        resource_monitor=resource_monitor,
     )
 
     if config.general.ignore_failed:

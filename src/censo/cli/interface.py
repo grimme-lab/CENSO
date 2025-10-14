@@ -98,7 +98,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         try:
             for func in [task for _, enabled, task in tasks[:4] if enabled]:
                 runtime = func(
-                    ensemble, parts_config, parallel_config, executor, manager, resource_monitor, cut=cut
+                    ensemble, parts_config, parallel_config, executor=executor, manager=manager, resource_monitor=resource_monitor, cut=cut
                 )
                 printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
                 time += runtime
@@ -121,7 +121,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
                 print("\nRunning property calculations\n")
 
             for func in [task for _, enabled, task in tasks[4:] if enabled]:
-                runtime = func(ensemble, parts_config, parallel_config, executor, manager, resource_monitor)
+                runtime = func(ensemble, parts_config, parallel_config, executor=executor, manager=manager, resource_monitor=resource_monitor)
                 printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
                 time += runtime
         except:

@@ -30,9 +30,10 @@ def uvvis(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
-    executor: ProcessPoolExecutor | None = None,
-    manager: SyncManager | None = None,
-    resource_monitor: ResourceMonitor | None = None,
+    *,
+    executor: ProcessPoolExecutor,
+    manager: SyncManager,
+    resource_monitor: ResourceMonitor,
 ):
     """
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
@@ -44,9 +45,6 @@ def uvvis(
     :return: None
     """
     printf(h2("UVVIS"))
-
-    if executor is None or manager is None or resource_monitor is None:
-        raise ValueError("executor, manager, and resource_monitor must be provided")
 
     config.model_validate(config, context={"check": "uvvis"})
 
@@ -81,9 +79,9 @@ def uvvis(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        executor=executor,  # type: ignore
-        manager=manager,  # type: ignore
-        resource_monitor=resource_monitor,  # type: ignore
+        executor=executor,
+        manager=manager,
+        resource_monitor=resource_monitor,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

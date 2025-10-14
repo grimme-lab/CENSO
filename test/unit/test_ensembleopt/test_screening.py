@@ -20,6 +20,7 @@ class TestScreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test screening function in gas phase"""
         # Set up gas phase
@@ -38,7 +39,8 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify calls
         assert mock_execute.call_count == 2  # sp and xtb_rrho
@@ -52,6 +54,7 @@ class TestScreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test screening function in gas phase"""
         # Set up gas phase
@@ -70,7 +73,8 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify calls
         assert mock_execute.call_count == 1
@@ -84,6 +88,7 @@ class TestScreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test screening function with solvation"""
         # Mock execute results for gsolv (not included)
@@ -96,11 +101,12 @@ class TestScreening:
 
         # Prepare ensemble (remove surplus confs)
         mock_ensemble.remove_conformers(
-            lambda conf: conf.name not in mock_execute_results["screening"]["gsolv"]
+            lambda conf: conf.name not in mock_execute_results["screening"]["sp"]
         )
 
         # Run screening
-        screening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -123,6 +129,7 @@ class TestScreening:
         mock_execute_results,
         threshold: float,
         expected_count: int,
+        parallel_setup,
     ):
         """Test energy threshold-based conformer removal"""
         config = PartsConfig()
@@ -140,7 +147,8 @@ class TestScreening:
         )
 
         # Run screening
-        screening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count

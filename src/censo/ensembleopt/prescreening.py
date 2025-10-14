@@ -28,10 +28,11 @@ def prescreening(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
-    executor: ProcessPoolExecutor | None,
-    manager: SyncManager | None,
-    resource_monitor: ResourceMonitor | None,
     cut: bool = True,
+    *,
+    executor: ProcessPoolExecutor,
+    manager: SyncManager,
+    resource_monitor: ResourceMonitor,
 ):
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
@@ -49,9 +50,6 @@ def prescreening(
     :return: None
     """
     printf(h2("PRESCREENING"))
-
-    if executor is None or manager is None or resource_monitor is None:
-        raise ValueError("executor, manager, and resource_monitor must be provided")
 
     config.model_validate(config, context={"check": "prescreening"})
 
@@ -71,17 +69,17 @@ def prescreening(
         )
         results = execute(
             ensemble.conformers,
-            proc_xtb.gsolv,
+            proc.sp,
             job_config,
             config.prescreening.prog,
             "prescreening",
             parallel_config,
-            executor,  # type: ignore
-            manager,  # type: ignore
-            resource_monitor,  # type: ignore
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            executor=executor,
+            manager=manager,
+            resource_monitor=resource_monitor,
         )
 
         if config.general.ignore_failed:

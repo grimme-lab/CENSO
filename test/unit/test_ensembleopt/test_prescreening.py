@@ -20,6 +20,7 @@ class TestPrescreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test prescreening function in gas phase"""
         # Set up gas phase
@@ -30,7 +31,8 @@ class TestPrescreening:
         mock_execute.return_value = mock_execute_results["prescreening"]["sp"]
 
         # Run prescreening
-        prescreening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify calls
         assert mock_execute.call_count == 1  # Only sp calculation
@@ -44,6 +46,7 @@ class TestPrescreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test prescreening function with solvation"""
         # Mock execute results for both xtb_gsolv and sp
@@ -55,7 +58,8 @@ class TestPrescreening:
         config = PartsConfig()
 
         # Run prescreening
-        prescreening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -78,6 +82,7 @@ class TestPrescreening:
         mock_execute_results,
         threshold: float,
         expected_count: int,
+        parallel_setup,
     ):
         """Test energy threshold-based conformer removal"""
         config = PartsConfig()
@@ -90,7 +95,8 @@ class TestPrescreening:
         ]
 
         # Run prescreening
-        prescreening(mock_ensemble, config, None)
+        executor, manager, resource_monitor, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count
