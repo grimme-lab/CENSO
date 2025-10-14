@@ -89,7 +89,7 @@ def patch_model_validate(monkeypatch):
     monkeypatch.setattr(PartsConfig, "model_validate", patched_model_validate)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def parallel_setup():
     """Provide real parallel setup for tests that need it."""
     parallel_config = ParallelConfig(ncores=4, omp=1, ompmin=1)

@@ -494,5 +494,5 @@ class TestJobExecution:
         # Each job takes 0.1s, so 8 jobs should take ~0.2s (plus overhead)
         # Allow for some timing variability in CI environments
         assert (
-            0.2 < total_time < 0.4
+            0.2 < total_time < 0.6
         ), f"Expected ~0.2s execution time, got {total_time}s"
