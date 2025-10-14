@@ -8,7 +8,9 @@ dynamic = ["version", "readme"]
 requires-python = ">= 3.12"
 dependencies = [
   "tabulate",
-  "pydantic"
+  "pydantic",
+  "dask>=2023.2.0",
+  "distributed>=2023.2.0"
 ]
 
 [project.urls]

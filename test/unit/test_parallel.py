@@ -1,15 +1,12 @@
 import time
-from censo.config.parallel_config import ParallelConfig
 import pytest
-from unittest.mock import Mock
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
+import uuid
+from dask.distributed import Client, LocalCluster
 from typing import Any
 
 from censo.config.paths import PathsConfig
 from censo.parallel import (
     setup_parallel,
-    ResourceMonitor,
     ParallelJob,
     set_omp_tmproc,
     set_omp,
@@ -110,34 +107,39 @@ def create_conformers():
 
 
 # Define task functions at module level for pickling
-def task_success(
-    job: ParallelJob, config: Any, resources: ResourceMonitor
-) -> tuple[SPResult, MetaData]:
+def task_success(job: ParallelJob, job_config: Any) -> tuple[SPResult, MetaData]:
     """Task that always succeeds"""
-    with resources.occupy_cores(job.omp):
-        time.sleep(0.1)  # Shorter sleep for faster tests
+    time.sleep(0.1)  # Shorter sleep for faster tests
     return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
         conf_name=job.conf.name, success=True
     )
 
 
-def task_fail(
-    job: ParallelJob, config: Any, resources: ResourceMonitor
-) -> tuple[None, MetaData]:
+def task_fail(job: ParallelJob, job_config: Any) -> tuple[None, MetaData]:
     """Task that always fails"""
-    with resources.occupy_cores(job.omp):
-        time.sleep(0.1)
+    time.sleep(0.1)
     return None, MetaData(conf_name=job.conf.name, success=False, error="Test error")
 
 
-def task_conditional(
-    job: ParallelJob, config: Any, resources: ResourceMonitor
-) -> tuple[Any, MetaData]:
+def task_conditional(job: ParallelJob, job_config: Any) -> tuple[Any, MetaData]:
     """Task that succeeds for even-numbered conformers and fails for odd-numbered ones"""
     conf_num = int(job.conf.name.replace("CONF", ""))
     if conf_num % 2 == 0:
-        return task_success(job, config, resources)
-    return task_fail(job, config, resources)
+        return task_success(job, job_config)
+    return task_fail(job, job_config)
+
+
+# Module-level task for pickling
+def task_raise_then_long(job: ParallelJob, job_config: Any):
+    """Raise for CONF1 to trigger cancellation; other jobs sleep longer then succeed."""
+    if job.conf.name == "CONF1":
+        time.sleep(0.01)
+        raise RuntimeError("Intentional failure for cancellation test")
+    # Long-running work to give cancellation a chance
+    time.sleep(0.1)
+    return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
+        conf_name=job.conf.name, success=True
+    )
 
 
 # ============= Tests for Core Functionality =============
@@ -146,32 +148,17 @@ def task_conditional(
 class TestCoreParallelComponents:
     """Tests for core parallel processing components"""
 
-    def test_setup_managers(self):
-        """Test setup_managers context manager creates correct manager instances"""
-        max_workers = 2
+    def test_setup_parallel(self):
+        """Test setup_parallel context manager creates correct Dask instances"""
         ncores = 4
+        threads_per_worker = 2
 
-        with setup_parallel(max_workers, ncores) as (
-            executor,
-            manager,
-            resource_manager,
+        with setup_parallel(ncores, threads_per_worker) as (
+            cluster,
+            client,
         ):
-            assert isinstance(executor, ProcessPoolExecutor)
-            assert isinstance(manager, SyncManager)
-            assert isinstance(resource_manager, ResourceMonitor)
-
-    def test_resource_monitor(self):
-        """Test ResourceMonitor core management functionality"""
-        with setup_parallel(2, 4) as (_, manager, resource_monitor):
-            # Test initial state
-            assert resource_monitor._ResourceMonitor__free_cores.value == 4
-
-            # Test core occupation
-            with resource_monitor.occupy_cores(2):
-                assert resource_monitor._ResourceMonitor__free_cores.value == 2
-
-            # Verify cores are released after context exit
-            assert resource_monitor._ResourceMonitor__free_cores.value == 4
+            assert isinstance(cluster, LocalCluster)
+            assert isinstance(client, Client)
 
 
 class TestResultDataclasses:
@@ -366,7 +353,7 @@ class TestJobExecution:
         """Test successful parallel execution of all jobs"""
         # Create two mock conformers
         conformers = create_conformers(2)
-        executor, manager, resource_monitor, parallel_config = parallel_setup
+        cluster, client, parallel_config = parallel_setup
 
         # Run execute
         results = execute(
@@ -379,9 +366,7 @@ class TestJobExecution:
             ignore_failed=True,
             balance=True,
             copy_mo=True,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
 
         # Verify results
@@ -400,7 +385,7 @@ class TestJobExecution:
         """Test execution when all jobs fail"""
         # Create two mock conformers
         conformers = create_conformers(2)
-        executor, manager, resource_monitor, parallel_config = parallel_setup
+        cluster, client, parallel_config = parallel_setup
 
         # Check that RuntimeError is raised when all jobs fail
         with pytest.raises(RuntimeError, match="All jobs failed to execute"):
@@ -414,9 +399,7 @@ class TestJobExecution:
                 ignore_failed=True,
                 balance=True,
                 copy_mo=True,
-                executor=executor,
-                manager=manager,
-                resource_monitor=resource_monitor,
+                client=client,
             )
 
     def test_execute_partial_failure(
@@ -425,7 +408,7 @@ class TestJobExecution:
         """Test execution with mixed success/failure"""
         # Create four mock conformers
         conformers = create_conformers(4)
-        executor, manager, resource_monitor, parallel_config = parallel_setup
+        cluster, client, parallel_config = parallel_setup
 
         # Run execute
         results = execute(
@@ -438,9 +421,7 @@ class TestJobExecution:
             ignore_failed=True,
             balance=True,
             copy_mo=True,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
 
         # Verify results (even-numbered conformers succeed, odd ones fail)
@@ -459,9 +440,7 @@ class TestJobExecution:
                 ignore_failed=False,
                 balance=True,
                 copy_mo=True,
-                executor=executor,
-                manager=manager,
-                resource_monitor=resource_monitor,
+                client=client,
             )
 
     def test_execute_resource_management(
@@ -471,7 +450,7 @@ class TestJobExecution:
         # Create eight mock conformers
         n_jobs = 8
         conformers = create_conformers(n_jobs)
-        executor, manager, resource_monitor, parallel_config = parallel_setup
+        cluster, client, parallel_config = parallel_setup
 
         # Run execute with limited cores
         start_time = time.time()
@@ -485,9 +464,7 @@ class TestJobExecution:
             ignore_failed=False,
             balance=False,
             copy_mo=False,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
         total_time = time.time() - start_time
 
@@ -500,3 +477,38 @@ class TestJobExecution:
         assert (
             0.2 < total_time < 0.4
         ), f"Expected ~0.2s execution time, got {total_time}s"
+
+    def test_execute_triggers_cancellation_and_sets_variable(
+        self, mock_job_config, create_conformers, parallel_setup
+    ):
+        """When a task raises, execute() should set the cancel variable and raise."""
+        conformers = create_conformers(4)
+        cluster, client, parallel_config = parallel_setup
+
+        # Mock uuid4 in the parallel module to get a deterministic cancel variable name
+        import censo.parallel
+        original_uuid4 = censo.parallel.uuid4
+        censo.parallel.uuid4 = lambda: uuid.UUID('12345678-1234-5678-1234-567812345678')
+
+        try:
+            with pytest.raises(RuntimeError, match="Exception encountered in parallel execution."):
+                execute(
+                    conformers=conformers,
+                    task=task_raise_then_long,
+                    job_config=mock_job_config,
+                    prog=QmProg.ORCA,
+                    from_part="test",
+                    parallel_config=parallel_config,
+                    ignore_failed=True,
+                    balance=False,
+                    copy_mo=False,
+                    client=client,
+                )
+
+            # Verify the cooperative cancellation flag was set
+            from dask.distributed import Variable
+
+            cancel_var = Variable("censo_cancel_12345678123456781234567812345678", client=client)
+            assert cancel_var.get() is True
+        finally:
+            censo.parallel.uuid4 = original_uuid4

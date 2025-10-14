@@ -3,9 +3,7 @@ from collections.abc import Callable
 from typing import Any
 import json
 from tabulate import tabulate
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
-
+from dask.distributed import Client
 
 from ..processing.xtb_processor import XtbProc
 from ..config.parts.prescreening import PrescreeningConfig
@@ -13,7 +11,7 @@ from ..molecules import Contributions, MoleculeData
 from ..ensemble import EnsembleData
 from ..utilities import Factory, timeit, h1, h2, DataDump, printf
 from ..config import PartsConfig
-from ..parallel import execute, ResourceMonitor
+from ..parallel import execute
 from ..processing import QmProc
 from ..params import GridLevel, AU2KCAL, PLENGTH, Prog
 from ..config.job_config import SPJobConfig, XTBJobConfig
@@ -30,9 +28,7 @@ def prescreening(
     parallel_config: ParallelConfig | None,
     cut: bool = True,
     *,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
 ):
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
@@ -77,9 +73,7 @@ def prescreening(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
 
         if config.general.ignore_failed:
@@ -105,12 +99,10 @@ def prescreening(
         config.prescreening.prog,
         "prescreening",
         parallel_config,
-        executor,  # type: ignore
-        manager,  # type: ignore
-        resource_monitor,  # type: ignore
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
+        client=client,
     )
 
     if config.general.ignore_failed:

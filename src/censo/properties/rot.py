@@ -6,8 +6,7 @@ from pathlib import Path
 from collections.abc import Callable
 from tabulate import tabulate
 import json
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
+from dask.distributed import Client
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
@@ -16,7 +15,7 @@ from ..config.job_config import RotJobConfig, RotResult
 from ..config.parts import RotConfig
 from ..config.parallel_config import ParallelConfig
 from ..params import GridLevel, PLENGTH
-from ..parallel import execute, ResourceMonitor
+from ..parallel import execute
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
@@ -30,9 +29,7 @@ def rot(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     *,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
 ):
     """
     Calculation of the ensemble optical rotation spectrum of a (previously) optimized ensemble.
@@ -80,9 +77,7 @@ def rot(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        executor=executor,
-        manager=manager,
-        resource_monitor=resource_monitor,
+        client=client,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

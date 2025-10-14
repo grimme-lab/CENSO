@@ -5,8 +5,9 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 from multiprocessing.managers import SyncManager
-from multiprocessing import Manager
-from concurrent.futures import CancelledError, Future, ProcessPoolExecutor, as_completed
+from concurrent.futures import CancelledError
+from uuid import uuid4
+from dask.distributed import Variable, Client, as_completed as dask_as_completed
 
 from .molecules import GeometryData, MoleculeData
 from .logging import setup_logger
@@ -20,22 +21,27 @@ logger = setup_logger(__name__)
 
 
 @contextmanager
-def setup_parallel(max_workers: int, ncores: int):
+def setup_parallel(ncores: int, threads_per_worker: int):
     """
-    Set up parallel execution environment.
+    Set up Dask parallel execution environment.
 
-    :param max_workers: Maximum number of worker processes.
     :param ncores: Total number of cores available.
-    :return: Yields executor, manager, resource_manager.
+    :param threads_per_worker: Number of threads per worker.
+    :return: Yields LocalCluster and Client.
     """
-    executor: ProcessPoolExecutor = ProcessPoolExecutor(max_workers=max_workers)
-    manager: SyncManager = Manager()
-    resource_manager: ResourceMonitor = ResourceMonitor(manager, ncores)
+    from dask.distributed import LocalCluster, Client
+
+    cluster = LocalCluster(
+        n_workers=1,
+        threads_per_worker=threads_per_worker,
+        resources={"CPU": ncores},  # One worker receives all CPUs
+    )
+    client = Client(cluster)
     try:
-        yield executor, manager, resource_manager
+        yield cluster, client
     finally:
-        executor.shutdown(False, cancel_futures=True)
-        manager.shutdown()
+        client.close()
+        cluster.close()
 
 
 class ResourceMonitor:
@@ -272,15 +278,13 @@ def execute[T: QmResult](
     prog: QmProg | Literal["xtb"],
     from_part: str,
     parallel_config: ParallelConfig | None,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
     ignore_failed: bool = True,
     balance: bool = True,
     copy_mo: bool = True,
 ) -> dict[str, T]:
     """
-    Executes the parallel tasks using a managed environment.
+    Executes the parallel tasks using Dask distributed execution.
 
     :param conformers: List of conformers for which jobs will be created and executed.
     :param task: Callable to be mapped onto the list of jobs created from conformers.
@@ -288,18 +292,12 @@ def execute[T: QmResult](
     :param prog: Name of the QM program.
     :param from_part: From part.
     :param parallel_config: Parallel configuration.
-    :param executor: ProcessPoolExecutor for parallel execution.
-    :param manager: SyncManager for shared state.
-    :param resource_monitor: ResourceMonitor for core management.
+    :param client: dask.distributed.Client for parallel execution.
     :param ignore_failed: Whether to ignore failed jobs.
     :param balance: Whether to balance the number of cores used per job.
     :param copy_mo: Whether to store the paths to the MO files for reuse.
     :return: Job results.
     """
-    # Initialize lists to store failed conformers and results
-    failed_confs: list[MoleculeData] = []
-    results: dict[str, T] = {}
-
     # Set up parallel config if not configured
     if parallel_config is None:
         ncores = os.cpu_count()
@@ -309,7 +307,7 @@ def execute[T: QmResult](
             )
         parallel_config = ParallelConfig(ncores=ncores, omp=1)
 
-    logger.debug("Using provided parallel environment...")
+    logger.debug("Using Dask parallel environment...")
     # Prepare jobs for parallel execution by assigning number of cores per job etc.
     jobs: list[ParallelJob] = prepare_jobs(
         conformers,
@@ -323,35 +321,36 @@ def execute[T: QmResult](
         copy_mo=copy_mo,
     )
 
-    # NOTE: this is a kind of goofy workaround to actually passing the processor everywhere...
-    if hasattr(task, "__self__"):
-        logger.debug("Creating stop_event")
-        proc = task.__self__  # type: ignore
-        proc.stop_event = manager.Event()
+    # Cooperative cancellation variable (name deterministic/configurable)
+    cancel_var_name = getattr(parallel_config, "cancel_variable_name", None)
+    if not cancel_var_name:
+        cancel_var_name = f"censo_cancel_{uuid4().hex}"
+    cancel_var = Variable(cancel_var_name, client=client)
+    cancel_var.set(False)
 
-    # Execute the jobs
-    tasks: list[Future[tuple[T, MetaData]]] = []
+    # Submit jobs directly; tasks must accept (job, job_config) and may poll Variable(cancel_var_name)
+    futures = []
     for job in jobs:
-        tasks.append(executor.submit(task, job, job_config, resource_monitor))  # type: ignore
+        resources = {"CPU": int(job.omp)}
+        fut = client.submit(task, job, job_config, resources=resources)
+        futures.append(fut)
 
+    failed_confs: list[MoleculeData] = []
+    results: dict[str, T] = {}
     broken = False
+
     logger.debug("Waiting for jobs to complete...")
     try:
-        completed = as_completed(tasks)
+        completed_iter = dask_as_completed(futures)
 
         # Process results as they come in
         logger.debug("Iterating over results...")
-        for completed_task in completed:
+        for completed_future in completed_iter:
             conf_name = None
             try:
-                # Get result or raise exception if task failed
-                result, meta = completed_task.result()
+                result, meta = completed_future.result()
                 conf_name = meta.conf_name
-
-                # Find the corresponding conformer
                 conf = next(c for c in conformers if c.name == conf_name)
-
-                # Check for success
                 if not meta.success:
                     failed_confs.append(conf)
                     logger.warning(
@@ -361,59 +360,53 @@ def execute[T: QmResult](
                     results[meta.conf_name] = result
                     if prog in QmProg:
                         conf.mo_paths[prog].append(result.mo_path)
-
-            except CancelledError as e:
-                logger.debug(f"Future cancelled: {e}")
+            except CancelledError:
+                logger.debug("Future cancelled.")
                 broken = True
-
-            except Exception as e:
+            except Exception:
+                # Fatal error: set cancel flag and best-effort cancel all remaining futures
                 logger.critical(
-                    f"Encountered exception: {type(e).__name__}. Set loglevel to DEBUG for more information."
+                    "Encountered exception in task. Cancelling remaining tasks."
                 )
-
-                # Cancel remaining jobs
-                logger.info("Cancelling remaining tasks...")
-                for t in tasks:
-                    if not t.done():
-                        t.cancel()
-
-                # NOTE: this is a kind of goofy workaround to actually passing the processor everywhere...
-                if hasattr(task, "__self__"):  # type: ignore
-                    logger.info("Terminating running tasks...")
-                    proc = task.__self__  # type: ignore
-                    proc.stop_event.set()
-                else:
-                    logger.info("Could not terminate running tasks.")
-
+                cancel_var.set(True)
+                try:
+                    client.cancel(futures)
+                except Exception:
+                    logger.debug(
+                        "client.cancel raised while trying to cancel futures.",
+                        exc_info=True,
+                    )
                 tb = traceback.format_exc()
-
-                # If we don't know which conformer failed, try to figure it out
-                # by finding the index of the task in the tasks list
+                logger.debug(tb)
+                # Try to identify failure
                 if conf_name is None:
-                    idx = tasks.index(completed_task)
-                    if 0 <= idx < len(jobs):
-                        conf_name = jobs[idx].conf.name
-
-                # Record the error for this conformer
+                    try:
+                        idx = futures.index(completed_future)
+                        if 0 <= idx < len(jobs):
+                            conf_name = jobs[idx].conf.name
+                    except Exception:
+                        pass
                 logger.debug(f"Job failed for {conf_name}:\n{tb}")
                 broken = True
-
+                break
     except KeyboardInterrupt:
         logger.warning("Received keyboard interrupt. Cancelling remaining tasks...")
-        for t in tasks:
-            if not t.done():
-                t.cancel()
-        # Re-raise to allow proper program termination
+        cancel_var.set(True)
+        try:
+            client.cancel(futures)
+        except Exception:
+            logger.debug(
+                "client.cancel raised during KeyboardInterrupt handling.", exc_info=True
+            )
         raise
 
     if broken:
         raise RuntimeError("Exception encountered in parallel execution.")
 
-    # Summarize results
+    # Summary behavior (same as current)
     if len(failed_confs) == len(conformers):
-        # Provide more detailed error information when all jobs fail
         raise RuntimeError(
-            f"All jobs failed to execute. Please check your setup and output files.\n"
+            "All jobs failed to execute. Please check your setup and output files.\n"
         )
 
     if len(failed_confs) > 0:

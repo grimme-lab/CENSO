@@ -39,8 +39,8 @@ class TestScreening:
         )
 
         # Run screening
-        executor, manager, resource_monitor, _ = parallel_setup
-        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 2  # sp and xtb_rrho
@@ -73,8 +73,8 @@ class TestScreening:
         )
 
         # Run screening
-        executor, manager, resource_monitor, _ = parallel_setup
-        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 1
@@ -105,8 +105,8 @@ class TestScreening:
         )
 
         # Run screening
-        executor, manager, resource_monitor, _ = parallel_setup
-        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -147,8 +147,8 @@ class TestScreening:
         )
 
         # Run screening
-        executor, manager, resource_monitor, _ = parallel_setup
-        screening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        screening(mock_ensemble, config, None, client=client)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count

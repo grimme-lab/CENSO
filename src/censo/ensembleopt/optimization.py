@@ -9,13 +9,12 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import Any
 from tabulate import tabulate
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
+from dask.distributed import Client
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData, Contributions
 from ..processing import QmProc, XtbProc
-from ..parallel import execute, ResourceMonitor
+from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
@@ -41,9 +40,7 @@ def optimization(
     parallel_config: ParallelConfig | None,
     cut: bool = True,
     *,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
 ):
     """
     Geometry optimization of the ensemble at DFT level (possibly with implicit solvation)
@@ -68,10 +65,10 @@ def optimization(
 
     if config.optimization.macrocycles:
         contributions_dict = _macrocycle_opt(
-            proc, ensemble, config, parallel_config, cut, executor=executor, manager=manager, resource_monitor=resource_monitor
+            proc, ensemble, config, parallel_config, cut, client=client
         )
     else:
-        contributions_dict = _full_opt(proc, ensemble, config, parallel_config, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        contributions_dict = _full_opt(proc, ensemble, config, parallel_config, client=client)
 
     printf("\n")
 
@@ -94,9 +91,7 @@ def optimization(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
 
         if config.general.ignore_failed:
@@ -125,9 +120,7 @@ def _macrocycle_opt(
     parallel_config: ParallelConfig | None,
     cut: bool,
     *,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
 ):
     """
     Geometry optimization using macrocycles, whereafter every macrocycle cutting conditions are checked (if cut == True).
@@ -189,9 +182,7 @@ def _macrocycle_opt(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(
@@ -231,9 +222,7 @@ def _macrocycle_opt(
                 ignore_failed=config.general.ignore_failed,
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
-                executor=executor,
-                manager=manager,
-                resource_monitor=resource_monitor,
+                client=client,
             )
             if config.general.ignore_failed:
                 ensemble.remove_conformers(
@@ -297,9 +286,7 @@ def _full_opt(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     *,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
 ):
     """
     Full geometry optimization of every conformer.
@@ -342,9 +329,7 @@ def _full_opt(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        executor=executor,
-        manager=manager,
-        resource_monitor=resource_monitor,
+        client=client,
     )
 
     if config.general.ignore_failed:

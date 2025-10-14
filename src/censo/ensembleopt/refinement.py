@@ -3,12 +3,11 @@ from pathlib import Path
 from typing import Any
 import json
 from collections.abc import Callable
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
+from dask.distributed import Client
 
 from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
-from ..parallel import execute, ResourceMonitor
+from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig, RefinementConfig
@@ -28,9 +27,7 @@ def refinement(
     parallel_config: ParallelConfig | None,
     cut: bool = True,
     *,
-    executor: ProcessPoolExecutor,
-    manager: SyncManager,
-    resource_monitor: ResourceMonitor,
+    client: Client,
 ):
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
@@ -75,9 +72,7 @@ def refinement(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -108,9 +103,7 @@ def refinement(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -136,9 +129,7 @@ def refinement(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            executor=executor,
-            manager=manager,
-            resource_monitor=resource_monitor,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)

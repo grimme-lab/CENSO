@@ -31,8 +31,8 @@ class TestPrescreening:
         mock_execute.return_value = mock_execute_results["prescreening"]["sp"]
 
         # Run prescreening
-        executor, manager, resource_monitor, _ = parallel_setup
-        prescreening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 1  # Only sp calculation
@@ -58,8 +58,8 @@ class TestPrescreening:
         config = PartsConfig()
 
         # Run prescreening
-        executor, manager, resource_monitor, _ = parallel_setup
-        prescreening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -95,8 +95,8 @@ class TestPrescreening:
         ]
 
         # Run prescreening
-        executor, manager, resource_monitor, _ = parallel_setup
-        prescreening(mock_ensemble, config, None, executor=executor, manager=manager, resource_monitor=resource_monitor)
+        cluster, client, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, client=client)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count

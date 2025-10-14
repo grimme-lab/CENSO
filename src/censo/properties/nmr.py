@@ -8,8 +8,7 @@ from pathlib import Path
 from tabulate import tabulate
 from itertools import product
 import json
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
+from dask.distributed import Client
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
@@ -17,7 +16,7 @@ from ..config import PartsConfig
 from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
 from ..config.parallel_config import ParallelConfig
-from ..parallel import execute, ResourceMonitor
+from ..parallel import execute
 from ..config.job_config import NMRResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
@@ -29,7 +28,7 @@ logger = setup_logger(__name__)
 
 @timeit
 def nmr(
-    ensemble: EnsembleData, config: PartsConfig, parallel_config: ParallelConfig | None, *, executor: ProcessPoolExecutor, manager: SyncManager, resource_monitor: ResourceMonitor
+    ensemble: EnsembleData, config: PartsConfig, parallel_config: ParallelConfig | None, *, client: Client
 ):
     """
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
@@ -74,9 +73,7 @@ def nmr(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        executor=executor,
-        manager=manager,
-        resource_monitor=resource_monitor,
+        client=client,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)
