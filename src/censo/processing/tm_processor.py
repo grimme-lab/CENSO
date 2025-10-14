@@ -22,7 +22,7 @@ from ..config.job_config import (
     OptResult,
     SPResult,
 )
-from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog
+from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog, ENVIRON
 from ..utilities import frange, Factory
 from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig, RotJobConfig
 from ..assets import FUNCTIONALS, SOLVENTS
@@ -477,7 +477,10 @@ class TmProc(QmProc):
 
         # call turbomole
         call = [str(Path(config.paths.tm) / "ridft")]
-        returncode, errors = self._make_call(call, outputpath, jobdir)
+        env = ENVIRON.copy()
+        env["PARA_ARCH"] = "SMP"
+        env["PARNODES"] = str(job.omp)
+        returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
 
         meta.success = returncode == 0
         if not meta.success:
@@ -707,7 +710,10 @@ class TmProc(QmProc):
             # Run cosmotherm
             outputpath = os.path.join(jobdir, "cosmotherm.out")
             call = [config.paths.cosmotherm, "cosmotherm.inp"]
-            returncode, errors = self._make_call(call, outputpath, jobdir)
+            env = ENVIRON.copy()
+            env["PARA_ARCH"] = "SMP"
+            env["PARNODES"] = str(job.omp)
+            returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
 
             meta.success = returncode == 0
             if not meta.success:
@@ -846,7 +852,10 @@ class TmProc(QmProc):
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
         # call xtb
-        returncode, errors = self._make_call(call, outputpath, jobdir)
+        env = ENVIRON.copy()
+        env["PARA_ARCH"] = "SMP"
+        env["PARNODES"] = str(job.omp)
+        returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
 
         # check if optimization finished without errors
         # NOTE: right now, not converging scfs are not handled because returncodes need to be implemented first
@@ -1001,7 +1010,10 @@ class TmProc(QmProc):
             ]
 
             # Run mpshift for shielding calculation
-            returncode, errors = self._make_call(call, outputpath, jobdir)
+            env = ENVIRON.copy()
+            env["PARA_ARCH"] = "SMP"
+            env["PARNODES"] = str(job.omp)
+            returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
 
             meta.success = returncode == 0
             if not meta.success:
@@ -1050,7 +1062,10 @@ class TmProc(QmProc):
             ]
 
             # Run escf for couplings calculation
-            returncode, errors = self._make_call(call, outputpath, jobdir)
+            env = ENVIRON.copy()
+            env["PARA_ARCH"] = "SMP"
+            env["PARNODES"] = str(job.omp)
+            returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
 
             meta.success = returncode == 0
             if not meta.success:
@@ -1154,7 +1169,10 @@ class TmProc(QmProc):
         ]
 
         # Run escf
-        returncode, errors = self._make_call(call, outputpath, jobdir)
+        env = ENVIRON.copy()
+        env["PARA_ARCH"] = "SMP"
+        env["PARNODES"] = str(job.omp)
+        returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
 
         meta.success = returncode == 0
         if not meta.success:
