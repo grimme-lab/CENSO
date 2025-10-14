@@ -62,9 +62,9 @@ def prescreening(
         )
         results = execute(
             ensemble.conformers,
-            proc.sp,
+            proc_xtb.gsolv,
             job_config,
-            config.prescreening.prog,
+            "xtb",
             "prescreening",
             parallel_config,
             ignore_failed=config.general.ignore_failed,

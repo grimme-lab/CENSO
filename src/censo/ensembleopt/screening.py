@@ -107,7 +107,7 @@ def screening(
         )
         results = execute(
             ensemble.conformers,
-            proc.energy,
+            proc.sp,
             job_config,
             config.screening.prog,
             "screening",
