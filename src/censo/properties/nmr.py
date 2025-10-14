@@ -8,6 +8,8 @@ from pathlib import Path
 from tabulate import tabulate
 from itertools import product
 import json
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing.managers import SyncManager
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
@@ -15,19 +17,19 @@ from ..config import PartsConfig
 from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
 from ..config.parallel_config import ParallelConfig
-from ..params import GridLevel, PLENGTH
-from ..parallel import execute
+from ..parallel import execute, ResourceMonitor
 from ..config.job_config import NMRResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
+from ..params import GridLevel, PLENGTH
 
 logger = setup_logger(__name__)
 
 
 @timeit
 def nmr(
-    ensemble: EnsembleData, config: PartsConfig, parallel_config: ParallelConfig | None
+    ensemble: EnsembleData, config: PartsConfig, parallel_config: ParallelConfig | None, executor: ProcessPoolExecutor | None = None, manager: SyncManager | None = None, resource_monitor: ResourceMonitor | None = None
 ):
     """
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
@@ -40,6 +42,9 @@ def nmr(
     """
     printf(h2("NMR"))
 
+    if executor is None or manager is None or resource_monitor is None:
+        raise ValueError("executor, manager, and resource_monitor must be provided")
+
     config.model_validate(config, context={"check": "nmr"})
 
     # Assert that all conformers have energies defined
@@ -50,7 +55,7 @@ def nmr(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.nmr.prog, "4_NMR")
+    proc: QmProc = Factory.create(config.nmr.prog, "4_NMR")
 
     # Run NMR calculations
     job_config = NMRJobConfig(
@@ -72,6 +77,9 @@ def nmr(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
+        executor=executor,  # type: ignore
+        manager=manager,  # type: ignore
+        resource_monitor=resource_monitor,  # type: ignore
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

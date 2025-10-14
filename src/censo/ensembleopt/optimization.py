@@ -9,11 +9,13 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import Any
 from tabulate import tabulate
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing.managers import SyncManager
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData, Contributions
 from ..processing import QmProc, XtbProc
-from ..parallel import execute
+from ..parallel import execute, ResourceMonitor
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
@@ -38,6 +40,9 @@ def optimization(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool = True,
+    executor: ProcessPoolExecutor | None = None,
+    manager: SyncManager | None = None,
+    resource_monitor: ResourceMonitor | None = None,
 ):
     """
     Geometry optimization of the ensemble at DFT level (possibly with implicit solvation)
@@ -55,17 +60,20 @@ def optimization(
     """
     printf(h2("OPTIMIZATION"))
 
+    if executor is None or manager is None or resource_monitor is None:
+        raise ValueError("executor, manager, and resource_monitor must be provided")
+
     config.model_validate(config, context={"check": "optimization"})
 
     # Setup processor
-    proc: QmProc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
+    proc: QmProc = Factory.create(config.optimization.prog, "2_OPTIMIZATION")
 
     if config.optimization.macrocycles:
         contributions_dict = _macrocycle_opt(
-            proc, ensemble, config, parallel_config, cut
+            proc, ensemble, config, parallel_config, cut, executor, manager, resource_monitor
         )
     else:
-        contributions_dict = _full_opt(proc, ensemble, config, parallel_config)
+        contributions_dict = _full_opt(proc, ensemble, config, parallel_config, executor, manager, resource_monitor)
 
     printf("\n")
 
@@ -88,6 +96,9 @@ def optimization(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            executor=executor,  # type: ignore
+            manager=manager,  # type: ignore
+            resource_monitor=resource_monitor,  # type: ignore
         )
 
         if config.general.ignore_failed:
@@ -115,6 +126,9 @@ def _macrocycle_opt(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool,
+    executor: ProcessPoolExecutor | None,
+    manager: SyncManager | None,
+    resource_monitor: ResourceMonitor | None,
 ):
     """
     Geometry optimization using macrocycles, whereafter every macrocycle cutting conditions are checked (if cut == True).
@@ -176,6 +190,9 @@ def _macrocycle_opt(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            executor=executor,  # type: ignore
+            manager=manager,  # type: ignore
+            resource_monitor=resource_monitor,  # type: ignore
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(
@@ -199,7 +216,7 @@ def _macrocycle_opt(
             and not rrho_done
         ):
             # Run mRRHO calculation
-            proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
+            proc_xtb: XtbProc = Factory.create(Prog.XTB, "2_OPTIMIZATION")
             job_config_rrho = RRHOJobConfig(
                 gfnv=config.optimization.gfnv,
                 paths=config.paths,
@@ -215,6 +232,9 @@ def _macrocycle_opt(
                 ignore_failed=config.general.ignore_failed,
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
+                executor=executor,  # type: ignore
+                manager=manager,  # type: ignore
+                resource_monitor=resource_monitor,  # type: ignore
             )
             if config.general.ignore_failed:
                 ensemble.remove_conformers(
@@ -277,6 +297,9 @@ def _full_opt(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
+    executor: ProcessPoolExecutor | None,
+    manager: SyncManager | None,
+    resource_monitor: ResourceMonitor | None,
 ):
     """
     Full geometry optimization of every conformer.
@@ -319,6 +342,9 @@ def _full_opt(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
+        executor=executor,  # type: ignore
+        manager=manager,  # type: ignore
+        resource_monitor=resource_monitor,  # type: ignore
     )
 
     if config.general.ignore_failed:

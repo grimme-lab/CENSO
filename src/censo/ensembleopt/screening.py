@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any
 import json
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing.managers import SyncManager
 
 from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
-from ..parallel import execute
+from ..parallel import execute, ResourceMonitor
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig
@@ -32,6 +34,9 @@ def screening(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool = True,
+    executor: ProcessPoolExecutor | None = None,
+    manager: SyncManager | None = None,
+    resource_monitor: ResourceMonitor | None = None,
 ):
     """
     Advanced screening of the ensemble by doing single-point calculations on the input geometries,
@@ -49,10 +54,13 @@ def screening(
     """
     printf(h2("SCREENING"))
 
+    if executor is None or manager is None or resource_monitor is None:
+        raise ValueError("executor, manager, and resource_monitor must be provided")
+
     config.model_validate(config, context={"check": "screening"})
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
+    proc: QmProc = Factory.create(config.screening.prog, "1_SCREENING")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase and not config.screening.gsolv_included:
@@ -78,6 +86,9 @@ def screening(
             config.screening.prog,
             "screening",
             parallel_config,
+            executor,  # type: ignore
+            manager,  # type: ignore
+            resource_monitor,  # type: ignore
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -108,6 +119,9 @@ def screening(
             config.screening.prog,
             "screening",
             parallel_config,
+            executor,  # type: ignore
+            manager,  # type: ignore
+            resource_monitor,  # type: ignore
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -133,6 +147,9 @@ def screening(
             "xtb",
             "screening",
             parallel_config,
+            executor,  # type: ignore
+            manager,  # type: ignore
+            resource_monitor,  # type: ignore
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,

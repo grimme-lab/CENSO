@@ -85,48 +85,58 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
     time = 0.0
-    try:
-        for func in [task for _, enabled, task in tasks[:4] if enabled]:
-            runtime = func(
-                ensemble, parts_config, parallel_config=parallel_config, cut=cut
+    # Set up parallel managers once for the entire run
+    from ..parallel import setup_parallel
+    logger.debug("Setting up parallel managers for CLI run...")
+    with setup_parallel(
+        parallel_config.ncores // parallel_config.ompmin, parallel_config.ncores
+    ) as (
+        executor,
+        manager,
+        resource_monitor,
+    ):
+        try:
+            for func in [task for _, enabled, task in tasks[:4] if enabled]:
+                runtime = func(
+                    ensemble, parts_config, parallel_config, executor, manager, resource_monitor, cut=cut
+                )
+                printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
+                time += runtime
+
+                # Collect results for comparison
+                from ..params import AU2KCAL
+
+                mingtot = min(conf.gtot for conf in ensemble)
+                comparison[func.__name__] = {
+                    conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
+                }
+
+            if len(comparison) > 0:
+                print("\nFinished ensemble optimization\n")
+
+                # Print final comparison
+                print_comparison(comparison)
+
+            if any(enabled for _, enabled, _ in tasks[4:]):
+                print("\nRunning property calculations\n")
+
+            for func in [task for _, enabled, task in tasks[4:] if enabled]:
+                runtime = func(ensemble, parts_config, parallel_config, executor, manager, resource_monitor)
+                printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
+                time += runtime
+        except:
+            import traceback
+
+            tb = traceback.format_exc()
+            logger.debug(f"Encountered exception:\n{tb}")
+
+            # Save as much data as possible
+            printf(
+                "Encountered exception. Stopping CENSO and dumping most recent ensemble."
             )
-            printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
-            time += runtime
-
-            # Collect results for comparison
-            from ..params import AU2KCAL
-
-            mingtot = min(conf.gtot for conf in ensemble)
-            comparison[func.__name__] = {
-                conf.name: (conf.gtot - mingtot) * AU2KCAL for conf in ensemble
-            }
-
-        if len(comparison) > 0:
-            print("\nFinished ensemble optimization\n")
-
-            # Print final comparison
-            print_comparison(comparison)
-
-        if any(enabled for _, enabled, _ in tasks[4:]):
-            print("\nRunning property calculations\n")
-
-        for func in [task for _, enabled, task in tasks[4:] if enabled]:
-            runtime = func(ensemble, parts_config, parallel_config=parallel_config)
-            printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
-            time += runtime
-    except:
-        import traceback
-
-        tb = traceback.format_exc()
-        logger.debug(f"Encountered exception:\n{tb}")
-
-        # Save as much data as possible
-        printf(
-            "Encountered exception. Stopping CENSO and dumping most recent ensemble."
-        )
-        ensemble.dump_json(Path("CRASH_DUMP.json"))
-        ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
-        return Returncode.GENERIC_ERROR
+            ensemble.dump_json(Path("CRASH_DUMP.json"))
+            ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
+            return Returncode.GENERIC_ERROR
 
     from datetime import timedelta
 

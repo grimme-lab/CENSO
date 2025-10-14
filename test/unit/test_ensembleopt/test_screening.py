@@ -42,7 +42,7 @@ class TestScreening:
 
         # Verify calls
         assert mock_execute.call_count == 2  # sp and xtb_rrho
-        mock_factory[QmProg].create.assert_called_once()
+        assert mock_factory.create.call_count == 2
 
     @patch("censo.ensembleopt.screening.Factory")
     @patch("censo.ensembleopt.screening.execute")
@@ -74,7 +74,7 @@ class TestScreening:
 
         # Verify calls
         assert mock_execute.call_count == 1
-        mock_factory[QmProg].create.assert_called_once()
+        mock_factory.create.assert_called_once()
 
     @patch("censo.ensembleopt.screening.Factory")
     @patch("censo.ensembleopt.screening.execute")
@@ -104,7 +104,7 @@ class TestScreening:
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
-        mock_factory[QmProg].create.assert_called_once()
+        assert mock_factory.create.call_count == 2
 
     @pytest.mark.parametrize(
         "threshold,expected_count",

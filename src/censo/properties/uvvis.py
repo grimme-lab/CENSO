@@ -6,6 +6,8 @@ from pathlib import Path
 from collections.abc import Callable
 from tabulate import tabulate
 import json
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing.managers import SyncManager
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
@@ -14,7 +16,7 @@ from ..config.job_config import UVVisJobConfig
 from ..config.parts import UVVisConfig
 from ..config.parallel_config import ParallelConfig
 from ..params import GridLevel, PLENGTH
-from ..parallel import execute
+from ..parallel import execute, ResourceMonitor
 from ..config.job_config import UVVisResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
@@ -28,6 +30,9 @@ def uvvis(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
+    executor: ProcessPoolExecutor | None = None,
+    manager: SyncManager | None = None,
+    resource_monitor: ResourceMonitor | None = None,
 ):
     """
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
@@ -40,6 +45,9 @@ def uvvis(
     """
     printf(h2("UVVIS"))
 
+    if executor is None or manager is None or resource_monitor is None:
+        raise ValueError("executor, manager, and resource_monitor must be provided")
+
     config.model_validate(config, context={"check": "uvvis"})
 
     # Assert that all conformers have energies defined
@@ -50,7 +58,7 @@ def uvvis(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.uvvis.prog, "6_UVVIS")
+    proc: QmProc = Factory.create(config.uvvis.prog, "6_UVVIS")
 
     # Run UVVis calculations
     # TODO: if some calculations fail we would need to recalculate boltzmann populations
@@ -73,6 +81,9 @@ def uvvis(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
+        executor=executor,  # type: ignore
+        manager=manager,  # type: ignore
+        resource_monitor=resource_monitor,  # type: ignore
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

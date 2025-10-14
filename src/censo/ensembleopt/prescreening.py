@@ -3,6 +3,8 @@ from collections.abc import Callable
 from typing import Any
 import json
 from tabulate import tabulate
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing.managers import SyncManager
 
 
 from ..processing.xtb_processor import XtbProc
@@ -11,7 +13,7 @@ from ..molecules import Contributions, MoleculeData
 from ..ensemble import EnsembleData
 from ..utilities import Factory, timeit, h1, h2, DataDump, printf
 from ..config import PartsConfig
-from ..parallel import execute
+from ..parallel import execute, ResourceMonitor
 from ..processing import QmProc
 from ..params import GridLevel, AU2KCAL, PLENGTH, Prog
 from ..config.job_config import SPJobConfig, XTBJobConfig
@@ -26,6 +28,9 @@ def prescreening(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
+    executor: ProcessPoolExecutor | None,
+    manager: SyncManager | None,
+    resource_monitor: ResourceMonitor | None,
     cut: bool = True,
 ):
     """
@@ -38,19 +43,25 @@ def prescreening(
     :param config: PartsConfig object with configuration settings.
     :param parallel_config: ParallelConfig object for parallel execution.
     :param cut: Whether to apply cutting conditions.
+    :param executor: Optional ProcessPoolExecutor.
+    :param manager: Optional SyncManager.
+    :param resource_monitor: Optional ResourceMonitor.
     :return: None
     """
     printf(h2("PRESCREENING"))
 
+    if executor is None or manager is None or resource_monitor is None:
+        raise ValueError("executor, manager, and resource_monitor must be provided")
+
     config.model_validate(config, context={"check": "prescreening"})
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
+    proc: QmProc = Factory.create(config.prescreening.prog, "0_PRESCREENING")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
-        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "0_PRESCREENING")
+        proc_xtb: XtbProc = Factory.create(Prog.XTB, "0_PRESCREENING")
         job_config = XTBJobConfig(
             gfnv=config.prescreening.gfnv,
             solvent=config.general.solvent,
@@ -65,6 +76,9 @@ def prescreening(
             config.prescreening.prog,
             "prescreening",
             parallel_config,
+            executor,  # type: ignore
+            manager,  # type: ignore
+            resource_monitor,  # type: ignore
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
@@ -93,6 +107,9 @@ def prescreening(
         config.prescreening.prog,
         "prescreening",
         parallel_config,
+        executor,  # type: ignore
+        manager,  # type: ignore
+        resource_monitor,  # type: ignore
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,

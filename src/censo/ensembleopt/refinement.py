@@ -3,10 +3,12 @@ from pathlib import Path
 from typing import Any
 import json
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing.managers import SyncManager
 
 from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
-from ..parallel import execute
+from ..parallel import execute, ResourceMonitor
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig, RefinementConfig
@@ -25,6 +27,9 @@ def refinement(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool = True,
+    executor: ProcessPoolExecutor | None = None,
+    manager: SyncManager | None = None,
+    resource_monitor: ResourceMonitor | None = None,
 ):
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
@@ -37,10 +42,13 @@ def refinement(
     """
     printf(h2("REFINEMENT"))
 
+    if executor is None or manager is None or resource_monitor is None:
+        raise ValueError("executor, manager, and resource_monitor must be provided")
+
     config.model_validate(config, context={"check": "refinement"})
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.refinement.prog, "3_REFINEMENT")
+    proc: QmProc = Factory.create(config.refinement.prog, "3_REFINEMENT")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase and not config.refinement.gsolv_included:
@@ -69,6 +77,9 @@ def refinement(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            executor=executor,  # type: ignore
+            manager=manager,  # type: ignore
+            resource_monitor=resource_monitor,  # type: ignore
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -99,6 +110,9 @@ def refinement(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            executor=executor,  # type: ignore
+            manager=manager,  # type: ignore
+            resource_monitor=resource_monitor,  # type: ignore
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -108,7 +122,7 @@ def refinement(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
-        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "3_REFINEMENT")
+        proc_xtb: XtbProc = Factory.create(Prog.XTB, "3_REFINEMENT")
         job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
@@ -124,6 +138,9 @@ def refinement(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            executor=executor,  # type: ignore
+            manager=manager,  # type: ignore
+            resource_monitor=resource_monitor,  # type: ignore
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
