@@ -39,7 +39,7 @@ class TestScreening:
         )
 
         # Run screening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
@@ -73,7 +73,7 @@ class TestScreening:
         )
 
         # Run screening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
@@ -105,7 +105,7 @@ class TestScreening:
         )
 
         # Run screening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
@@ -147,7 +147,7 @@ class TestScreening:
         )
 
         # Run screening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         screening(mock_ensemble, config, None, client=client)
 
         # Verify number of remaining conformers

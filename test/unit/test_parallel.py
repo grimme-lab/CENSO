@@ -1,13 +1,12 @@
 import time
 import pytest
-import uuid
 import subprocess
-from dask.distributed import Client, LocalCluster, Variable
+from dask.distributed import Client, LocalCluster
 from typing import Any
 
 from censo.config.paths import PathsConfig
 from censo.parallel import (
-    setup_parallel,
+    get_client,
     ParallelJob,
     set_omp,
     prepare_jobs,
@@ -22,7 +21,6 @@ from censo.config.job_config import (
     UVVisResult,
     MetaData,
 )
-from censo.molecules import GeometryData, MoleculeData
 from censo.params import GridLevel, QmProg
 from censo.config.job_config import SPJobConfig
 
@@ -202,12 +200,10 @@ class TestCoreParallelComponents:
         ncores = 4
         threads_per_worker = 2
 
-        with setup_parallel(ncores, threads_per_worker) as (
-            cluster,
-            client,
-        ):
-            assert isinstance(cluster, LocalCluster)
-            assert isinstance(client, Client)
+        client, cluster = get_client(ncores, threads_per_worker)
+
+        assert isinstance(cluster, LocalCluster)
+        assert isinstance(client, Client)
 
 
 class TestResultDataclasses:
@@ -372,7 +368,7 @@ class TestJobExecution:
         """Test successful parallel execution of all jobs"""
         # Create two mock conformers
         conformers = create_conformers(2)
-        cluster, client, parallel_config = parallel_setup
+        client, cluster, parallel_config = parallel_setup
 
         # Run execute
         results = execute(
@@ -404,7 +400,7 @@ class TestJobExecution:
         """Test execution when all jobs fail"""
         # Create two mock conformers
         conformers = create_conformers(2)
-        cluster, client, parallel_config = parallel_setup
+        client, cluster, parallel_config = parallel_setup
 
         # Check that RuntimeError is raised when all jobs fail
         with pytest.raises(RuntimeError, match="All jobs failed to execute"):
@@ -427,7 +423,7 @@ class TestJobExecution:
         """Test execution with mixed success/failure"""
         # Create four mock conformers
         conformers = create_conformers(4)
-        cluster, client, parallel_config = parallel_setup
+        client, cluster, parallel_config = parallel_setup
 
         # Run execute
         results = execute(
@@ -469,7 +465,7 @@ class TestJobExecution:
         # Create eight mock conformers
         n_jobs = 8
         conformers = create_conformers(n_jobs)
-        cluster, client, parallel_config = parallel_setup
+        client, cluster, parallel_config = parallel_setup
 
         # Run execute with limited cores
         start_time = time.time()

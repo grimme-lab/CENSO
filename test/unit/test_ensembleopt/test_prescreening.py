@@ -31,7 +31,7 @@ class TestPrescreening:
         mock_execute.return_value = mock_execute_results["prescreening"]["sp"]
 
         # Run prescreening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         prescreening(mock_ensemble, config, None, client=client)
 
         # Verify calls
@@ -58,7 +58,7 @@ class TestPrescreening:
         config = PartsConfig()
 
         # Run prescreening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         prescreening(mock_ensemble, config, None, client=client)
 
         # Verify calls
@@ -95,7 +95,7 @@ class TestPrescreening:
         ]
 
         # Run prescreening
-        cluster, client, _ = parallel_setup
+        client, cluster, _ = parallel_setup
         prescreening(mock_ensemble, config, None, client=client)
 
         # Verify number of remaining conformers

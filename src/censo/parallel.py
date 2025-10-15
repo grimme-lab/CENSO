@@ -2,7 +2,6 @@ import traceback
 import os
 from typing import Literal
 from collections.abc import Callable
-from contextlib import contextmanager
 from pathlib import Path
 from concurrent.futures import CancelledError
 from uuid import uuid4
@@ -19,8 +18,7 @@ from .config.job_config import QmResult, MetaData
 logger = setup_logger(__name__)
 
 
-@contextmanager
-def setup_parallel(ncores: int, threads_per_worker: int):
+def get_client(ncores: int, threads_per_worker: int):
     """
     Set up Dask parallel execution environment.
 
@@ -28,19 +26,15 @@ def setup_parallel(ncores: int, threads_per_worker: int):
     :param threads_per_worker: Number of threads per worker.
     :return: Yields LocalCluster and Client.
     """
-    from dask.distributed import LocalCluster, Client
+    from dask.distributed import LocalCluster
 
     cluster = LocalCluster(
         n_workers=1,
         threads_per_worker=threads_per_worker,
         resources={"CPU": ncores},  # One worker receives all CPUs
     )
-    client = Client(cluster)
-    try:
-        yield cluster, client
-    finally:
-        client.close()
-        cluster.close()
+    client = cluster.get_client()
+    return client, cluster
 
 
 class ParallelJob:
@@ -238,9 +232,7 @@ def execute[T: QmResult](
     )
 
     # Cooperative cancellation variable (name deterministic/configurable)
-    cancel_var_name = getattr(parallel_config, "cancel_variable_name", None)
-    if not cancel_var_name:
-        cancel_var_name = f"censo_cancel_{uuid4().hex}"
+    cancel_var_name = f"censo_cancel_{uuid4().hex}"
     cancel_var = Variable(cancel_var_name, client=client)
     cancel_var.set(False)
 

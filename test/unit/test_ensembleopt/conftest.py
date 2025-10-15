@@ -4,8 +4,6 @@ from collections import defaultdict
 from collections.abc import Mapping
 import pytest
 from pathlib import Path
-from censo.parallel import setup_parallel
-from censo.config.parallel_config import ParallelConfig
 
 from censo.ensemble import EnsembleData
 from censo.config.job_config import (
