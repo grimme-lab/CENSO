@@ -1,18 +1,11 @@
 import traceback
 import os
-import subprocess
 from typing import Literal
 from collections.abc import Callable
 from pathlib import Path
-from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError
 from uuid import uuid4
-from dask.distributed import (
-    Variable,
-    Client,
-    as_completed as dask_as_completed,
-    SSHCluster,
-    LocalCluster,
-)
+from dask.distributed import Variable, Client, as_completed as dask_as_completed
 
 from .molecules import GeometryData, MoleculeData
 from .logging import setup_logger
@@ -25,191 +18,21 @@ from .config.job_config import QmResult, MetaData
 logger = setup_logger(__name__)
 
 
-def _parse_slurm_nodelist(nodelist: str) -> list[str]:
-    """
-    Parse SLURM_NODELIST environment variable to extract node hostnames.
-
-    Handles formats like:
-    - "node001"
-    - "node[001-003]"
-    - "node001,node002,node003"
-    - "node[001-002,004]"
-
-    :param nodelist: The SLURM_NODELIST string
-    :return: List of node hostnames
-    """
-    nodes = []
-
-    # Split by commas first, but be careful with commas inside brackets
-    parts = []
-    current_part = ""
-    bracket_depth = 0
-
-    for char in nodelist:
-        if char == "[":
-            bracket_depth += 1
-            current_part += char
-        elif char == "]":
-            bracket_depth -= 1
-            current_part += char
-        elif char == "," and bracket_depth == 0:
-            parts.append(current_part)
-            current_part = ""
-        else:
-            current_part += char
-
-    if current_part:
-        parts.append(current_part)
-
-    for part in parts:
-        part = part.strip()
-        if "[" in part and "]" in part:
-            # Handle bracketed ranges like "node[001-003]"
-            prefix = part.split("[")[0]
-            range_part = part.split("[")[1].split("]")[0]
-
-            # Split ranges by comma
-            ranges = range_part.split(",")
-            for r in ranges:
-                if "-" in r:
-                    # Handle range like "001-003"
-                    start, end = r.split("-")
-                    start_num = int(start)
-                    end_num = int(end)
-                    width = len(start)
-                    for i in range(start_num, end_num + 1):
-                        nodes.append(f"{prefix}{i:0{width}d}")
-                else:
-                    # Single number
-                    width = len(r)
-                    nodes.append(f"{prefix}{int(r):0{width}d}")
-        else:
-            # Simple hostname
-            nodes.append(part)
-
-    return nodes
-
-
-def _ssh_check_one_host(host: str, timeout: float, connect_timeout: int) -> bool:
-    """
-    Return True if an SSH call to `host` succeeds within `timeout`.
-    """
-    cmd = [
-        "ssh",
-        "-o", "BatchMode=yes",
-        "-o", f"ConnectTimeout={connect_timeout}",
-        "-o", "StrictHostKeyChecking=no",
-        host,
-        "true",
-    ]
-    try:
-        completed = subprocess.run(cmd, timeout=timeout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return completed.returncode == 0
-    except subprocess.TimeoutExpired:
-        logger.debug("SSH timeout for host %s", host)
-        return False
-    except Exception:
-        logger.debug("SSH error for host %s", host, exc_info=True)
-        return False
-
-
-def _test_ssh_connectivity(nodes: list[str], timeout: float = 5.0, max_workers: int = 16) -> bool:
-    """
-    Concurrently verify SSH connectivity to all nodes using ThreadPoolExecutor.
-
-    Returns True only if every node check succeeds. On the first failing check this
-    function returns False (get_client will fall back to LocalCluster).
-    """
-    if not nodes:
-        return False
-
-    connect_timeout = max(1, int(timeout))
-    workers = min(max_workers, len(nodes))
-
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = {ex.submit(_ssh_check_one_host, h, timeout, connect_timeout): h for h in nodes}
-        for fut in as_completed(futures):
-            try:
-                ok = fut.result()
-            except Exception:
-                ok = False
-            if not ok:
-                return False
-    return True
-
-
 def get_client(ncores: int, threads_per_worker: int):
     """
     Set up Dask parallel execution environment.
 
     :param ncores: Total number of cores available.
     :param threads_per_worker: Number of threads per worker.
-    :return: Yields LocalCluster or SSHCluster and Client.
+    :return: Yields LocalCluster and Client.
     """
-    # Check if we're in a Slurm job
-    slurm_job_id = os.environ.get("SLURM_JOBID")
-    slurm_nodelist = os.environ.get("SLURM_NODELIST")
+    from dask.distributed import LocalCluster
 
-    if slurm_job_id and slurm_nodelist:
-        # We're in a Slurm job - use SSHCluster for multi-node
-        logger.info(f"Detected Slurm job {slurm_job_id}")
-
-        try:
-            nodes = _parse_slurm_nodelist(slurm_nodelist)
-            logger.debug(f"Parsed nodes from SLURM_NODELIST: {nodes}")
-
-            if len(nodes) > 1:
-                # Test SSH connectivity before creating SSHCluster
-                logger.debug("Testing SSH connectivity to nodes...")
-                if not _test_ssh_connectivity(nodes):
-                    logger.warning(
-                        "SSH connectivity test failed. Falling back to LocalCluster."
-                    )
-                    cluster = LocalCluster(
-                        n_workers=1,
-                        threads_per_worker=threads_per_worker,
-                        resources={"CPU": ncores},
-                    )
-                else:
-                    # Multi-node job - use SSHCluster
-                    logger.info(f"Creating SSHCluster with {len(nodes)} nodes")
-                    cluster = SSHCluster(
-                        [nodes[0]] + nodes,  # double count the first node as scheduler
-                        connect_options={"known_hosts": None},  # Skip host key checking
-                        worker_options={
-                            "nthreads": threads_per_worker,
-                            "resources": {"CPU": ncores},
-                        },
-                        scheduler_options={"port": 0},  # Use any available port
-                    )
-                    logger.info(
-                        f"Created SSHCluster with {len(nodes)} nodes. Scheduler: {nodes[0]}."
-                    )
-            else:
-                # Single node in Slurm - fall back to LocalCluster
-                logger.debug("Single node in Slurm job, using LocalCluster")
-                cluster = LocalCluster(
-                    n_workers=1,
-                    threads_per_worker=threads_per_worker,
-                    resources={"CPU": ncores},
-                )
-        except Exception as e:
-            logger.warning(
-                f"Failed to create SSHCluster: {e}. Falling back to LocalCluster."
-            )
-            cluster = LocalCluster(
-                n_workers=1,
-                threads_per_worker=threads_per_worker,
-                resources={"CPU": ncores},
-            )
-    else:
-        # Not in Slurm - use LocalCluster
-        cluster = LocalCluster(
-            n_workers=1,
-            threads_per_worker=threads_per_worker,
-            resources={"CPU": ncores},
-        )
-
+    cluster = LocalCluster(
+        n_workers=1,
+        threads_per_worker=threads_per_worker,
+        resources={"CPU": ncores},  # One worker receives all CPUs
+    )
     client = cluster.get_client()
     return client, cluster
 
