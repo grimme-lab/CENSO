@@ -14,6 +14,7 @@ from ..params import DESCR, __version__, Returncode, PLENGTH
 from ..utilities import printf
 from ..logging import setup_logger, set_loglevel
 from .cml_parser import parse
+from ..utilities import print_validation_errors
 
 logger = setup_logger(__name__)
 
@@ -120,7 +121,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             runtime = func(ensemble, parts_config, parallel_config, client=client)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
-    except:
+    except Exception:
         import traceback
 
         tb = traceback.format_exc()
@@ -281,10 +282,8 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
         )
 
     printf(
-        (
-            f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
-            f"will be deleted:"
-        )
+        f"Be aware that files in {cwd} and subdirectories with names containing the following substrings "
+        f"will be deleted:"
     )
     for sub in to_delete:
         printf(sub)
@@ -318,9 +317,6 @@ def cleanup_run(cwd: str | Path, complete: bool = False):
                 os.remove(os.path.join(subdir, file))
 
 
-from ..utilities import print_validation_errors
-
-
 def print_comparison(comparison: dict[str, dict[str, float]]):
     """
     Print a comparison table of the final rankings.
@@ -331,7 +327,7 @@ def print_comparison(comparison: dict[str, dict[str, float]]):
     from ..utilities import h1
 
     if len(comparison) > 1:
-        printf(h1(f"FINAL RANKING COMPARISON"))
+        printf(h1("FINAL RANKING COMPARISON"))
 
         headers = ["CONF#"]
 

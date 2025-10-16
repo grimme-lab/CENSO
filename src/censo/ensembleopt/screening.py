@@ -293,7 +293,7 @@ def screening(
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     """ """
-    printf(h1(f"SCREENING SINGLE-POINT (+ mRRHO) RESULTS"))
+    printf(h1("SCREENING SINGLE-POINT (+ mRRHO) RESULTS"))
 
     # column headers
     headers = [

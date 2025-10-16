@@ -152,7 +152,6 @@ def task_long_subprocess(
 ) -> tuple[SPResult, MetaData]:
     """Task that runs a long subprocess and checks for cancellation."""
     from dask.distributed import Variable, get_client
-    import os
 
     # Get cancel var name from kwargs
     cancel_var_name = kwargs.get("__censo_cancel_var")

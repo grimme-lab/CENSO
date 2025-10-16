@@ -41,7 +41,7 @@ try:
 except ImportError:
     raise ImportError("    Error while importing numpy!")
 try:
-    from sys import version_info
+    # from sys import version_info  # unused
     from sys import exit
     from sys import argv as sysargv
 except ImportError:
@@ -79,7 +79,7 @@ def checkval(value):
     """
     x = float(value)
     if x < 0 or x > 1.0:
-        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
+        raise argparse.ArgumentTypeError("{!r} not in range [0.0, 1.0]".format(x))
     return x
 
 
@@ -299,7 +299,7 @@ def readinput(filename, ppm, intensit, number):
     :param number: Number (unused).
     :return: Updated ppm and intensit lists.
     """
-    with open(filename, "r") as inp:
+    with open(filename) as inp:
         data = inp.readlines()
     x = []
     y = []
@@ -459,7 +459,7 @@ def main():
     for file in args.file:
         try:
             ppm, intensit = readinput(file, ppm, intensit, i)
-        except IOError:
+        except OSError:
             print(
                 "    File: {} does not exist! Or Error while reading file! "
                 "Terminating now!".format(file)
@@ -830,7 +830,7 @@ def main():
                     )  # set spine (in picture the x axis down by x points)
 
     figure.subplots_adjust(wspace=0.05, hspace=0.05)
-    figure.text(0.5, 0.04, "$\delta$ / ppm", ha="center", fontsize=args.fontsize)
+    figure.text(0.5, 0.04, r"$\delta$ / ppm", ha="center", fontsize=args.fontsize)
     plt.savefig(args.out + ".pdf", dpi=300)
     plt.savefig(args.out + ".svg")
     print("    Plot is saved to {}.pdf !".format(args.out))

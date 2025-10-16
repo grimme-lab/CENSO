@@ -71,10 +71,9 @@ class OrcaProc(QmProc):
     __returncode_to_err: dict[int, str] = {
         24: "input_error",
         25: "input_error",
-        25: "input_error",
         30: "input_error",
         52: "input_error",
-        55: "input_error",
+        55: "unknown_error",
         125: "unknown_error",
     }
 
@@ -103,7 +102,7 @@ class OrcaProc(QmProc):
         """
 
         # check ORCA version (orca5 = True means at least ORCA version 5)
-        orca5 = int(config.paths.orcaversion[0]) > 4
+        # orca5 = int(config.paths.orcaversion[0]) > 4
 
         inp: list[str] = []
 
@@ -125,7 +124,7 @@ class OrcaProc(QmProc):
 
         # prepare the main line of the orca input
         if template:
-            main_line = next(inp.index(l) for l in inp if "{main}" in l)
+            main_line = next(inp.index(line) for line in inp if "{main}" in line)
             inp.pop(main_line)
         inp[:0] = self.__prep_main(jobtype, config, no_solv)
 
@@ -135,7 +134,7 @@ class OrcaProc(QmProc):
 
         # prepare the geometry
         if template:
-            geom_line = next(inp.index(l) for l in inp if "{geom}" in l)
+            geom_line = next(inp.index(line) for line in inp if "{geom}" in line)
             inp.pop(geom_line)
             inp[geom_line:geom_line] = self.__prep_geom(
                 job.conf,
@@ -506,7 +505,7 @@ class OrcaProc(QmProc):
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         # read output
-        with open(outputpath, "r") as out:
+        with open(outputpath) as out:
             lines = out.readlines()
 
         # Check for errors in the output file in case returncode is 0
@@ -656,7 +655,7 @@ class OrcaProc(QmProc):
             logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         # read output
-        with open(outputpath, "r") as out:
+        with open(outputpath) as out:
             lines = out.readlines()
 
         # Check for errors in the output file in case returncode is 0
@@ -850,7 +849,7 @@ class OrcaProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath, "r") as file:
+        with open(outputpath) as file:
             lines = file.readlines()
 
         result.ecyc = []
@@ -972,7 +971,7 @@ class OrcaProc(QmProc):
             return result, meta
 
         # Grab shieldings and energy from the output
-        with open(outputpath, "r") as f:
+        with open(outputpath) as f:
             lines = f.readlines()
 
         # Get final energy
@@ -997,7 +996,7 @@ class OrcaProc(QmProc):
         # Sort shieldings by atom index
         result.shieldings.sort(key=lambda x: x[0])
 
-        with open(outputpath, "r") as f:
+        with open(outputpath) as f:
             lines = f.readlines()
 
         start = lines.index(next(x for x in lines if "SPIN-SPIN COUPLING" in x)) + 6
@@ -1087,7 +1086,7 @@ class OrcaProc(QmProc):
             return result, meta
 
         # Grab excitations and energy from the output
-        with open(outputpath, "r") as f:
+        with open(outputpath) as f:
             lines = f.readlines()
 
         # Get final energy

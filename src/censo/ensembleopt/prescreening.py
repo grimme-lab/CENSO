@@ -124,7 +124,7 @@ def prescreening(
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     """ """
-    printf(h1(f"PRESCREENING SINGLE-POINT RESULTS"))
+    printf(h1("PRESCREENING SINGLE-POINT RESULTS"))
 
     # column headers
     headers = [

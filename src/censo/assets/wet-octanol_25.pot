@@ -1,12 +1,12 @@
 epsilon=8.1
-# curvature of the default hexane potential (c0 parameter in kcal A**2/mol/e**2)   
-c0=1447.24                                                                         
-# optional: data vor combinatorial term 3rd lmabda param., sum_i xi*area_i of      
-#           solute in A**2, sum_i xi*volume_i in A**3                              
-lambda_3=-0.1506584                                                                
+# curvature of the default hexane potential (c0 parameter in kcal A**2/mol/e**2)
+c0=1447.24
+# optional: data vor combinatorial term 3rd lmabda param., sum_i xi*area_i of
+#           solute in A**2, sum_i xi*volume_i in A**3
+lambda_3=-0.1506584
 sum_x_vol=153.8009
 sum_x_area=162.9527
-# Sigma potential (s [e/A^2], mu(s) [kcal/mol A^2] for  T= 298.15 K,  X= 1.0000 
+# Sigma potential (s [e/A^2], mu(s) [kcal/mol A^2] for  T= 298.15 K,  X= 1.0000
     -0.130     1.841
     -0.129     1.743
     -0.128     1.646

@@ -3,7 +3,6 @@ Calculates the ensemble NMR spectrum for all active nuclei.
 """
 
 from collections import defaultdict
-from collections.abc import Callable
 from pathlib import Path
 from tabulate import tabulate
 from itertools import product
@@ -28,7 +27,11 @@ logger = setup_logger(__name__)
 
 @timeit
 def nmr(
-    ensemble: EnsembleData, config: PartsConfig, parallel_config: ParallelConfig | None, *, client: Client
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    parallel_config: ParallelConfig | None,
+    *,
+    client: Client,
 ):
     """
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
@@ -212,25 +215,25 @@ def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRRes
     :param results: Dictionary of NMRResult objects for each conformer.
     :return: Dictionary ready for JSON serialization.
     """
-    per_conf: Callable[
-        [MoleculeData],
+
+    def per_conf(
+        conf: MoleculeData,
+    ) -> dict[
+        str,
         dict[
-            str,
-            dict[
-                str,
-                float | list[tuple[int, float]] | list[tuple[tuple[int, int], float]],
-            ],
+            str, float | list[tuple[int, float]] | list[tuple[tuple[int, int], float]]
         ],
-    ] = lambda conf: {
-        conf.name: {
-            "energy": conf.energy,
-            "gsolv": conf.gsolv,
-            "grrho": conf.grrho,
-            "nat": conf.geom.nat,
-            "shieldings": results[conf.name].shieldings,
-            "couplings": results[conf.name].couplings,
+    ]:
+        return {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "nat": conf.geom.nat,
+                "shieldings": results[conf.name].shieldings,
+                "couplings": results[conf.name].couplings,
+            }
         }
-    }
 
     dump = DataDump(part_name="nmr")
 

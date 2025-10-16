@@ -25,14 +25,14 @@ def test_general_startup(example_ensemble_file):
 
 
 def test_writeconfig():
-    argv = str("--new-config").split()
+    argv = "--new-config".split()
     entry_point(argv)
 
     assert Path("censo2rc_NEW").is_file()
 
 
 def test_writereadconfig(example_ensemble_file):
-    argv = str("--new-config").split()
+    argv = "--new-config".split()
     entry_point(argv)
 
     argv = str(
@@ -42,7 +42,7 @@ def test_writereadconfig(example_ensemble_file):
 
 
 def test_rc_override(example_ensemble_file):
-    argv = str("--new-config").split()
+    argv = "--new-config".split()
     entry_point(argv)
 
     argv = str(

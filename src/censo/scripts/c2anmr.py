@@ -86,7 +86,7 @@ def create_conformers_list(
     K_HARTREE: float = 3.1668114e-6  # Boltzmann constant in Hartree/K
 
     try:
-        with open(json_file_path, "r") as f:
+        with open(json_file_path) as f:
             json_data: dict[str, Any] = json.load(f)
     except FileNotFoundError:
         print(f"Error: The file {json_file_path} was not found.", file=sys.stderr)
@@ -194,7 +194,7 @@ def write_nmrprop(
     try:
         with open(file_path, "w") as f:
             f.writelines(lines)
-    except IOError as e:
+    except OSError as e:
         print(f"Error writing to file {file_path}: {e}", file=sys.stderr)
 
 
@@ -221,7 +221,7 @@ def write_anmrrc(args: argparse.Namespace, directory: Path | str) -> None:
     try:
         file_path.write_text("\n".join(lines) + "\n")
         print(f"Info: Written ANMR config to {file_path}", file=sys.stderr)
-    except IOError as e:
+    except OSError as e:
         print(f"Error: Could not write to {file_path}. {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -254,7 +254,7 @@ def write_anmr_enso(
                 )
                 f.write(line)
         print(f"Info: Written anmr_enso file to {output_filename}", file=sys.stderr)
-    except IOError as e:
+    except OSError as e:
         print(f"Error writing to file {output_filename}: {e}", file=sys.stderr)
     except KeyError as e:
         print(f"Error: Missing key {e} in conformers_data.", file=sys.stderr)
@@ -271,7 +271,7 @@ def load_references_from_config(
     """
     refs: list[list[str]] = []
     try:
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -286,7 +286,7 @@ def load_references_from_config(
                     )
         print(f"Info: Loaded reference shieldings from {config_path}", file=sys.stderr)
         return refs
-    except IOError:
+    except OSError:
         return None
 
 

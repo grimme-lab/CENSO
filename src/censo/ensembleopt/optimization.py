@@ -68,7 +68,9 @@ def optimization(
             proc, ensemble, config, parallel_config, cut, client=client
         )
     else:
-        contributions_dict = _full_opt(proc, ensemble, config, parallel_config, client=client)
+        contributions_dict = _full_opt(
+            proc, ensemble, config, parallel_config, client=client
+        )
 
     printf("\n")
 
@@ -344,7 +346,7 @@ def _full_opt(
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     """ """
-    printf(h1(f"OPTIMIZATION RESULTS"))
+    printf(h1("OPTIMIZATION RESULTS"))
 
     # column headers
     headers = [

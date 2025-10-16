@@ -23,7 +23,7 @@ from ..config.job_config import (
     SPResult,
 )
 from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog, ENVIRON
-from ..utilities import frange, Factory
+from ..utilities import Factory
 from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig, RotJobConfig
 from ..assets import FUNCTIONALS, SOLVENTS
 
@@ -272,13 +272,15 @@ class TmProc(QmProc):
     ):
         # Special treatment for KT1/KT2
         if "kt" in func:
-            func_line_index = next(inp.index(l) for l in inp if "functional" in l)
+            func_line_index = next(
+                inp.index(line) for line in inp if "functional" in line
+            )
             inp[func_line_index] = "   functional xcfun set-gga\n"
             inp.insert(func_line_index + 1, f"   functional xcfun kt{func[2]} 1.0\n")
         # Special treatment for b97-3c
         elif func == "b97-3c":
             # Needs three-body dispersion
-            disp_line_index = next(inp.index(l) for l in inp if "disp" in l)
+            disp_line_index = next(inp.index(line) for line in inp if "disp" in line)
             inp[disp_line_index] = "$disp3 -bj -abc\n"
 
         # Enable non local dispersion
@@ -498,11 +500,9 @@ class TmProc(QmProc):
         # Get final energy
         try:
             result.energy = next(
-                (
-                    float(line.split()[4])
-                    for line in lines
-                    if "|  total energy      = " in line
-                )
+                float(line.split()[4])
+                for line in lines
+                if "|  total energy      = " in line
             )
         except StopIteration:
             meta.success = False
@@ -647,7 +647,7 @@ class TmProc(QmProc):
             if config.sm == TmSolvMod.COSMORS:
                 setup = (
                     config.paths.cosmorssetup
-                    if not "FINE" in config.paths.cosmorssetup
+                    if "FINE" not in config.paths.cosmorssetup
                     else config.paths.cosmorssetup.replace("TZVPD_FINE", "TZVP")
                 )
             else:
@@ -730,7 +730,7 @@ class TmProc(QmProc):
             )  # molar volume for ideal gas at 298.15 K 100.0 kPa
 
             cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
-            with open(cosmothermtab, "r") as inp:
+            with open(cosmothermtab) as inp:
                 lines = inp.readlines()
             for line in lines:
                 if "T=" in line:
@@ -867,7 +867,7 @@ class TmProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath, "r") as file:
+        with open(outputpath) as file:
             lines = file.readlines()
 
         result.ecyc = []
@@ -1024,7 +1024,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Grab shieldings from the output
-            with open(outputpath, "r") as f:
+            with open(outputpath) as f:
                 lines = f.readlines()
 
             try:
@@ -1041,7 +1041,7 @@ class TmProc(QmProc):
             result.shieldings = []
 
             # Get lines with "ATOM" in it
-            line_indices = [lines.index(l) for l in lines if "ATOM" in l]
+            line_indices = [lines.index(line) for line in lines if "ATOM" in line]
 
             for i in line_indices:
                 split = lines[i].split()
@@ -1076,7 +1076,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Grab couplings from the output
-            with open(outputpath, "r") as f:
+            with open(outputpath) as f:
                 lines = f.readlines()
 
             try:
@@ -1097,7 +1097,9 @@ class TmProc(QmProc):
 
             lines = lines[:end]
 
-            line_indices = [lines.index(l) for l in lines if len(l.split()) in [6, 7]]
+            line_indices = [
+                lines.index(line) for line in lines if len(line.split()) in [6, 7]
+            ]
 
             couplings: list[tuple[frozenset[int], float]] = []
             for i in line_indices:
@@ -1181,7 +1183,7 @@ class TmProc(QmProc):
             return result, meta
 
         # Grab shieldings from the output
-        with open(outputpath, "r") as f:
+        with open(outputpath) as f:
             lines = f.readlines()
 
         try:

@@ -1,6 +1,6 @@
 import pytest
 from censo.config.parts.nmr import NMRConfig
-from censo.params import QmProg, GfnVersion, TmSolvMod, OrcaSolvMod
+from censo.params import QmProg, TmSolvMod, OrcaSolvMod
 
 
 def test_nmr_config_default_values():

@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 import subprocess
 from collections.abc import Callable
-from threading import Event
 import time
 from typing import final
 from dask.distributed import Variable
@@ -89,12 +88,7 @@ class GenericProc:
     def _run[
         T: QmResult,
         U: XTBJobConfig | SPJobConfig,
-    ](
-        f: Callable[
-            ...,
-            tuple[T, MetaData],
-        ],
-    ) -> Callable[..., tuple[T, MetaData]]:
+    ](f: Callable[..., tuple[T, MetaData],],) -> Callable[..., tuple[T, MetaData]]:
         """
         Wrapper function to manage resources and create job directory.
 

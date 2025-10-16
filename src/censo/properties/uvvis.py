@@ -3,7 +3,6 @@ Calculates the ensemble UV/Vis spectrum.
 """
 
 from pathlib import Path
-from collections.abc import Callable
 from tabulate import tabulate
 import json
 from dask.distributed import Client
@@ -150,23 +149,18 @@ def jsonify(
     :param results: Dictionary of UVVisResult objects for each conformer.
     :return: Dictionary ready for JSON serialization.
     """
-    per_conf: Callable[
-        [MoleculeData],
-        dict[
-            str,
-            dict[
-                str,
-                float | list[dict[str, float]],
-            ],
-        ],
-    ] = lambda conf: {
-        conf.name: {
-            "energy": conf.energy,
-            "gsolv": conf.gsolv,
-            "grrho": conf.grrho,
-            "excitations": results[conf.name].excitations,
+
+    def per_conf(
+        conf: MoleculeData,
+    ) -> dict[str, dict[str, float | list[dict[str, float]]]]:
+        return {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "excitations": results[conf.name].excitations,
+            }
         }
-    }
 
     dump = DataDump(part_name="uvvis")
 

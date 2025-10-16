@@ -47,7 +47,7 @@ class PathsConfig(BaseModel):
     @override
     def __str__(self):
         lines: list[str] = []
-        lines.append(h2(f"PATHS of External Programs"))
+        lines.append(h2("PATHS of External Programs"))
         kv = [(k, v) for k, v in self]
         kv.sort(key=lambda x: type(x[1]).__name__)
         for name, value in kv:

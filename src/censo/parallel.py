@@ -181,7 +181,9 @@ def prepare_jobs(
     return sorted(jobs, key=lambda job: job.omp)
 
 
-def execute[T: QmResult](
+def execute[
+    T: QmResult
+](
     conformers: list[MoleculeData],
     task: Callable[..., tuple[T, MetaData]],
     job_config: XTBJobConfig | SPJobConfig,

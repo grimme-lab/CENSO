@@ -3,7 +3,6 @@ Calculates the ensemble optical rotation spectrum.
 """
 
 from pathlib import Path
-from collections.abc import Callable
 from tabulate import tabulate
 import json
 from dask.distributed import Client
@@ -206,24 +205,19 @@ def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotRes
     :param results: Dictionary of RotResult objects for each conformer.
     :return: Dictionary ready for JSON serialization.
     """
-    per_conf: Callable[
-        [MoleculeData],
-        dict[
-            str,
-            dict[
-                str,
-                float | list[tuple[float, float]],
-            ],
-        ],
-    ] = lambda conf: {
-        conf.name: {
-            "energy": conf.energy,
-            "gsolv": conf.gsolv,
-            "grrho": conf.grrho,
-            "rotations_length": results[conf.name].rotations_length,
-            "rotations_velocity": results[conf.name].rotations_velocity,
+
+    def per_conf(
+        conf: MoleculeData,
+    ) -> dict[str, dict[str, float | list[tuple[float, float]]]]:
+        return {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "rotations_length": results[conf.name].rotations_length,
+                "rotations_velocity": results[conf.name].rotations_velocity,
+            }
         }
-    }
 
     dump = DataDump(part_name="rot")
 

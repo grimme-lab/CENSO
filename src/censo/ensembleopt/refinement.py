@@ -161,7 +161,7 @@ def refinement(
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     """ """
-    printf(h1(f"REFINEMENT SINGLE-POINT (+ mRRHO) RESULTS"))
+    printf(h1("REFINEMENT SINGLE-POINT (+ mRRHO) RESULTS"))
 
     # column headers
     headers = [
