@@ -1,0 +1,120 @@
+on:
+  push:
+    branches:
+      - dev
+      # - main
+  pull_request:
+    branches:
+      - dev
+      # - main
+  workflow_dispatch:
+
+name: CI — pre-commit + tox
+
+jobs:
+  pre-commit:
+    name: Pre-commit (lint/format/mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: Cache pip and pre-commit
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/pre-commit
+            .cache/pre-commit
+          key: ${{ runner.os }}-pre-commit-${{ hashFiles('pre-commit-config.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-pre-commit-
+
+      - name: Install pre-commit
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir pre-commit
+
+      - name: If PR, list changed files
+        if: github.event_name == 'pull_request'
+        run: |
+          # fetch the PR base ref so we can diff against it
+          echo "Base ref: ${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --prune --depth=1 origin +refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }} || true
+          git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD > changed_files.txt || true
+          echo "Changed files:"
+          cat changed_files.txt || true
+
+      - name: Run pre-commit on changed files (PRs)
+        if: github.event_name == 'pull_request'
+        run: |
+          files=$(cat changed_files.txt | tr '\n' ' ' | sed 's/ $//')
+          if [ -z "$files" ]; then
+            echo "No changed files detected; skipping pre-commit."
+            exit 0
+          fi
+          echo "Running pre-commit on: $files"
+          pre-commit run --config pre-commit-config.yml --files $files
+
+      - name: Run pre-commit on all files (pushes)
+        if: github.event_name != 'pull_request'
+        run: |
+          pre-commit run --config pre-commit-config.yml --all-files
+
+  tox:
+    name: Tox (unit tests)
+    needs: pre-commit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python-version: "3.12"
+            tox-env: py312
+          - python-version: "3.13"
+            tox-env: py313
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip and .tox
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            .tox
+          key: ${{ runner.os }}-tox-${{ matrix.python-version }}-${{ hashFiles('tox.ini', 'pyproject.toml', 'requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-tox-${{ matrix.python-version }}-
+
+      - name: Install tox
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir "tox>=4"
+
+      - name: Run tox env ${{ matrix.tox-env }}
+        env:
+          CI: true
+        run: |
+          # Recreate ensures correct interpreter for each env
+          tox -e ${{ matrix.tox-env }} --recreate
+
+      - name: Upload .tox (logs/artifacts) (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tox-${{ matrix.tox-env }}-artifact
+          path: .tox
