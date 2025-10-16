@@ -201,7 +201,9 @@ def find_rcfile() -> Path | None:
     rcpath = None
     homepath = Path("~").expanduser() / CENSORCNAME
     try:
-        envpath = Path(os.environ.get("CENSORC_PATH"))
+        envpath = (
+            Path(os.environ["CENSORC_PATH"]) if "CENSORC_PATH" in os.environ else None
+        )
     except TypeError:
         envpath = None
 

@@ -93,9 +93,8 @@ def screening(
             contributions_dict[conf.name].gsolv = results[conf.name].gsolv
             contributions_dict[conf.name].energy = results[conf.name].energy_gas
     else:
-        # Run single-point calculation with solvation or in gas phase
-        job_config = SPJobConfig(
-            copy_mo=config.general.copy_mo,
+        # Run sp calculation
+        sp_job_config = SPJobConfig(
             func=config.screening.func,
             basis=config.screening.basis,
             grid=GridLevel.MEDIUM,
@@ -104,11 +103,12 @@ def screening(
             solvent=config.general.solvent,
             sm=config.screening.sm,
             paths=config.paths,
+            copy_mo=config.general.copy_mo,
         )
-        results = execute(
+        sp_results = execute(
             ensemble.conformers,
             proc.sp,
-            job_config,
+            sp_job_config,
             config.screening.prog,
             "screening",
             parallel_config,
@@ -118,23 +118,23 @@ def screening(
             client=client,
         )
         if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+            ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
 
         for conf in ensemble:
-            contributions_dict[conf.name].energy = results[conf.name].energy
+            contributions_dict[conf.name].energy = sp_results[conf.name].energy
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
         proc_xtb: XtbProc = Factory.create(Prog.XTB, "1_SCREENING")
-        job_config = RRHOJobConfig(
+        rrho_job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
-        results = execute(
+        rrho_results = execute(
             ensemble.conformers,
             proc_xtb.xtb_rrho,
-            job_config,
+            rrho_job_config,
             "xtb",
             "screening",
             parallel_config,
@@ -144,10 +144,10 @@ def screening(
             client=client,
         )
         if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+            ensemble.remove_conformers(lambda conf: conf.name not in rrho_results)
 
         for conf in ensemble:
-            contributions_dict[conf.name].grrho = results[conf.name].energy
+            contributions_dict[conf.name].grrho = rrho_results[conf.name].energy
 
     # Update molecules
     ensemble.update_contributions(contributions_dict)

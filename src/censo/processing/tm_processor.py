@@ -45,7 +45,7 @@ class TmProc(QmProc):
         "nmr": ["    gridsize 5", "$scfconv 7"],
     }
 
-    __returncode_to_err = {}
+    __returncode_to_err: dict[int, str] = {}
 
     # COSMO dielectric constants stored here
     # (mapped to solvent names under 'cosmo' in the solvent helper)
@@ -723,24 +723,26 @@ class TmProc(QmProc):
                 meta.error = "unknown_error"
                 return result, meta
 
-            # Read output
-            gsolvt = {}
-            videal = (
-                24.789561955 / 298.15
-            )  # molar volume for ideal gas at 298.15 K 100.0 kPa
+        # Read output
+        gsolvt = {}
+        videal = (
+            24.789561955 / 298.15
+        )  # molar volume for ideal gas at 298.15 K 100.0 kPa
 
-            cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
-            with open(cosmothermtab) as inp:
-                lines = inp.readlines()
-            for line in lines:
-                if "T=" in line:
-                    temp = float(line.split()[5])
+        cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
+        with open(cosmothermtab) as inp:
+            lines = inp.readlines()
+        temp = 0.0
+        vwork = 0.0
+        for line in lines:
+            if "T=" in line:
+                temp = float(line.split()[5])
 
-                    # Add volume work
-                    vwork = R * temp * math.log(videal * temp)
-                elif " out " in line:
-                    # Add volume work
-                    gsolvt[temp] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
+                # Add volume work
+                vwork = R * temp * math.log(videal * temp)
+            elif " out " in line:
+                # Add volume work
+                gsolvt[temp] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
 
             # result.gsolvt = gsolvt
             result.gsolv = gsolvt[config.temperature]
@@ -867,8 +869,8 @@ class TmProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath) as file:
-            lines = file.readlines()
+        with open(outputpath) as f:
+            lines = f.readlines()
 
         result.ecyc = []
         result.cycles = 0
@@ -906,13 +908,14 @@ class TmProc(QmProc):
 
         # Get the number of cycles
         # tmp is one of the values from the dict defined below
-        tmp = {
+        tmp_val = {
             True: ("GEOMETRY OPTIMIZATION CONVERGED", 5),
             False: ("FAILED TO CONVERGE GEOMETRY", 7),
-        }
-        tmp = tmp[result.converged]
+        }[result.converged]
 
-        result.cycles = int(next(x for x in lines if tmp[0] in x).split()[tmp[1]])
+        result.cycles = int(
+            next(x for x in lines if tmp_val[0] in x).split()[tmp_val[1]]
+        )
 
         # Get energies for each cycle
         result.ecyc.extend(
@@ -1116,11 +1119,11 @@ class TmProc(QmProc):
 
             # Convert all the frozensets to a tuple to be serializable
             for i in range(len(couplings)):
-                pair = cast(tuple[int, int], tuple(couplings[i][0]))
+                pair_tuple = cast(tuple[int, int], tuple(couplings[i][0]))
                 coupling = couplings[i][1]
                 result.couplings.append(
                     (
-                        pair,
+                        pair_tuple,
                         couplings[i][1],
                     )
                 )

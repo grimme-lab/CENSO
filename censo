@@ -2,9 +2,8 @@
 import sys
 import os
 
-parentdir = os.path.split(__file__)[0]
-sys.path.insert(0, f"{os.path.join(parentdir, 'src')}")
+sys.path.insert(0, f"{os.path.join(os.path.split(__file__)[0], 'src')}")
 
-from censo.cli.interface import entry_point  # noqa: E402
+from censo.cli.interface import entry_point
 
 sys.exit(entry_point())

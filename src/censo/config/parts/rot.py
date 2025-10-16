@@ -1,4 +1,4 @@
-from typing import Literal, Any
+from typing import Literal, Any, Self
 import ast
 from pydantic import model_validator, Field, field_validator
 
@@ -62,7 +62,7 @@ class RotConfig(BasePartConfig):
         return v
 
     @model_validator(mode="after")
-    def func_must_be_known_in_prog(self):
+    def func_must_be_known_in_prog(self) -> Self:
         """
         Validate that the functional is known for the chosen program.
 

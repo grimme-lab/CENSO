@@ -67,4 +67,4 @@ def test_valid_solvent_models(sm):
 def test_invalid_solvent_model():
     """Test invalid solvent model"""
     with pytest.raises(ValueError):
-        NMRConfig(sm=TmSolvMod.COSMORS)  # Not in Literal options
+        NMRConfig(sm=TmSolvMod.COSMORS)  # type: ignore[arg-type]

@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import json
 import math
-from typing import Any
+from typing import Any, cast
 import shutil
 
 # A type alias for the conformer data structure
@@ -350,7 +350,12 @@ def main() -> None:
         new_nmr_dir: Path = conf_dir / "NMR"
         new_nmr_dir.mkdir(parents=True, exist_ok=True)
 
-        write_nmrprop(new_nmr_dir, conf["nat"], conf["shieldings"], conf["couplings"])
+        write_nmrprop(
+            new_nmr_dir,
+            cast(int, conf["nat"]),
+            cast(list[Any], conf["shieldings"]),
+            cast(list[Any], conf["couplings"]),
+        )
 
     print("\nFinished setting up anmr directory. Please check .anmrrc for correctness.")
     print("Run anmr -plain")

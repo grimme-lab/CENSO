@@ -1,4 +1,4 @@
-from typing import override
+from typing import override, Self
 import enum
 import warnings
 
@@ -15,7 +15,7 @@ class BasePartConfig(GenericConfig):
     """Base class for configuration classes for all parts"""
 
     @override
-    def __str__(self):
+    def __str__(self) -> str:
         lines: list[str] = []
         lines.append(h2(f"{self.__class__.__name__.split("Config")[0]}"))
         kv = [(k, v) for k, v in self]
@@ -27,7 +27,7 @@ class BasePartConfig(GenericConfig):
         return str("\n".join(lines))
 
     @model_validator(mode="after")
-    def tm_gcp_d4_bug_check(self):
+    def tm_gcp_d4_bug_check(self) -> Self:
         """
         Check if the model has basis, func, and prog fields and get their values. Backcheck with GCP basis sets.
 

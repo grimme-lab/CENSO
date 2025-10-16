@@ -18,8 +18,8 @@
 
 """
 Created on Jan 11, 2019
-last updated on 12-September-2022
-@author: bohle
+last updated on 16-October-2025
+@author: bohle, lmseidler
 """
 
 ##try and except handling of imports
@@ -40,6 +40,10 @@ try:
     import numpy as np
 except ImportError:
     raise ImportError("    Error while importing numpy!")
+try:
+    from typing import Any
+except ImportError:
+    raise ImportError("    Error while importing typing!")
 try:
     # from sys import version_info  # unused
     from sys import exit
@@ -453,8 +457,8 @@ def main():
     else:
         print("    Plotting {} data files.".format(len(args.file)))
     ### Get data from data files
-    ppm = []
-    intensit = []
+    ppm: list[list[float]] = []
+    intensit: list[Any] = []
     i = 0
     for file in args.file:
         try:
@@ -577,9 +581,9 @@ def main():
             # arguments to pass to plot, just so we don't keep repeating them
             d2 = 0.01 * (a / b)
             kwargs = dict(transform=ax1.transAxes, color="k", clip_on=False)
-            ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+            ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)  # type: ignore[arg-type]
             kwargs = dict(transform=ax2.transAxes, color="k", clip_on=False)
-            ax2.plot((-d2, +d2), (-d, +d), **kwargs)
+            ax2.plot((-d2, +d2), (-d, +d), **kwargs)  # type: ignore[arg-type]
             # https://stackoverflow.com/questions/42045767/how-can-i-change-the-x-axis-in-matplotlib-so-there-is-no-white-space
         # ***removed and not ontop
         if not args.ontop:
@@ -660,32 +664,32 @@ def main():
                     kwargs = dict(
                         transform=axislist[i].transAxes, color="k", clip_on=False
                     )
-                    axislist[i].plot((1 - d, 1 + d), (1 - d * 3, 1 + d * 3), **kwargs)
+                    axislist[i].plot((1 - d, 1 + d), (1 - d * 3, 1 + d * 3), **kwargs)  # type: ignore[arg-type]
                     axislist[i].patch.set_alpha(0.0)
                     kwargs = dict(
                         transform=axislist[i + 1].transAxes, color="k", clip_on=False
                     )
-                    axislist[i + 1].plot((-d2, +d2), (1 - d * 3, 1 + d * 3), **kwargs)
+                    axislist[i + 1].plot((-d2, +d2), (1 - d * 3, 1 + d * 3), **kwargs)  # type: ignore[arg-type]
                     axislist[i + 1].patch.set_alpha(0.0)
                 else:
                     kwargs = dict(
                         transform=axislist[i].transAxes, color="k", clip_on=False
                     )
-                    axislist[i].plot((1 - d, 1 + d), (-d * 3, +d * 3), **kwargs)
+                    axislist[i].plot((1 - d, 1 + d), (-d * 3, +d * 3), **kwargs)  # type: ignore[arg-type]
                     axislist[i].patch.set_alpha(0.0)
                     kwargs = dict(
                         transform=axislist[i + 1].transAxes, color="k", clip_on=False
                     )
-                    axislist[i + 1].plot((-d2, +d2), (-d * 3, +d * 3), **kwargs)
+                    axislist[i + 1].plot((-d2, +d2), (-d * 3, +d * 3), **kwargs)  # type: ignore[arg-type]
                     axislist[i + 1].patch.set_alpha(0.0)
             if args.orientation[int(len(args.file)) - 1] == -1:
                 kwargs = dict(transform=axislist[i].transAxes, color="k", clip_on=False)
-                axislist[i].plot((1 - d, 1 + d), (-d * 3, +d * 3), **kwargs)
+                axislist[i].plot((1 - d, 1 + d), (-d * 3, +d * 3), **kwargs)  # type: ignore[arg-type]
                 axislist[i].patch.set_alpha(0.0)
                 kwargs = dict(
                     transform=axislist[i + 1].transAxes, color="k", clip_on=False
                 )
-                axislist[i + 1].plot((-d2, +d2), (-d * 3, +d * 3), **kwargs)
+                axislist[i + 1].plot((-d2, +d2), (-d * 3, +d * 3), **kwargs)  # type: ignore[arg-type]
                 axislist[i + 1].patch.set_alpha(0.0)
 
     elif args.startremove is None or args.endremove is None:

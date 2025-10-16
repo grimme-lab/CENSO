@@ -176,8 +176,8 @@ class GenericProc:
                     time.sleep(1)
 
             # wait for process to finish
-            _, errors = sub.communicate()
-            errors = errors.decode(errors="replace")
+            _, stderr = sub.communicate()
+            errors = stderr.decode(errors="replace")
             returncode = sub.returncode
             logger.debug(
                 f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"

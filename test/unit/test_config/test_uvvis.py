@@ -34,7 +34,7 @@ def test_program_restriction():
     assert config.prog == QmProg.ORCA
 
     with pytest.raises(ValueError):
-        UVVisConfig(prog=QmProg.TM)
+        UVVisConfig(prog=QmProg.TM)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("sm", [OrcaSolvMod.CPCM, OrcaSolvMod.SMD])

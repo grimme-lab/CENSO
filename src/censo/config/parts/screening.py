@@ -1,3 +1,4 @@
+from typing import Self
 from pydantic import Field, model_validator
 
 from .base import BasePartConfig
@@ -33,7 +34,7 @@ class ScreeningConfig(BasePartConfig):
     """Whether to use template files."""
 
     @model_validator(mode="after")
-    def func_must_be_known_in_prog(self):
+    def func_must_be_known_in_prog(self) -> Self:
         """
         Validate that the functional is known for the chosen program.
 

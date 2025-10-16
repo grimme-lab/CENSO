@@ -86,8 +86,8 @@ class XtbProc(GenericProc):
                 os.remove(os.path.join(jobdir, file))
 
         # generate coord file for xtb
-        with open(inputpath, "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
+        with open(inputpath, "w", newline=None) as f:
+            f.writelines(job.conf.tocoord())
 
         # setup call for xtb single-point
         call: list[str] = [
@@ -294,8 +294,8 @@ class XtbProc(GenericProc):
         #     dohess = "--ohess"
 
         # generate coord file for xtb
-        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as f:
+            f.writelines(job.conf.tocoord())
 
         call: list[str] = [
             config.paths.xtb,

@@ -59,3 +59,6 @@ markers = [
     "requires_turbomole: skip test if Turbomole is not available",
     "requires_cosmotherm: skip test if COSMOtherm is not available",
 ]
+
+[tool.mypy]
+mypy_path = ["src"]

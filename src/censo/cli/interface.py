@@ -137,11 +137,11 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
 
     from datetime import timedelta
 
-    time = timedelta(seconds=int(time))
-    hours, r = divmod(time.seconds, 3600)
+    time_taken = timedelta(seconds=int(time))
+    hours, r = divmod(time_taken.seconds, 3600)
     minutes, seconds = divmod(r, 60)
-    if time.days:
-        hours += time.days * 24
+    if time_taken.days:
+        hours += time_taken.days * 24
 
     printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
@@ -343,10 +343,11 @@ def print_comparison(comparison: dict[str, dict[str, float]]):
 
         printmap = {"CONF#": lambda confname: confname}
 
+        def make_printmap(h: str):
+            return lambda confname: f"{comparison[h.split()[1].lower()][confname]:.2f}"
+
         for header in headers[1:]:
-            printmap[header] = (
-                lambda confname, h=header: f"{comparison[h.split()[1].lower()][confname]:.2f}"
-            )
+            printmap[header] = make_printmap(header)
 
         rows = [
             [printmap[header](confname) for header in headers] for confname in confs

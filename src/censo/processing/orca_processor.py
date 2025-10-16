@@ -757,12 +757,12 @@ class OrcaProc(QmProc):
                 os.remove(os.path.join(jobdir, file))
 
         # write conformer geometry to coord file
-        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as f:
+            f.writelines(job.conf.tocoord())
 
         # write xyz-file for orca
-        with open(os.path.join(jobdir, f"{filename}.xyz"), "w", newline=None) as file:
-            file.writelines(job.conf.toxyz())
+        with open(os.path.join(jobdir, f"{filename}.xyz"), "w", newline=None) as f:
+            f.writelines(job.conf.toxyz())
 
         # set orca input path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -849,8 +849,8 @@ class OrcaProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath) as file:
-            lines = file.readlines()
+        with open(outputpath) as f:
+            lines = f.readlines()
 
         result.ecyc = []
         result.cycles = 0
@@ -888,13 +888,14 @@ class OrcaProc(QmProc):
 
         # Get the number of cycles
         # tmp is one of the values from the dict defined below
-        tmp = {
+        tmp_val = {
             True: ("GEOMETRY OPTIMIZATION CONVERGED", 5),
             False: ("FAILED TO CONVERGE GEOMETRY", 7),
-        }
-        tmp = tmp[result.converged]
+        }[result.converged]
 
-        result.cycles = int(next(x for x in lines if tmp[0] in x).split()[tmp[1]])
+        result.cycles = int(
+            next(x for x in lines if tmp_val[0] in x).split()[tmp_val[1]]
+        )
 
         # Get energies for each cycle
         result.ecyc.extend(
@@ -1030,11 +1031,11 @@ class OrcaProc(QmProc):
 
         # Convert all the frozensets to a tuple to be serializable
         for i in range(len(couplings)):
-            pair = cast(tuple[int, int], tuple(couplings[i][0]))
+            pair_tuple = cast(tuple[int, int], tuple(couplings[i][0]))
             coupling = couplings[i][1]
             result.couplings.append(
                 (
-                    pair,
+                    pair_tuple,
                     couplings[i][1],
                 )
             )

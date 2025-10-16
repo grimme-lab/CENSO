@@ -140,7 +140,7 @@ def _macrocycle_opt(
 
     # Set up target
     if config.optimization.xtb_opt:
-        job_config = XTBOptJobConfig(
+        opt_job_config = XTBOptJobConfig(
             grid=GridLevel.HIGH,
             copy_mo=config.general.copy_mo,
             gas_phase=config.general.gas_phase,
@@ -149,18 +149,18 @@ def _macrocycle_opt(
             **config.optimization.model_dump(),
         )
         if config.optimization.constrain:
-            job_config.constraints = ensemble.constraints
+            opt_job_config.constraints = ensemble.constraints
 
         target = proc.xtb_opt
     else:
-        job_config = OptJobConfig(
+        opt_job_config = OptJobConfig(
             grid=GridLevel.HIGH,
             copy_mo=config.general.copy_mo,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
             paths=config.paths,
             **config.optimization.model_dump(),
-        )
+        )  # type: ignore
         target = proc.opt
 
     # Iterate and cut only the unconverged conformers
@@ -177,7 +177,7 @@ def _macrocycle_opt(
         results = execute(
             unconverged_ensemble.conformers,
             target,
-            job_config,
+            opt_job_config,
             config.optimization.prog,
             "optimization",
             parallel_config,
@@ -295,7 +295,7 @@ def _full_opt(
     """
     # Set up target
     if config.optimization.xtb_opt:
-        job_config = XTBOptJobConfig(
+        opt_job_config = XTBOptJobConfig(
             copy_mo=config.general.copy_mo,
             grid=GridLevel.HIGH,
             gas_phase=config.general.gas_phase,
@@ -304,18 +304,18 @@ def _full_opt(
             **config.optimization.model_dump(),
         )
         if config.optimization.constrain:
-            job_config.constraints = ensemble.constraints
+            opt_job_config.constraints = ensemble.constraints
 
         target = proc.xtb_opt
     else:
-        job_config = OptJobConfig(
+        opt_job_config = OptJobConfig(
             copy_mo=config.general.copy_mo,
             grid=GridLevel.HIGH,
             gas_phase=config.general.gas_phase,
             solvent=config.general.solvent,
             paths=config.paths,
             **config.optimization.model_dump(),
-        )
+        )  # type: ignore
         target = proc.opt
 
     # Set up contributions_dict
@@ -324,7 +324,7 @@ def _full_opt(
     results = execute(
         ensemble.conformers,
         target,
-        job_config,
+        opt_job_config,
         config.optimization.prog,
         "optimization",
         parallel_config,
