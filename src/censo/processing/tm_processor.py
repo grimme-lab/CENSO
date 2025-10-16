@@ -22,7 +22,16 @@ from ..config.job_config import (
     OptResult,
     SPResult,
 )
-from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog, ENVIRON
+from ..params import (
+    WARNLEN,
+    R,
+    AU2KCAL,
+    TmSolvMod,
+    ASSETS_PATH,
+    Prog,
+    ENVIRON,
+    USER_ASSETS_PATH,
+)
 from ..utilities import Factory
 from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig, RotJobConfig
 from ..assets import FUNCTIONALS, SOLVENTS
@@ -253,7 +262,12 @@ class TmProc(QmProc):
 
         self.__prep_special(inp, config, jobtype)
 
-        # TODO: add template
+        # Append template
+        if config.template:
+            template_path = Path(USER_ASSETS_PATH / f"{job.from_part}.tm.template")
+            if template_path.is_file():
+                lines = template_path.read_text().split("\n")
+                inp.extend(lines)
 
         if jobtype == "xtb_opt":
             inp.append("$grad file=gradient")
