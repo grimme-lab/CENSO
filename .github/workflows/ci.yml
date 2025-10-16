@@ -33,7 +33,7 @@ jobs:
             ~/.cache/pip
             ~/.cache/pre-commit
             .cache/pre-commit
-          key: ${{ runner.os }}-pre-commit-${{ hashFiles('pre-commit-config.yaml') }}
+          key: ${{ runner.os }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pre-commit-
 
@@ -61,12 +61,12 @@ jobs:
             exit 0
           fi
           echo "Running pre-commit on: $files"
-          pre-commit run --config pre-commit-config.yaml --files $files
+          pre-commit run --config .pre-commit-config.yaml --files $files
 
       - name: Run pre-commit on all files (pushes)
         if: github.event_name != 'pull_request'
         run: |
-          pre-commit run --config pre-commit-config.yaml --all-files
+          pre-commit run --config .pre-commit-config.yaml --all-files
 
   tox:
     name: Tox (unit tests)
