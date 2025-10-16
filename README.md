@@ -177,35 +177,44 @@ timings = [
 
 ## Development Environment Setup
 
-1. **Python Version**: Requires Python >= 3.12. Set up a virtual environment using your preferred method:
-   - Conda: `conda create -f environment.yaml`
-   - Pipenv, venv, or others.
+- **Python Version**: Requires Python >= 3.12. Set up a virtual environment using your preferred method:
+  - Conda: `conda create -f environment.yaml`
+  - Pipenv, venv, or others.
 
-2. **Install the Package**: Install the package and its dependencies in development mode:
-   ```bash
-   pip install -e '.[dev]'
-   ```
+- **Install the Package**: Install the package and its dependencies in development mode:
+  ```bash
+  pip install -e '.[dev]'
+  ```
 
-3. **Pre-commit Hooks**: Install pre-commit hooks:
-   ```bash
-   pre-commit install
-   ```
+- **Pre-commit Hooks**: Install pre-commit hooks:
+  ```bash
+  pre-commit install
+  ```
 
-4. **Pytest Configuration**: Custom pytest markers are available:
-   ```python
-   markers = [
-       "optional: mark test as optional (add --run-optional to run)",
-       "requires_xtb: skip test if xtb is not available",
-       "requires_orca: skip test if ORCA is not available",
-       "requires_turbomole: skip test if Turbomole is not available",
-       "requires_cosmotherm: skip test if COSMOtherm is not available",
-   ]
-   ```
-
-5. **Run Tox**: Execute tests across environments using:
-   ```bash
-   tox
-   ```
+- **Testing**:
+  - **Pytest Markers**: Custom markers are available for conditional test execution. Optional tests (e.g., integration tests) require third-party programs like **xtb**, **ORCA**, **Turbomole**, or **COSMOtherm**.
+    ```python
+    markers = [
+        "optional: mark test as optional (e.g., integration tests)",
+        "requires_xtb: skip test if xtb is not available",
+        "requires_orca: skip test if ORCA is not available",
+        "requires_turbomole: skip test if Turbomole is not available",
+        "requires_cosmotherm: skip test if COSMOtherm is not available",
+    ]
+    ```
+  - **Run Tests**:
+    - Default (skip optional tests):
+      ```bash
+      pytest
+      ```
+    - Include optional tests:
+      ```bash
+      pytest --run-optional
+      ```
+  - **Run Tox**: Execute tests across multiple environments:
+    ```bash
+    tox
+    ```
 
 ---
 
