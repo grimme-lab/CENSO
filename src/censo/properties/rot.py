@@ -6,6 +6,7 @@ from pathlib import Path
 from collections.abc import Callable
 from tabulate import tabulate
 import json
+from dask.distributed import Client
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
@@ -27,6 +28,8 @@ def rot(
     ensemble: EnsembleData,
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
+    *,
+    client: Client,
 ):
     """
     Calculation of the ensemble optical rotation spectrum of a (previously) optimized ensemble.
@@ -49,7 +52,7 @@ def rot(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.rot.prog, "5_ROT")
+    proc: QmProc = Factory.create(config.rot.prog, "5_ROT")
 
     # Run optical rotation calculations
     job_config = RotJobConfig(
@@ -74,6 +77,7 @@ def rot(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
+        client=client,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

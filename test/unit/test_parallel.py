@@ -1,17 +1,13 @@
 import time
-from censo.config.parallel_config import ParallelConfig
 import pytest
-from unittest.mock import Mock
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing.managers import SyncManager
+import subprocess
+from dask.distributed import Client, LocalCluster
 from typing import Any
 
 from censo.config.paths import PathsConfig
 from censo.parallel import (
-    setup_parallel,
-    ResourceMonitor,
+    get_client,
     ParallelJob,
-    set_omp_tmproc,
     set_omp,
     prepare_jobs,
     execute,
@@ -25,7 +21,6 @@ from censo.config.job_config import (
     UVVisResult,
     MetaData,
 )
-from censo.molecules import GeometryData, MoleculeData
 from censo.params import GridLevel, QmProg
 from censo.config.job_config import SPJobConfig
 
@@ -42,29 +37,27 @@ class MockGeometryData:
 
 
 @pytest.fixture
-def mock_molecule_data():
-    """Create a mock MoleculeData instance"""
-    mol = Mock(spec=MoleculeData)
-    mol.name = "CONF1"
-    mol.charge = 0
-    mol.unpaired = 0
+def molecule_data():
+    """Create a real MoleculeData instance"""
+    from censo.molecules import MoleculeData
+
+    mol = MoleculeData(
+        name="CONF1", xyz=["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"], charge=0, unpaired=0
+    )
     mol.mo_paths = {
-        "tm": ["path/to/mos"],
-        "orca": ["path/to/file.gbw"],
         QmProg.TM: ["path/to/mos"],
         QmProg.ORCA: ["path/to/file.gbw"],
     }
-    mol.geom = GeometryData(name="CONF1", xyz=["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"])
     return mol
 
 
 @pytest.fixture
-def mock_parallel_job(mock_molecule_data):
-    """Create a mock ParallelJob instance"""
+def parallel_job(molecule_data):
+    """Create a real ParallelJob instance"""
     return ParallelJob(
-        conf=mock_molecule_data.geom,
-        charge=mock_molecule_data.charge,
-        unpaired=mock_molecule_data.unpaired,
+        conf=molecule_data.geom,
+        charge=molecule_data.charge,
+        unpaired=molecule_data.unpaired,
         omp=1,
     )
 
@@ -84,24 +77,25 @@ def mock_job_config():
 
 
 @pytest.fixture
-def create_mock_conformers():
-    """Factory fixture to create specified number of mock conformers"""
+def create_conformers():
+    """Factory fixture to create specified number of real conformers"""
 
     def _create_conformers(count: int):
+        from censo.molecules import MoleculeData
+
         conformers = []
         for i in range(1, count + 1):
-            mock = Mock(spec=MoleculeData)
-            mock.name = f"CONF{i}"
-            mock.charge = 0
-            mock.unpaired = 0
-            mock.mo_paths = {
+            mol = MoleculeData(
+                name=f"CONF{i}",
+                xyz=["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"],
+                charge=0,
+                unpaired=0,
+            )
+            mol.mo_paths = {
                 QmProg.TM: ["path/to/mos"],
                 QmProg.ORCA: ["path/to/file.gbw"],
             }
-            mock.geom = GeometryData(
-                name=f"CONF{i}", xyz=["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"]
-            )
-            conformers.append(mock)
+            conformers.append(mol)
         return conformers
 
     return _create_conformers
@@ -112,33 +106,87 @@ def create_mock_conformers():
 
 # Define task functions at module level for pickling
 def task_success(
-    job: ParallelJob, config: Any, resources: ResourceMonitor
+    job: ParallelJob, job_config: Any, **kwargs
 ) -> tuple[SPResult, MetaData]:
     """Task that always succeeds"""
-    with resources.occupy_cores(job.omp):
-        time.sleep(0.1)  # Shorter sleep for faster tests
+    time.sleep(0.1)  # Shorter sleep for faster tests
     return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
         conf_name=job.conf.name, success=True
     )
 
 
-def task_fail(
-    job: ParallelJob, config: Any, resources: ResourceMonitor
-) -> tuple[None, MetaData]:
+def task_fail(job: ParallelJob, job_config: Any, **kwargs) -> tuple[SPResult, MetaData]:
     """Task that always fails"""
-    with resources.occupy_cores(job.omp):
-        time.sleep(0.1)
-    return None, MetaData(conf_name=job.conf.name, success=False, error="Test error")
+    time.sleep(0.1)
+    return SPResult(mo_path="", energy=0.0), MetaData(
+        conf_name=job.conf.name, success=False, error="Test error"
+    )
 
 
 def task_conditional(
-    job: ParallelJob, config: Any, resources: ResourceMonitor
+    job: ParallelJob, job_config: Any, **kwargs
 ) -> tuple[Any, MetaData]:
     """Task that succeeds for even-numbered conformers and fails for odd-numbered ones"""
     conf_num = int(job.conf.name.replace("CONF", ""))
     if conf_num % 2 == 0:
-        return task_success(job, config, resources)
-    return task_fail(job, config, resources)
+        return task_success(job, job_config, **kwargs)
+    return task_fail(job, job_config, **kwargs)
+
+
+# Module-level task for pickling
+def task_raise_then_long(job: ParallelJob, job_config: Any, **kwargs):
+    """Raise for CONF1 to trigger cancellation; other jobs sleep longer then succeed."""
+    if job.conf.name == "CONF1":
+        time.sleep(0.01)
+        raise RuntimeError("Intentional failure for cancellation test")
+    # Long-running work to give cancellation a chance
+    time.sleep(0.1)
+    return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
+        conf_name=job.conf.name, success=True
+    )
+
+
+# Module-level task for subprocess cancellation test
+def task_long_subprocess(
+    job: ParallelJob, job_config: Any, **kwargs
+) -> tuple[SPResult, MetaData]:
+    """Task that runs a long subprocess and checks for cancellation."""
+    from dask.distributed import Variable, get_client
+    import os
+
+    # Get cancel var name from kwargs
+    cancel_var_name = kwargs.get("__censo_cancel_var")
+    if cancel_var_name:
+        try:
+            client = get_client()
+        except Exception:
+            client = None
+        cancel_var = Variable(cancel_var_name, client=client)
+    else:
+        cancel_var = None
+
+    # Run a long sleep command
+    proc = subprocess.Popen(
+        ["sleep", "10"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+
+    # Poll for completion or cancellation
+    while proc.poll() is None:
+        if cancel_var and cancel_var.get():
+            proc.terminate()
+            try:
+                proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+            return SPResult(mo_path="", energy=0.0), MetaData(
+                conf_name=job.conf.name, success=False, error="cancelled"
+            )
+        time.sleep(0.1)
+
+    # If not cancelled, succeed
+    return SPResult(mo_path=f"path/to/mo_{job.conf.name}", energy=-100.0), MetaData(
+        conf_name=job.conf.name, success=True
+    )
 
 
 # ============= Tests for Core Functionality =============
@@ -147,32 +195,15 @@ def task_conditional(
 class TestCoreParallelComponents:
     """Tests for core parallel processing components"""
 
-    def test_setup_managers(self):
-        """Test setup_managers context manager creates correct manager instances"""
-        max_workers = 2
+    def test_setup_parallel(self):
+        """Test setup_parallel context manager creates correct Dask instances"""
         ncores = 4
+        threads_per_worker = 2
 
-        with setup_parallel(max_workers, ncores) as (
-            executor,
-            manager,
-            resource_manager,
-        ):
-            assert isinstance(executor, ProcessPoolExecutor)
-            assert isinstance(manager, SyncManager)
-            assert isinstance(resource_manager, ResourceMonitor)
+        client, cluster = get_client(ncores, threads_per_worker)
 
-    def test_resource_monitor(self):
-        """Test ResourceMonitor core management functionality"""
-        with setup_parallel(2, 4) as (_, manager, resource_monitor):
-            # Test initial state
-            assert resource_monitor._ResourceMonitor__free_cores.value == 4
-
-            # Test core occupation
-            with resource_monitor.occupy_cores(2):
-                assert resource_monitor._ResourceMonitor__free_cores.value == 2
-
-            # Verify cores are released after context exit
-            assert resource_monitor._ResourceMonitor__free_cores.value == 4
+        assert isinstance(cluster, LocalCluster)
+        assert isinstance(client, Client)
 
 
 class TestResultDataclasses:
@@ -265,10 +296,10 @@ class TestMetaData:
 class TestParallelJob:
     """Tests for ParallelJob class"""
 
-    def test_parallel_job_initialization(self, mock_molecule_data):
+    def test_parallel_job_initialization(self, molecule_data):
         """Test ParallelJob initialization and properties"""
-        job = ParallelJob(mock_molecule_data.geom, 0, 0, 1)
-        assert job.conf == mock_molecule_data.geom
+        job = ParallelJob(molecule_data.geom, 0, 0, 1)
+        assert job.conf == molecule_data.geom
         assert job.omp == 1
         assert job.charge == 0
         assert job.unpaired == 0
@@ -284,38 +315,6 @@ class TestOMPConfiguration:
     OMPMIN = 1  # Local constant for ompmin
 
     @pytest.mark.parametrize(
-        "balance,omp,ncores,expected_omp",
-        [
-            (
-                True,
-                2,
-                4,
-                4,
-            ),  # Test with balancing enabled, len(jobs) < ncores // 1 (4 // 1 = 4), expect ncores // len(jobs) (4)
-            (
-                False,
-                0,
-                4,
-                1,
-            ),  # Test with balancing disabled, omp < OMPMIN, expect OMPMIN
-            (
-                False,
-                5,
-                4,
-                4,
-            ),  # Test with balancing disabled, omp > ncores, expect ncores
-            (False, 5, 8, 5),  # Test with ncores > omp > OMPMIN, expect omp
-        ],
-    )
-    def test_set_omp_tmproc(
-        self, balance, omp, ncores, expected_omp, mock_parallel_job
-    ):
-        """Test set_omp_tmproc function handles thread allocation correctly"""
-        jobs = [mock_parallel_job]
-        set_omp_tmproc(jobs, balance, omp, ncores, self.OMPMIN)
-        assert jobs[0].omp == expected_omp
-
-    @pytest.mark.parametrize(
         "balance,omp,ncores,njobs,expected_omp",
         [
             (True, 2, 4, 2, 2),  # Test with balancing enabled
@@ -323,11 +322,9 @@ class TestOMPConfiguration:
             (True, 2, 8, 2, 4),  # Test optimal distribution
         ],
     )
-    def test_set_omp(
-        self, balance, omp, ncores, njobs, expected_omp, mock_parallel_job
-    ):
+    def test_set_omp(self, balance, omp, ncores, njobs, expected_omp, parallel_job):
         """Test set_omp function distributes threads properly"""
-        jobs = [mock_parallel_job for _ in range(njobs)]
+        jobs = [parallel_job for _ in range(njobs)]
         set_omp(jobs, balance, omp, ncores, 1, 32)
         assert all(job.omp == expected_omp for job in jobs)
 
@@ -346,9 +343,9 @@ class TestJobPreparation:
             (QmProg.ORCA, False, None),
         ],
     )
-    def test_prepare_jobs(self, prog, copy_mo, expected_mo_guess, mock_molecule_data):
+    def test_prepare_jobs(self, prog, copy_mo, expected_mo_guess, molecule_data):
         """Test prepare_jobs function creates jobs with correct parameters"""
-        conformers = [mock_molecule_data]
+        conformers = [molecule_data]
         jobs = prepare_jobs(
             conformers, prog, 2, 4, "test", 1, 32, balance=True, copy_mo=copy_mo
         )
@@ -367,10 +364,11 @@ class TestJobPreparation:
 class TestJobExecution:
     """Tests for job execution functions"""
 
-    def test_execute_success(self, mock_job_config, create_mock_conformers):
+    def test_execute_success(self, mock_job_config, create_conformers, parallel_setup):
         """Test successful parallel execution of all jobs"""
         # Create two mock conformers
-        conformers = create_mock_conformers(2)
+        conformers = create_conformers(2)
+        client, cluster, parallel_config = parallel_setup
 
         # Run execute
         results = execute(
@@ -379,10 +377,11 @@ class TestJobExecution:
             job_config=mock_job_config,
             prog=QmProg.ORCA,
             from_part="test",
-            parallel_config=None,
+            parallel_config=parallel_config,
             ignore_failed=True,
             balance=True,
             copy_mo=True,
+            client=client,
         )
 
         # Verify results
@@ -395,10 +394,13 @@ class TestJobExecution:
             assert result.mo_path == f"path/to/mo_{conf_name}"
             assert result.energy == -100.0
 
-    def test_execute_all_failed(self, mock_job_config, create_mock_conformers):
+    def test_execute_all_failed(
+        self, mock_job_config, create_conformers, parallel_setup
+    ):
         """Test execution when all jobs fail"""
         # Create two mock conformers
-        conformers = create_mock_conformers(2)
+        conformers = create_conformers(2)
+        client, cluster, parallel_config = parallel_setup
 
         # Check that RuntimeError is raised when all jobs fail
         with pytest.raises(RuntimeError, match="All jobs failed to execute"):
@@ -408,16 +410,20 @@ class TestJobExecution:
                 job_config=mock_job_config,
                 prog=QmProg.ORCA,
                 from_part="test",
-                parallel_config=None,
+                parallel_config=parallel_config,
                 ignore_failed=True,
                 balance=True,
                 copy_mo=True,
-            )
+                client=client,
+            )  # type: ignore
 
-    def test_execute_partial_failure(self, mock_job_config, create_mock_conformers):
+    def test_execute_partial_failure(
+        self, mock_job_config, create_conformers, parallel_setup
+    ):
         """Test execution with mixed success/failure"""
         # Create four mock conformers
-        conformers = create_mock_conformers(4)
+        conformers = create_conformers(4)
+        client, cluster, parallel_config = parallel_setup
 
         # Run execute
         results = execute(
@@ -426,10 +432,11 @@ class TestJobExecution:
             job_config=mock_job_config,
             prog=QmProg.ORCA,
             from_part="test",
-            parallel_config=None,
+            parallel_config=parallel_config,
             ignore_failed=True,
             balance=True,
             copy_mo=True,
+            client=client,
         )
 
         # Verify results (even-numbered conformers succeed, odd ones fail)
@@ -444,17 +451,21 @@ class TestJobExecution:
                 job_config=mock_job_config,
                 prog=QmProg.ORCA,
                 from_part="test",
-                parallel_config=None,
+                parallel_config=parallel_config,
                 ignore_failed=False,
                 balance=True,
                 copy_mo=True,
+                client=client,
             )
 
-    def test_execute_resource_management(self, mock_job_config, create_mock_conformers):
+    def test_execute_resource_management(
+        self, mock_job_config, create_conformers, parallel_setup
+    ):
         """Test resource management with multiple jobs"""
         # Create eight mock conformers
         n_jobs = 8
-        conformers = create_mock_conformers(n_jobs)
+        conformers = create_conformers(n_jobs)
+        client, cluster, parallel_config = parallel_setup
 
         # Run execute with limited cores
         start_time = time.time()
@@ -464,10 +475,11 @@ class TestJobExecution:
             job_config=mock_job_config,
             prog=QmProg.ORCA,
             from_part="test",
-            parallel_config=ParallelConfig(ncores=4, omp=1, ompmin=1),
+            parallel_config=parallel_config,
             ignore_failed=False,
             balance=False,
             copy_mo=False,
+            client=client,
         )
         total_time = time.time() - start_time
 
@@ -478,5 +490,5 @@ class TestJobExecution:
         # Each job takes 0.1s, so 8 jobs should take ~0.2s (plus overhead)
         # Allow for some timing variability in CI environments
         assert (
-            0.2 < total_time < 0.4  # TODO: what should be the lower bound?
-        ), f"Expected ~0.4s execution time, got {total_time}s"
+            0.2 < total_time < 0.6
+        ), f"Expected ~0.2s execution time, got {total_time}s"

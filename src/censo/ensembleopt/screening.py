@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 import json
 from collections.abc import Callable
+from dask.distributed import Client
 
 from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
@@ -32,6 +33,8 @@ def screening(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool = True,
+    *,
+    client: Client,
 ):
     """
     Advanced screening of the ensemble by doing single-point calculations on the input geometries,
@@ -52,7 +55,7 @@ def screening(
     config.model_validate(config, context={"check": "screening"})
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
+    proc: QmProc = Factory.create(config.screening.prog, "1_SCREENING")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase and not config.screening.gsolv_included:
@@ -81,6 +84,7 @@ def screening(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -111,6 +115,7 @@ def screening(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -136,6 +141,7 @@ def screening(
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)

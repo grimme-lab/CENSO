@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any
 import json
 from tabulate import tabulate
-
+from dask.distributed import Client
 
 from ..processing.xtb_processor import XtbProc
 from ..config.parts.prescreening import PrescreeningConfig
@@ -27,6 +27,8 @@ def prescreening(
     config: PartsConfig,
     parallel_config: ParallelConfig | None,
     cut: bool = True,
+    *,
+    client: Client,
 ):
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
@@ -45,12 +47,12 @@ def prescreening(
     config.model_validate(config, context={"check": "prescreening"})
 
     # Setup processor and target
-    proc: QmProc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
+    proc: QmProc = Factory.create(config.prescreening.prog, "0_PRESCREENING")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
-        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "0_PRESCREENING")
+        proc_xtb: XtbProc = Factory.create(Prog.XTB, "0_PRESCREENING")
         job_config = XTBJobConfig(
             gfnv=config.prescreening.gfnv,
             solvent=config.general.solvent,
@@ -62,12 +64,13 @@ def prescreening(
             ensemble.conformers,
             proc_xtb.gsolv,
             job_config,
-            config.prescreening.prog,
+            "xtb",
             "prescreening",
             parallel_config,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
+            client=client,
         )
 
         if config.general.ignore_failed:
@@ -96,6 +99,7 @@ def prescreening(
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
+        client=client,
     )
 
     if config.general.ignore_failed:

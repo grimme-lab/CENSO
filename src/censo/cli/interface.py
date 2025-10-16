@@ -85,10 +85,16 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
     time = 0.0
+    # Set up parallel managers once for the entire run
+    from ..parallel import get_client
+
+    logger.debug("Setting up parallel managers for CLI run...")
+    threads_per_worker = parallel_config.ncores // parallel_config.ompmin
+    client, cluster = get_client(parallel_config.ncores, threads_per_worker)
     try:
         for func in [task for _, enabled, task in tasks[:4] if enabled]:
             runtime = func(
-                ensemble, parts_config, parallel_config=parallel_config, cut=cut
+                ensemble, parts_config, parallel_config, client=client, cut=cut
             )
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
@@ -111,7 +117,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             print("\nRunning property calculations\n")
 
         for func in [task for _, enabled, task in tasks[4:] if enabled]:
-            runtime = func(ensemble, parts_config, parallel_config=parallel_config)
+            runtime = func(ensemble, parts_config, parallel_config, client=client)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
     except:

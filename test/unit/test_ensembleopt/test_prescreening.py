@@ -20,6 +20,7 @@ class TestPrescreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test prescreening function in gas phase"""
         # Set up gas phase
@@ -30,11 +31,12 @@ class TestPrescreening:
         mock_execute.return_value = mock_execute_results["prescreening"]["sp"]
 
         # Run prescreening
-        prescreening(mock_ensemble, config, None)
+        client, cluster, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 1  # Only sp calculation
-        assert mock_factory[QmProg].create.call_count == 1
+        assert mock_factory.create.call_count == 1
 
     @patch("censo.ensembleopt.prescreening.Factory")
     @patch("censo.ensembleopt.prescreening.execute")
@@ -44,6 +46,7 @@ class TestPrescreening:
         mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
+        parallel_setup,
     ):
         """Test prescreening function with solvation"""
         # Mock execute results for both xtb_gsolv and sp
@@ -55,11 +58,12 @@ class TestPrescreening:
         config = PartsConfig()
 
         # Run prescreening
-        prescreening(mock_ensemble, config, None)
+        client, cluster, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, client=client)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
-        assert mock_factory[QmProg].create.call_count == 2
+        assert mock_factory.create.call_count == 2
 
     @pytest.mark.parametrize(
         "threshold,expected_count",
@@ -78,6 +82,7 @@ class TestPrescreening:
         mock_execute_results,
         threshold: float,
         expected_count: int,
+        parallel_setup,
     ):
         """Test energy threshold-based conformer removal"""
         config = PartsConfig()
@@ -90,7 +95,8 @@ class TestPrescreening:
         ]
 
         # Run prescreening
-        prescreening(mock_ensemble, config, None)
+        client, cluster, _ = parallel_setup
+        prescreening(mock_ensemble, config, None, client=client)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count

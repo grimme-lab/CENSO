@@ -12,6 +12,7 @@ from collections.abc import Callable
 from threading import Event
 import time
 from typing import final
+from dask.distributed import Variable
 
 
 from ..config.job_config import (
@@ -20,7 +21,6 @@ from ..config.job_config import (
     OptJobConfig,
 )
 from ..parallel import (
-    ResourceMonitor,
     ParallelJob,
 )
 from ..config.job_config import (
@@ -31,8 +31,8 @@ from ..config.job_config import (
 )
 from ..params import (
     WARNLEN,
-    ENVIRON,
     Prog,
+    ENVIRON,
 )
 from ..utilities import printf
 from ..logging import setup_logger
@@ -107,21 +107,22 @@ class GenericProc:
             self,
             job: ParallelJob,
             job_config: U,
-            resources: ResourceMonitor,
             **kwargs,
         ) -> tuple[T, MetaData]:
-            with resources.occupy_cores(job.omp):
-                jobtype = f.__name__
-                jobdir = Path(self._workdir) / job.conf.name / jobtype
-                jobdir.mkdir(exist_ok=True, parents=True)
-                logger.info(
-                    f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
-                    + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores using {self.progname.value}."
-                )
-                printf(
-                    f"Running {jobtype} calculation for {job.conf.name} using {self.progname.value}."
-                )
-                result, meta = f(self, job, jobdir, job_config, **kwargs)
+            jobtype = f.__name__
+            jobdir = Path(self._workdir) / job.conf.name / jobtype
+            jobdir.mkdir(exist_ok=True, parents=True)
+
+            logger.info(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
+                + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores using {self.progname.value}."
+            )
+            printf(
+                f"Running {jobtype} calculation for {job.conf.name} using {self.progname.value}."
+            )
+
+            result, meta = f(self, job, jobdir, job_config, **kwargs)
+
             return result, meta
 
         return wrapper
@@ -133,11 +134,15 @@ class GenericProc:
         :param workdir: Working directory.
         """
         self._workdir: Path = workdir
-        self.stop_event: Event | None = None
+        self.cancel_var: Variable | None = None  # For cooperative cancellation
 
     @final
     def _make_call(
-        self, call: list[str], outputpath: str, jobdir: str | Path
+        self,
+        call: list[str],
+        outputpath: str,
+        jobdir: str | Path,
+        env: dict[str, str] | None = None,
     ) -> tuple[int, str]:
         """
         Make a call to an external program and write output into outputfile.
@@ -158,24 +163,19 @@ class GenericProc:
                 stderr=subprocess.PIPE,
                 cwd=jobdir,
                 stdout=outputfile,
-                env=ENVIRON,
+                env=env or ENVIRON,
             )
 
             logger.debug(
                 f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid})."
             )
 
-            # TODO: is this really required?
-            # make sure to send SIGTERM to subprocess if program is quit
-            # signal.signal(
-            #     signal.SIGTERM, lambda signum, frame: handle_sigterm(signum, frame, sub)
-            # )
-
-            if self.stop_event is not None:
+            # Cooperative cancellation using dask Variable
+            if hasattr(self, "cancel_var") and self.cancel_var is not None:
                 while sub.poll() is None:
-                    if self.stop_event.is_set():
+                    if self.cancel_var.get():
                         logger.info(
-                            f"{f'worker{os.getpid()}:':{WARNLEN}}Terminating subprocess {sub.pid}."
+                            f"{f'worker{os.getpid()}:':{WARNLEN}}Cancelling subprocess {sub.pid} due to cancellation signal."
                         )
                         sub.terminate()
                         break
@@ -188,9 +188,6 @@ class GenericProc:
             logger.debug(
                 f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"
             )
-
-            # unregister SIGTERM handler
-            # signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
         logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
