@@ -35,7 +35,7 @@ def print_validation_errors(e: ValidationError) -> None:
         if not error["loc"] or (
             len(error["loc"]) == 1 and error["loc"][0] == "__root__"
         ):
-            printf(f"  - Model-level error:")
+            printf("  - Model-level error:")
             printf(f"    Message: {message}")
         else:
             try:
@@ -133,7 +133,7 @@ def t2x(
     :return: Tuple of (coordxyz list of strings, number of atoms, output path).
     """
     # read lines from coord file
-    with open(path, "r", newline=None) as f:
+    with open(path, newline=None) as f:
         coord = f.readlines()
 
     # read coordinates with atom labels directly into a string

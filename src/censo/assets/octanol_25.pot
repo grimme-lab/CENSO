@@ -5,8 +5,8 @@ c0=1447.24
 #           solute in A**2, sum_i xi*volume_i in A**3
 lambda_3=-0.1506584
 sum_x_vol=201.2170
-sum_x_area=207.2927 
-# Sigma potential (s [e/A^2], mu(s) [kcal/mol A^2] for  T= 298.15 K,  X== 1.0000 
+sum_x_area=207.2927
+# Sigma potential (s [e/A^2], mu(s) [kcal/mol A^2] for  T= 298.15 K,  X== 1.0000
     -0.130     2.583
     -0.129     2.482
     -0.128     2.381

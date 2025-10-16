@@ -53,17 +53,17 @@ def prescreening(
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
         proc_xtb: XtbProc = Factory.create(Prog.XTB, "0_PRESCREENING")
-        job_config = XTBJobConfig(
+        gsolv_job_config = XTBJobConfig(
             gfnv=config.prescreening.gfnv,
             solvent=config.general.solvent,
             sm_rrho=config.general.sm_rrho,
             gas_phase=False,
             paths=config.paths,
         )
-        results = execute(
+        gsolv_results = execute(
             ensemble.conformers,
             proc_xtb.gsolv,
-            job_config,
+            gsolv_job_config,
             "xtb",
             "prescreening",
             parallel_config,
@@ -74,13 +74,13 @@ def prescreening(
         )
 
         if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+            ensemble.remove_conformers(lambda conf: conf.name not in gsolv_results)
 
         for conf in ensemble:
-            contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+            contributions_dict[conf.name].gsolv = gsolv_results[conf.name].gsolv
 
     # Calculate gas-phase single-point
-    job_config = SPJobConfig(
+    sp_job_config = SPJobConfig(
         copy_mo=config.general.copy_mo,
         func=config.prescreening.func,
         basis=config.prescreening.basis,
@@ -89,10 +89,10 @@ def prescreening(
         gas_phase=True,
         paths=config.paths,
     )
-    results = execute(
+    sp_results = execute(
         ensemble.conformers,
         proc.sp,
-        job_config,
+        sp_job_config,
         config.prescreening.prog,
         "prescreening",
         parallel_config,
@@ -103,10 +103,10 @@ def prescreening(
     )
 
     if config.general.ignore_failed:
-        ensemble.remove_conformers(lambda conf: conf.name not in results)
+        ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
 
     for conf in ensemble:
-        contributions_dict[conf.name].energy = results[conf.name].energy
+        contributions_dict[conf.name].energy = sp_results[conf.name].energy
 
     # Update molecules
     ensemble.update_contributions(contributions_dict)
@@ -124,7 +124,7 @@ def prescreening(
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     """ """
-    printf(h1(f"PRESCREENING SINGLE-POINT RESULTS"))
+    printf(h1("PRESCREENING SINGLE-POINT RESULTS"))
 
     # column headers
     headers = [

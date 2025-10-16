@@ -3,7 +3,6 @@ Calculates the ensemble optical rotation spectrum.
 """
 
 from pathlib import Path
-from collections.abc import Callable
 from tabulate import tabulate
 import json
 from dask.distributed import Client
@@ -93,48 +92,41 @@ def _write_results(
     # Get all frequencies from job config
     frequencies = config.rot.freq
 
+    # Define headers and units
+    headers = ["CONF#"] + [f"{freq} nm" for freq in frequencies]
+    units = [""] + ["deg·dm⁻¹·(g·cm³)⁻¹" for _ in frequencies]
+    filepath = Path("5_ROT.dat")
+
     # Collect rotation data for each conformer
-    rotation_data_length: list[list[str | float]] = []
-    rotation_data_velocity: list[list[str | float]] = []
+    rows_length: list[list[str]] = []
+    rows_velocity: list[list[str]] = []
+
     for conf in ensemble:
-        conf_data_length: list[str | float] = [conf.name]
-        conf_data_velocity: list[str | float] = [conf.name]
-        # Create dictionaries to map frequencies to rotation values
-        freq_to_rotation_length = {
-            freq: rotation for freq, rotation in results[conf.name].rotations_length
-        }
-        freq_to_rotation_velocity = {
-            freq: rotation for freq, rotation in results[conf.name].rotations_velocity
-        }
-        # Add rotation values in the order of frequencies
+        row = [conf.name]
         for freq in frequencies:
-            rotation_val_length = freq_to_rotation_length.get(freq, 0.0)
-            rotation_val_velocity = freq_to_rotation_velocity.get(freq, 0.0)
-            conf_data_length.append(rotation_val_length)
-            conf_data_velocity.append(rotation_val_velocity)
-        rotation_data_length.append(conf_data_length)
-        rotation_data_velocity.append(conf_data_velocity)
-
-    filepath = Path("5_ROT.out")
-
-    # Create table headers with frequencies as columns
-    headers = ["CONF#"] + [f"{freq:.1f} nm" for freq in frequencies]
-    units = [""] + ["[deg·mL·g⁻¹·dm⁻¹]" for _ in frequencies]
-
-    # Create table rows for length representation
-    rows_length = []
-    for conf_data in rotation_data_length:
-        row = [conf_data[0]]  # conformer name
-        for i, rotation_val in enumerate(conf_data[1:]):
-            row.append(f"{rotation_val:.3f}")
+            rotation = next(
+                (
+                    rotation
+                    for f, rotation in results[conf.name].rotations_length
+                    if abs(f - freq) < 0.1
+                ),
+                0.0,
+            )
+            row.append(f"{rotation:.3f}")
         rows_length.append(row)
 
-    # Create table rows for velocity representation
-    rows_velocity = []
-    for conf_data in rotation_data_velocity:
-        row = [conf_data[0]]  # conformer name
-        for i, rotation_val in enumerate(conf_data[1:]):
-            row.append(f"{rotation_val:.3f}")
+    for conf in ensemble:
+        row = [conf.name]
+        for freq in frequencies:
+            rotation = next(
+                (
+                    rotation
+                    for f, rotation in results[conf.name].rotations_velocity
+                    if abs(f - freq) < 0.1
+                ),
+                0.0,
+            )
+            row.append(f"{rotation:.3f}")
         rows_velocity.append(row)
 
     # Add ensemble averaged values for length representation
@@ -206,24 +198,19 @@ def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotRes
     :param results: Dictionary of RotResult objects for each conformer.
     :return: Dictionary ready for JSON serialization.
     """
-    per_conf: Callable[
-        [MoleculeData],
-        dict[
-            str,
-            dict[
-                str,
-                float | list[tuple[float, float]],
-            ],
-        ],
-    ] = lambda conf: {
-        conf.name: {
-            "energy": conf.energy,
-            "gsolv": conf.gsolv,
-            "grrho": conf.grrho,
-            "rotations_length": results[conf.name].rotations_length,
-            "rotations_velocity": results[conf.name].rotations_velocity,
+
+    def per_conf(
+        conf: MoleculeData,
+    ) -> dict[str, dict[str, float | list[tuple[float, float]]]]:
+        return {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "rotations_length": results[conf.name].rotations_length,
+                "rotations_velocity": results[conf.name].rotations_velocity,
+            }
         }
-    }
 
     dump = DataDump(part_name="rot")
 

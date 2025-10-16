@@ -9,8 +9,8 @@ requires-python = ">= 3.12"
 dependencies = [
   "tabulate",
   "pydantic",
-  "dask>=2023.2.0",
-  "distributed>=2023.2.0"
+  "dask",
+  "distributed"
 ]
 
 [project.urls]
@@ -25,7 +25,13 @@ scripts = [
 ]
 dev = [
   "pytest",
-  "tox"
+  "tox",
+  "mypy",
+  "ruff",
+  "black",
+  "pre-commit",
+  "types-tabulate",
+  "pandas-stubs"
 ]
 
 [project.scripts]
@@ -53,3 +59,6 @@ markers = [
     "requires_turbomole: skip test if Turbomole is not available",
     "requires_cosmotherm: skip test if COSMOtherm is not available",
 ]
+
+[tool.mypy]
+mypy_path = ["src"]

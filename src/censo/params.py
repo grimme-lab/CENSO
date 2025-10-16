@@ -179,13 +179,13 @@ DESCR = f"""
               |             L. M. Seidler, F. Bohle and S. Grimme            |
               |                                                              |
               |______________________________________________________________|
-  
+
               Please cite:
               (TBA)
               S. Grimme, F. Bohle, A. Hansen, P. Pracht, S. Spicher, and M. Stahn
               J. Phys. Chem. A 2021, 125, 19, 4039-4054.
               DOI: https://doi.org/10.1021/acs.jpca.1c00971
-  
+
               This program is distributed in the hope that it will be useful,
               but WITHOUT ANY WARRANTY; without even the implied warranty of
               MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

@@ -3,11 +3,10 @@ stores ensembledata and conformers
 functionality for program setup
 """
 
-from functools import reduce
 from pathlib import Path
 import re
 import json
-from typing import Callable
+from typing import Callable, Iterator
 from math import exp
 
 from .molecules import MoleculeData, Contributions
@@ -37,7 +36,7 @@ class EnsembleData:
         # TODO: and xtb_rrho?
         self.constraints: str | None = None
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[MoleculeData]:
         return iter(self.__conformers)
 
     @property
@@ -51,7 +50,7 @@ class EnsembleData:
         return self.__conformers
 
     @conformers.setter
-    def conformers(self, confs):
+    def conformers(self, confs: list[MoleculeData]):
         """
         Set the conformers list.
 
@@ -118,14 +117,12 @@ class EnsembleData:
         :return: None
         """
         # If $coord in file => tm format, needs to be converted to xyz
-        with open(input_path, "r") as inp:
+        with open(input_path) as inp:
             lines = inp.readlines()
             if any("$coord" in line for line in lines):
-                _, nat, input_path = t2x(
+                _, _, input_path = t2x(
                     input_path, writexyz=True, outfile="converted.xyz"
                 )
-            else:
-                nat = int(lines[0].split()[0])
 
         confs = self.__setup_conformers(input_path)
         if len(confs) == 0:
@@ -204,7 +201,7 @@ class EnsembleData:
         :return: A list of MoleculeData objects.
         """
         # open ensemble input
-        with open(input_path, "r") as file:
+        with open(input_path) as file:
             lines = file.readlines()
 
         # Get rid of unnecessary empty lines
@@ -287,7 +284,7 @@ class EnsembleData:
         :param file: Path to write the xyz file.
         :return: None
         """
-        text = "".join(reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self]))
+        text = "".join(sum([conf.geom.toxyz() for conf in self], []))
         file.write_text(text)
 
     def dump_rem_xyz(self, file: Path):
@@ -297,9 +294,7 @@ class EnsembleData:
         :param file: Path to write the xyz file.
         :return: None
         """
-        text = "".join(
-            reduce(lambda x, y: x + y, [conf.geom.toxyz() for conf in self.rem])
-        )
+        text = "".join(sum([conf.geom.toxyz() for conf in self.rem], []))
         file.write_text(text)
 
     def dump_json(self, file: Path):

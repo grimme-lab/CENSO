@@ -92,7 +92,7 @@ class GeometryData:
         :param path: Path to the coord file.
         :return: None
         """
-        with open(path, "r") as file:
+        with open(path) as file:
             lines = file.readlines()
 
         self.xyz = []
@@ -112,7 +112,7 @@ class GeometryData:
         :param path: Path to the xyz file.
         :return: None
         """
-        with open(path, "r") as file:
+        with open(path) as file:
             lines = file.readlines()
 
         self.xyz = []

@@ -401,7 +401,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="crestcheck",
         action="store_true",
         required=False,
-        
+
         help="Option to sort out conformers after DFT ensembleopt which CREST "
         "identifies as identical or rotamers of each other. \nThe identification/"
         "analysis is always performed, but the removal of conformers has to "
@@ -463,41 +463,41 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         choices=options.value_options["func"],
         action="store",
         required=False,
-        
+
         help="Functional for geometry ensembleopt (used in part2) and "
         "single-points in part1",
-    ) 
+    )
     group1.add_argument(
         "-basis",
         "--basis",
         dest="basis",
         action="store",
         required=False,
-        
+
         help="Basis set employed together with the functional (func) for the "
         "low level single point in part1 und ensembleopt in part2.",
-    ) 
+    )
     group1.add_argument(
         "-prog",
         "--prog",
         choices=options.value_options["prog"],
         dest="prog",
         required=False,
-        
+
         help="QM-program used in part0, part1 and part2 either 'orca' or 'tm'.",
-    ) 
+    )
     group10.add_argument(
         "-part0_gfnv",
         "--part0_gfnv",
         dest="part0_gfnv",
         choices=options.value_options["part0_gfnv"],
-        
+
         action="store",
         required=False,
         help="GFNn-xTB version employed for calculating the GFNn-xTB "
         "single point in part0. "
         f"Allowed values are [{', '.join(options.value_options['part0_gfnv'])}]",
-    ) 
+    )
     group3.add_argument(
         "-part1",
         "--part1",
@@ -505,7 +505,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="part1",
         action="store",
         required=False,
-        
+
         help="Option to turn the prescreening evaluation (part1) 'on' or 'off'.",
     )
     group3.add_argument(
@@ -515,17 +515,17 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="smgsolv1",
         action="store",
         required=False,
-        
+
         help="Solvent model for the Gsolv evaluation in part1. This can either be"
         " an implicit solvation or an additive solvation model. "
         f"Allowed values are [{', '.join(options.value_options['smgsolv1'])}]",
-    ) 
+    )
     group10.add_argument(
         "-prescreening_threshold",
         "-prethr",
         "--thresholdpre",
         dest="prescreening_threshold",
-        
+
         action="store",
         type=float,
         required=False,
@@ -533,7 +533,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
             "Threshold in kcal/mol. All conformers in part0 (prescreening)"
             " with a relativ energy below the threshold are considered for part1."
         ),
-    ) 
+    )
     group4.add_argument(
         "-sm2",
         "--solventmodel2",
@@ -541,11 +541,11 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="sm2",
         action="store",
         required=False,
-        
+
         help="Solvent model employed during the geometry ensembleopt in part2."
         "The solvent model sm2 is not used for Gsolv evaluation, but for the "
         "implicit effect on a property (e.g. the geometry in the ensembleopt).",
-    ) 
+    )
     group4.add_argument(
         "-smgsolv2",
         "--smgsolv2",
@@ -553,7 +553,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         dest="smgsolv2",
         action="store",
         required=False,
-        
+
         help="Solvent model for the Gsolv (solvation contribution to free energy) "
         "calculation in part2. Either the solvent"
         " model of the ensembleopt (sm2) or an additive solvation model. "
@@ -567,7 +567,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         choices=options.value_options["prog_rrho"],
         dest="prog_rrho",
         required=False,
-        
+
         help="QM-program for mRRHO contribution in part1 2 and 3, currently only 'xtb'.",
     ) """
 
@@ -577,7 +577,7 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         choices=["on"],  # there is no other option right now!
         dest="ancopt",
         required=False,
-        
+
         help="Option to use xtb as driver for the xTB-optimizer in part2. "
         "Which is currently not changeable!",
     ) """

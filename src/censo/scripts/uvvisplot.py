@@ -142,7 +142,7 @@ def read_data(inp):
     :return: Loaded data.
     """
     cwd = os.getcwd()
-    with open(os.path.join(cwd, inp), "r") as f:
+    with open(os.path.join(cwd, inp)) as f:
         data = json.load(f)
 
     return data
@@ -176,33 +176,33 @@ def plot(data, args):
     xrange = np.linspace(start, end, 10000)
 
     # Dump single contributions to csv file
-    confs = set([d[2] for d in data])
+    confs = {d[2] for d in data}
     exc_number = {conf: 0 for conf in confs}
-    contributions = {}
+    contributions_dict = {}
 
     for exc in data:
         yrange = gaussian_signal(xrange, exc[0], exc[1], args.lw, mode=mode)
-        contributions[f"{exc[2]}_S{exc_number[exc[2]]}"] = yrange
+        contributions_dict[f"{exc[2]}_S{exc_number[exc[2]]}"] = yrange
 
         exc_number[exc[2]] += 1
 
     cwd = os.getcwd()
-    contributions = pd.DataFrame.from_dict(contributions)
-    contributions.to_csv(os.path.join(cwd, "contributions.csv"))
+    contributions_df = pd.DataFrame.from_dict(contributions_dict)
+    contributions_df.to_csv(os.path.join(cwd, "contributions.csv"))
     print("All contributions written to contributions.csv.")
 
     # Plot the whole spectrum
     fig, ax = plt.subplots()
-    yrange = contributions.sum(axis=1)
+    yrange = contributions_df.sum(axis=1)
     ax.plot(xrange, yrange)
     ax.set_title(args.title)
     labels = {
-        "wavelength": "$\mathrm{nm}$",
-        "wavenumber": "$\mathrm{cm-1}$",
-        "energy": "$\mathrm{eV}$",
+        "wavelength": r"$\mathrm{nm}$",
+        "wavenumber": r"$\mathrm{cm-1}$",
+        "energy": r"$\mathrm{eV}$",
     }
     ax.set_xlabel(f"{args.mode} [{labels[args.mode]}]")
-    ax.set_ylabel("$\epsilon$ [a. u.]")
+    ax.set_ylabel(r"$\epsilon$ [a. u.]")
 
     return fig
 

@@ -81,8 +81,8 @@ def refinement(
             contributions_dict[conf.name].gsolv = results[conf.name].gsolv
             contributions_dict[conf.name].energy = results[conf.name].energy_gas
     else:
-        # Run single-point calculation with solvation
-        job_config = SPJobConfig(
+        # Run sp calculation
+        sp_job_config = SPJobConfig(
             copy_mo=config.general.copy_mo,
             func=config.refinement.func,
             basis=config.refinement.basis,
@@ -93,10 +93,10 @@ def refinement(
             sm=config.refinement.sm,
             paths=config.paths,
         )
-        results = execute(
+        sp_results = execute(
             ensemble.conformers,
             proc.sp,
-            job_config,
+            sp_job_config,
             config.refinement.prog,
             "refinement",
             parallel_config,
@@ -106,23 +106,23 @@ def refinement(
             client=client,
         )
         if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+            ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
 
         for conf in ensemble:
-            contributions_dict[conf.name].energy = results[conf.name].energy
+            contributions_dict[conf.name].energy = sp_results[conf.name].energy
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
         proc_xtb: XtbProc = Factory.create(Prog.XTB, "3_REFINEMENT")
-        job_config = RRHOJobConfig(
+        rrho_job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
-        results = execute(
+        rrho_results = execute(
             ensemble.conformers,
             proc_xtb.xtb_rrho,
-            job_config,
+            rrho_job_config,
             "xtb",
             "refinement",
             parallel_config,
@@ -132,10 +132,10 @@ def refinement(
             client=client,
         )
         if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+            ensemble.remove_conformers(lambda conf: conf.name not in rrho_results)
 
         for conf in ensemble:
-            contributions_dict[conf.name].grrho = results[conf.name].energy
+            contributions_dict[conf.name].grrho = rrho_results[conf.name].energy
 
     if cut:
         # Prepare Boltzmann populations
@@ -161,7 +161,7 @@ def refinement(
 
 def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     """ """
-    printf(h1(f"REFINEMENT SINGLE-POINT (+ mRRHO) RESULTS"))
+    printf(h1("REFINEMENT SINGLE-POINT (+ mRRHO) RESULTS"))
 
     # column headers
     headers = [

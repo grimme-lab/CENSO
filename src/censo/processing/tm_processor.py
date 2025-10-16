@@ -23,7 +23,7 @@ from ..config.job_config import (
     SPResult,
 )
 from ..params import WARNLEN, R, AU2KCAL, TmSolvMod, ASSETS_PATH, Prog, ENVIRON
-from ..utilities import frange, Factory
+from ..utilities import Factory
 from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig, RotJobConfig
 from ..assets import FUNCTIONALS, SOLVENTS
 
@@ -45,7 +45,7 @@ class TmProc(QmProc):
         "nmr": ["    gridsize 5", "$scfconv 7"],
     }
 
-    __returncode_to_err = {}
+    __returncode_to_err: dict[int, str] = {}
 
     # COSMO dielectric constants stored here
     # (mapped to solvent names under 'cosmo' in the solvent helper)
@@ -272,13 +272,15 @@ class TmProc(QmProc):
     ):
         # Special treatment for KT1/KT2
         if "kt" in func:
-            func_line_index = next(inp.index(l) for l in inp if "functional" in l)
+            func_line_index = next(
+                inp.index(line) for line in inp if "functional" in line
+            )
             inp[func_line_index] = "   functional xcfun set-gga\n"
             inp.insert(func_line_index + 1, f"   functional xcfun kt{func[2]} 1.0\n")
         # Special treatment for b97-3c
         elif func == "b97-3c":
             # Needs three-body dispersion
-            disp_line_index = next(inp.index(l) for l in inp if "disp" in l)
+            disp_line_index = next(inp.index(line) for line in inp if "disp" in line)
             inp[disp_line_index] = "$disp3 -bj -abc\n"
 
         # Enable non local dispersion
@@ -498,11 +500,9 @@ class TmProc(QmProc):
         # Get final energy
         try:
             result.energy = next(
-                (
-                    float(line.split()[4])
-                    for line in lines
-                    if "|  total energy      = " in line
-                )
+                float(line.split()[4])
+                for line in lines
+                if "|  total energy      = " in line
             )
         except StopIteration:
             meta.success = False
@@ -647,7 +647,7 @@ class TmProc(QmProc):
             if config.sm == TmSolvMod.COSMORS:
                 setup = (
                     config.paths.cosmorssetup
-                    if not "FINE" in config.paths.cosmorssetup
+                    if "FINE" not in config.paths.cosmorssetup
                     else config.paths.cosmorssetup.replace("TZVPD_FINE", "TZVP")
                 )
             else:
@@ -723,24 +723,26 @@ class TmProc(QmProc):
                 meta.error = "unknown_error"
                 return result, meta
 
-            # Read output
-            gsolvt = {}
-            videal = (
-                24.789561955 / 298.15
-            )  # molar volume for ideal gas at 298.15 K 100.0 kPa
+        # Read output
+        gsolvt = {}
+        videal = (
+            24.789561955 / 298.15
+        )  # molar volume for ideal gas at 298.15 K 100.0 kPa
 
-            cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
-            with open(cosmothermtab, "r") as inp:
-                lines = inp.readlines()
-            for line in lines:
-                if "T=" in line:
-                    temp = float(line.split()[5])
+        cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
+        with open(cosmothermtab) as inp:
+            lines = inp.readlines()
+        temp = 0.0
+        vwork = 0.0
+        for line in lines:
+            if "T=" in line:
+                temp = float(line.split()[5])
 
-                    # Add volume work
-                    vwork = R * temp * math.log(videal * temp)
-                elif " out " in line:
-                    # Add volume work
-                    gsolvt[temp] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
+                # Add volume work
+                vwork = R * temp * math.log(videal * temp)
+            elif " out " in line:
+                # Add volume work
+                gsolvt[temp] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
 
             # result.gsolvt = gsolvt
             result.gsolv = gsolvt[config.temperature]
@@ -867,8 +869,8 @@ class TmProc(QmProc):
             return result, meta
 
         # read output
-        with open(outputpath, "r") as file:
-            lines = file.readlines()
+        with open(outputpath) as f:
+            lines = f.readlines()
 
         result.ecyc = []
         result.cycles = 0
@@ -906,13 +908,14 @@ class TmProc(QmProc):
 
         # Get the number of cycles
         # tmp is one of the values from the dict defined below
-        tmp = {
+        tmp_val = {
             True: ("GEOMETRY OPTIMIZATION CONVERGED", 5),
             False: ("FAILED TO CONVERGE GEOMETRY", 7),
-        }
-        tmp = tmp[result.converged]
+        }[result.converged]
 
-        result.cycles = int(next(x for x in lines if tmp[0] in x).split()[tmp[1]])
+        result.cycles = int(
+            next(x for x in lines if tmp_val[0] in x).split()[tmp_val[1]]
+        )
 
         # Get energies for each cycle
         result.ecyc.extend(
@@ -1024,7 +1027,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Grab shieldings from the output
-            with open(outputpath, "r") as f:
+            with open(outputpath) as f:
                 lines = f.readlines()
 
             try:
@@ -1041,7 +1044,7 @@ class TmProc(QmProc):
             result.shieldings = []
 
             # Get lines with "ATOM" in it
-            line_indices = [lines.index(l) for l in lines if "ATOM" in l]
+            line_indices = [lines.index(line) for line in lines if "ATOM" in line]
 
             for i in line_indices:
                 split = lines[i].split()
@@ -1076,7 +1079,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Grab couplings from the output
-            with open(outputpath, "r") as f:
+            with open(outputpath) as f:
                 lines = f.readlines()
 
             try:
@@ -1097,7 +1100,9 @@ class TmProc(QmProc):
 
             lines = lines[:end]
 
-            line_indices = [lines.index(l) for l in lines if len(l.split()) in [6, 7]]
+            line_indices = [
+                lines.index(line) for line in lines if len(line.split()) in [6, 7]
+            ]
 
             couplings: list[tuple[frozenset[int], float]] = []
             for i in line_indices:
@@ -1114,11 +1119,11 @@ class TmProc(QmProc):
 
             # Convert all the frozensets to a tuple to be serializable
             for i in range(len(couplings)):
-                pair = cast(tuple[int, int], tuple(couplings[i][0]))
+                pair_tuple = cast(tuple[int, int], tuple(couplings[i][0]))
                 coupling = couplings[i][1]
                 result.couplings.append(
                     (
-                        pair,
+                        pair_tuple,
                         couplings[i][1],
                     )
                 )
@@ -1181,7 +1186,7 @@ class TmProc(QmProc):
             return result, meta
 
         # Grab shieldings from the output
-        with open(outputpath, "r") as f:
+        with open(outputpath) as f:
             lines = f.readlines()
 
         try:

@@ -72,7 +72,7 @@ def test_solvent_model_validation(solvent, sm_model, should_pass):
         config.model_validate(config, context={"check_all": True, "check_paths": False})
     else:
         # Should raise ValueError for invalid combinations
-        with pytest.raises(ValueError, match="not available with") as exc_info:
+        with pytest.raises(ValueError, match="not available with"):
             config.model_validate(config, context={"check_all": True})
 
 

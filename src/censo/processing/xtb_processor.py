@@ -21,7 +21,7 @@ from ..config.job_config import (
     RRHOResult,
     SPResult,
 )
-from ..utilities import frange, Factory
+from ..utilities import Factory
 from ..logging import setup_logger
 from ..assets import SOLVENTS
 from .processor import GenericProc
@@ -86,8 +86,8 @@ class XtbProc(GenericProc):
                 os.remove(os.path.join(jobdir, file))
 
         # generate coord file for xtb
-        with open(inputpath, "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
+        with open(inputpath, "w", newline=None) as f:
+            f.writelines(job.conf.tocoord())
 
         # setup call for xtb single-point
         call: list[str] = [
@@ -133,7 +133,7 @@ class XtbProc(GenericProc):
             return result, meta
 
         # read energy from outputfile
-        with open(outputpath, "r") as outputfile:
+        with open(outputpath) as outputfile:
             for line in outputfile.readlines():
                 if "| TOTAL ENERGY" in line:
                     result.energy = float(line.split()[3])
@@ -294,8 +294,8 @@ class XtbProc(GenericProc):
         #     dohess = "--ohess"
 
         # generate coord file for xtb
-        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as file:
-            file.writelines(job.conf.tocoord())
+        with open(os.path.join(jobdir, f"{filename}.coord"), "w", newline=None) as f:
+            f.writelines(job.conf.tocoord())
 
         call: list[str] = [
             config.paths.xtb,
@@ -347,7 +347,7 @@ class XtbProc(GenericProc):
             return result, meta
 
         # read output and store lines
-        with open(outputpath, "r") as outputfile:
+        with open(outputpath) as outputfile:
             lines = outputfile.readlines()
 
         # if config.multitemp:
@@ -397,11 +397,9 @@ class XtbProc(GenericProc):
 
         # Extract symmetry
         result.linear = next(
-            (
-                {"true": True, "false": False}[line.split()[2]]
-                for line in lines
-                if ":  linear? " in line
-            )
+            {"true": True, "false": False}[line.split()[2]]
+            for line in lines
+            if ":  linear? " in line
         )
 
         # Extract rmsd
@@ -415,7 +413,6 @@ class XtbProc(GenericProc):
         # contains output from xtb in json format to be more easily digestible by CENSO
         with open(
             os.path.join(jobdir, "xtb_enso.json"),
-            "r",
         ) as f:
             data = json.load(f)
 
@@ -424,7 +421,7 @@ class XtbProc(GenericProc):
             if data["number of imags"] > 0:
                 logger.warning(
                     f"Found {data['number of imags']} significant"
-                    + f" imaginary frequencies for "
+                    + " imaginary frequencies for "
                     + f"{job.conf.name}."
                 )
 

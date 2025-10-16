@@ -65,7 +65,7 @@ def test_valid_optlevels(optlevel):
 def test_invalid_optlevel():
     """Test invalid optimization level"""
     with pytest.raises(ValueError):
-        OptimizationConfig(optlevel="invalid")
+        OptimizationConfig(optlevel="invalid")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -80,4 +80,4 @@ def test_valid_solvent_models(sm):
 def test_invalid_solvent_model():
     """Test invalid solvent model"""
     with pytest.raises(ValueError):
-        OptimizationConfig(sm=TmSolvMod.COSMORS)  # Not in Literal options
+        OptimizationConfig(sm=TmSolvMod.COSMORS)  # type: ignore[arg-type]

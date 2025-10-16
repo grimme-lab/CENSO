@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Self
 from pydantic import field_validator, Field, model_validator
 
 from .base import BasePartConfig
@@ -43,7 +43,7 @@ class NMRConfig(BasePartConfig):
     """Whether to use template files."""
 
     @model_validator(mode="after")
-    def func_must_be_known_in_prog(self):
+    def func_must_be_known_in_prog(self) -> Self:
         """
         Validate that the functional is known for the chosen program.
 

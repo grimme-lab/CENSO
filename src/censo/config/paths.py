@@ -45,9 +45,9 @@ class PathsConfig(BaseModel):
     """Name of the cosmors parameterization file."""
 
     @override
-    def __str__(self):
+    def __str__(self) -> str:
         lines: list[str] = []
-        lines.append(h2(f"PATHS of External Programs"))
+        lines.append(h2("PATHS of External Programs"))
         kv = [(k, v) for k, v in self]
         kv.sort(key=lambda x: type(x[1]).__name__)
         for name, value in kv:
@@ -165,12 +165,12 @@ class PathsConfig(BaseModel):
                     binary_content = f.read()
 
                 version_pattern = rb"Program Version (\d+\.\d+\.\d+)"
-                match = re.search(version_pattern, binary_content)
+                match_bytes = re.search(version_pattern, binary_content)
 
-                if not match:
+                if not match_bytes:
                     raise ValueError("Could not determine ORCA version.")
                 else:
-                    version_bytes = match.group(1)
+                    version_bytes = match_bytes.group(1)
                     version_string = version_bytes.decode("utf-8")
                     self._orcaversion = version_string
 

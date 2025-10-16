@@ -19,11 +19,11 @@ from censo.params import SOLV_MODS, OrcaSolvMod, QmProg, TmSolvMod
         pytest.param(
             QmProg.TM, TmSolvMod.DCOSMORS, True, marks=pytest.mark.requires_turbomole
         ),
-        *[
+        *[  # type: ignore[var-annotated]
             pytest.param(QmProg.ORCA, sm, False, marks=pytest.mark.requires_orca)
             for sm in SOLV_MODS[QmProg.ORCA.value]
         ],
-        *[
+        *[  # type: ignore[var-annotated]
             pytest.param(
                 QmProg.TM,
                 sm,

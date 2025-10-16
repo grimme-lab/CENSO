@@ -58,45 +58,45 @@ def mock_execute_results(fixtures_path: Path):
     # Collect
     results = tree()
     for conf in prescreening:
-        res = SPResult(**prescreening[conf]["sp"])
-        results["prescreening"]["sp"][conf] = res
-        res = GsolvResult(**prescreening[conf]["xtb_gsolv"])
-        results["prescreening"]["xtb_gsolv"][conf] = res
+        res_sp = SPResult(**prescreening[conf]["sp"])
+        results["prescreening"]["sp"][conf] = res_sp
+        res_gsolv = GsolvResult(**prescreening[conf]["xtb_gsolv"])
+        results["prescreening"]["xtb_gsolv"][conf] = res_gsolv
 
     for conf in screening:
-        res = GsolvResult(**screening[conf]["gsolv"])
-        results["screening"]["gsolv"][conf] = res
-        res = SPResult("", res.energy_gas)
-        results["screening"]["sp"][conf] = res
-        res = RRHOResult(**screening[conf]["xtb_rrho"])
-        results["screening"]["xtb_rrho"][conf] = res
+        res_gsolv = GsolvResult(**screening[conf]["gsolv"])
+        results["screening"]["gsolv"][conf] = res_gsolv
+        res_sp = SPResult("", res_gsolv.energy_gas)
+        results["screening"]["sp"][conf] = res_sp
+        res_rrho = RRHOResult(**screening[conf]["xtb_rrho"])
+        results["screening"]["xtb_rrho"][conf] = res_rrho
 
     for conf in optimization:
-        res = OptResult(**optimization[conf]["opt"])
-        results["optimization"]["opt"][conf] = res
-        res = RRHOResult(**optimization[conf]["xtb_rrho"])
-        results["optimization"]["xtb_rrho"][conf] = res
+        res_opt = OptResult(**optimization[conf]["opt"])
+        results["optimization"]["opt"][conf] = res_opt
+        res_rrho = RRHOResult(**optimization[conf]["xtb_rrho"])
+        results["optimization"]["xtb_rrho"][conf] = res_rrho
 
     for conf in refinement:
-        res = SPResult(**refinement[conf]["sp"])
-        results["refinement"]["sp"][conf] = res
-        res = RRHOResult(**refinement[conf]["xtb_rrho"])
-        results["refinement"]["xtb_rrho"][conf] = res
+        res_sp = SPResult(**refinement[conf]["sp"])
+        results["refinement"]["sp"][conf] = res_sp
+        res_rrho = RRHOResult(**refinement[conf]["xtb_rrho"])
+        results["refinement"]["xtb_rrho"][conf] = res_rrho
 
     for conf in nmr:
-        res = NMRResult(
+        res_nmr = NMRResult(
             **{k: v for k, v in nmr[conf]["nmr"].items() if k in fields(NMRResult)}
         )
-        results["nmr"][conf] = res
+        results["nmr"][conf] = res_nmr
 
     for conf in uvvis:
-        res = UVVisResult(
+        res_uvvis = UVVisResult(
             **{
                 k: v
                 for k, v in uvvis[conf]["uvvis"].items()
                 if k in fields(UVVisResult)
             }
         )
-        results["uvvis"][conf] = res
+        results["uvvis"][conf] = res_uvvis
 
     return to_plain_dict(results)

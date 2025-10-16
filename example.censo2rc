@@ -84,8 +84,7 @@ run = False
 template = False
 
 [paths]
-orca = 
-xtb = 
-mpshift = 
-escf = 
-
+orca =
+xtb =
+mpshift =
+escf =

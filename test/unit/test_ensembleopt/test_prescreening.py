@@ -4,7 +4,6 @@ from unittest.mock import patch
 from censo.config.parts_config import PartsConfig
 from censo.ensemble import EnsembleData
 from censo.ensembleopt.prescreening import prescreening, jsonify
-from censo.params import QmProg
 
 # ============= Tests for Core Prescreening Functionality =============
 
