@@ -1,7 +1,6 @@
 import time
 import pytest
 import subprocess
-from dask.distributed import Client, LocalCluster
 from typing import Any
 
 from censo.config.paths import PathsConfig
@@ -190,18 +189,6 @@ def task_long_subprocess(
 # ============= Tests for Core Functionality =============
 
 
-class TestCoreParallelComponents:
-    """Tests for core parallel processing components"""
-
-    @pytest.mark.skip(reason="get_client function not available")
-    def test_setup_parallel(self):
-        """Test setup_parallel context manager creates correct Dask instances"""
-        client, cluster = None, None  # get_client(ncores, threads_per_worker)
-
-        assert isinstance(cluster, LocalCluster)
-        assert isinstance(client, Client)
-
-
 class TestResultDataclasses:
     """Tests for QM result dataclasses"""
 
@@ -364,7 +351,7 @@ class TestJobExecution:
         """Test successful parallel execution of all jobs"""
         # Create two mock conformers
         conformers = create_conformers(2)
-        client, cluster, parallel_config = parallel_setup
+        client, cluster = parallel_setup
 
         # Run execute
         results = execute(
@@ -395,7 +382,7 @@ class TestJobExecution:
         """Test execution when all jobs fail"""
         # Create two mock conformers
         conformers = create_conformers(2)
-        client, cluster, parallel_config = parallel_setup
+        client, cluster = parallel_setup
 
         # Check that RuntimeError is raised when all jobs fail
         with pytest.raises(RuntimeError, match="All jobs failed to execute"):
@@ -417,7 +404,7 @@ class TestJobExecution:
         """Test execution with mixed success/failure"""
         # Create four mock conformers
         conformers = create_conformers(4)
-        client, cluster, parallel_config = parallel_setup
+        client, cluster = parallel_setup
 
         # Run execute
         results = execute(
@@ -457,7 +444,7 @@ class TestJobExecution:
         # Create eight mock conformers
         n_jobs = 8
         conformers = create_conformers(n_jobs)
-        client, cluster, parallel_config = parallel_setup
+        client, cluster = parallel_setup
 
         # Run execute with limited cores
         start_time = time.time()

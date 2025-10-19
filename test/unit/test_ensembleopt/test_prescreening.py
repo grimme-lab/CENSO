@@ -11,17 +11,15 @@ from censo.ensembleopt.prescreening import prescreening, jsonify
 class TestPrescreening:
     """Tests for core prescreening functionality"""
 
-    @patch("censo.ensembleopt.prescreening.Factory")
     @patch("censo.ensembleopt.prescreening.execute")
     def test_prescreening_gas_phase(
         self,
         mock_execute,
-        mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
         parallel_setup,
     ):
-        """Test prescreening function in gas phase"""
+        """Test prescreening function in gas phase and rrho"""
         # Set up gas phase
         config = PartsConfig()
         config.general.gas_phase = True
@@ -34,8 +32,7 @@ class TestPrescreening:
         prescreening(mock_ensemble, config, client)
 
         # Verify calls
-        assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
-        assert mock_factory.create.call_count == 2
+        assert mock_execute.call_count == 1
 
     @pytest.mark.parametrize(
         "threshold,expected_count",
@@ -44,12 +41,10 @@ class TestPrescreening:
             (1000.0, 74),  # Large threshold should keep all conformers
         ],
     )
-    @patch("censo.ensembleopt.prescreening.Factory")
     @patch("censo.ensembleopt.prescreening.execute")
     def test_prescreening_threshold(
         self,
         mock_execute,
-        mock_factory,
         mock_ensemble: EnsembleData,
         mock_execute_results,
         threshold: float,
@@ -70,44 +65,10 @@ class TestPrescreening:
         client, cluster = parallel_setup
         prescreening(mock_ensemble, config, client)
 
+        assert mock_execute.call_count == 2
+
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count
-
-    # @patch("censo.ensembleopt.prescreening.Factory")
-    # @patch("censo.ensembleopt.prescreening.execute")
-    # def test_prescreening_empty_ensemble(self, mock_execute, mock_factory, mock_config):
-    #     """Test prescreening with empty ensemble"""
-    #     ensemble = MockEnsembleData([])
-    #     mock_execute.return_value = ({}, None)  # Return empty results
-    #
-    #     # Run prescreening
-    #     with pytest.raises(ValueError, match="empty"):
-    #         prescreening(ensemble, mock_config, ncores=1, omp=1)
-
-    # @patch("censo.ensembleopt.prescreening.Factory")
-    # @patch("censo.ensembleopt.prescreening.execute")
-    # def test_prescreening_single_conformer(
-    #     self, mock_execute, mock_factory, mock_config
-    # ):
-    #     """Test prescreening with single conformer"""
-    #     conf = MockMoleculeData(
-    #         name="CONF1", energy=-100.0, gsolv=-0.01, gtot=-100.01, bmw=1.0
-    #     )
-    #     ensemble = MockEnsembleData([conf])
-    #
-    #     # Mock execute results
-    #     mock_execute.side_effect = [
-    #         ({"CONF1": MockResult(gsolv=-0.01)}, None),
-    #         ({"CONF1": MockResult(energy=-100.0)}, None),
-    #     ]
-    #
-    #     # Run prescreening
-    #     prescreening(ensemble, mock_config, ncores=1, omp=1)
-    #
-    #     # Verify single conformer was processed
-    #     assert len(ensemble.conformers) == 1
-    #     assert mock_execute.call_count == 2
-    #
 
 
 # ============= Tests for Result Handling =============
