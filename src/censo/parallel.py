@@ -3,7 +3,12 @@ import traceback
 import os
 from typing import Literal, Callable
 from concurrent.futures import CancelledError
-from dask.distributed import Variable, Client, as_completed as dask_as_completed
+from dask.distributed import (
+    Variable,
+    Client,
+    LocalCluster,
+    as_completed as dask_as_completed,
+)
 
 
 from .molecules import MoleculeData
@@ -26,29 +31,28 @@ def get_cluster(maxcores: int | None = None, ompmin: int = OMPMIN_DEFAULT):
     :param ompmin: Minimum number of cores per job.
     :return: Yields LocalCluster.
     """
-    from dask.distributed import LocalCluster
-
     nnodes = int(os.environ.get("SLURM_NNODES", "1"))
-    slurm_ntasks = os.environ.get("SLURM_NTASKS", None)
+    slurm_ntasks_str = os.environ.get("SLURM_NTASKS", None)
+    slurm_ntasks = None
 
-    if slurm_ntasks is not None:
-        slurm_ntasks_int = int(slurm_ntasks)
+    if slurm_ntasks_str is not None:
+        slurm_ntasks = int(slurm_ntasks_str)
         if nnodes > 1:
-            slurm_ntasks_int = slurm_ntasks_int // nnodes
-        logger.debug(f"Found SLURM_NTASKS={slurm_ntasks_int} (for each node).")
-    else:
-        slurm_ntasks_int = None
+            slurm_ntasks = slurm_ntasks // nnodes
+        logger.debug(f"Found SLURM_NTASKS={slurm_ntasks} (for each node).")
 
     if maxcores is None:
-        ncores = slurm_ntasks_int if slurm_ntasks_int is not None else os.cpu_count()
+        ncores = slurm_ntasks if slurm_ntasks is not None else os.cpu_count()
         if ncores is None:
             raise RuntimeError("Could not determine number of available cores.")
-    elif slurm_ntasks_int is not None and maxcores <= slurm_ntasks_int:
+    elif slurm_ntasks is not None and maxcores <= slurm_ntasks:
         ncores = maxcores
-    else:
+    elif slurm_ntasks is not None and maxcores > slurm_ntasks:
         raise RuntimeError(
             "Requested more cores than slurm tasks available for this node."
         )
+    else:
+        ncores = maxcores
 
     # TODO: SSHCluster for multiple nodes
     logger.debug(f"Setting up LocalCluster with {ncores} cores.")
@@ -78,28 +82,29 @@ def set_omp(
     if balance:
         jobs_left, tot_jobs = len(jobs), len(jobs)
 
-        # Maximum/minimum number of parallel processes
-        maxprocs = ncores // omp
-        minprocs = max(1, ncores // OMPMAX_DEFAULT)
+        if tot_jobs >= ncores // omp:
+            # Assign minimum OMP for as many jobs as possible
+            for i in range(tot_jobs - tot_jobs % omp):
+                jobs[i].omp = omp
 
-        while jobs_left > 0:
-            # Find the optimal number of parallel processes to maximize core utilization while avoiding
-            # to parallelize on too many cores (efficiency drops off quickly)
-            p = (
-                maxprocs
-                if jobs_left >= maxprocs
-                else max(
-                    j
-                    for j in range(minprocs, maxprocs)
-                    if ncores % j == 0 and j <= jobs_left
-                )
-            )
+            jobs_left = tot_jobs % omp
 
-            # Assign determined OMP value to jobs
-            while jobs_left - p >= 0:
-                for job in jobs[tot_jobs - jobs_left : tot_jobs - jobs_left + p]:
-                    job.omp = ncores // p
-                jobs_left -= p
+        if jobs_left > 0:
+            if jobs_left == 1:
+                jobs[-1].omp = ncores
+            else:
+                while jobs_left > 0:
+                    omps = list(range(omp + 1, min(OMPMAX_DEFAULT, ncores) + 1))
+                    if any(ncores % o == 0 for o in omps):
+                        tmp_omp = min([o for o in omps if ncores % o == 0])
+                    else:
+                        # Only consider OMPs that don't lead to idle workers
+                        omps = [o for o in omps if jobs_left - ncores // o >= 0]
+                        # Minimize free cores
+                        tmp_omp = min(omps, key=lambda x: ncores % x)
+                    for i in range(min(jobs_left, ncores // tmp_omp)):
+                        jobs[tot_jobs - jobs_left + i].omp = tmp_omp
+                    jobs_left -= ncores // tmp_omp
     else:
         for job in jobs:
             job.omp = omp

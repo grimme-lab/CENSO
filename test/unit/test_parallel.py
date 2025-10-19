@@ -2,6 +2,7 @@ import time
 import pytest
 import subprocess
 from typing import Any
+from math import ceil
 
 from censo.config.paths import PathsConfig
 from censo.parallel import (
@@ -464,9 +465,26 @@ class TestJobExecution:
         # Verify results
         assert len(results) == n_jobs
 
-        # With 4 cores total and 1 core per job, we should be able to run 4 jobs in parallel
-        # Each job takes 0.1s, so 8 jobs should take ~0.2s (plus overhead)
+        # Get settings from client
+        scheduler_info = client.scheduler_info()
+        nnodes = int(scheduler_info["n_workers"])
+        total_threads = scheduler_info["total_threads"]
+        threads_per_worker = total_threads // nnodes
+        total_cores = sum(
+            [
+                worker["resources"]["CPU"]
+                for _, worker in scheduler_info["workers"].items()
+            ]
+        )
+        ncores = total_cores // nnodes
+        omp = total_cores // threads_per_worker
+
+        # With ncores total and omp cores per job, we should be able to run ncores // omp jobs in parallel
+        ncycles = ceil(n_jobs / (ncores // omp))
+        min_expected_time = 0.1 * ncycles
         # Allow for some timing variability in CI environments
+        max_expected_time = min_expected_time + 0.2
         assert (
-            0.2 < total_time < 0.6
-        ), f"Expected ~0.2s execution time, got {total_time}s"
+            min_expected_time < total_time < max_expected_time
+        ), f"Expected ~{min_expected_time:.2f}s execution time, got {total_time}s"
+        print(min_expected_time, total_time, max_expected_time)
