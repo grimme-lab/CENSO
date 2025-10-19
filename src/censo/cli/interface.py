@@ -64,39 +64,24 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     except SystemExit as e:
         return cast(Returncode, e.code)
 
-    if args.maxcores is None:
-        printf(
-            "Could not determine number of available number of cores. Cannot run without this information!"
-        )
-        return Returncode.GENERIC_ERROR
-
-    from ..config.parallel_config import ParallelConfig
+    # Set up parallel managers once for the entire run
+    from ..parallel import get_cluster
 
     try:
-        parallel_config = ParallelConfig(
-            ncores=args.maxcores, omp=args.ompmin, ompmin=args.ompmin
-        )
-    except ValidationError as e:
-        print_validation_errors(e)
-        printf(
-            "Encountered error in setting up parallelization settings. Stopping CENSO."
-        )
-        return Returncode.ARGUMENT_ERROR
+        cluster = get_cluster(maxcores=args.maxcores, ompmin=args.ompmin)
+        client = cluster.get_client()
+    except Exception as e:
+        printf(f"Encountered error in setting up parallelization: {e}")
+        return Returncode.GENERIC_ERROR
 
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
     time = 0.0
-    # Set up parallel managers once for the entire run
-    from ..parallel import get_client
 
     logger.debug("Setting up parallel managers for CLI run...")
-    threads_per_worker = parallel_config.ncores // parallel_config.ompmin
-    client, cluster = get_client(parallel_config.ncores, threads_per_worker)
     try:
         for func in [task for _, enabled, task in tasks[:4] if enabled]:
-            runtime = func(
-                ensemble, parts_config, parallel_config, client=client, cut=cut
-            )
+            runtime = func(ensemble, parts_config, client, cut=cut)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
 
@@ -118,7 +103,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             print("\nRunning property calculations\n")
 
         for func in [task for _, enabled, task in tasks[4:] if enabled]:
-            runtime = func(ensemble, parts_config, parallel_config, client=client)
+            runtime = func(ensemble, parts_config, client)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             time += runtime
     except Exception:

@@ -5,17 +5,17 @@ Processor for xtb calculations.
 import json
 import os
 from pathlib import Path
-from typing import final
+from typing import final, override
 
 
 from ..config.job_config import (
     RRHOJobConfig,
     XTBJobConfig,
 )
-from ..parallel import (
-    ParallelJob,
+from .job import (
+    JobContext,
 )
-from ..config.job_config import (
+from .results import (
     GsolvResult,
     MetaData,
     RRHOResult,
@@ -30,6 +30,7 @@ from ..params import Prog
 logger = setup_logger(__name__)
 
 
+@final
 class XtbProc(GenericProc):
     """
     XtbProcessor
@@ -37,12 +38,11 @@ class XtbProc(GenericProc):
 
     progname = Prog.XTB
 
-    @final
     def _sp(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: XTBJobConfig,
+        jobdir: str | Path | None = None,
         filename: str = "xtb_sp",
         no_solv: bool = False,
     ) -> tuple[SPResult, MetaData]:
@@ -61,6 +61,9 @@ class XtbProc(GenericProc):
             meta (MetaData): metadata about the job
 
         """
+        if jobdir is None:
+            jobdir = self._setup(job, "xtb_sp")
+
         result = SPResult()
         meta = MetaData(job.conf.name)
 
@@ -146,11 +149,10 @@ class XtbProc(GenericProc):
 
         return result, meta
 
-    @final
-    @GenericProc._run
+    @override
     def sp(self, *args, **kwargs):
         """
-        Wrapped version of xtb_sp.
+        Wrapped version of _sp.
 
         :param args: Arguments.
         :param kwargs: Keyword arguments.
@@ -158,10 +160,8 @@ class XtbProc(GenericProc):
         """
         return self._sp(*args, **kwargs)
 
-    @final
-    @GenericProc._run
     def gsolv(
-        self, job: ParallelJob, jobdir: str | Path, config: XTBJobConfig
+        self, job: JobContext, config: XTBJobConfig
     ) -> tuple[GsolvResult, MetaData]:
         """
         Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
@@ -174,8 +174,12 @@ class XtbProc(GenericProc):
         result = GsolvResult()
         meta = MetaData(job.conf.name)
 
+        jobdir = self._setup(job, "xtb_gsolv")
+
         # run gas-phase GFN single-point
-        spres, spmeta = self._sp(job, jobdir, config, filename="gas", no_solv=True)
+        spres, spmeta = self._sp(
+            job, config, jobdir=jobdir, filename="gas", no_solv=True
+        )
         if spmeta.success:
             result.energy_gas = spres.energy
         else:
@@ -184,7 +188,7 @@ class XtbProc(GenericProc):
             return result, meta
 
         # run single-point in solution:
-        spres, spmeta = self._sp(job, jobdir, config, filename="solv")
+        spres, spmeta = self._sp(job, config, jobdir=jobdir, filename="solv")
         if spmeta.success:
             result.energy_solv = spres.energy
         else:
@@ -199,14 +203,10 @@ class XtbProc(GenericProc):
         return result, meta
 
     # TODO: break this down
-    @final
-    @GenericProc._run
     def xtb_rrho(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: RRHOJobConfig,
-        filename: str = "xtb_rrho",
     ) -> tuple[RRHOResult, MetaData]:
         """
         Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
@@ -220,6 +220,9 @@ class XtbProc(GenericProc):
         # what is returned in the end
         result = RRHOResult()
         meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "xtb_rrho")
+        filename = "xtb_rrho"
 
         # set in/out path
         outputpath = os.path.join(jobdir, f"{filename}.out")
@@ -459,6 +462,10 @@ class XtbProc(GenericProc):
             meta.error = "Could not read xtb_enso.json"
 
         return result, meta
+
+    @override
+    def opt(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 Factory.register_builder(Prog.XTB, XtbProc)

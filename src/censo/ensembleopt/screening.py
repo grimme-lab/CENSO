@@ -20,7 +20,6 @@ from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
-from ..config.parallel_config import ParallelConfig
 from ..ensemble import EnsembleData
 from ..processing import QmProc, XtbProc
 
@@ -31,10 +30,8 @@ logger = setup_logger(__name__)
 def screening(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    cut: bool = True,
-    *,
     client: Client,
+    cut: bool = True,
 ):
     """
     Advanced screening of the ensemble by doing single-point calculations on the input geometries,
@@ -46,7 +43,7 @@ def screening(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
+    :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions.
     :return: None
     """
@@ -55,7 +52,7 @@ def screening(
     config.model_validate(config, context={"check": "screening"})
 
     # Setup processor and target
-    proc: QmProc = Factory.create(config.screening.prog, "1_SCREENING")
+    proc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase and not config.screening.gsolv_included:
@@ -80,11 +77,10 @@ def screening(
             job_config,
             config.screening.prog,
             "screening",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -111,11 +107,10 @@ def screening(
             sp_job_config,
             config.screening.prog,
             "screening",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
@@ -125,7 +120,7 @@ def screening(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
-        proc_xtb: XtbProc = Factory.create(Prog.XTB, "1_SCREENING")
+        proc_xtb = Factory[XtbProc].create(Prog.XTB, "1_SCREENING")
         rrho_job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
@@ -137,11 +132,10 @@ def screening(
             rrho_job_config,
             "xtb",
             "screening",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in rrho_results)

@@ -5,7 +5,7 @@ Contains OrcaProc class for calculating ORCA related properties of conformers.
 import os
 from pathlib import Path
 import shutil
-from typing import final, cast
+from typing import final, cast, override
 
 from ..config.job_config import (
     NMRJobConfig,
@@ -14,10 +14,10 @@ from ..config.job_config import (
     UVVisJobConfig,
     XTBOptJobConfig,
 )
-from ..parallel import (
-    ParallelJob,
+from .job import (
+    JobContext,
 )
-from ..config.job_config import (
+from .results import (
     GsolvResult,
     NMRResult,
     OptResult,
@@ -35,12 +35,12 @@ from ..params import (
     Prog,
 )
 from ..assets import FUNCTIONALS, SOLVENTS
-from .processor import GenericProc
 from .qm_processor import QmProc
 
 logger = setup_logger(__name__)
 
 
+@final
 class OrcaProc(QmProc):
     """
     Performs calculations with ORCA.
@@ -79,7 +79,7 @@ class OrcaProc(QmProc):
 
     def __prep(
         self,
-        job: ParallelJob,
+        job: JobContext,
         config: SPJobConfig,
         jobtype: str,
         no_solv: bool = False,
@@ -443,9 +443,9 @@ class OrcaProc(QmProc):
     @final
     def _sp(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: SPJobConfig,
+        jobdir: str | Path | None = None,
         filename: str = "sp",
         no_solv: bool = False,
         prep: bool = True,
@@ -466,7 +466,8 @@ class OrcaProc(QmProc):
             result (SPResult): results of the calculation
             meta (MetaData): metadata about the job
         """
-        # Check required settings
+        if jobdir is None:
+            jobdir = self._setup(job, "sp")
 
         # set results
         result = SPResult()
@@ -537,8 +538,7 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    @final
-    @GenericProc._run
+    @override
     def sp(self, *args, **kwargs):
         """
         Perform single-point calculation.
@@ -549,16 +549,14 @@ class OrcaProc(QmProc):
         """
         return self._sp(*args, **kwargs)
 
-    @final
-    @GenericProc._run
+    @override
     def gsolv(
-        self, job: ParallelJob, jobdir: str | Path, config: SPJobConfig
+        self, job: JobContext, config: SPJobConfig
     ) -> tuple[GsolvResult, MetaData]:
         """
         Calculates the solvation free enthalpy of a conformer using ORCA.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: SP configuration
         :return: Tuple of (GsolvResult, MetaData)
         """
@@ -568,8 +566,12 @@ class OrcaProc(QmProc):
         result = GsolvResult()
         meta = MetaData(job.conf.name)
 
+        jobdir = self._setup(job, "gsolv")
+
         # calculate gas phase
-        spres, spmeta = self._sp(job, jobdir, config, filename="sp_gas", no_solv=True)
+        spres, spmeta = self._sp(
+            job, config, jobdir=jobdir, filename="sp_gas", no_solv=True
+        )
 
         if spmeta.success:
             result.energy_gas = spres.energy
@@ -579,7 +581,7 @@ class OrcaProc(QmProc):
             return result, meta
 
         # calculate in solution
-        spres, spmeta = self._sp(job, jobdir, config, filename="sp_solv")
+        spres, spmeta = self._sp(job, config, jobdir=jobdir, filename="sp_solv")
 
         if spmeta.success:
             result.energy_solv = spres.energy
@@ -601,28 +603,26 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    @final
-    @GenericProc._run
+    @override
     def opt(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: OptJobConfig,
-        filename: str = "opt",
     ) -> tuple[OptResult, MetaData]:
         """
         Geometry optimization using ORCA optimizer.
         Note that solvation in handled here always implicitly.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: Optimization configuration
-        :param filename: name of the input file
         :return: Tuple of (OptResult, MetaData)
         """
         # prepare result
         result = OptResult()
         meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "opt")
+        filename = "opt"
 
         # set orca input/output paths
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -710,21 +710,17 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    @final
-    @GenericProc._run
+    @override
     def xtb_opt(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: XTBOptJobConfig,
-        filename: str = "xtb_opt",
     ) -> tuple[OptResult, MetaData]:
         """
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: XTB optimization configuration
         :return: Tuple of (OptResult, MetaData)
         """
@@ -750,6 +746,9 @@ class OrcaProc(QmProc):
             "charges",
             "gfnff_topo",
         ]
+
+        jobdir = self._setup(job, "xtb_opt")
+        filename = "xtb_opt"
 
         # remove potentially preexisting files to avoid confusion
         for file in files:
@@ -926,14 +925,11 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    @final
-    @GenericProc._run
+    @override
     def nmr(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: NMRJobConfig,
-        filename: str = "nmr",
     ) -> tuple[NMRResult, MetaData]:
         """
         Calculate the NMR shieldings and/or couplings for a conformer using ORCA. ORCA gives only the active cores in the output
@@ -946,13 +942,15 @@ class OrcaProc(QmProc):
             to tuple to be serializable.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: NMR configuration
         :return: Tuple of (NMRResult, MetaData)
         """
         # Set results
         result = NMRResult()
         meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "nmr")
+        filename = "nmr"
 
         # Set in/out path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -964,7 +962,7 @@ class OrcaProc(QmProc):
             f.writelines(inp)
 
         # Run _sp using the input file generated above
-        _, spmeta = self._sp(job, jobdir, config, filename=filename, prep=False)
+        _, spmeta = self._sp(job, config, jobdir=jobdir, filename=filename, prep=False)
 
         if not spmeta.success:
             meta.success = False
@@ -1047,27 +1045,25 @@ class OrcaProc(QmProc):
 
         return result, meta
 
-    @final
-    @GenericProc._run
+    @override
     def uvvis(
         self,
-        job: ParallelJob,
-        jobdir: str | Path,
+        job: JobContext,
         config: UVVisJobConfig,
-        filename: str = "uvvis",
     ) -> tuple[UVVisResult, MetaData]:
         """
         Run a single-point to calculate the oscillator strengths and excitation wavelengths.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: UV-Vis configuration
-        :param filename: name of the input file
         :return: Tuple of (UVVisResult, MetaData)
         """
         # Set results
         result = UVVisResult()
         meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "uvvis")
+        filename = "uvvis"
 
         # Set in/out path
         inputpath = os.path.join(jobdir, f"{filename}.inp")
@@ -1079,7 +1075,9 @@ class OrcaProc(QmProc):
             f.writelines(inp)
 
         # Run _sp using the input file generated above
-        _, spmeta = self._sp(job, jobdir, config, filename=f"{filename}", prep=False)
+        _, spmeta = self._sp(
+            job, config, jobdir=jobdir, filename=f"{filename}", prep=False
+        )
 
         if not spmeta.success:
             meta.success = False
@@ -1112,6 +1110,10 @@ class OrcaProc(QmProc):
         meta.success = True
 
         return result, meta
+
+    @override
+    def rot(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 Factory.register_builder(Prog.ORCA, OrcaProc)

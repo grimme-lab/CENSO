@@ -5,8 +5,7 @@ import shutil
 
 from censo.params import XtbSolvMod, TmSolvMod, OrcaSolvMod, Prog
 from censo.config.parts_config import PartsConfig
-from censo.parallel import get_client
-from censo.config.parallel_config import ParallelConfig
+from censo.parallel import get_cluster
 
 
 @pytest.fixture
@@ -92,7 +91,7 @@ def patch_model_validate(monkeypatch):
 @pytest.fixture(scope="session")
 def parallel_setup():
     """Provide real parallel setup for tests that need it."""
-    parallel_config = ParallelConfig(ncores=4, omp=1, ompmin=1)
-    threads_per_worker = parallel_config.ncores // parallel_config.ompmin
-    client, cluster = get_client(parallel_config.ncores, threads_per_worker)
-    yield client, cluster, parallel_config
+
+    cluster = get_cluster()
+    client = cluster.get_client()
+    return client, cluster

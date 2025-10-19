@@ -15,7 +15,6 @@ from ..parallel import execute
 from ..processing import QmProc
 from ..params import GridLevel, AU2KCAL, PLENGTH, Prog
 from ..config.job_config import SPJobConfig, XTBJobConfig
-from ..config.parallel_config import ParallelConfig
 from ..logging import setup_logger
 
 logger = setup_logger(__name__)
@@ -25,10 +24,8 @@ logger = setup_logger(__name__)
 def prescreening(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    cut: bool = True,
-    *,
     client: Client,
+    cut: bool = True,
 ):
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
@@ -38,7 +35,7 @@ def prescreening(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
+    :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions.
     :return: None
     """
@@ -47,12 +44,12 @@ def prescreening(
     config.model_validate(config, context={"check": "prescreening"})
 
     # Setup processor and target
-    proc: QmProc = Factory.create(config.prescreening.prog, "0_PRESCREENING")
+    proc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase:
         # Calculate Gsolv using xtb
-        proc_xtb: XtbProc = Factory.create(Prog.XTB, "0_PRESCREENING")
+        xtb_proc = Factory[XtbProc].create(Prog.XTB, "0_PRESCREENING")
         gsolv_job_config = XTBJobConfig(
             gfnv=config.prescreening.gfnv,
             solvent=config.general.solvent,
@@ -62,15 +59,14 @@ def prescreening(
         )
         gsolv_results = execute(
             ensemble.conformers,
-            proc_xtb.gsolv,
+            xtb_proc.gsolv,
             gsolv_job_config,
             "xtb",
             "prescreening",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
 
         if config.general.ignore_failed:
@@ -95,11 +91,10 @@ def prescreening(
         sp_job_config,
         config.prescreening.prog,
         "prescreening",
-        parallel_config,
+        client,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        client=client,
     )
 
     if config.general.ignore_failed:

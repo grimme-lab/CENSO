@@ -30,35 +30,8 @@ class TestPrescreening:
         mock_execute.return_value = mock_execute_results["prescreening"]["sp"]
 
         # Run prescreening
-        client, cluster, _ = parallel_setup
-        prescreening(mock_ensemble, config, None, client=client)
-
-        # Verify calls
-        assert mock_execute.call_count == 1  # Only sp calculation
-        assert mock_factory.create.call_count == 1
-
-    @patch("censo.ensembleopt.prescreening.Factory")
-    @patch("censo.ensembleopt.prescreening.execute")
-    def test_prescreening_solution(
-        self,
-        mock_execute,
-        mock_factory,
-        mock_ensemble: EnsembleData,
-        mock_execute_results,
-        parallel_setup,
-    ):
-        """Test prescreening function with solvation"""
-        # Mock execute results for both xtb_gsolv and sp
-        mock_execute.side_effect = [
-            mock_execute_results["prescreening"]["xtb_gsolv"],
-            mock_execute_results["prescreening"]["sp"],
-        ]
-
-        config = PartsConfig()
-
-        # Run prescreening
-        client, cluster, _ = parallel_setup
-        prescreening(mock_ensemble, config, None, client=client)
+        client, cluster = parallel_setup
+        prescreening(mock_ensemble, config, client)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -94,8 +67,8 @@ class TestPrescreening:
         ]
 
         # Run prescreening
-        client, cluster, _ = parallel_setup
-        prescreening(mock_ensemble, config, None, client=client)
+        client, cluster = parallel_setup
+        prescreening(mock_ensemble, config, client)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count

@@ -2,8 +2,8 @@ import pytest
 from censo.ensembleopt.screening import screening
 from censo.ensemble import EnsembleData
 from censo.config.parts_config import PartsConfig
-from censo.config.parallel_config import ParallelConfig
 from censo.params import SOLV_MODS, OrcaSolvMod, QmProg, TmSolvMod
+from dask.distributed import Client
 
 
 # Parameterized test cases for screening
@@ -41,7 +41,7 @@ from censo.params import SOLV_MODS, OrcaSolvMod, QmProg, TmSolvMod
 def test_screening_integration(
     config: PartsConfig,
     ensemble_from_xyz: EnsembleData,
-    parallel_config: ParallelConfig,
+    client: Client,
     prog: QmProg,
     solvation_model: TmSolvMod | OrcaSolvMod | None,
     evaluate_rrho: bool,
@@ -55,6 +55,6 @@ def test_screening_integration(
     else:
         config.general.gas_phase = True
     config = PartsConfig.model_validate(config, context={"check": "screening"})
-    timing = screening(ensemble_from_xyz, config, parallel_config, cut=True)
+    timing = screening(ensemble_from_xyz, config, client, cut=True)
     assert timing is not None
     # Optionally add more output checks

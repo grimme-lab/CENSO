@@ -12,10 +12,9 @@ from ..molecules import MoleculeData
 from ..config import PartsConfig
 from ..config.job_config import UVVisJobConfig
 from ..config.parts import UVVisConfig
-from ..config.parallel_config import ParallelConfig
 from ..params import GridLevel, PLENGTH
 from ..parallel import execute
-from ..config.job_config import UVVisResult
+from ..processing.results import UVVisResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
@@ -27,8 +26,6 @@ logger = setup_logger(__name__)
 def uvvis(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    *,
     client: Client,
 ):
     """
@@ -37,7 +34,6 @@ def uvvis(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
     :return: None
     """
     printf(h2("UVVIS"))
@@ -52,7 +48,7 @@ def uvvis(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory.create(config.uvvis.prog, "6_UVVIS")
+    proc = Factory[QmProc].create(config.uvvis.prog, "6_UVVIS")
 
     # Run UVVis calculations
     # TODO: if some calculations fail we would need to recalculate boltzmann populations
@@ -71,11 +67,10 @@ def uvvis(
         job_config,
         config.uvvis.prog,
         "uvvis",
-        parallel_config,
+        client,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        client=client,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

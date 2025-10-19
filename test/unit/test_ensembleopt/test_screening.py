@@ -38,7 +38,7 @@ class TestScreening:
         )
 
         # Run screening
-        client, cluster, _ = parallel_setup
+        client, cluster = parallel_setup
         screening(mock_ensemble, config, None, client=client)
 
         # Verify calls
@@ -72,8 +72,8 @@ class TestScreening:
         )
 
         # Run screening
-        client, cluster, _ = parallel_setup
-        screening(mock_ensemble, config, None, client=client)
+        client, cluster = parallel_setup
+        screening(mock_ensemble, config, client)
 
         # Verify calls
         assert mock_execute.call_count == 1
@@ -104,8 +104,8 @@ class TestScreening:
         )
 
         # Run screening
-        client, cluster, _ = parallel_setup
-        screening(mock_ensemble, config, None, client=client)
+        client, cluster = parallel_setup
+        screening(mock_ensemble, config, client)
 
         # Verify calls
         assert mock_execute.call_count == 2  # Both xtb_gsolv and sp calculations
@@ -142,12 +142,12 @@ class TestScreening:
 
         # Prepare ensemble (remove surplus confs)
         mock_ensemble.remove_conformers(
-            lambda conf: conf.name not in mock_execute_results["screening"]["gsolv"]
+            lambda conf: conf.name not in mock_execute_results["screening"]["sp"]
         )
 
         # Run screening
-        client, cluster, _ = parallel_setup
-        screening(mock_ensemble, config, None, client=client)
+        client, cluster = parallel_setup
+        screening(mock_ensemble, config, client)
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count

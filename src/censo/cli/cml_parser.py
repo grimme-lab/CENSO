@@ -5,7 +5,6 @@ cml parsing
 
 from ..params import START_DESCR
 import argparse
-import os
 
 from ..params import OMPMIN_DEFAULT
 
@@ -151,11 +150,6 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
         "the maximum number available (also checks for slurm environment variables).",
-        default=(
-            int(os.environ["SLURM_NTASKS"])
-            if "SLURM_JOBID" in os.environ and "SLURM_NTASKS" in os.environ
-            else os.cpu_count()
-        ),
     )
     # groups[0].add_argument(
     #     "-O",

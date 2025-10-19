@@ -6,15 +6,14 @@ import os
 import shutil
 import math
 from pathlib import Path
-from typing import cast
+from typing import cast, final, override
 
 from .qm_processor import QmProc
-from .processor import GenericProc
 from ..logging import setup_logger
-from ..parallel import (
-    ParallelJob,
+from .job import (
+    JobContext,
 )
-from ..config.job_config import (
+from .results import (
     GsolvResult,
     MetaData,
     NMRResult,
@@ -39,6 +38,7 @@ from ..assets import FUNCTIONALS, SOLVENTS
 logger = setup_logger(__name__)
 
 
+@final
 class TmProc(QmProc):
     """
     Performs calculations using TURBOMOLE.
@@ -183,10 +183,10 @@ class TmProc(QmProc):
 
     def __prep(
         self,
-        job: ParallelJob,
+        job: JobContext,
         config: SPJobConfig,
         jobtype: str,
-        jobdir: str,
+        jobdir: str | Path,
         no_solv: bool = False,
     ) -> None:
         """
@@ -454,9 +454,9 @@ class TmProc(QmProc):
 
     def _sp(
         self,
-        job: ParallelJob,
-        jobdir: str,
+        job: JobContext,
         config: SPJobConfig,
+        jobdir: str | Path | None = None,
         no_solv: bool = False,
         prep: bool = True,
     ) -> tuple[SPResult, MetaData]:
@@ -473,6 +473,9 @@ class TmProc(QmProc):
             result (dict[str, float | None]): dictionary containing the results of the calculation
             meta (dict[str, any]): metadata about the job
         """
+        if jobdir is None:
+            jobdir = self._setup(job, "sp")
+
         # set results
         result = SPResult()
 
@@ -486,7 +489,7 @@ class TmProc(QmProc):
         # mo files: mos/alpha,beta
         # NOTE: this HAS TO BE in this order, otherwise ridft fails to read mos
         if config.copy_mo and job.mo_guess is not None:
-            self.__copy_mo(jobdir, job.mo_guess)
+            self.__copy_mo(str(jobdir), job.mo_guess)
 
         if prep:
             self.__prep(job, config, "sp", jobdir, no_solv=config.gas_phase or no_solv)
@@ -534,7 +537,7 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @GenericProc._run
+    @override
     def sp(self, *args, **kwargs):
         """
         Perform single-point calculation.
@@ -545,24 +548,24 @@ class TmProc(QmProc):
         """
         return self._sp(*args, **kwargs)
 
-    @GenericProc._run
+    @override
     def gsolv(
         self,
-        job: ParallelJob,
-        jobdir: str,
+        job: JobContext,
         config: SPJobConfig,
     ) -> tuple[GsolvResult, MetaData]:
         """
         Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: SP configuration
         :return: Tuple of (GsolvResult, MetaData)
         """
         # what is returned in the end
         result = GsolvResult()
         meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "gsolv")
 
         assert config.sm
         assert config.solvent
@@ -573,7 +576,7 @@ class TmProc(QmProc):
         if config.sm in [TmSolvMod.COSMO, TmSolvMod.DCOSMORS]:
             # Non-COSMORS procedure:
             # Run gas-phase sp
-            spres, spmeta = self._sp(job, jobdir, config, no_solv=True)
+            spres, spmeta = self._sp(job, config, jobdir=jobdir, no_solv=True)
 
             if spmeta.success:
                 result.energy_gas = spres.energy
@@ -583,7 +586,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Run solution sp
-            spres, spmeta = self._sp(job, jobdir, config)
+            spres, spmeta = self._sp(job, config, jobdir=jobdir)
 
             if spmeta.success:
                 result.energy_solv = spres.energy
@@ -598,7 +601,7 @@ class TmProc(QmProc):
         else:
             # COSMORS procedure:
             # Run gas-phase sp with unaltered settings
-            spres, spmeta = self._sp(job, jobdir, config, no_solv=True)
+            spres, spmeta = self._sp(job, config, jobdir=jobdir, no_solv=True)
 
             if spmeta.success:
                 result.energy_gas = spres.energy
@@ -620,7 +623,7 @@ class TmProc(QmProc):
                 paths=config.paths,
             )
 
-            spres, spmeta = self._sp(job, jobdir, spconfig, no_solv=True)
+            spres, spmeta = self._sp(job, spconfig, jobdir=jobdir, no_solv=True)
 
             if not spmeta.success:
                 meta.success = False
@@ -650,7 +653,7 @@ class TmProc(QmProc):
             spconfig.gas_phase = True
             spconfig.sm = config.sm
             spconfig.solvent = config.solvent
-            spres, spmeta = self._sp(job, jobdir, spconfig, prep=False)
+            spres, spmeta = self._sp(job, spconfig, jobdir=jobdir, prep=False)
 
             if not spmeta.success:
                 meta.success = False
@@ -786,11 +789,10 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @GenericProc._run
+    @override
     def xtb_opt(
         self,
-        job: ParallelJob,
-        jobdir: str,
+        job: JobContext,
         config: XTBOptJobConfig,
         filename: str = "xtb_opt",
     ) -> tuple[OptResult, MetaData]:
@@ -799,13 +801,14 @@ class TmProc(QmProc):
         Note that solvation is handled here always implicitly.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: XTB optimization configuration
-        :param filename: name of the input file
         :return: Tuple of (OptResult, MetaData)
         """
         result = OptResult()
         meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "xtb_opt")
+        filename = "xtb_opt"
 
         xcontrolname = "xtb_opt-xcontrol-inp"
 
@@ -849,7 +852,7 @@ class TmProc(QmProc):
         # 'copy_mo' is true
         # mo files: mos/alpha,beta
         if config.copy_mo and job.mo_guess is not None:
-            self.__copy_mo(jobdir, job.mo_guess)
+            self.__copy_mo(str(jobdir), job.mo_guess)
 
         self.__prep(job, config, "xtb_opt", jobdir)
 
@@ -966,7 +969,7 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @GenericProc._run
+    @override
     def opt(self, *args, **kwargs):
         """
         Perform geometry optimization.
@@ -979,11 +982,10 @@ class TmProc(QmProc):
             "Pure TURBOMOLE geometry optimization not available yet."
         )
 
-    @GenericProc._run
+    @override
     def nmr(
         self,
-        job: ParallelJob,
-        jobdir: str,
+        job: JobContext,
         config: NMRJobConfig,
     ) -> tuple[NMRResult, MetaData]:
         """
@@ -996,7 +998,6 @@ class TmProc(QmProc):
             to tuple to be serializable.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: NMR configuration
         :return: Tuple of (NMRResult, MetaData)
         """
@@ -1004,9 +1005,11 @@ class TmProc(QmProc):
         result = NMRResult()
         meta = MetaData(job.conf.name)
 
+        jobdir = self._setup(job, "nmr")
+
         # Run sp first
         self.__prep(job, config, "nmr", jobdir)
-        _, spmeta = self._sp(job, jobdir, config, prep=False)
+        _, spmeta = self._sp(job, config, jobdir=jobdir, prep=False)
 
         if not spmeta.success:
             meta.success = False
@@ -1149,18 +1152,16 @@ class TmProc(QmProc):
 
         return result, meta
 
-    @GenericProc._run
+    @override
     def rot(
         self,
-        job: ParallelJob,
-        jobdir: str,
+        job: JobContext,
         config: RotJobConfig,
     ):
         """
         Perform rotational calculation.
 
         :param job: ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir: path to the job directory
         :param config: Rotational configuration
         :return: Tuple of (RotResult, MetaData)
         """
@@ -1168,10 +1169,12 @@ class TmProc(QmProc):
         result = RotResult()
         meta = MetaData(job.conf.name)
 
+        jobdir = self._setup(job, "rot")
+
         # Run sp first
         # NOTE: optical rotation always run in gas-phase (as in old censo)
         self.__prep(job, config, "rot", jobdir, no_solv=True)
-        _, spmeta = self._sp(job, jobdir, config, prep=False)
+        _, spmeta = self._sp(job, config, jobdir=jobdir, prep=False)
 
         if not spmeta.success:
             meta.success = False
@@ -1260,6 +1263,10 @@ class TmProc(QmProc):
             )
 
         return result, meta
+
+    @override
+    def uvvis(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 Factory.register_builder(Prog.TM, TmProc)

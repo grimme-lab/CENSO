@@ -12,7 +12,6 @@ from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, timeit, DataDump
 from ..config import PartsConfig, RefinementConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
-from ..config.parallel_config import ParallelConfig
 from ..ensemble import EnsembleData
 from ..processing import QmProc, XtbProc
 
@@ -24,17 +23,15 @@ logger = setup_logger(__name__)
 def refinement(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    cut: bool = True,
-    *,
     client: Client,
+    cut: bool = True,
 ):
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
+    :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions.
     :return: None
     """
@@ -43,7 +40,7 @@ def refinement(
     config.model_validate(config, context={"check": "refinement"})
 
     # Setup processor and target
-    proc: QmProc = Factory.create(config.refinement.prog, "3_REFINEMENT")
+    proc = Factory[QmProc].create(config.refinement.prog, "3_REFINEMENT")
 
     contributions_dict = {conf.name: Contributions() for conf in ensemble}
     if not config.general.gas_phase and not config.refinement.gsolv_included:
@@ -68,11 +65,10 @@ def refinement(
             job_config,
             config.refinement.prog,
             "refinement",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in results)
@@ -99,11 +95,10 @@ def refinement(
             sp_job_config,
             config.refinement.prog,
             "refinement",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
@@ -113,7 +108,7 @@ def refinement(
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
-        proc_xtb: XtbProc = Factory.create(Prog.XTB, "3_REFINEMENT")
+        proc_xtb = Factory[XtbProc].create(Prog.XTB, "3_REFINEMENT")
         rrho_job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
@@ -125,11 +120,10 @@ def refinement(
             rrho_job_config,
             "xtb",
             "refinement",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(lambda conf: conf.name not in rrho_results)

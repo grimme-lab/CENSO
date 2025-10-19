@@ -1,100 +1,86 @@
+from inspect import ismethod
 import traceback
 import os
-from typing import Literal
-from collections.abc import Callable
-from pathlib import Path
+from typing import Literal, Callable
 from concurrent.futures import CancelledError
-from uuid import uuid4
 from dask.distributed import Variable, Client, as_completed as dask_as_completed
 
-from .molecules import GeometryData, MoleculeData
+
+from .molecules import MoleculeData
 from .logging import setup_logger
-from .params import QmProg
+from .params import OMPMAX_DEFAULT, QmProg, OMPMIN_DEFAULT
 from .config.job_config import XTBJobConfig, SPJobConfig
-from .config.parallel_config import ParallelConfig
-from .config.job_config import QmResult, MetaData
+from .processing.results import Result, MetaData
+from .processing.job import JobContext
+from .config import GenericConfig
 
 
 logger = setup_logger(__name__)
 
 
-def get_client(ncores: int, threads_per_worker: int):
+def get_cluster(maxcores: int | None = None, ompmin: int = OMPMIN_DEFAULT):
     """
     Set up Dask parallel execution environment.
 
-    :param ncores: Total number of cores available.
-    :param threads_per_worker: Number of threads per worker.
-    :return: Yields LocalCluster and Client.
+    :param maxcores: Total number of cores made available for the LocalCluster.
+    :param ompmin: Minimum number of cores per job.
+    :return: Yields LocalCluster.
     """
     from dask.distributed import LocalCluster
 
+    nnodes = int(os.environ.get("SLURM_NNODES", "1"))
+    slurm_ntasks = os.environ.get("SLURM_NTASKS", None)
+
+    if slurm_ntasks is not None:
+        slurm_ntasks_int = int(slurm_ntasks)
+        if nnodes > 1:
+            slurm_ntasks_int = slurm_ntasks_int // nnodes
+        logger.debug(f"Found SLURM_NTASKS={slurm_ntasks_int} (for each node).")
+    else:
+        slurm_ntasks_int = None
+
+    if maxcores is None:
+        ncores = slurm_ntasks_int if slurm_ntasks_int is not None else os.cpu_count()
+        if ncores is None:
+            raise RuntimeError("Could not determine number of available cores.")
+    elif slurm_ntasks_int is not None and maxcores <= slurm_ntasks_int:
+        ncores = maxcores
+    else:
+        raise RuntimeError(
+            "Requested more cores than slurm tasks available for this node."
+        )
+
+    # TODO: SSHCluster for multiple nodes
+    logger.debug(f"Setting up LocalCluster with {ncores} cores.")
     cluster = LocalCluster(
         n_workers=1,
-        threads_per_worker=threads_per_worker,
+        threads_per_worker=ncores // ompmin,
         resources={"CPU": ncores},  # One worker receives all CPUs
     )
-    client = cluster.get_client()
-    return client, cluster
-
-
-class ParallelJob:
-    """
-    Represents a job for parallel execution.
-    """
-
-    def __init__(self, conf: GeometryData, charge: int, unpaired: int, omp: int):
-        """
-        Initialize parallel job.
-
-        :param conf: Geometry data.
-        :param charge: Charge.
-        :param unpaired: Unpaired electrons.
-        :param omp: Number of cores.
-        """
-        # conformer for the job
-        self.conf: GeometryData = conf
-
-        # number of cores to use
-        self.omp: int = omp
-
-        # stores path to an mo file which is supposed to be used as a guess
-        # In case of open shell tm calculation this can be a tuple of files
-        self.mo_guess: Path | str | tuple[str | Path, str | Path] | None = None
-
-        self.from_part: str = ""
-
-        self.charge: int = charge
-        self.unpaired: int = unpaired
-
-        # stores all flags for the jobtypes
-        self.flags: dict[str, str] = {}
+    return cluster
 
 
 def set_omp(
-    jobs: list[ParallelJob],
+    jobs: list[JobContext],
     balance: bool,
     omp: int,
     ncores: int,
-    ompmin: int,
-    ompmax: int,
 ):
     """
     Sets the number of cores to be used for every job.
 
     :param jobs: List of parallel jobs.
     :param balance: Whether to balance.
-    :param omp: OMP value.
+    :param omp: Default OMP value.
     :param ncores: Total cores.
-    :param ompmin: Minimum OMP.
-    :param ompmax: Maximum OMP.
     :return: None
     """
     if balance:
         jobs_left, tot_jobs = len(jobs), len(jobs)
 
         # Maximum/minimum number of parallel processes
-        maxprocs = ncores // ompmin
-        minprocs = max(1, ncores // ompmax)
+        maxprocs = ncores // omp
+        minprocs = max(1, ncores // OMPMAX_DEFAULT)
 
         while jobs_left > 0:
             # Find the optimal number of parallel processes to maximize core utilization while avoiding
@@ -125,29 +111,24 @@ def prepare_jobs(
     ncores: int,
     omp: int,
     from_part: str,
-    ompmin: int,
-    ompmax: int,
     balance: bool = True,
     copy_mo: bool = True,
-) -> list[ParallelJob]:
+) -> list[JobContext]:
     """
     Prepares the jobs from the conformers data.
 
     :param conformers: List of conformers.
     :param prog: Program name.
-    :param ncores: Total cores.
-    :param omp: OMP value.
+    :param ncores: Total cores per node.
+    :param omp: Default OMP value.
     :param from_part: From part.
-    :param ompmin: Minimum OMP.
-    :param ompmax: Maximum OMP.
     :param balance: Whether to balance.
     :param copy_mo: Whether to copy MO.
     :return: List of parallel jobs.
     """
     # Create ParallelJob instances from the conformers, sharing the prepinfo dict
     jobs = [
-        ParallelJob(conf.geom, conf.charge, conf.unpaired, ompmin)
-        for conf in conformers
+        JobContext(conf.geom, conf.charge, conf.unpaired, omp) for conf in conformers
     ]
     if copy_mo:
         for job in jobs:
@@ -176,74 +157,73 @@ def prepare_jobs(
             job.from_part = from_part
 
     if balance:
-        set_omp(jobs, balance, omp, ncores, ompmin, ompmax)
+        set_omp(jobs, balance, omp, ncores)
 
     return sorted(jobs, key=lambda job: job.omp)
 
 
 def execute[
-    T: QmResult
+    T: GenericConfig, U: Result
 ](
     conformers: list[MoleculeData],
-    task: Callable[..., tuple[T, MetaData]],
+    task: Callable[[JobContext, T], tuple[U, MetaData]],
     job_config: XTBJobConfig | SPJobConfig,
     prog: QmProg | Literal["xtb"],
     from_part: str,
-    parallel_config: ParallelConfig | None,
     client: Client,
     ignore_failed: bool = True,
     balance: bool = True,
     copy_mo: bool = True,
-) -> dict[str, T]:
+) -> dict[str, U]:
     """
     Executes the parallel tasks using Dask distributed execution.
 
     :param conformers: List of conformers for which jobs will be created and executed.
-    :param task: Callable to be mapped onto the list of jobs created from conformers.
+    :param task: Callable to be mapped onto the list of jobs created from conformers. This should always be a processor function.
     :param job_config: Instructions for the execution of the task.
     :param prog: Name of the QM program.
     :param from_part: From part.
-    :param parallel_config: Parallel configuration.
     :param client: dask.distributed.Client for parallel execution.
     :param ignore_failed: Whether to ignore failed jobs.
     :param balance: Whether to balance the number of cores used per job.
     :param copy_mo: Whether to store the paths to the MO files for reuse.
     :return: Job results.
     """
-    # Set up parallel config if not configured
-    if parallel_config is None:
-        ncores = os.cpu_count()
-        if ncores is None:
-            raise RuntimeError(
-                "ParallelConfig not provided and could not determine number of available cores."
-            )
-        parallel_config = ParallelConfig(ncores=ncores, omp=1)
+    cancel_var = None
+    if ismethod(task):
+        proc = task.__self__
+        proc_id = id(proc)
+
+        # Cooperative cancellation variable
+        cancel_var_name = f"censo_cancel_{proc_id}"
+        cancel_var = Variable(cancel_var_name, client=client)
+        cancel_var.set(False)
 
     logger.debug("Using Dask parallel environment...")
+
+    # Get settings from client
+    scheduler_info = client.scheduler_info()
+    nnodes = int(scheduler_info["n_workers"])
+    total_threads = scheduler_info["total_threads"]
+    threads_per_worker = total_threads // nnodes
+    total_cores = sum(
+        [worker["resources"]["CPU"] for _, worker in scheduler_info["workers"].items()]
+    )
+    ncores = total_cores // nnodes
+    omp = total_cores // threads_per_worker
+
     # Prepare jobs for parallel execution by assigning number of cores per job etc.
-    jobs: list[ParallelJob] = prepare_jobs(
+    jobs: list[JobContext] = prepare_jobs(
         conformers,
         prog,
-        parallel_config.ncores,
-        parallel_config.omp,
+        ncores,
+        omp,
         from_part,
-        parallel_config.ompmin,
-        parallel_config.ompmax,
         balance=balance,
         copy_mo=copy_mo,
     )
 
-    # Cooperative cancellation variable (name deterministic/configurable)
-    cancel_var_name = f"censo_cancel_{uuid4().hex}"
-    cancel_var = Variable(cancel_var_name, client=client)
-    cancel_var.set(False)
-
-    # Set cancellation variable in processor
-    if hasattr(task, "__self__"):
-        proc = task.__self__
-        proc.cancel_var = cancel_var
-
-    # Submit jobs directly; tasks must accept (job, job_config) and may poll Variable(cancel_var_name)
+    # Submit jobs directly
     futures = []
     for job in jobs:
         resources = {"CPU": int(job.omp)}
@@ -256,7 +236,7 @@ def execute[
         futures.append(fut)
 
     failed_confs: list[MoleculeData] = []
-    results: dict[str, T] = {}
+    results: dict[str, U] = {}
     broken = False
 
     logger.debug("Waiting for jobs to complete...")
@@ -288,7 +268,8 @@ def execute[
                 logger.critical(
                     "Encountered exception in task. Cancelling remaining tasks."
                 )
-                cancel_var.set(True)
+                if cancel_var is not None:
+                    cancel_var.set(True)
                 try:
                     client.cancel(futures)
                 except Exception:
@@ -311,7 +292,8 @@ def execute[
                 break
     except KeyboardInterrupt:
         logger.warning("Received keyboard interrupt. Cancelling remaining tasks...")
-        cancel_var.set(True)
+        if cancel_var is not None:
+            cancel_var.set(True)
         try:
             client.cancel(futures)
         except Exception:
@@ -323,7 +305,7 @@ def execute[
     if broken:
         raise RuntimeError("Exception encountered in parallel execution.")
 
-    # Summary behavior (same as current)
+    # Summary
     if len(failed_confs) == len(conformers):
         raise RuntimeError(
             "All jobs failed to execute. Please check your setup and output files.\n"

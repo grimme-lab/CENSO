@@ -4,11 +4,9 @@ Also implements important methods inherited by all other processors, e.g. making
 """
 
 from abc import abstractmethod
-import functools
 import os
 from pathlib import Path
 import subprocess
-from collections.abc import Callable
 import time
 from typing import final
 from dask.distributed import Variable
@@ -16,15 +14,13 @@ from dask.distributed import Variable
 
 from ..config.job_config import (
     SPJobConfig,
-    XTBJobConfig,
     OptJobConfig,
 )
-from ..parallel import (
-    ParallelJob,
+from .job import (
+    JobContext,
 )
-from ..config.job_config import (
+from .results import (
     OptResult,
-    QmResult,
     MetaData,
     SPResult,
 )
@@ -82,44 +78,58 @@ class GenericProc:
         "ih": 60,
     }
 
-    # TODO: find better way to annotate this more clearly
-    @staticmethod
+    # @staticmethod
+    # @final
+    # def _run(f):
+    #     """
+    #     Wrapper function to manage resources and create job directory.
+    #
+    #     :param f: Callable that returns a tuple (results and metadata).
+    #     :return: The wrapped function.
+    #     """
+    #
+    #     @functools.wraps(f)
+    #     def wrapper(
+    #         self,
+    #         job: JobContext,
+    #         job_config,
+    #         **kwargs,
+    #     ):
+    #         jobtype = f.__name__
+    #         jobdir = Path(self._workdir) / job.conf.name / jobtype
+    #         jobdir.mkdir(exist_ok=True, parents=True)
+    #
+    #         logger.info(
+    #             f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
+    #             + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores using {self.progname.value}."
+    #         )
+    #         printf(
+    #             f"Running {jobtype} calculation for {job.conf.name} using {self.progname.value}."
+    #         )
+    #
+    #         result, meta = f(self, job, jobdir, job_config, **kwargs)
+    #
+    #         return result, meta
+    #
+    #     return wrapper
+    #
     @final
-    def _run[
-        T: QmResult,
-        U: XTBJobConfig | SPJobConfig,
-    ](f: Callable[..., tuple[T, MetaData],],) -> Callable[..., tuple[T, MetaData]]:
+    def _setup(self, job: JobContext, jobtype: str):
         """
-        Wrapper function to manage resources and create job directory.
-
-        :param f: Callable that returns a tuple (results and metadata).
-        :return: The wrapped function.
+        Setup function to create job directory and print info before task execution.
         """
+        jobdir = Path(self._workdir) / job.conf.name / jobtype
+        jobdir.mkdir(exist_ok=True, parents=True)
 
-        @functools.wraps(f)
-        def wrapper(
-            self,
-            job: ParallelJob,
-            job_config: U,
-            **kwargs,
-        ) -> tuple[T, MetaData]:
-            jobtype = f.__name__
-            jobdir = Path(self._workdir) / job.conf.name / jobtype
-            jobdir.mkdir(exist_ok=True, parents=True)
+        logger.info(
+            f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
+            + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores using {self.progname.value}."
+        )
+        printf(
+            f"Running {jobtype} calculation for {job.conf.name} using {self.progname.value}."
+        )
 
-            logger.info(
-                f"{f'worker{os.getpid()}:':{WARNLEN}}Running "
-                + f"{jobtype} calculation using {self.__class__.__name__} in {jobdir} on {job.omp} cores using {self.progname.value}."
-            )
-            printf(
-                f"Running {jobtype} calculation for {job.conf.name} using {self.progname.value}."
-            )
-
-            result, meta = f(self, job, jobdir, job_config, **kwargs)
-
-            return result, meta
-
-        return wrapper
+        return jobdir
 
     def __init__(self, workdir: Path):
         """
@@ -128,7 +138,6 @@ class GenericProc:
         :param workdir: Working directory.
         """
         self._workdir: Path = workdir
-        self.cancel_var: Variable | None = None  # For cooperative cancellation
 
     @final
     def _make_call(
@@ -144,48 +153,52 @@ class GenericProc:
         :param call: List containing the call args to the external program.
         :param outputpath: Path to the outputfile.
         :param jobdir: Path to the jobdir.
-        :return: Tuple of (returncode of the external program, stderr output).
+        :return: Tuple of (returncode of the external program or -1 in case of exception, stderr output).
         """
-        # call external program and write output into outputfile
-        with open(outputpath, "w", newline=None) as outputfile:
-            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
+        try:
+            # call external program and write output into outputfile
+            with open(outputpath, "w", newline=None) as outputfile:
+                logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Running {call}...")
 
-            # create subprocess for external program
-            sub = subprocess.Popen(
-                call,
-                shell=False,
-                stderr=subprocess.PIPE,
-                cwd=jobdir,
-                stdout=outputfile,
-                env=env or ENVIRON,
-            )
+                # create subprocess for external program
+                sub = subprocess.Popen(
+                    call,
+                    shell=False,
+                    stderr=subprocess.PIPE,
+                    cwd=jobdir,
+                    stdout=outputfile,
+                    env=env or ENVIRON,
+                )
 
-            logger.debug(
-                f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid})."
-            )
+                logger.debug(
+                    f"{f'worker{os.getpid()}:':{WARNLEN}}Started (PID: {sub.pid})."
+                )
 
-            # Cooperative cancellation using dask Variable
-            if hasattr(self, "cancel_var") and self.cancel_var is not None:
+                # Cooperative cancellation using dask Variable
+                cancel_var = Variable(f"censo_cancel_{id(self)}")
                 while sub.poll() is None:
-                    if self.cancel_var.get():
+                    if cancel_var.get():
                         logger.info(
                             f"{f'worker{os.getpid()}:':{WARNLEN}}Cancelling subprocess {sub.pid} due to cancellation signal."
                         )
                         sub.terminate()
                         break
-                    time.sleep(1)
+                    time.sleep(0.1)
 
-            # wait for process to finish
-            _, stderr = sub.communicate()
-            errors = stderr.decode(errors="replace")
-            returncode = sub.returncode
-            logger.debug(
-                f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"
-            )
+                # wait for process to finish
+                _, stderr = sub.communicate()
+                errors = stderr.decode(errors="replace")
+                returncode = sub.returncode
+                logger.debug(
+                    f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"
+                )
 
-        logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
+            logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
-        return returncode, errors
+            return returncode, errors
+        except Exception as e:
+            logger.error(f"{f'worker{os.getpid()}:':{WARNLEN}}Error: {e}")
+            return -1, str(e)
 
     @final
     def _get_sym_num(self, sym: str | None = None, linear: bool = False) -> int:
@@ -212,33 +225,23 @@ class GenericProc:
         return symnum
 
     @abstractmethod
-    @_run
-    def sp(
-        self, job: ParallelJob, jobdir: Path | str, config: SPJobConfig, **kwargs
-    ) -> tuple[SPResult, MetaData]:
+    def sp(self, job: JobContext, config: SPJobConfig) -> tuple[SPResult, MetaData]:
         """
         Perform single-point calculation.
 
         :param job: Parallel job.
-        :param jobdir: Job directory.
         :param config: SP configuration.
-        :param kwargs: Additional arguments.
         :return: Tuple of (SP result, metadata).
         """
         raise NotImplementedError
 
     @abstractmethod
-    @_run
-    def opt(
-        self, job: ParallelJob, jobdir: Path | str, config: OptJobConfig, **kwargs
-    ) -> tuple[OptResult, MetaData]:
+    def opt(self, job: JobContext, config: OptJobConfig) -> tuple[OptResult, MetaData]:
         """
         Perform geometry optimization.
 
         :param job: Parallel job.
-        :param jobdir: Job directory.
         :param config: Optimization configuration.
-        :param kwargs: Additional arguments.
         :return: Tuple of (optimization result, metadata).
         """
         raise NotImplementedError

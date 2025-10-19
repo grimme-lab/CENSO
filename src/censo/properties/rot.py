@@ -10,9 +10,9 @@ from dask.distributed import Client
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData
 from ..config import PartsConfig
-from ..config.job_config import RotJobConfig, RotResult
+from ..config.job_config import RotJobConfig
+from ..processing.results import RotResult
 from ..config.parts import RotConfig
-from ..config.parallel_config import ParallelConfig
 from ..params import GridLevel, PLENGTH
 from ..parallel import execute
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
@@ -26,8 +26,6 @@ logger = setup_logger(__name__)
 def rot(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    *,
     client: Client,
 ):
     """
@@ -36,7 +34,6 @@ def rot(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
     :return: None
     """
     printf(h2("ROT"))
@@ -51,7 +48,7 @@ def rot(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory.create(config.rot.prog, "5_ROT")
+    proc = Factory[QmProc].create(config.rot.prog, "5_ROT")
 
     # Run optical rotation calculations
     job_config = RotJobConfig(
@@ -72,11 +69,10 @@ def rot(
         job_config,
         config.rot.prog,
         "rot",
-        parallel_config,
+        client,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        client=client,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

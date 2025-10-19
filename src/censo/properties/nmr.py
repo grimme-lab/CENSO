@@ -14,9 +14,8 @@ from ..molecules import MoleculeData
 from ..config import PartsConfig
 from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
-from ..config.parallel_config import ParallelConfig
 from ..parallel import execute
-from ..config.job_config import NMRResult
+from ..processing.results import NMRResult
 from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
@@ -29,8 +28,6 @@ logger = setup_logger(__name__)
 def nmr(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    *,
     client: Client,
 ):
     """
@@ -39,7 +36,6 @@ def nmr(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
     :return: None
     """
     printf(h2("NMR"))
@@ -54,7 +50,7 @@ def nmr(
         )
 
     # Setup processor and target
-    proc: QmProc = Factory.create(config.nmr.prog, "4_NMR")
+    proc = Factory[QmProc].create(config.nmr.prog, "4_NMR")
 
     # Run NMR calculations
     job_config = NMRJobConfig(
@@ -72,11 +68,10 @@ def nmr(
         job_config,
         config.nmr.prog,
         "nmr",
-        parallel_config,
+        client,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        client=client,
     )
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)

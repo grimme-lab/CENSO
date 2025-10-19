@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 
 from censo.ensemble import EnsembleData
-from censo.config.job_config import (
+from censo.processing.results import (
     SPResult,
     OptResult,
     GsolvResult,

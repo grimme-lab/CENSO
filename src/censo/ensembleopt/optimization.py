@@ -19,7 +19,6 @@ from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
 from ..config.job_config import RRHOJobConfig, OptJobConfig, XTBOptJobConfig
-from ..config.parallel_config import ParallelConfig
 from ..utilities import (
     printf,
     h1,
@@ -37,10 +36,8 @@ logger = setup_logger(__name__)
 def optimization(
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    cut: bool = True,
-    *,
     client: Client,
+    cut: bool = True,
 ):
     """
     Geometry optimization of the ensemble at DFT level (possibly with implicit solvation)
@@ -52,7 +49,7 @@ def optimization(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :param parallel_config: ParallelConfig object for parallel execution.
+    :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions during optimization.
     :return: None
     """
@@ -61,23 +58,19 @@ def optimization(
     config.model_validate(config, context={"check": "optimization"})
 
     # Setup processor
-    proc: QmProc = Factory.create(config.optimization.prog, "2_OPTIMIZATION")
+    proc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
 
     if config.optimization.macrocycles:
-        contributions_dict = _macrocycle_opt(
-            proc, ensemble, config, parallel_config, cut, client=client
-        )
+        contributions_dict = _macrocycle_opt(proc, ensemble, config, client, cut)
     else:
-        contributions_dict = _full_opt(
-            proc, ensemble, config, parallel_config, client=client
-        )
+        contributions_dict = _full_opt(proc, ensemble, config, client=client)
 
     printf("\n")
 
     # Potentially reevaluate rrho contributions
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
-        proc_xtb: XtbProc = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
+        proc_xtb = Factory[XtbProc].create(Prog.XTB, "2_OPTIMIZATION")
         job_config = RRHOJobConfig(
             gfnv=config.optimization.gfnv,
             paths=config.paths,
@@ -89,11 +82,10 @@ def optimization(
             job_config,
             "xtb",
             "optimization",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
 
         if config.general.ignore_failed:
@@ -119,10 +111,8 @@ def _macrocycle_opt(
     proc: QmProc,
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    cut: bool,
-    *,
     client: Client,
+    cut: bool,
 ):
     """
     Geometry optimization using macrocycles, whereafter every macrocycle cutting conditions are checked (if cut == True).
@@ -180,11 +170,10 @@ def _macrocycle_opt(
             opt_job_config,
             config.optimization.prog,
             "optimization",
-            parallel_config,
+            client,
             ignore_failed=config.general.ignore_failed,
             balance=config.general.balance,
             copy_mo=config.general.copy_mo,
-            client=client,
         )
         if config.general.ignore_failed:
             ensemble.remove_conformers(
@@ -220,11 +209,10 @@ def _macrocycle_opt(
                 job_config_rrho,
                 "xtb",
                 "optimization",
-                parallel_config,
+                client,
                 ignore_failed=config.general.ignore_failed,
                 balance=config.general.balance,
                 copy_mo=config.general.copy_mo,
-                client=client,
             )
             if config.general.ignore_failed:
                 ensemble.remove_conformers(
@@ -286,8 +274,6 @@ def _full_opt(
     proc: QmProc,
     ensemble: EnsembleData,
     config: PartsConfig,
-    parallel_config: ParallelConfig | None,
-    *,
     client: Client,
 ):
     """
@@ -327,11 +313,10 @@ def _full_opt(
         opt_job_config,
         config.optimization.prog,
         "optimization",
-        parallel_config,
+        client,
         ignore_failed=config.general.ignore_failed,
         balance=config.general.balance,
         copy_mo=config.general.copy_mo,
-        client=client,
     )
 
     if config.general.ignore_failed:
