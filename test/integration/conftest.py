@@ -1,12 +1,11 @@
 import pytest
-import os
 from pathlib import Path
 import shutil
 from censo.config.paths import PathsConfig
 from censo.ensemble import EnsembleData
 from censo.config.parts_config import PartsConfig
 from censo.config.setup import find_program_paths
-from dask.distributed import LocalCluster, Client
+from censo.parallel import get_cluster
 
 
 def pytest_runtest_setup(item):
@@ -56,13 +55,9 @@ def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
 
 @pytest.fixture
 def client():
-    ncores = os.cpu_count() or 4
-    threads_per_worker = ncores // 1  # assume omp=1
-    cluster = LocalCluster(n_workers=1, threads_per_worker=threads_per_worker)
-    client = Client(cluster)
+    cluster = get_cluster()
+    client = cluster.get_client()
     yield client
-    client.close()
-    cluster.close()
 
 
 @pytest.fixture
