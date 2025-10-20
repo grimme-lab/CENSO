@@ -230,8 +230,11 @@ def execute[
     :return: Job results.
     :rtype: dict[str, U]
     """
+    # Setting the collective cancellation variable
     cancel_var = None
     if ismethod(task):
+        # Only meaningful if the task is a method of a GenericProc
+        # but this is difficult to annotate with the present architecture
         proc = task.__self__
         if hasattr(proc, "cancel_var"):
             proc_id = id(proc)
