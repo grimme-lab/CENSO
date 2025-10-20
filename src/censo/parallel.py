@@ -107,9 +107,11 @@ def set_omp(
                         # Not possible to evenly divide cores
                         # Pick OMP value with least idle cores that is not ncores
                         # Chances are that it is one of the smallest OMP values
-                        tmp_omp = min(
-                            [o for o in omps if o != ncores], key=lambda x: ncores % x
-                        )
+                        omps = [o for o in omps if o != ncores]
+                        if len(omps) > 0:
+                            tmp_omp = min(omps, key=lambda x: ncores % x)
+                        else:
+                            tmp_omp = ncores
 
                     jobs[tot_jobs - jobs_left].omp = tmp_omp
                     jobs_left -= jobs_in_parallel[tmp_omp]
