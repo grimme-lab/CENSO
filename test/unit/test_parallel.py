@@ -487,4 +487,3 @@ class TestJobExecution:
         assert (
             min_expected_time < total_time < max_expected_time
         ), f"Expected ~{min_expected_time:.2f}s execution time, got {total_time}s"
-        print(min_expected_time, total_time, max_expected_time)
