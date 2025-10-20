@@ -52,7 +52,7 @@ def molecule_data():
 
 @pytest.fixture
 def parallel_job(molecule_data):
-    """Create a real ParallelJob instance"""
+    """Create a real JobContext instance"""
     return JobContext(
         conf=molecule_data.geom,
         charge=molecule_data.charge,
@@ -277,11 +277,11 @@ class TestMetaData:
         assert meta_failed.error == "Test error"
 
 
-class TestParallelJob:
-    """Tests for ParallelJob class"""
+class TestJobContext:
+    """Tests for JobContext class"""
 
     def test_parallel_job_initialization(self, molecule_data):
-        """Test ParallelJob initialization and properties"""
+        """Test JobContext initialization and properties"""
         job = JobContext(molecule_data.geom, 0, 0, 1)
         assert job.conf == molecule_data.geom
         assert job.omp == 1

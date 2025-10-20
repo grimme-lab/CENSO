@@ -91,12 +91,18 @@ class OrcaProc(QmProc):
 
         Can load up a template file from user assets folder.
 
-        Args:
-            job: ParallelJob object containing the job information
-            jobtype: jobtype to prepare the input for
-            config:
-            no_solv (optional): if True, no solvent model is used
-            xyzfile (optional): if not None, the geometry is read from this file instead of the job object
+        :param job: JobContext object containing the job information
+        :type job: JobContext
+        :param config: Configuration for the job
+        :type config: SPJobConfig
+        :param jobtype: jobtype to prepare the input for
+        :type jobtype: str
+        :param no_solv: if True, no solvent model is used
+        :type no_solv: bool
+        :param xyzfile: if not None, the geometry is read from this file instead of the job object
+        :type xyzfile: str | None
+        :returns: List of strings for the input file
+        :rtype: list[str]
 
         NOTE: the xyzfile has to already exist, this function just bluntly writes the name into the input.
         """
@@ -402,11 +408,10 @@ class OrcaProc(QmProc):
         """
         Checks the lines from the output file for errors and returns them.
 
-        Args:
-            lines: list of lines from the output file.
-
-        Returns:
-            str: error message if an error was found, emtpy string otherwise
+        :param lines: list of lines from the output file.
+        :type lines: list[str]
+        :returns: error message if an error was found, empty string otherwise
+        :rtype: str
         """
         # Dict mapping specific messages from the output to error messages
         # TODO: this should be extended later
@@ -425,13 +430,14 @@ class OrcaProc(QmProc):
         """
         Copy MO file if possible (should be ORCA .gbw file).
 
-        Args:
-            jobdir: path to the job directory
-            filename: name of the input file
-            guess_file: path to the .gbw file to copy
-
-        Returns:
-            None
+        :param jobdir: path to the job directory
+        :type jobdir: str | Path
+        :param filename: name of the input file
+        :type filename: str
+        :param guess_file: path to the .gbw file to copy
+        :type guess_file: str | Path
+        :returns: None
+        :rtype: None
         """
         if os.path.isfile(guess_file) and ".gbw" in os.path.split(guess_file)[1]:
             if os.path.join(jobdir, f"{filename}.gbw") != guess_file:
@@ -454,17 +460,20 @@ class OrcaProc(QmProc):
         ORCA single-point calculation.
         Unwrapped function to call from other methods.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            config:
-            filename: name of the input file
-            no_solv: if True, no solvent model is used
-            prep: if True, a new input file is generated (you only really want to make use of this for NMR)
-
-        Returns:
-            result (SPResult): results of the calculation
-            meta (MetaData): metadata about the job
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
+        :type job: JobContext
+        :param config: Configuration for the job
+        :type config: SPJobConfig
+        :param jobdir: path to the job directory
+        :type jobdir: str | Path | None
+        :param filename: name of the input file
+        :type filename: str
+        :param no_solv: if True, no solvent model is used
+        :type no_solv: bool
+        :param prep: if True, a new input file is generated (you only really want to make use of this for NMR)
+        :type prep: bool
+        :returns: Tuple of (SPResult, MetaData)
+        :rtype: tuple[SPResult, MetaData]
         """
         if jobdir is None:
             jobdir = self._setup(job, "sp")
@@ -556,7 +565,7 @@ class OrcaProc(QmProc):
         """
         Calculates the solvation free enthalpy of a conformer using ORCA.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: SP configuration
         :return: Tuple of (GsolvResult, MetaData)
         """
@@ -613,7 +622,7 @@ class OrcaProc(QmProc):
         Geometry optimization using ORCA optimizer.
         Note that solvation in handled here always implicitly.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: Optimization configuration
         :return: Tuple of (OptResult, MetaData)
         """
@@ -720,7 +729,7 @@ class OrcaProc(QmProc):
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: XTB optimization configuration
         :return: Tuple of (OptResult, MetaData)
         """
@@ -941,7 +950,7 @@ class OrcaProc(QmProc):
             in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
             to tuple to be serializable.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: NMR configuration
         :return: Tuple of (NMRResult, MetaData)
         """
@@ -1054,7 +1063,7 @@ class OrcaProc(QmProc):
         """
         Run a single-point to calculate the oscillator strengths and excitation wavelengths.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: UV-Vis configuration
         :return: Tuple of (UVVisResult, MetaData)
         """

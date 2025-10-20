@@ -35,7 +35,9 @@ class GeometryData:
         Takes an identifier and the geometry lines from the xyz-file as input.
 
         :param name: Name of the geometry.
+        :type name: str
         :param xyz: List of xyz lines.
+        :type xyz: list[str]
         """
         # name of the linked MoleculeData
         self.name: str = name
@@ -59,6 +61,7 @@ class GeometryData:
         Method to convert the internal cartesian coordinates to a data format usable by the OrcaParser.
 
         :return: List of coordinate strings.
+        :rtype: list[str]
         """
         coord = []
         for atom in self.xyz:
@@ -71,6 +74,7 @@ class GeometryData:
         Method to convert the internal cartesian coordinates (self.xyz) to coord file format (for tm or xtb).
 
         :return: List of coord lines.
+        :rtype: list[str]
         """
         coord = ["$coord\n"]
         for atom in self.xyz:
@@ -90,7 +94,9 @@ class GeometryData:
         Method to convert the content of a coord file to cartesian coordinates for the 'xyz' attribute.
 
         :param path: Path to the coord file.
+        :type path: str
         :return: None
+        :rtype: None
         """
         with open(path) as file:
             lines = file.readlines()
@@ -110,7 +116,9 @@ class GeometryData:
         Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute.
 
         :param path: Path to the xyz file.
+        :type path: str
         :return: None
+        :rtype: None
         """
         with open(path) as file:
             lines = file.readlines()
@@ -128,6 +136,7 @@ class GeometryData:
         Method to convert self.xyz to xyz-file format.
 
         :return: List of xyz lines.
+        :rtype: list[str]
         """
         lines = [
             f"{self.nat}\n",
@@ -151,9 +160,13 @@ class MoleculeData:
         Takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor.
 
         :param name: Name of the molecule.
+        :type name: str
         :param xyz: List of xyz lines.
+        :type xyz: list[str]
         :param charge: Charge of the molecule.
+        :type charge: int
         :param unpaired: Number of unpaired electrons.
+        :type unpaired: int
         """
 
         # stores a name for printing and (limited) between-run comparisons
@@ -188,6 +201,7 @@ class MoleculeData:
         Current energy.
 
         :return: Energy value.
+        :rtype: float
         """
         return self.__energy
 
@@ -197,6 +211,7 @@ class MoleculeData:
         Current gsolv.
 
         :return: Gsolv value.
+        :rtype: float
         """
         return self.__gsolv
 
@@ -206,6 +221,7 @@ class MoleculeData:
         Current grrho.
 
         :return: Grrho value.
+        :rtype: float
         """
         return self.__grrho
 
@@ -215,6 +231,7 @@ class MoleculeData:
         Current energy+gsolv+grrho.
 
         :return: Total free energy.
+        :rtype: float
         """
         return self.__energy + self.__gsolv + self.__grrho
 
@@ -223,7 +240,9 @@ class MoleculeData:
         Update contributions.
 
         :param contributions: Contributions to update with.
+        :type contributions: Contributions
         :return: None
+        :rtype: None
         """
         self.__energy = contributions.energy
         self.__gsolv = contributions.gsolv

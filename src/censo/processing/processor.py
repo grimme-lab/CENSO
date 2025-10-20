@@ -117,6 +117,13 @@ class GenericProc:
     def _setup(self, job: JobContext, jobtype: str):
         """
         Setup function to create job directory and print info before task execution.
+
+        :param job: Job context
+        :type job: JobContext
+        :param jobtype: Type of job
+        :type jobtype: str
+        :returns: Path to the job directory
+        :rtype: Path
         """
         jobdir = Path(self._workdir) / job.conf.name / jobtype
         jobdir.mkdir(exist_ok=True, parents=True)

@@ -55,6 +55,7 @@ class EnsembleData:
         Set the conformers list.
 
         :param confs: List of MoleculeData instances.
+        :type confs: list[MoleculeData]
         :raises ValueError: If not all objects are MoleculeData instances.
         """
         if not all(isinstance(conf, MoleculeData) for conf in confs):
@@ -67,6 +68,7 @@ class EnsembleData:
         Returns the list of removed conformers.
 
         :return: List of removed conformers.
+        :rtype: list[MoleculeData]
         """
         return self.__rem
 
@@ -77,7 +79,9 @@ class EnsembleData:
         does not exist in the output data RuntimeError will be raised.
 
         :param outpath: Path to the output file.
+        :type outpath: str | Path
         :return: None
+        :rtype: None
         """
 
         data = json.loads(Path(outpath).read_text())
@@ -110,11 +114,17 @@ class EnsembleData:
         Read ensemble input file. Should be a file in xyz-file format with all the conformers in consecutive order.
 
         :param input_path: Path to the ensemble input file.
+        :type input_path: str
         :param charge: Sets the charge of all molecules to this value. Defaults to 0.
+        :type charge: int
         :param unpaired: Sets the unpaired electrons of all molecules to this value. Defaults to 0.
+        :type unpaired: int
         :param nconf: Number of conformers to consider. Defaults to None, so all conformers are read.
+        :type nconf: int | None
         :param append: If True, the conformers will be appended to the existing ensemble. Defaults to False.
+        :type append: bool
         :return: None
+        :rtype: None
         """
         # If $coord in file => tm format, needs to be converted to xyz
         with open(input_path) as inp:
@@ -157,7 +167,9 @@ class EnsembleData:
         temperature given values for free enthalpy.
 
         :param temperature: Temperature for Boltzmann distribution.
+        :type temperature: float
         :return: Dictionary of conformer names to populations.
+        :rtype: dict[str, float]
         """
         # find lowest gtot value
         minfree: float = min(conf.gtot for conf in self.conformers)
@@ -184,6 +196,7 @@ class EnsembleData:
         Update contributions for all conformers in the ensemble. Convenience wrapper to call update on all conformers with correct mapping.
 
         :param contributions_dict: Dictionary mapping conformer names to Contributions.
+        :type contributions_dict: dict[str, Contributions]
         :raises AssertionError: If contributions dict is incomplete.
         """
         assert all(
@@ -198,7 +211,9 @@ class EnsembleData:
         In principle this can also read xyz-files with molecules of different sizes.
 
         :param input_path: Path to the ensemble input file.
+        :type input_path: str
         :return: A list of MoleculeData objects.
+        :rtype: list[MoleculeData]
         """
         # open ensemble input
         with open(input_path) as file:
@@ -267,7 +282,9 @@ class EnsembleData:
         The removed conformers will be stored in self.rem.
 
         :param cond: Condition to check for the conf objects.
+        :type cond: Callable[[MoleculeData], bool]
         :return: None
+        :rtype: None
         """
         filtered = list(filter(cond, self.conformers))
         for conf in filtered:
@@ -282,7 +299,9 @@ class EnsembleData:
         Dump the current ensemble in xyz-format.
 
         :param file: Path to write the xyz file.
+        :type file: Path
         :return: None
+        :rtype: None
         """
         text = "".join(sum([conf.geom.toxyz() for conf in self], []))
         file.write_text(text)
@@ -292,7 +311,9 @@ class EnsembleData:
         Dump the conformers removed via 'remove_conformers' in xyz-format.
 
         :param file: Path to write the xyz file.
+        :type file: Path
         :return: None
+        :rtype: None
         """
         text = "".join(sum([conf.geom.toxyz() for conf in self.rem], []))
         file.write_text(text)
@@ -302,7 +323,9 @@ class EnsembleData:
         Dump the ensemble with most recent rankings and values in json-format.
 
         :param file: Path to write the json file.
+        :type file: Path
         :return: None
+        :rtype: None
         """
         dump = {
             conf.name: {

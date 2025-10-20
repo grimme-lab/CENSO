@@ -275,9 +275,13 @@ def jsonify(
     Convert ensemble data to JSON format for refinement results.
 
     :param ensemble: EnsembleData object.
+    :type ensemble: EnsembleData
     :param config: RefinementConfig object.
+    :type config: RefinementConfig
     :param fields: Optional callable to customize fields.
+    :type fields: Callable[[MoleculeData], dict[str, Any]] | None
     :return: JSON-serializable dictionary.
+    :rtype: dict[str, Any]
     """
     per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
         lambda conf: {

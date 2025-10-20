@@ -54,6 +54,11 @@ class PartsConfig(GenericConfig):
     def _selected_parts(self, context: dict[str, Any] | None):
         """
         Helper to yield (name, part) tuples for the parts to check or skip depending on context.
+
+        :param context: The context dictionary.
+        :type context: dict[str, Any] | None
+        :returns: Generator of (name, part) tuples.
+        :rtype: Generator[tuple[str, Any], None, None]
         """
         available = [
             ("prescreening", self.prescreening),

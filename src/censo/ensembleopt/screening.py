@@ -42,10 +42,15 @@ def screening(
         - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
 
     :param ensemble: EnsembleData object containing the conformers.
+    :type ensemble: EnsembleData
     :param config: PartsConfig object with configuration settings.
+    :type config: PartsConfig
     :param client: dask.distributed.Client for parallel execution.
+    :type client: Client
     :param cut: Whether to apply cutting conditions.
+    :type cut: bool
     :return: None
+    :rtype: None
     """
     printf(h2("SCREENING"))
 
@@ -409,9 +414,13 @@ def jsonify(
     Convert ensemble data to JSON format for screening results.
 
     :param ensemble: EnsembleData object.
+    :type ensemble: EnsembleData
     :param config: ScreeningConfig object.
+    :type config: ScreeningConfig
     :param fields: Optional callable to customize fields.
+    :type fields: Callable[[MoleculeData], dict[str, Any]] | None
     :return: JSON-serializable dictionary.
+    :rtype: dict[str, Any]
     """
     per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
         lambda conf: {

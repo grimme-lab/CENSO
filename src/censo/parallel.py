@@ -28,8 +28,11 @@ def get_cluster(maxcores: int | None = None, ompmin: int = OMPMIN_DEFAULT):
     Set up Dask parallel execution environment.
 
     :param maxcores: Total number of cores made available for the LocalCluster.
+    :type maxcores: int | None
     :param ompmin: Minimum number of cores per job.
+    :type ompmin: int
     :return: Yields LocalCluster.
+    :rtype: LocalCluster
     """
     nnodes = int(os.environ.get("SLURM_NNODES", "1"))
     slurm_ntasks_str = os.environ.get("SLURM_NTASKS", None)
@@ -74,10 +77,15 @@ def set_omp(
     Sets the number of cores to be used for every job.
 
     :param jobs: List of parallel jobs.
+    :type jobs: list[JobContext]
     :param balance: Whether to balance.
+    :type balance: bool
     :param omp: Default OMP value.
+    :type omp: int
     :param ncores: Total cores.
+    :type ncores: int
     :return: None
+    :rtype: None
     """
     if balance:
         jobs_left, tot_jobs = len(jobs), len(jobs)
@@ -133,15 +141,23 @@ def prepare_jobs(
     Prepares the jobs from the conformers data.
 
     :param conformers: List of conformers.
+    :type conformers: list[MoleculeData]
     :param prog: Program name.
+    :type prog: str
     :param ncores: Total cores per node.
+    :type ncores: int
     :param omp: Default OMP value.
+    :type omp: int
     :param from_part: From part.
+    :type from_part: str
     :param balance: Whether to balance.
+    :type balance: bool
     :param copy_mo: Whether to copy MO.
+    :type copy_mo: bool
     :return: List of parallel jobs.
+    :rtype: list[JobContext]
     """
-    # Create ParallelJob instances from the conformers, sharing the prepinfo dict
+    # Create JobContext instances from the conformers, sharing the prepinfo dict
     jobs = [
         JobContext(conf.geom, conf.charge, conf.unpaired, omp) for conf in conformers
     ]
@@ -194,15 +210,25 @@ def execute[
     Executes the parallel tasks using Dask distributed execution.
 
     :param conformers: List of conformers for which jobs will be created and executed.
+    :type conformers: list[MoleculeData]
     :param task: Callable to be mapped onto the list of jobs created from conformers. This should always be a processor function.
+    :type task: Callable[[JobContext, T], tuple[U, MetaData]]
     :param job_config: Instructions for the execution of the task.
+    :type job_config: XTBJobConfig | SPJobConfig
     :param prog: Name of the QM program.
+    :type prog: QmProg | Literal["xtb"]
     :param from_part: From part.
+    :type from_part: str
     :param client: dask.distributed.Client for parallel execution.
+    :type client: Client
     :param ignore_failed: Whether to ignore failed jobs.
+    :type ignore_failed: bool
     :param balance: Whether to balance the number of cores used per job.
+    :type balance: bool
     :param copy_mo: Whether to store the paths to the MO files for reuse.
+    :type copy_mo: bool
     :return: Job results.
+    :rtype: dict[str, U]
     """
     cancel_var = None
     if ismethod(task):

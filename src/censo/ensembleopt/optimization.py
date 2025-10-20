@@ -116,6 +116,19 @@ def _macrocycle_opt(
 ):
     """
     Geometry optimization using macrocycles, whereafter every macrocycle cutting conditions are checked (if cut == True).
+
+    :param proc: Quantum mechanics processor
+    :type proc: QmProc
+    :param ensemble: Ensemble data
+    :type ensemble: EnsembleData
+    :param config: Parts configuration
+    :type config: PartsConfig
+    :param client: Dask client
+    :type client: Client
+    :param cut: Whether to apply cutting conditions
+    :type cut: bool
+    :returns: Contributions dictionary
+    :rtype: dict[str, Contributions]
     """
     # Second, independent ensemble containing unconverged conformers
     unconverged_ensemble = EnsembleData()
@@ -278,6 +291,17 @@ def _full_opt(
 ):
     """
     Full geometry optimization of every conformer.
+
+    :param proc: Quantum mechanics processor
+    :type proc: QmProc
+    :param ensemble: Ensemble data
+    :type ensemble: EnsembleData
+    :param config: Parts configuration
+    :type config: PartsConfig
+    :param client: Dask client
+    :type client: Client
+    :returns: Contributions dictionary
+    :rtype: dict[str, Contributions]
     """
     # Set up target
     if config.optimization.xtb_opt:

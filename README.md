@@ -143,6 +143,7 @@ from censo.configuration import configure
 from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
 from censo.config import GeneralConfig
+from censo.parallel import get_cluster
 from dask.distributed import LocalCluster, Client
 
 # CENSO outputs files in the current working directory (os.getcwd())
@@ -157,8 +158,8 @@ ensemble = EnsembleData(input_file=input_path)
 config = configure(rcpath="/path/to/rcfile")
 
 # Configure parallelization
-cluster = LocalCluster(n_workers=1, threads_per_worker=os.cpu_count())
-client = Client(cluster)
+cluster = get_cluster()
+client = cluster.get_client()
 
 # Ensure valid configuration
 config.general.solvent = "dmso"

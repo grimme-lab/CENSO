@@ -191,6 +191,19 @@ class TmProc(QmProc):
     ) -> None:
         """
         Prepares TURBOMOLE input files for a specified jobtype.
+
+        :param job: Job context
+        :type job: JobContext
+        :param config: Configuration for the job
+        :type config: SPJobConfig
+        :param jobtype: Specified jobtype
+        :type jobtype: str
+        :param jobdir: Path to the job directory
+        :type jobdir: str | Path
+        :param no_solv: If True, no solvent model is used
+        :type no_solv: bool
+        :returns: None
+        :rtype: None
         """
         inp = []
 
@@ -397,6 +410,13 @@ class TmProc(QmProc):
     ) -> None:
         """
         Copy the MO file(s) for TURBOMOLE (should be TM format).
+
+        :param jobdir: Path to the job directory
+        :type jobdir: str
+        :param guess_file: Path to the guess file(s)
+        :type guess_file: str | Path | tuple[str | Path, str | Path]
+        :returns: None
+        :rtype: None
         """
         if isinstance(guess_file, tuple):
             # open shell guess
@@ -434,11 +454,10 @@ class TmProc(QmProc):
         """
         Checks the lines from the output file for errors and returns them.
 
-        Args:
-            lines: list of lines from the output file.
-
-        Returns:
-            str | None: error message if an error was found, None otherwise
+        :param lines: list of lines from the output file.
+        :type lines: list[str]
+        :returns: error message if an error was found, empty string otherwise
+        :rtype: str
         """
         # Dict mapping specific messages from the output to error messages
         # TODO: this should be extended later
@@ -463,15 +482,18 @@ class TmProc(QmProc):
         """
         TURBOMOLE single-point calculation.
 
-        Args:
-            job: ParallelJob object containing the job information, metadata is stored in job.meta
-            jobdir: path to the job directory
-            no_solv: if True, no solvent model is used
-            prep: if True, a new input file is generated
-
-        Returns:
-            result (dict[str, float | None]): dictionary containing the results of the calculation
-            meta (dict[str, any]): metadata about the job
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
+        :type job: JobContext
+        :param config: Configuration for the job
+        :type config: SPJobConfig
+        :param jobdir: path to the job directory
+        :type jobdir: str | Path | None
+        :param no_solv: if True, no solvent model is used
+        :type no_solv: bool
+        :param prep: if True, a new input file is generated
+        :type prep: bool
+        :returns: Tuple of (SPResult, MetaData)
+        :rtype: tuple[SPResult, MetaData]
         """
         if jobdir is None:
             jobdir = self._setup(job, "sp")
@@ -557,7 +579,7 @@ class TmProc(QmProc):
         """
         Calculate the solvation contribution to the free enthalpy explicitely using (D)COSMO(RS).
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: SP configuration
         :return: Tuple of (GsolvResult, MetaData)
         """
@@ -800,7 +822,7 @@ class TmProc(QmProc):
         Geometry optimization using ANCOPT and ORCA gradients.
         Note that solvation is handled here always implicitly.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: XTB optimization configuration
         :return: Tuple of (OptResult, MetaData)
         """
@@ -997,7 +1019,7 @@ class TmProc(QmProc):
             in the internal coordinates of the GeometryData. A set is used to represent an atom pair and then converted
             to tuple to be serializable.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: NMR configuration
         :return: Tuple of (NMRResult, MetaData)
         """
@@ -1161,7 +1183,7 @@ class TmProc(QmProc):
         """
         Perform rotational calculation.
 
-        :param job: ParallelJob object containing the job information, metadata is stored in job.meta
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
         :param config: Rotational configuration
         :return: Tuple of (RotResult, MetaData)
         """

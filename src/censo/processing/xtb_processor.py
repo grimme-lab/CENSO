@@ -50,16 +50,18 @@ class XtbProc(GenericProc):
         Calculates the single-point energy with GFNn-xTB or GFN-FF.
         Unwrapped function to call from other methods.
 
-        Args:
-            job (ParallelJob): job to run
-            jobdir (str): path to the jobdir
-            filename (str, optional): filename to use for the coord file. Defaults to "xtb_sp".
-            no_solv (bool, optional): whether to run the sp in gas-phase. Defaults to False.
-
-        Returns:
-            result (SPResult): result of the sp calculation
-            meta (MetaData): metadata about the job
-
+        :param job: job to run
+        :type job: JobContext
+        :param config: XTB configuration
+        :type config: XTBJobConfig
+        :param jobdir: path to the jobdir
+        :type jobdir: str | Path | None
+        :param filename: filename to use for the coord file. Defaults to "xtb_sp".
+        :type filename: str
+        :param no_solv: whether to run the sp in gas-phase. Defaults to False.
+        :type no_solv: bool
+        :returns: Tuple of (SPResult, MetaData)
+        :rtype: tuple[SPResult, MetaData]
         """
         if jobdir is None:
             jobdir = self._setup(job, "xtb_sp")
@@ -166,10 +168,12 @@ class XtbProc(GenericProc):
         """
         Calculate additive GBSA or ALPB solvation using GFNn-xTB or GFN-FF.
 
-        :param job (ParallelJob): ParallelJob object containing the job information, metadata is stored in job.meta
-        :param jobdir (str | Path): path to the jobdir
-        :param config (XTBJobConfig): XTB configuration
-        :return (tuple[GsolvResult, MetaData]): Tuple of (GsolvResult, MetaData)
+        :param job: JobContext object containing the job information, metadata is stored in job.meta
+        :type job: JobContext
+        :param config: XTB configuration
+        :type config: XTBJobConfig
+        :returns: Tuple of (GsolvResult, MetaData)
+        :rtype: tuple[GsolvResult, MetaData]
         """
         result = GsolvResult()
         meta = MetaData(job.conf.name)
@@ -211,11 +215,12 @@ class XtbProc(GenericProc):
         """
         Calculates the mRRHO contribution to the free enthalpy of a conformer with GFNn-xTB/GFN-FF.
 
-        :param job (ParallelJob): job to run
-        :param jobdir (str | Path): path to the jobdir
-        :param config (RRHOJobConfig): RRHO configuration
-        :param filename (str): filename to use for the coord file. Defaults to "xtb_rrho".
-        :return (tuple[RRHOResult, MetaData]): result of the rrho calculation and metadata
+        :param job: job to run
+        :type job: JobContext
+        :param config: RRHO configuration
+        :type config: RRHOJobConfig
+        :returns: result of the rrho calculation and metadata
+        :rtype: tuple[RRHOResult, MetaData]
         """
         # what is returned in the end
         result = RRHOResult()
