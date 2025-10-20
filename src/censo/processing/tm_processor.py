@@ -783,31 +783,37 @@ class TmProc(QmProc):
                 # Add volume work
                 gsolvt[temp] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
 
-            # result.gsolvt = gsolvt
-            result.gsolv = gsolvt[config.temperature]
-            result.energy_solv = result.energy_gas + result.gsolv
+        # result.gsolvt = gsolvt
+        if config.temperature not in gsolvt:
+            logger.warning(
+                f"Job for {job.conf.name} failed. Gsolv not parsed correcly."
+            )
+            meta.error = "parsing_error"
+            return result, meta
+        result.gsolv = gsolvt[config.temperature]
+        result.energy_solv = result.energy_gas + result.gsolv
 
-            # cosmothermd
-            with open(os.path.join(jobdir, "cosmors.out"), "w") as out:
-                temp = config.temperature
-                vwork = R * temp * math.log(videal * temp)
+        # cosmothermd
+        with open(os.path.join(jobdir, "cosmors.out"), "w") as out:
+            temp = config.temperature
+            vwork = R * temp * math.log(videal * temp)
 
-                out.writelines(
-                    [
-                        "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
-                        "final thermochemical solvation properties in kcal/mol\n"
-                        "----------------------------------------------------------\n",
-                        " Gsolv({} K)= {:10.3f}\n".format(
-                            temp, result.gsolv * AU2KCAL - vwork
-                        ),
-                        " VWork({} K)= {:10.3f}\n".format(temp, vwork),
-                        " Gsolv+VWork({} K)= {:10.3f}\n".format(
-                            # volwork already included!
-                            temp,
-                            result.gsolv * AU2KCAL,
-                        ),
-                    ]
-                )
+            out.writelines(
+                [
+                    "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
+                    "final thermochemical solvation properties in kcal/mol\n"
+                    "----------------------------------------------------------\n",
+                    " Gsolv({} K)= {:10.3f}\n".format(
+                        temp, result.gsolv * AU2KCAL - vwork
+                    ),
+                    " VWork({} K)= {:10.3f}\n".format(temp, vwork),
+                    " Gsolv+VWork({} K)= {:10.3f}\n".format(
+                        # volwork already included!
+                        temp,
+                        result.gsolv * AU2KCAL,
+                    ),
+                ]
+            )
 
         return result, meta
 
