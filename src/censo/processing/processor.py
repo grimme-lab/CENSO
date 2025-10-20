@@ -9,8 +9,7 @@ from pathlib import Path
 import subprocess
 import time
 from typing import final
-from threading import Lock
-from dask.distributed import Variable
+from dask.distributed import Variable, Lock
 
 
 from ..config.job_config import (
@@ -147,6 +146,7 @@ class GenericProc:
         """
         self._workdir: Path = workdir
         self._lock: Lock = Lock()
+        self.cancel_var: Variable | None = None
 
     @final
     def _make_call(
@@ -184,10 +184,9 @@ class GenericProc:
                 )
 
                 # Cooperative cancellation using dask Variable
-                cancel_var = Variable(f"censo_cancel_{id(self)}")
                 while sub.poll() is None:
                     with self._lock:
-                        if cancel_var.get():
+                        if self.cancel_var and self.cancel_var.get():
                             logger.info(
                                 f"{f'worker{os.getpid()}:':{WARNLEN}}Cancelling subprocess {sub.pid} due to cancellation signal."
                             )

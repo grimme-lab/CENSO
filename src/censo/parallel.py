@@ -233,12 +233,14 @@ def execute[
     cancel_var = None
     if ismethod(task):
         proc = task.__self__
-        proc_id = id(proc)
+        if hasattr(proc, "cancel_var"):
+            proc_id = id(proc)
 
-        # Cooperative cancellation variable
-        cancel_var_name = f"censo_cancel_{proc_id}"
-        cancel_var = Variable(cancel_var_name, client=client)
-        cancel_var.set(False)
+            # Cooperative cancellation variable
+            cancel_var_name = f"censo_cancel_{proc_id}"
+            cancel_var = Variable(cancel_var_name, client=client)
+            cancel_var.set(False)
+            setattr(proc, "cancel_var", cancel_var)
 
     logger.debug("Using Dask parallel environment...")
 
