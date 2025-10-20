@@ -285,7 +285,6 @@ def execute[
         completed_iter = dask_as_completed(futures)
 
         # Process results as they come in
-        logger.debug("Iterating over results...")
         for completed_future in completed_iter:
             conf_name = None
             try:
