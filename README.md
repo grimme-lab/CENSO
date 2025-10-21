@@ -28,15 +28,21 @@
 ## **Update: CENSO 3.0**
 Version **3.0** introduces significant architectural improvements, particularly enhancing its usability as a **Python package**. Overall usage is also improved, e.g.:
 - automatic system path exploration (finding program binaries, program versions, etc.),
+- automatic system recognition,
 - improved clarity for printout,
 - improved logging,
 - more configuration options for command-line interface.
 
 Configuration is now managed using **Pydantic V2**, and several keywords have been updated. Refer to `example.censo2rc` for details.
 
+Resources and tasks are now managed using Dask. This is in preparation of a multi-node implementation.
+
 New auxiliary command-line scripts (`nmrplot`, `uvvisplot`, `c2anmr`) have been added for improved workflow support.
 `nmrplot` and `uvvisplot` are utilities for immediate visualization of NMR and UV/Vis data, respectively.
 `c2anmr` is a tool to ensure backwards compatibility with ANMR, due to the new directory structure since CENSO 2.0.
+
+The documentation has also been updated to reflect the new version and includes more guidance on usage.
+It now also includes an example for the calculation of the NMR spectrum of glycerol.
 
 ---
 
@@ -144,7 +150,6 @@ from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
 from censo.config import GeneralConfig
 from censo.parallel import get_cluster
-from dask.distributed import LocalCluster, Client
 
 # CENSO outputs files in the current working directory (os.getcwd())
 input_path = "rel/path/to/your/inputfile"  # Relative to working directory
@@ -157,7 +162,7 @@ ensemble = EnsembleData(input_file=input_path)
 # Load a custom rcfile (optional)
 config = configure(rcpath="/path/to/rcfile")
 
-# Configure parallelization
+# Configure dask client
 cluster = get_cluster()
 client = cluster.get_client()
 

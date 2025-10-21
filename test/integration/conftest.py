@@ -53,7 +53,7 @@ def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
     return load_xyz(str(dst))
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def client():
     cluster = get_cluster()
     client = cluster.get_client()
