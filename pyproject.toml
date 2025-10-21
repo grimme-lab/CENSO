@@ -44,9 +44,6 @@ nmrplot = "censo.scripts.nmrplot:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.dynamic]
-readme = {file = "README.md"}
-
 [tool.setuptools_scm]
 version_file = "src/censo/__version__.py"
 local_scheme = "no-local-version"
