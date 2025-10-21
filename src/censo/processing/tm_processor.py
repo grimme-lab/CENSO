@@ -589,10 +589,9 @@ class TmProc(QmProc):
 
         jobdir = self._setup(job, "gsolv")
 
-        assert config.sm
-        assert config.solvent
+        if not config.sm or not config.solvent or not config.temperature:
+            raise ValueError("sm, solvent, or temperature not set.")
         # assert config.multitemp
-        assert config.temperature
         # assert config.trange
 
         if config.sm in [TmSolvMod.COSMO, TmSolvMod.DCOSMORS]:
