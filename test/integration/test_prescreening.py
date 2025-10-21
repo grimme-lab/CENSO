@@ -25,7 +25,6 @@ def test_prescreening_integration(
 ):
     config.general.gas_phase = gas_phase
     config.prescreening.prog = prog
-    config = PartsConfig.model_validate(config, context={"check": "prescreening"})
     timing = prescreening(ensemble_from_xyz, config, client, cut=True)
 
     assert timing is not None

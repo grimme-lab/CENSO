@@ -57,7 +57,8 @@ def test_screening_integration(
             config.screening.gsolv_included = True
     else:
         config.general.gas_phase = True
-    config = PartsConfig.model_validate(config, context={"check": "screening"})
+    if solvation_model == TmSolvMod.COSMORS:
+        assert config.screening.gsolv_included is False
     timing = screening(ensemble_from_xyz, config, client, cut=True)
     assert timing is not None
     # Optionally add more output checks
