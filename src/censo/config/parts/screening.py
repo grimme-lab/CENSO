@@ -4,6 +4,9 @@ from pydantic import Field, model_validator
 from .base import BasePartConfig
 from ...params import OrcaSolvMod, QmProg, TmSolvMod, GfnVersion
 from ...assets import FUNCTIONALS
+from ...logging import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class ScreeningConfig(BasePartConfig):
