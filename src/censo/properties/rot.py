@@ -38,7 +38,7 @@ def rot(
     """
     printf(h2("ROT"))
 
-    config.model_validate(config, context={"check": "rot"})
+    config = config.model_validate(config, context={"check": "rot"})
 
     # Assert that all conformers have energies defined
     # TODO: this is not optimal since == 0 does not mean that no ensembleopt has been performed before
