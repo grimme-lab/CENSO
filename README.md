@@ -184,7 +184,7 @@ timings = [
 ## Development Environment Setup
 
 - **Python Version**: Requires Python >= 3.12. Set up a virtual environment using your preferred method:
-  - Conda: `conda create -f environment.yaml`
+  - Conda: `conda env create -f environment.yaml`
   - Pipenv, venv, or others.
 
 - **Install the Package**: Install the package and its dependencies in development mode:
