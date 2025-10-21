@@ -27,8 +27,8 @@ class RefinementConfig(BasePartConfig):
     threshold: float = Field(gt=0, le=1.0, default=0.95)
     """Boltzmann population threshold."""
 
-    gsolv_included: bool = False
-    """Whether to explicitly calculate Gsolv contributions."""
+    gsolv_included: bool = True
+    """Whether to explicitly calculate Gsolv contributions (False) or not (True)."""
 
     template: bool = False
     """Whether to use template files."""
