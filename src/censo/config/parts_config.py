@@ -96,9 +96,9 @@ class PartsConfig(GenericConfig):
         return value
 
     @model_validator(mode="after")
-    def validate_sm_and_paths(self, info: ValidationInfo):
+    def validate_parts_sm_and_paths(self, info: ValidationInfo):
         """
-        Validate solvent models and paths for selected parts.
+        Validate part configs, including solvent models and paths for selected parts.
 
         :param info: Validation info.
         :return: The validated instance.
@@ -106,6 +106,7 @@ class PartsConfig(GenericConfig):
         context = info.context
         if context:
             parts_to_check = self._selected_parts(context)
+            self._parts_check(parts_to_check)
 
             check_paths = context.get("check_paths", True)
             check_sm = context.get("check_sm", True)
@@ -119,6 +120,14 @@ class PartsConfig(GenericConfig):
             )
 
         return self
+
+    def _parts_check(self, parts_to_check: list[tuple[str, Any]]):
+        """
+        Call attribute validators.
+        """
+        for name, part in parts_to_check:
+            checked = part.model_validate(part)
+            setattr(self, name, checked)
 
     # SOLVENT/SM VALIDATION
     # NOTE: since solvent is a general settings this is validated here because we need access

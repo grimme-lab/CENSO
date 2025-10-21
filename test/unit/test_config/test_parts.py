@@ -107,3 +107,15 @@ def test_paths_model_validation():
     # Do not set required paths; assume default config is missing some required paths
     with pytest.raises(ValueError, match="path is not set in the configuration"):
         config.model_validate(config, context={"check_all": True, "check_paths": True})
+
+
+def test_parts_validation():
+    config = PartsConfig()
+    config.screening.func = "invalid"
+    with pytest.raises(ValueError):
+        config.model_validate(config, context={"check": "screening"})
+
+    config = PartsConfig()
+    config.screening.gsolv_included = True
+    config = config.model_validate(config, context={"check": "screening"})
+    assert not config.screening.gsolv_included
