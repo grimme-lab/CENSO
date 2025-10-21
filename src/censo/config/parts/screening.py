@@ -27,7 +27,7 @@ class ScreeningConfig(BasePartConfig):
     threshold: float = Field(gt=0, default=3.5)
     """ΔGtot threshold."""
 
-    gsolv_included: bool = True
+    gsolv_included: bool = False
     """Whether to explicitly calculate Gsolv contributions (False) or not (True)."""
 
     template: bool = False

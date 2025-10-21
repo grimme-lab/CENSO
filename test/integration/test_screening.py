@@ -52,6 +52,9 @@ def test_screening_integration(
         config.general.gas_phase = False
         config.screening.sm = solvation_model
         config.general.solvent = "h2o"
+        # For COSMORS also test the case where the user might have forgotten to set gsolv_included to False
+        if solvation_model == TmSolvMod.COSMORS:
+            config.screening.gsolv_included = True
     else:
         config.general.gas_phase = True
     config = PartsConfig.model_validate(config, context={"check": "screening"})
