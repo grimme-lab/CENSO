@@ -68,3 +68,23 @@ def test_invalid_solvent_model():
     """Test invalid solvent model"""
     with pytest.raises(ValueError):
         NMRConfig(sm=TmSolvMod.COSMORS)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "prog,func,should_pass",
+    [
+        (QmProg.ORCA, "pbe0-d4", True),
+        (QmProg.TM, "pbe-d3", True),
+        (QmProg.ORCA, "invalid-func", False),
+        (QmProg.TM, "invalid-func", False),
+    ],
+)
+def test_functional_validation(prog, func, should_pass):
+    """Test functional validation with different program combinations"""
+    if should_pass:
+        config = NMRConfig(prog=prog, func=func)
+        assert config.prog == prog
+        assert config.func == func
+    else:
+        with pytest.raises(ValueError):
+            NMRConfig(prog=prog, func=func)

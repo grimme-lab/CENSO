@@ -29,7 +29,7 @@ def test_threshold_validation():
     "prog,func,should_pass",
     [
         (QmProg.TM, "r2scan-3c", True),
-        (QmProg.ORCA, "r2scan-3c", True),  # Assuming this is valid
+        (QmProg.ORCA, "r2scan-3c", True),
         (QmProg.TM, "invalid-func", False),
     ],
 )
@@ -49,7 +49,7 @@ def test_functional_validation(prog, func, should_pass):
     [
         (QmProg.TM, TmSolvMod.COSMORS, True),
         (QmProg.ORCA, OrcaSolvMod.CPCM, True),
-        (QmProg.TM, OrcaSolvMod.CPCM, True),  # Assuming this cross-usage is valid
+        (QmProg.TM, OrcaSolvMod.CPCM, True),
     ],
 )
 def test_solvent_model_validation(prog, sm, should_pass):

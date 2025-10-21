@@ -81,3 +81,37 @@ def test_invalid_solvent_model():
     """Test invalid solvent model"""
     with pytest.raises(ValueError):
         OptimizationConfig(sm=TmSolvMod.COSMORS)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "prog,func,should_pass",
+    [
+        (QmProg.TM, "r2scan-3c", True),
+        (QmProg.ORCA, "r2scan-3c", True),
+        (QmProg.TM, "invalid-func", False),
+        (QmProg.ORCA, "invalid-func", False),
+    ],
+)
+def test_functional_validation(prog, func, should_pass):
+    """Test functional validation with different program combinations"""
+    if should_pass:
+        config = OptimizationConfig(prog=prog, func=func)
+        assert config.prog == prog
+        assert config.func == func
+    else:
+        with pytest.raises(ValueError):
+            OptimizationConfig(prog=prog, func=func)
+
+
+def test_constraints_validation():
+    """Test constraints validation"""
+    # Valid: constraints with xtb_opt enabled
+    config = OptimizationConfig(constrain=True, xtb_opt=True)
+    assert config.constrain is True
+    assert config.xtb_opt is True
+
+    # Invalid: constraints without xtb_opt
+    with pytest.raises(
+        ValueError, match="Constraints can currently only be used with ANCOPT"
+    ):
+        OptimizationConfig(constrain=True, xtb_opt=False)

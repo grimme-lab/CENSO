@@ -42,3 +42,21 @@ def test_valid_solvent_models(sm):
     """Test valid solvent model combinations"""
     config = UVVisConfig(sm=sm)
     assert config.sm == sm
+
+
+@pytest.mark.parametrize(
+    "func,should_pass",
+    [
+        ("wb97x-v", True),
+        ("pbe0-d4", True),
+        ("invalid-func", False),
+    ],
+)
+def test_functional_validation(func, should_pass):
+    """Test functional validation for ORCA program"""
+    if should_pass:
+        config = UVVisConfig(func=func)
+        assert config.func == func
+    else:
+        with pytest.raises(ValueError):
+            UVVisConfig(func=func)
