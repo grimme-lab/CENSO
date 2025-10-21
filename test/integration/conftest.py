@@ -60,7 +60,7 @@ def client():
     yield client
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def config():
     config = PartsConfig()
     config.paths = PathsConfig.model_construct(None, **find_program_paths())
