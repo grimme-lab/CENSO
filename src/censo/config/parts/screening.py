@@ -53,3 +53,20 @@ class ScreeningConfig(BasePartConfig):
                 f"Functional {self.func} not (fully) defined for prog {prog}."
             )
         return self
+
+    @model_validator(mode="after")
+    def gsolv_included_must_be_false_for_cosmors(self) -> Self:
+        """
+        In case the user chose cosmors or cosmors-fine as solvation model, it might be necessary to
+        switch the gsolv_included flag to False.
+
+        :return: The validated instance.
+        """
+        sm: TmSolvMod | OrcaSolvMod = self.sm
+        if sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE] and self.gsolv_included:
+            logger.warning(
+                f"Found {sm.value} as solvation model but gsolv_included is set to True. Setting to False automaticaly."
+            )
+            self.gsolv_included = False
+
+        return self

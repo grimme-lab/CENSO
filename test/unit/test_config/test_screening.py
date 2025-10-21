@@ -61,3 +61,37 @@ def test_solvent_model_validation(prog, sm, should_pass):
     else:
         with pytest.raises(ValueError):
             ScreeningConfig(prog=prog, sm=sm)
+
+
+def test_gsolv_included_validation(caplog):
+    """Test gsolv_included validation with COSMORS"""
+
+    # Test that gsolv_included is set to False when COSMORS is used and gsolv_included is True
+    with caplog.at_level("WARNING"):
+        config = ScreeningConfig(sm=TmSolvMod.COSMORS, gsolv_included=True)
+        assert config.gsolv_included is False
+        assert (
+            "Found cosmors as solvation model but gsolv_included is set to True"
+            in caplog.text
+        )
+
+    # Test COSMORS_FINE
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        config2 = ScreeningConfig(sm=TmSolvMod.COSMORS_FINE, gsolv_included=True)
+        assert config2.gsolv_included is False
+        assert (
+            "Found cosmors-fine as solvation model but gsolv_included is set to True"
+            in caplog.text
+        )
+
+    # Test that no warning when gsolv_included is already False
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        config3 = ScreeningConfig(sm=TmSolvMod.COSMORS, gsolv_included=False)
+        assert config3.gsolv_included is False
+        assert "gsolv_included is set to True" not in caplog.text
+
+    # Test that no change for other solvation models
+    config4 = ScreeningConfig(sm=OrcaSolvMod.CPCM, gsolv_included=True)
+    assert config4.gsolv_included is True
