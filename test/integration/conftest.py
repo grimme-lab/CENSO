@@ -44,7 +44,7 @@ def has_turbomole():
 def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
     def load_xyz(filepath: str) -> EnsembleData:
         ensemble = EnsembleData()
-        ensemble.read_input(filepath)
+        ensemble.read_input(filepath, nconf=10)  # read only 10 conformers
         return ensemble
 
     src = Path(__file__).parent / "fixtures" / "crest_conformers_small.xyz"
