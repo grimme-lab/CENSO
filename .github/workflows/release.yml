@@ -1,15 +1,11 @@
 name: Build & Publish Package
 on:
   # push:
-  #   branches:
-  #     - dev
-  #     # - main
   #   tags:
   #     - '*'
   release:
-    branches:
-      - dev
-      # - main
+    # branches:
+    #   - main
     types:
       - published
   workflow_dispatch:
