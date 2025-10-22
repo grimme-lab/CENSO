@@ -1,11 +1,9 @@
-on:
-  workflow_dispatch:
+on: [push, pull_request]
 
-name: CI — pre-commit + tox
+name: CI
 
 jobs:
   pre-commit:
-    name: Pre-commit (lint/format/mypy)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -61,7 +59,6 @@ jobs:
           pre-commit run --config .pre-commit-config.yaml --all-files
 
   tox:
-    name: Tox (unit tests)
     needs: pre-commit
     runs-on: ubuntu-latest
     strategy:
