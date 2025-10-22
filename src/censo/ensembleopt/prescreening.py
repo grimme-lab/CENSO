@@ -1,348 +1,290 @@
-import os
+from pathlib import Path
+from collections.abc import Callable
+from typing import Any
+import json
+from tabulate import tabulate
+from dask.distributed import Client
 
-from ..datastructure import MoleculeData
-from ..ensembledata import EnsembleData
-from ..logging import setup_logger
+from ..processing.xtb_processor import XtbProc
+from ..config.parts.prescreening import PrescreeningConfig
+from ..molecules import Contributions, MoleculeData
+from ..ensemble import EnsembleData
+from ..utilities import Factory, timeit, h1, h2, DataDump, printf
+from ..config import PartsConfig
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, Config
-from ..utilities import format_data, h1, print, DfaHelper, Factory
-from .optimizer import EnsembleOptimizer
+from ..processing import QmProc
+from ..params import GridLevel, AU2KCAL, PLENGTH, Prog
+from ..config.job_config import SPJobConfig, XTBJobConfig
+from ..logging import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class Prescreening(EnsembleOptimizer):
+@timeit
+def prescreening(
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    client: Client,
+    cut: bool = True,
+):
     """
-    This is supposed to implement a cheap prescreening step using low-cost DFT and possibly
+    This implements a cheap prescreening step using low-cost DFT and possibly
     solvation contributions calculated using xtb.
 
     The list of conformers is then updated using Gtot (only DFT single-point energy if in gas-phase).
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :type ensemble: EnsembleData
+    :param config: PartsConfig object with configuration settings.
+    :type config: PartsConfig
+    :param client: dask.distributed.Client for parallel execution.
+    :type client: Client
+    :param cut: Whether to apply cutting conditions.
+    :type cut: bool
+    :return: None
+    :rtype: None
     """
+    printf(h2("PRESCREENING"))
 
-    _grid = "low"
+    config = config.model_validate(config, context={"check": "prescreening"})
 
-    _options = {
-        "threshold": {"default": 4.0},
-        "func": {
-            "default": "pbe-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
-        },
-        "basis": {"default": "def2-SV(P)"},
-        "prog": {"default": "tm", "options": Config.PROGS},
-        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
-        "run": {"default": True},
-        "template": {"default": False},
+    # Setup processor and target
+    proc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")
+
+    contributions_dict = {conf.name: Contributions() for conf in ensemble}
+    if not config.general.gas_phase:
+        # Calculate Gsolv using xtb
+        xtb_proc = Factory[XtbProc].create(Prog.XTB, "0_PRESCREENING")
+        gsolv_job_config = XTBJobConfig(
+            gfnv=config.prescreening.gfnv,
+            solvent=config.general.solvent,
+            sm_rrho=config.general.sm_rrho,
+            gas_phase=False,
+            paths=config.paths,
+        )
+        gsolv_results = execute(
+            ensemble.conformers,
+            xtb_proc.gsolv,
+            gsolv_job_config,
+            "xtb",
+            "prescreening",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in gsolv_results)
+
+        for conf in ensemble:
+            contributions_dict[conf.name].gsolv = gsolv_results[conf.name].gsolv
+
+    # Calculate gas-phase single-point
+    sp_job_config = SPJobConfig(
+        copy_mo=config.general.copy_mo,
+        func=config.prescreening.func,
+        basis=config.prescreening.basis,
+        grid=GridLevel.LOW,
+        template=config.prescreening.template,
+        gas_phase=True,
+        paths=config.paths,
+    )
+    sp_results = execute(
+        ensemble.conformers,
+        proc.sp,
+        sp_job_config,
+        config.prescreening.prog,
+        "prescreening",
+        client,
+        ignore_failed=config.general.ignore_failed,
+        balance=config.general.balance,
+        copy_mo=config.general.copy_mo,
+    )
+
+    if config.general.ignore_failed:
+        ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
+
+    for conf in ensemble:
+        contributions_dict[conf.name].energy = sp_results[conf.name].energy
+
+    # Update molecules
+    ensemble.update_contributions(contributions_dict)
+
+    if cut:
+        threshold = (
+            min(conf.gtot for conf in ensemble)
+            + config.prescreening.threshold / AU2KCAL
+        )
+        ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
+
+    # print results
+    _write_results(ensemble, config)
+
+
+def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
+    """ """
+    printf(h1("PRESCREENING SINGLE-POINT RESULTS"))
+
+    # column headers
+    headers = [
+        "CONF#",
+        # "E (xTB)",
+        # "ΔE (xTB)",
+        "E (DFT)",
+        "ΔE (DFT)",
+        "ΔGsolv (xTB)",
+        # "δΔGsolv",
+        "Gtot",
+        "ΔGtot",
+        "Boltzmann weight",
+    ]
+
+    # column units
+    units = [
+        "",
+        # "[Eh]",
+        # "[kcal/mol]",
+        "[Eh]",
+        "[kcal/mol]",
+        "[kcal/mol]",
+        # "[kcal/mol]",
+        "[Eh]",
+        "[kcal/mol]",
+        f"% at {config.general.temperature} K",
+    ]
+
+    # variables for printmap
+    # minimal xtb single-point energy
+    # if all(
+    #     "xtb_gsolv" in self.data["results"][conf.name]
+    #     for conf in self._ensemble.conformers
+    # ):
+    #     xtbmin = min(
+    #         self.data["results"][conf.name]["xtb_gsolv"]["energy_xtb_gas"]
+    #         for conf in self._ensemble.conformers
+    #     )
+
+    # minimal dft single-point energy
+    dftmin = min(conf.energy for conf in ensemble)
+
+    # minimal solvation free enthalpy
+    # gsolvmin = min(conf.gsolv for conf in ensemble)
+
+    # minimal total free enthalpy
+    gtotmin = min(conf.gtot for conf in ensemble)
+
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
+    # determines what to print for each conformer in each column
+    printmap = {
+        "CONF#": lambda conf: conf.name,
+        # "E (xTB)": lambda conf: (
+        #     f"{self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
+        #     if "xtb_gsolv" in self.data["results"][conf.name]
+        #     else "---"
+        # ),
+        # "ΔE (xTB)": lambda conf: (
+        #     f"{(self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
+        #     if "xtb_gsolv" in self.data["results"][conf.name]
+        #     else "---"
+        # ),
+        "E (DFT)": lambda conf: f"{conf.energy:.6f}",
+        "ΔE (DFT)": lambda conf: f"{(conf.energy - dftmin) * AU2KCAL:.2f}",
+        "ΔGsolv (xTB)": lambda conf: (f"{conf.gsolv * AU2KCAL:.6f}"),
+        "Gtot": lambda conf: f"{conf.gtot:.6f}",
+        # "δΔGsolv": lambda conf: f"{(self.data["results"][conf.name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
+        # if "xtb_gsolv" in self.data["results"][conf.name].keys()
+        # else "---",
+        "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
+        "Boltzmann weight": lambda conf: f"{boltzmann_populations[conf.name] * 100:.2f}",
     }
 
-    _settings = {}
+    rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
 
-    def _optimize(self, cut: bool = True) -> None:
-        """
-        TODO
-        """
-        # set jobtype to pass to handler
-        # TODO - it is not very nice to partially handle 'Screening' settings here
-        if self.get_general_settings()["gas-phase"]:
-            jobtype = ["sp"]
-        elif self.get_settings().get("implicit", False):
-            if self.get_settings().get("sm", None) in [
-                "cosmors",
-                "cosmors-fine",
-            ]:
-                # If cosmors is used as solvent model the gsolv calculation needs to be done explicitely
-                logger.warning(
-                    "COSMORS detected as solvation model, this requires explicit calculation of ΔGsolv."
-                )
-                jobtype = ["gsolv"]
-            else:
-                # 'implicit' is a special option of Screening that makes CENSO skip the explicit computation of Gsolv
-                # Gsolv will still be included in the DFT energy though
-                jobtype = ["sp"]
-        elif not self.get_settings().get("implicit", False):
-            # Only for prescreening the solvation should be calculated with xtb
-            if self.name == "prescreening":
-                jobtype = ["xtb_gsolv"]
+    for i in range(len(headers)):
+        headers[i] += "\n" + units[i]
 
-                # Compile all information required for the preparation of input files in parallel execution step
-                prepinfo = self._setup_prepinfo(jobtype)
+    table = tabulate(
+        rows,
+        headers=headers,
+        colalign=["left"] + ["center" for _ in headers[1:]],
+        disable_numparse=True,
+        numalign="decimal",
+    )
+    print(table, flush=True)
 
-                # compute results
-                # for structure of results from handler.execute look there
-                results, failed = execute(
-                    self._ensemble.conformers,
-                    self._dir,
-                    self.get_settings()["prog"],
-                    prepinfo,
-                    jobtype,
-                    copy_mo=self.get_general_settings()["copy_mo"],
-                    balance=self.get_general_settings()["balance"],
-                    retry_failed=self.get_general_settings()["retry_failed"],
-                )
+    # list the averaged free enthalpy of the ensemble
+    lines = []
+    lines.append(
+        "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):"
+    )
+    lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
 
-                # Remove failed conformers
-                self._ensemble.remove_conformers(failed)
+    # calculate averaged free enthalpy
+    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
-                # Update results
-                self._update_results(results)
+    # calculate averaged free energy (?)
+    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
-                jobtype = ["sp"]
-            else:
-                jobtype = ["gsolv"]
+    # append the lines for the free energy/enthalpy
+    lines.append(
+        f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0=="
+    )
+    lines.append("".ljust(int(PLENGTH), "-"))
 
-        # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self._setup_prepinfo(jobtype)
+    # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
 
-        # compute results
-        # for structure of results from handler.execute look there
-        results, failed = execute(
-            self._ensemble.conformers,
-            self._dir,
-            self.get_settings()["prog"],
-            prepinfo,
-            jobtype,
-            copy_mo=self.get_general_settings()["copy_mo"],
-            balance=self.get_general_settings()["balance"],
-            retry_failed=self.get_general_settings()["retry_failed"],
-        )
+    # Print everything
+    for line in lines:
+        printf(line)
 
-        # Remove failed conformers
-        self._ensemble.remove_conformers(failed)
+    # write everything to a file
+    filepath = Path("0_PRESCREENING.out")
+    filepath.write_text(table + "\n".join(lines))
 
-        # Update results
-        self._update_results(results)
+    # Additionally, write results in json format
+    Path("0_PRESCREENING.json").write_text(
+        json.dumps(jsonify(ensemble, config.prescreening), indent=4)
+    )
 
-        # update results for each conformer
-        for conf in self._ensemble.conformers:
-            # calculate free enthalpy
-            self.data["results"][conf.name]["gtot"] = self._gsolv(conf)
+    ensemble.dump_xyz(Path("0_PRESCREENING.xyz"))
 
-        # calculate boltzmann weights from gtot values calculated here
-        self._update_results(self._calc_boltzmannweights())
 
-        if cut:
-            print("\n")
-            # update conformers with threshold
-            threshold = self.get_settings()["threshold"] / AU2KCAL
-            limit = min(
-                self.data["results"][conf.name]["gtot"]
-                for conf in self._ensemble.conformers
-            )
-            filtered = list(
-                filter(
-                    lambda conf: self.data["results"][conf.name]["gtot"] - limit
-                    > threshold,
-                    self._ensemble.conformers,
-                )
-            )
+# TODO: generalize this
+def jsonify(
+    ensemble: EnsembleData,
+    config: PrescreeningConfig,
+    fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
+):
+    """
+    Convert ensemble data to JSON format for prescreening results.
 
-            # update the conformer list in ensemble (remove confs if below threshold)
-            self._ensemble.remove_conformers([conf.name for conf in filtered])
-            for conf in filtered:
-                print(f"No longer considering {conf.name}.")
-
-    def _gsolv(self, conf: MoleculeData) -> float:
-        """
-        Prescreening key for conformer sorting
-        Calculates Gtot = E (DFT) + Gsolv (xtb) for a given conformer
-        """
-
-        # Gtot = E (DFT) + Gsolv (xtb)
-        if not self.get_general_settings()["gas-phase"]:
-            gtot = (
-                self.data["results"][conf.name]["sp"]["energy"]
-                + self.data["results"][conf.name]["xtb_gsolv"]["gsolv"]
-            )
-        else:
-            gtot = self.data["results"][conf.name]["sp"]["energy"]
-
-        return gtot
-
-    def _write_results(self) -> None:
-        """
-        writes:
-            E (xtb),
-            δE (xtb),
-            G_solv (xtb),
-            δG_solv,
-
-            E(DFT),
-            δE(DFT),
-
-            E(DFT) + G_solv,
-            δ(E(DFT) + G_solv)
-
-        also writes data in easily digestible format
-        """
-        print(h1(f"{self.name.upper()} SINGLE-POINT RESULTS"))
-
-        # column headers
-        headers = [
-            "CONF#",
-            "E (xTB)",
-            "ΔE (xTB)",
-            "E (DFT)",
-            "ΔE (DFT)",
-            "ΔGsolv (xTB)",
-            # "δΔGsolv",
-            "Gtot",
-            "ΔGtot",
-            "Boltzmann weight",
-        ]
-
-        # column units
-        units = [
-            "",
-            "[Eh]",
-            "[kcal/mol]",
-            "[Eh]",
-            "[kcal/mol]",
-            "[kcal/mol]",
-            # "[kcal/mol]",
-            "[Eh]",
-            "[kcal/mol]",
-            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
-        ]
-
-        # variables for printmap
-        # minimal xtb single-point energy
-        if all(
-            "xtb_gsolv" in self.data["results"][conf.name]
-            for conf in self._ensemble.conformers
-        ):
-            xtbmin = min(
-                self.data["results"][conf.name]["xtb_gsolv"]["energy_xtb_gas"]
-                for conf in self._ensemble.conformers
-            )
-
-        # minimal dft single-point energy
-        dft_energies = (
-            {
-                conf.name: self.data["results"][conf.name]["sp"]["energy"]
-                for conf in self._ensemble.conformers
+    :param ensemble: EnsembleData object.
+    :type ensemble: EnsembleData
+    :param config: PrescreeningConfig object.
+    :type config: PrescreeningConfig
+    :param fields: Optional callable to customize fields.
+    :type fields: Callable[[MoleculeData], dict[str, Any]] | None
+    :return: JSON-serializable dictionary.
+    :rtype: dict[str, Any]
+    """
+    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
+        lambda conf: {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "gtot": conf.gtot,
             }
-            if not all(
-                "gsolv" in self.data["results"][conf.name]
-                for conf in self._ensemble.conformers
-            )
-            else {
-                conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
-                for conf in self._ensemble.conformers
-            }
-        )
-
-        dftmin = min(dft_energies.values())
-
-        # minimal solvation free enthalpy
-        if self.get_general_settings()["gas-phase"]:
-            gsolvmin = 0.0
-        else:
-            # NOTE: there might still be an error if a (xtb_)gsolv calculation failed for a conformer, therefore this should be handled before this step
-            if all(
-                "xtb_gsolv" in self.data["results"][conf.name]
-                for conf in self._ensemble.conformers
-            ):
-                gsolvmin = min(
-                    self.data["results"][conf.name]["xtb_gsolv"]["gsolv"]
-                    for conf in self._ensemble.conformers
-                )
-            elif all(
-                "gsolv" in self.data["results"][conf.name]
-                for conf in self._ensemble.conformers
-            ):
-                gsolvmin = min(
-                    self.data["results"][conf.name]["gsolv"]["gsolv"]
-                    for conf in self._ensemble.conformers
-                )
-            else:
-                raise RuntimeError(
-                    "The calculations should have used implicit or additive solvation for all conformers, "
-                    "but it is missing for at least some conformers."
-                )
-
-        # minimal total free enthalpy
-        gtotmin = min(self._gsolv(conf) for conf in self._ensemble.conformers)
-
-        # determines what to print for each conformer in each column
-        printmap = {
-            "CONF#": lambda conf: conf.name,
-            "E (xTB)": lambda conf: (
-                f"{self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas']:.6f}"
-                if "xtb_gsolv" in self.data["results"][conf.name]
-                else "---"
-            ),
-            "ΔE (xTB)": lambda conf: (
-                f"{(self.data['results'][conf.name]['xtb_gsolv']['energy_xtb_gas'] - xtbmin) * AU2KCAL:.2f}"
-                if "xtb_gsolv" in self.data["results"][conf.name]
-                else "---"
-            ),
-            "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
-            "ΔE (DFT)": lambda conf: f"{(dft_energies[conf.name] - dftmin) * AU2KCAL:.2f}",
-            "ΔGsolv (xTB)": lambda conf: (
-                f"{self.data['results'][conf.name]['xtb_gsolv']['gsolv'] * AU2KCAL:.6f}"
-                if "xtb_gsolv" in self.data["results"][conf.name]
-                else "---"
-            ),
-            "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
-            # "δΔGsolv": lambda conf: f"{(self.data["results"][conf.name]['xtb_gsolv']['gsolv'] - gsolvmin) * AU2KCAL:.2f}"
-            # if "xtb_gsolv" in self.data["results"][conf.name].keys()
-            # else "---",
-            "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{self.data['results'][conf.name]['bmw'] * 100:.2f}",
         }
+    )
 
-        rows = [
-            [printmap[header](conf) for header in headers]
-            for conf in self._ensemble.conformers
-        ]
+    dump = DataDump(part_name="prescreening")
 
-        lines = format_data(headers, rows, units=units)
+    for conf in ensemble:
+        dump.data.update(per_conf(conf))
 
-        # list the averaged free enthalpy of the ensemble
-        lines.append(
-            "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
-        )
-        lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
-        )
+    dump.settings = config.model_dump()
 
-        # calculate averaged free enthalpy
-        avG = sum(
-            [
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["gtot"]
-                for conf in self._ensemble.conformers
-            ]
-        )
-
-        # calculate averaged free energy
-        avE = sum(
-            [
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["sp"]["energy"]
-                for conf in self._ensemble.conformers
-            ]
-        )
-
-        # append the lines for the free energy/enthalpy
-        lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part0==\n"
-        )
-        lines.append("".ljust(int(PLENGTH), "-"))
-
-        # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
-
-        # Print everything
-        for line in lines:
-            print(line, flush=True, end="")
-
-        # write everything to a file
-        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
-        logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
-        with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
-            outfile.writelines(lines)
-
-        # Additionally, write results in json format
-        self._write_json()
-
-
-Factory.register_builder("prescreening", Prescreening)
+    return dump.model_dump(mode="json")

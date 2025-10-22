@@ -6,7 +6,7 @@ c0=1447.24
 lambda_3=-0.1506584
 sum_x_vol=366.4403
 sum_x_area=356.5489
-# Sigma potential (s [e/A^2], mu(s) [kcal/mol A^2] for  T= 298.15 K,  X== 1.0000 
+# Sigma potential (s [e/A^2], mu(s) [kcal/mol A^2] for  T= 298.15 K,  X== 1.0000
     -0.130    12.192
     -0.129    12.003
     -0.128    11.816

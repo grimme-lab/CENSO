@@ -3,18 +3,22 @@ defininition of internal defaults, checking of logic for parameter combinations,
 cml parsing
 """
 
-import os
 from ..params import START_DESCR
 import argparse
 
+from ..params import OMPMIN_DEFAULT
 
-def parse(argv=None) -> argparse.Namespace:
+
+def parse(argv: list[str] | None) -> argparse.Namespace:
     """
     Process commandline arguments
 
-    NOTE: on args with the action 'store_const' with const=True, this is on purpose so as long as the flag is not set,
-    the arg Namespace evaluates to None.
+    :param argv: Command line arguments
+    :return: Parsed arguments namespace
     """
+
+    # NOTE: on args with the action 'store_const' with const=True, this is on purpose so as long as the flag is not set,
+    # the arg Namespace evaluates to None.
 
     parser = argparse.ArgumentParser(
         description=START_DESCR,
@@ -26,11 +30,57 @@ def parse(argv=None) -> argparse.Namespace:
     # RUN SETTINGS
     groups.append(parser.add_argument_group("RUN SETTINGS"))
     groups[0].add_argument(
+        "--prescreening",
+        "-P",
+        dest="prescreening",
+        action="store_true",
+        help="Enable the prescreening part.",
+    )
+    groups[0].add_argument(
+        "--screening",
+        "-S",
+        dest="screening",
+        action="store_true",
+        help="Enable the screening part.",
+    )
+    groups[0].add_argument(
+        "--optimization",
+        "-O",
+        dest="optimization",
+        action="store_true",
+        help="Enable the optimization part.",
+    )
+    groups[0].add_argument(
+        "--refinement",
+        "-R",
+        dest="refinement",
+        action="store_true",
+        help="Enable the refinement part.",
+    )
+    groups[0].add_argument(
+        "--nmr",
+        dest="nmr",
+        action="store_true",
+        help="Enable the NMR calculation part.",
+    )
+    groups[0].add_argument(
+        "--rot",
+        dest="rot",
+        action="store_true",
+        help="Enable the optical rotation calculation part.",
+    )
+    groups[0].add_argument(
+        "--uvvis",
+        dest="uvvis",
+        action="store_true",
+        help="Enable the UV/Vis calculation part.",
+    )
+    groups[0].add_argument(
         "-i",
         "--input",
         dest="inp",
         type=str,
-        help="Relative path to ensemble file, e.g. crest_conformers.xyz (default). ",
+        help="Relative path to ensemble file, e.g. crest_conformers.xyz (default).",
         default="crest_conformers.xyz",
     )
     groups[0].add_argument(
@@ -70,11 +120,11 @@ def parse(argv=None) -> argparse.Namespace:
         help="Delete unneeded files from current working directory.",
     )
     groups[0].add_argument(
-        "--cleanup_all",
+        "--cleanup-all",
         dest="cleanup_all",
         action="store_true",
         help="Delete all CENSO files from previous runs from current working directory. "
-        "Stronger than -cleanup !",
+        "Stronger than --cleanup !",
     )
     groups[0].add_argument(
         "--new-config",
@@ -90,39 +140,64 @@ def parse(argv=None) -> argparse.Namespace:
         " than the default (~/.censo2rc).",
     )
     groups[0].add_argument(
+        "--constraints",
+        dest="constraints",
+        help="Path to a file containing constraints in xtb format for use in geometry optimizations.",
+    )
+    groups[0].add_argument(
         "--maxcores",
         dest="maxcores",
         type=int,
         help="Number of cores that should be used for CENSO on the machine. If this is not provided CENSO will use "
-        "the maximum number available. By default this is determined by os.cpu_count().",
-        default=os.cpu_count(),
+        "the maximum number available (also checks for slurm environment variables).",
     )
-    groups[0].add_argument(
-        "-O",
-        "--omp",
-        dest="omp",
-        type=int,
-        help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
-        "if load balancing is disabled.",
-    )
+    # groups[0].add_argument(
+    #     "-O",
+    #     "--omp",
+    #     dest="omp",
+    #     type=int,
+    #     help="Number of OpenMP threads, e.g. 4. Effectively translates to the number of cores used per calculation "
+    #     "if load balancing is disabled.",
+    # )
+    # NOTE: omp arg is not used anymore since the way it works right now, censo will always try to get the minimum number of cores per process
+    # because this is the most efficient. therefore, the user should only set the minimum number of cores
     groups[0].add_argument(
         "--omp-min",
         dest="ompmin",
         type=int,
-        help="Minimum number of OpenMP threads per process, default is 4. This is mostly important if load balancing is enabled.",
+        help=f"Minimum number of OpenMP threads per process, default is {OMPMIN_DEFAULT}. This is mostly important if load balancing is enabled.",
+        default=OMPMIN_DEFAULT,
     )
     groups[0].add_argument(
         "--loglevel",
         dest="loglevel",
         help="Set the loglevel for all modules to a specified level.",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+    )
+    groups[0].add_argument(
+        "--logpath",
+        dest="logpath",
+        help="Relative/absolute path to the logfile. If no path is provided, censo.log will be written in the output directory.",
     )
     groups[0].add_argument(
         "--reload",
         dest="reload",
         nargs="+",
-        help="Reload data from json output files. List all file names separated by spaces. "
+        help="Reload data from json output files. List all file names separated by spaces. Will be loaded in order (first to last). "
         "Note that all conformers from the current ensemble need to be included in the output data keys.",
+    )
+    groups[0].add_argument(
+        "--keep-all",
+        dest="keep_all",
+        action="store_true",
+        help="Do not cut down the ensemble, keep all conformers from start to end.",
+    )
+    groups[0].add_argument(
+        "--ignore-failed",
+        dest="ignore_failed",
+        action="store_true",
+        help="Ignore failed calculations. If this is not set, failed calculations will raise RuntimeError.",
     )
 
     # GENERAL SETTINGS
@@ -134,15 +209,15 @@ def parse(argv=None) -> argparse.Namespace:
         type=float,
         help="Temperature in Kelvin for thermostatistical evaluation.",
     )
-    # groups[1].add_argument(
-    #     "--trange",
-    #     dest="trange",
-    #     nargs=3,
-    #     metavar=("start", "end", "step"),
-    #     type=float,
-    #     help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
-    #     "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
-    # )
+    groups[1].add_argument(
+        "--trange",
+        dest="trange",
+        nargs=3,
+        metavar=("start", "end", "step"),
+        type=float,
+        help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
+        "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
+    )
     groups[1].add_argument(
         "--bhess",
         dest="bhess",
@@ -158,13 +233,13 @@ def parse(argv=None) -> argparse.Namespace:
         const=True,
         help="Consider symmetry in mRRHO calcuation (based on desy xtb threshold). ",
     )
-    groups[1].add_argument(
-        "--rmsdbias",
-        dest="rmsdbias",
-        action="store_const",
-        const=True,
-        help="Applies constraint to rmsdpot.xyz to be consistent to CREST. ",
-    )
+    # groups[1].add_argument(
+    #     "--rmsdbias",
+    #     dest="rmsdbias",
+    #     action="store_const",
+    #     const=True,
+    #     help="Applies constraint to rmsdpot.xyz to be consistent to CREST. ",
+    # )
     groups[1].add_argument(
         "--sm-rrho",
         dest="sm_rrho",
@@ -180,7 +255,6 @@ def parse(argv=None) -> argparse.Namespace:
         help="Evaluate mRRHO contribution.",
     )
     groups[1].add_argument(
-        "-s",
         "--solvent",
         dest="solvent",
         type=str,
@@ -188,7 +262,7 @@ def parse(argv=None) -> argparse.Namespace:
     )
     groups[1].add_argument(
         "--gas-phase",
-        dest="gas-phase",
+        dest="gas_phase",
         action="store_const",
         const=True,
         help="Run calculation in gas-phase, overriding all solvation settings.",
@@ -221,31 +295,29 @@ def parse(argv=None) -> argparse.Namespace:
         help="Gsolv is evaluated for the input molecule in its solution (same). "
         "Only possible with COSMO-RS.",
     )
-    """
 
     # PRESCREENING SETTINGS
-    # groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
+    groups.append(parser.add_argument_group("PRESCREENING SETTINGS"))
 
     # SCREENING SETTINGS
-    # groups.append(parser.add_argument_group("SCREENING SETTINGS"))
+    groups.append(parser.add_argument_group("SCREENING SETTINGS"))
 
     # OPTIMIZATION SETTINGS
-    # groups.append(parser.add_argument_group("OPTIMIZATION SETTINGS"))
+    groups.append(parser.add_argument_group("OPTIMIZATION SETTINGS"))
 
     # REFINEMENT SETTINGS
-    # groups.append(parser.add_argument_group("REFINEMENT SETTINGS"))
+    groups.append(parser.add_argument_group("REFINEMENT SETTINGS"))
 
     # NMR SETTINGS
-    # groups.append(parser.add_argument_group("NMR SETTINGS"))
+    groups.append(parser.add_argument_group("NMR SETTINGS"))
 
     # OPTROT SETTINGS
-    # groups.append(parser.add_argument_group("OPTROT SETTINGS"))
+    groups.append(parser.add_argument_group("OPTROT SETTINGS"))
 
     # UVVIS SETTINGS
-    # groups.append(parser.add_argument_group("UVVIS SETTINGS"))
+    groups.append(parser.add_argument_group("UVVIS SETTINGS"))
 
     # leave these options out for now, implementation for cml complicated
-    """
     groups[7].add_argument(
         "-freqOR",
         "--freqOR",
@@ -323,7 +395,7 @@ def parse(argv=None) -> argparse.Namespace:
         dest="crestcheck",
         action="store_true",
         required=False,
-        
+
         help="Option to sort out conformers after DFT ensembleopt which CREST "
         "identifies as identical or rotamers of each other. \nThe identification/"
         "analysis is always performed, but the removal of conformers has to "
@@ -385,41 +457,41 @@ def parse(argv=None) -> argparse.Namespace:
         choices=options.value_options["func"],
         action="store",
         required=False,
-        
+
         help="Functional for geometry ensembleopt (used in part2) and "
         "single-points in part1",
-    ) 
+    )
     group1.add_argument(
         "-basis",
         "--basis",
         dest="basis",
         action="store",
         required=False,
-        
+
         help="Basis set employed together with the functional (func) for the "
         "low level single point in part1 und ensembleopt in part2.",
-    ) 
+    )
     group1.add_argument(
         "-prog",
         "--prog",
         choices=options.value_options["prog"],
         dest="prog",
         required=False,
-        
+
         help="QM-program used in part0, part1 and part2 either 'orca' or 'tm'.",
-    ) 
+    )
     group10.add_argument(
         "-part0_gfnv",
         "--part0_gfnv",
         dest="part0_gfnv",
         choices=options.value_options["part0_gfnv"],
-        
+
         action="store",
         required=False,
         help="GFNn-xTB version employed for calculating the GFNn-xTB "
         "single point in part0. "
         f"Allowed values are [{', '.join(options.value_options['part0_gfnv'])}]",
-    ) 
+    )
     group3.add_argument(
         "-part1",
         "--part1",
@@ -427,7 +499,7 @@ def parse(argv=None) -> argparse.Namespace:
         dest="part1",
         action="store",
         required=False,
-        
+
         help="Option to turn the prescreening evaluation (part1) 'on' or 'off'.",
     )
     group3.add_argument(
@@ -437,17 +509,17 @@ def parse(argv=None) -> argparse.Namespace:
         dest="smgsolv1",
         action="store",
         required=False,
-        
+
         help="Solvent model for the Gsolv evaluation in part1. This can either be"
         " an implicit solvation or an additive solvation model. "
         f"Allowed values are [{', '.join(options.value_options['smgsolv1'])}]",
-    ) 
+    )
     group10.add_argument(
         "-prescreening_threshold",
         "-prethr",
         "--thresholdpre",
         dest="prescreening_threshold",
-        
+
         action="store",
         type=float,
         required=False,
@@ -455,7 +527,7 @@ def parse(argv=None) -> argparse.Namespace:
             "Threshold in kcal/mol. All conformers in part0 (prescreening)"
             " with a relativ energy below the threshold are considered for part1."
         ),
-    ) 
+    )
     group4.add_argument(
         "-sm2",
         "--solventmodel2",
@@ -463,11 +535,11 @@ def parse(argv=None) -> argparse.Namespace:
         dest="sm2",
         action="store",
         required=False,
-        
+
         help="Solvent model employed during the geometry ensembleopt in part2."
         "The solvent model sm2 is not used for Gsolv evaluation, but for the "
         "implicit effect on a property (e.g. the geometry in the ensembleopt).",
-    ) 
+    )
     group4.add_argument(
         "-smgsolv2",
         "--smgsolv2",
@@ -475,7 +547,7 @@ def parse(argv=None) -> argparse.Namespace:
         dest="smgsolv2",
         action="store",
         required=False,
-        
+
         help="Solvent model for the Gsolv (solvation contribution to free energy) "
         "calculation in part2. Either the solvent"
         " model of the ensembleopt (sm2) or an additive solvation model. "
@@ -489,7 +561,7 @@ def parse(argv=None) -> argparse.Namespace:
         choices=options.value_options["prog_rrho"],
         dest="prog_rrho",
         required=False,
-        
+
         help="QM-program for mRRHO contribution in part1 2 and 3, currently only 'xtb'.",
     ) """
 
@@ -499,11 +571,15 @@ def parse(argv=None) -> argparse.Namespace:
         choices=["on"],  # there is no other option right now!
         dest="ancopt",
         required=False,
-        
+
         help="Option to use xtb as driver for the xTB-optimizer in part2. "
         "Which is currently not changeable!",
     ) """
 
     args = parser.parse_args(argv)
+    # NOTE: as opposed to previous behaviour '-i' and '--maxcores' are now optional,
+    # however the program WILL exit after creating a new config file if any of
+    # '--new-config', '--cleanup', '--cleanup-all'
+    # are used
 
     return args

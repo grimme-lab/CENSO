@@ -1,378 +1,368 @@
-"""
-Performs the parallel execution of the QM calls.
-"""
+from inspect import ismethod
+import traceback
+import os
+from typing import Literal, Callable
+from concurrent.futures import CancelledError
+from dask.distributed import (
+    Variable,
+    Client,
+    LocalCluster,
+    as_completed as dask_as_completed,
+)
 
-import multiprocessing
-import signal
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from .datastructure import MoleculeData, ParallelJob
+from .molecules import MoleculeData
 from .logging import setup_logger
-from .params import Config
-from .qm_processor import QmProc
-from .tm_processor import TmProc
-from .utilities import Factory
+from .params import OMPMAX_DEFAULT, QmProg, OMPMIN_DEFAULT
+from .config.job_config import XTBJobConfig, SPJobConfig
+from .processing.results import Result, MetaData
+from .processing.job import JobContext
+from .config import GenericConfig
+
 
 logger = setup_logger(__name__)
 
 
-def execute(
-    conformers: list[MoleculeData],
-    workdir: str,
-    prog: str,
-    prepinfo: dict[str, dict],
-    jobtype: list[str],
-    copy_mo: bool = False,
-    retry_failed: bool = False,
-    balance: bool = True,
-) -> tuple[dict, list]:
+def get_cluster(maxcores: int | None = None, ompmin: int = OMPMIN_DEFAULT):
     """
-    Manages parallel execution of external program calls. Sets cores used per job, checks requirements,
-    can copy MO-files, and retry failed jobs.
+    Set up Dask parallel execution environment.
 
-    Args:
-        conformers (list[MoleculeData]): List of conformers for which jobs will be created and executed.
-        workdir (str): Working directory.
-        prog (str): Name of the program to be used.
-        copy_mo (bool, optional): Whether to copy the MO-files from the previous calculation.
-        retry_failed (bool, optional): Whether to retry failed jobs.
-        balance (bool, optional): Whether to balance the number of cores used per job.
-        maxcores (int, optional): Maximum number of cores to be used.
-        omp (int, optional): Number of cores to be used per job.
-        update (bool, optional): Wether to update the results dict for each conformer.
-
-    Returns:
-        tuple[dict, list]: Dictionary containing the results for each conformer and a list of unrecoverable conformers.
+    :param maxcores: Total number of cores made available for the LocalCluster.
+    :type maxcores: int | None
+    :param ompmin: Minimum number of cores per job.
+    :type ompmin: int
+    :return: Yields LocalCluster.
+    :rtype: LocalCluster
     """
+    nnodes = int(os.environ.get("SLURM_NNODES", "1"))
+    slurm_ntasks_str = os.environ.get("SLURM_NTASKS", None)
+    slurm_ntasks = None
 
-    def prepare_jobs(
-        conformers: list[MoleculeData], prepinfo: dict[str, dict], jobtype: list[str]
-    ) -> list[ParallelJob]:
-        # create jobs from conformers
-        jobs = [ParallelJob(conf.geom, jobtype) for conf in conformers]
+    if slurm_ntasks_str is not None:
+        slurm_ntasks = int(slurm_ntasks_str)
+        if nnodes > 1:
+            slurm_ntasks = slurm_ntasks // nnodes
+        logger.debug(f"Found SLURM_NTASKS={slurm_ntasks} (for each node).")
 
-        # put settings into jobs
-        for job in jobs:
-            job.prepinfo.update(prepinfo)
+    if maxcores is None:
+        ncores = slurm_ntasks if slurm_ntasks is not None else os.cpu_count()
+        if ncores is None:
+            raise RuntimeError("Could not determine number of available cores.")
+    elif slurm_ntasks is not None and maxcores <= slurm_ntasks:
+        ncores = maxcores
+    elif slurm_ntasks is not None and maxcores > slurm_ntasks:
+        raise RuntimeError(
+            "Requested more cores than slurm tasks available for this node."
+        )
+    else:
+        ncores = maxcores
 
-        return jobs
+    # TODO: SSHCluster for multiple nodes
+    logger.debug(f"Setting up LocalCluster with {ncores} cores.")
+    cluster = LocalCluster(
+        n_workers=1,
+        threads_per_worker=ncores // ompmin,
+        resources={"CPU": ncores},  # One worker receives all CPUs
+    )
+    return cluster
 
-    def reduce_cores(
-        free_cores: multiprocessing.Value,
-        omp: int,
-        enough_cores: multiprocessing.Condition,
-    ):
-        # acquire lock on the condition and wait until enough cores are available
-        with enough_cores:
-            enough_cores.wait_for(lambda: free_cores.value >= omp)
-            free_cores.value -= omp
-            logger.debug(
-                f"Free cores decreased {free_cores.value + omp} -> {free_cores.value}."
-            )
 
-    def increase_cores(
-        free_cores: multiprocessing.Value,
-        omp: int,
-        enough_cores: multiprocessing.Condition,
-    ):
-        # acquire lock on the condition and increase the number of cores, notifying one waiting process
-        with enough_cores:
-            free_cores.value += omp
-            logger.debug(
-                f"Free cores increased {free_cores.value - omp} -> {free_cores.value}."
-            )
-            enough_cores.notify()
+def set_omp(
+    jobs: list[JobContext],
+    balance: bool,
+    omp: int,
+    ncores: int,
+):
+    """
+    Sets the number of cores to be used for every job.
 
-    def handle_sigterm(signum, frame, executor):
-        logger.critical("Received SIGTERM. Terminating.")
-        executor.shutdown(wait=False)
-
-    def dqp(jobs: list[ParallelJob], processor: QmProc) -> list[ParallelJob]:
-        """
-        D ynamic Q ueue P rocessing
-        """
-
-        with multiprocessing.Manager() as manager:
-            # execute calculations for given list of conformers
-            with ProcessPoolExecutor(
-                max_workers=Config.NCORES // min(job.omp for job in jobs)
-            ) as executor:
-                # make sure that the executor exits gracefully on termination
-                # TODO - is using wait=False a good option here?
-                # should be fine since workers will kill programs with SIGTERM
-                # wait=True leads to the workers waiting for their current task to be finished before terminating
-                # Register the signal handler
-                signal.signal(
-                    signal.SIGTERM,
-                    lambda signum, frame: handle_sigterm(signum, frame, executor),
-                )
-
-                # define shared variables that can be safely asynchronously accessed
-                free_cores = manager.Value(int, Config.NCORES)
-                enough_cores = manager.Condition()
-
-                # sort the jobs by the number of cores used
-                # (the first item will be the one with the lowest number of cores)
-                jobs.sort(key=lambda x: x.omp)
-
-                tasks = []
-                for i in range(len(jobs)):
-                    # TODO - something to readjust omp based on expected time to finish and the timings of other jobs
-                    # try to reduce the number of cores by job.omp, if there are not enough cores available we wait
-                    reduce_cores(free_cores, jobs[i].omp, enough_cores)
-
-                    try:
-                        # submit the job
-                        tasks.append(executor.submit(processor.run, jobs[i]))
-                        # NOTE: explanation of the lambda: the first argument passed to the done_callback is always the future
-                        # itself, it is not assigned (_), the second parameter is the number of openmp threads of the job (i.e.
-                        # job.omp) if this is not specified like this (omp=jobs[i].omp) the done_callback will instead use the
-                        # omp of the current item in the for-iterator (e.g. the submitted job has omp=4, but the current jobs[i]
-                        # has omp=7, so the callback would use 7 instead of 4)
-                        tasks[-1].add_done_callback(
-                            lambda _, omp=jobs[i].omp: increase_cores(
-                                free_cores, omp, enough_cores
-                            )
-                        )
-                    except RuntimeError:
-                        # Makes this exit gracefully in case that the main process is killed
-                        return None
-
-                # wait for all jobs to finish and collect results
-                try:
-                    results = [task.result() for task in as_completed(tasks)]
-                except Exception as exc:
-                    raise exc
-
-        return results
-
-    def set_omp_chunking(jobs: list[ParallelJob]) -> None:
-        """
-        Determines and sets the number of cores that are supposed to be used for every job.
-        This method is efficient if it can be assumed that the jobs take roughly the same amount of time each.
-        Each job shouldn't use less than Config.OMPMIN cores.
-        """
-        # Get the total number of jobs
+    :param jobs: List of parallel jobs.
+    :type jobs: list[JobContext]
+    :param balance: Whether to balance.
+    :type balance: bool
+    :param omp: Default OMP value.
+    :type omp: int
+    :param ncores: Total cores.
+    :type ncores: int
+    :return: None
+    :rtype: None
+    """
+    if balance:
         jobs_left, tot_jobs = len(jobs), len(jobs)
 
-        # Calculate the maximum and minimum number of processes (number of jobs that can be executed simultaneously)
-        maxprocs = (
-            Config.NCORES // Config.OMPMIN
-        )  # Calculate the maximum number of processes
-        # Calculate the minimum number of processes
-        minprocs = max(1, Config.NCORES // Config.OMPMAX)
+        if tot_jobs >= ncores // omp:
+            # Assign minimum OMP for as many jobs as possible
+            for i in range(tot_jobs - tot_jobs % omp):
+                jobs[i].omp = omp
 
-        # Loop until all jobs are distributed
-        while jobs_left > 0:
-            if jobs_left >= maxprocs:
-                p = maxprocs  # Set the number of processes to the maximum if there are enough jobs left
-            elif minprocs <= jobs_left < maxprocs:
-                # Find the largest number of processes that evenly divides the remaining jobs
-                p = max(
-                    [
-                        j
-                        for j in range(minprocs, maxprocs)
-                        if Config.NCORES % j == 0 and j <= jobs_left
-                    ]
-                )
+            jobs_left = tot_jobs % omp
+
+        if jobs_left > 0:
+            if jobs_left == 1:
+                jobs[-1].omp = ncores
             else:
-                # There are not enough jobs left for at least minprocs processes
-                for job in jobs[tot_jobs - jobs_left : tot_jobs]:
-                    job.omp = (
-                        Config.NCORES // minprocs
-                    )  # Set the number of cores for each job to the maximum value
-                jobs_left -= jobs_left
-                continue
+                while jobs_left > 0:
+                    omps = list(range(omp, min(OMPMAX_DEFAULT, ncores) + 1))
+                    jobs_in_parallel = {o: ncores // o for o in omps}
 
-            # Set the number of cores for each job for as many jobs as possible before moving onto the next omp value
-            while jobs_left - p >= 0:
-                for job in jobs[tot_jobs - jobs_left : tot_jobs - jobs_left + p]:
-                    job.omp = Config.NCORES // p  # Set the number of cores for each job
-                jobs_left -= p  # Decrement the number of remaining jobs
+                    # Remove OMP values that would lead to idle groups
+                    omps = [o for o in omps if jobs_left - jobs_in_parallel[o] >= 0]
 
-    def retry_failed_jobs(
-        jobs: list[ParallelJob], processor: QmProc, balance: bool
-    ) -> tuple[list[int], list[str]]:
-        """
-        Tries to recover failed jobs.
+                    divisors = [o for o in omps if ncores % o == 0 and o != ncores]
+                    if len(divisors) > 0:
+                        tmp_omp = min(divisors)
+                    else:
+                        # Not possible to evenly divide cores
+                        # Pick OMP value with least idle cores that is not ncores
+                        # Chances are that it is one of the smallest OMP values
+                        omps = [o for o in omps if o != ncores]
+                        if len(omps) > 0:
+                            tmp_omp = min(omps, key=lambda x: ncores % x)
+                        else:
+                            tmp_omp = ncores
 
-        Args:
-            jobs (list[ParallelJob]): List of jobs.
-            processor (QmProc): Processor object.
+                    jobs[tot_jobs - jobs_left].omp = tmp_omp
+                    jobs_left -= jobs_in_parallel[tmp_omp]
+    else:
+        for job in jobs:
+            job.omp = omp
 
-        Returns:
-            tuple[list[int], list[str]]: List of indices of jobs that should be retried, list of names of conformers
-                that could not be recovered.
-        """
-        # determine failed jobs
-        logger.debug("Checking for failed jobs...")
-        failed_jobs = [
-            i
-            for i, job in enumerate(jobs)
-            if any(not job.meta[jt]["success"] for jt in job.jobtype)
-        ]
 
-        if len(failed_jobs) != 0:
-            # create a new list of failed jobs that should be restarted with special flags
-            # contains jobs that should be retried (depends on wether the error can be handled or not)
-            retry = []
+def prepare_jobs(
+    conformers: list[MoleculeData],
+    prog: str,
+    ncores: int,
+    omp: int,
+    from_part: str,
+    balance: bool = True,
+    copy_mo: bool = True,
+) -> list[JobContext]:
+    """
+    Prepares the jobs from the conformers data.
 
-            # determine flags for jobs based on error messages
-            for failed_job in failed_jobs:
-                handled_errors = ["scf_not_converged", "Previous calculation failed"]
+    :param conformers: List of conformers.
+    :type conformers: list[MoleculeData]
+    :param prog: Program name.
+    :type prog: str
+    :param ncores: Total cores per node.
+    :type ncores: int
+    :param omp: Default OMP value.
+    :type omp: int
+    :param from_part: From part.
+    :type from_part: str
+    :param balance: Whether to balance.
+    :type balance: bool
+    :param copy_mo: Whether to copy MO.
+    :type copy_mo: bool
+    :return: List of parallel jobs.
+    :rtype: list[JobContext]
+    """
+    # Create JobContext instances from the conformers, sharing the prepinfo dict
+    jobs = [
+        JobContext(conf.geom, conf.charge, conf.unpaired, omp) for conf in conformers
+    ]
+    if copy_mo:
+        for job in jobs:
+            # Insert mo guess file path
+            if prog == "orca":
+                job.mo_guess = next(
+                    (
+                        mo_path
+                        for conf in conformers
+                        for mo_path in conf.mo_paths["orca"]
+                        if conf.name == job.conf.name and ".gbw" in mo_path
+                    ),
+                    None,
+                )
+            elif prog == "tm":
+                job.mo_guess = next(
+                    (
+                        mo_path
+                        for conf in conformers
+                        for mo_path in conf.mo_paths["tm"]
+                        if conf.name == job.conf.name
+                        and any(kw in mo_path for kw in ["alpha", "beta", "mos"])
+                    ),
+                    None,
+                )
+            job.from_part = from_part
 
-                # list of jobtypes that should be removed from the jobtype list
-                jtremove = []
-                for jt in jobs[failed_job].jobtype:
-                    if not jobs[failed_job].meta[jt]["success"]:
-                        if jobs[failed_job].meta[jt]["error"] in handled_errors:
-                            retry.append(failed_job)
-                            jobs[failed_job].flags[jt] = jobs[failed_job].meta[jt][
-                                "error"
-                            ]
-                    # store all successful jobtypes to be removed later
-                    elif jobs[failed_job].meta[jt]["success"]:
-                        jtremove.append(jt)
+    if balance:
+        set_omp(jobs, balance, omp, ncores)
 
-                # remove all successful jobs from jobtype to avoid re-execution
-                for jt in jtremove:
-                    jobs[failed_job].jobtype.remove(jt)
+    return sorted(jobs, key=lambda job: job.omp)
 
-            # execute jobs that should be retried
-            logger.info(
-                f"Number of failed jobs: {len(failed_jobs)}. Restarting {len(retry)} jobs."
-            )
 
-            if len(retry) > 0:
-                # Rebalancing necessary
-                if balance:
-                    set_omp_chunking([jobs[i] for i in retry])
+def execute[
+    T: GenericConfig, U: Result
+](
+    conformers: list[MoleculeData],
+    task: Callable[[JobContext, T], tuple[U, MetaData]],
+    job_config: XTBJobConfig | SPJobConfig,
+    prog: QmProg | Literal["xtb"],
+    from_part: str,
+    client: Client,
+    ignore_failed: bool = True,
+    balance: bool = True,
+    copy_mo: bool = True,
+) -> dict[str, U]:
+    """
+    Executes the parallel tasks using Dask distributed execution.
 
-                for i, job in zip(
-                    [i for i in retry], dqp([jobs[i] for i in retry], processor)
-                ):
-                    jobs[i] = job
+    :param conformers: List of conformers for which jobs will be created and executed.
+    :type conformers: list[MoleculeData]
+    :param task: Callable to be mapped onto the list of jobs created from conformers. This should always be a processor function.
+    :type task: Callable[[JobContext, T], tuple[U, MetaData]]
+    :param job_config: Instructions for the execution of the task.
+    :type job_config: XTBJobConfig | SPJobConfig
+    :param prog: Name of the QM program.
+    :type prog: QmProg | Literal["xtb"]
+    :param from_part: From part.
+    :type from_part: str
+    :param client: dask.distributed.Client for parallel execution.
+    :type client: Client
+    :param ignore_failed: Whether to ignore failed jobs.
+    :type ignore_failed: bool
+    :param balance: Whether to balance the number of cores used per job.
+    :type balance: bool
+    :param copy_mo: Whether to store the paths to the MO files for reuse.
+    :type copy_mo: bool
+    :return: Job results.
+    :rtype: dict[str, U]
+    """
+    # Setting the collective cancellation variable
+    cancel_var = None
+    if ismethod(task):
+        # Only meaningful if the task is a method of a GenericProc
+        # but this is difficult to annotate with the present architecture
+        proc = task.__self__
+        if hasattr(proc, "cancel_var"):
+            proc_id = id(proc)
 
-            # any jobs that still failed will lead to the conformer being marked as unrecoverable
-            failed_confs = []
-            for job in jobs:
-                if not all(job.meta[jt]["success"] for jt in job.jobtype):
-                    logger.warning(
-                        f"{job.conf.name} job recovery failed. Error: {job.meta[jt]['error']}. Check output files."
-                    )
-                    failed_confs.append(job.conf.name)
-                else:
-                    logger.info(f"Successfully retried job for {job.conf.name}.")
-        else:
-            retry = []
-            failed_confs = []
-            logger.info("All jobs executed successfully.")
+            # Cooperative cancellation variable
+            cancel_var_name = f"censo_cancel_{proc_id}"
+            cancel_var = Variable(cancel_var_name, client=client)
+            cancel_var.set(False)
+            setattr(proc, "cancel_var", cancel_var)
 
-        return retry, failed_confs
+    logger.debug("Using Dask parallel environment...")
 
-    # Check first if there are any conformers at all
-    try:
-        assert len(conformers) > 0
-    except AssertionError as e:
-        raise AssertionError("No jobs to compute!") from e
+    # Get settings from client
+    scheduler_info = client.scheduler_info()
+    nnodes = int(scheduler_info["n_workers"])
+    total_threads = scheduler_info["total_threads"]
+    threads_per_worker = total_threads // nnodes
+    total_cores = sum(
+        [worker["resources"]["CPU"] for _, worker in scheduler_info["workers"].items()]
+    )
+    ncores = total_cores // nnodes
+    omp = total_cores // threads_per_worker
 
-    # Create jobs from conformers data
-    jobs = prepare_jobs(conformers, prepinfo, jobtype)
-
-    # initialize the processor for the respective program
-    processor = Factory.create(
+    # Prepare jobs for parallel execution by assigning number of cores per job etc.
+    jobs: list[JobContext] = prepare_jobs(
+        conformers,
         prog,
-        workdir,
+        ncores,
+        omp,
+        from_part,
+        balance=balance,
+        copy_mo=copy_mo,
     )
 
-    # processor.check_requirements(jobs)
-
-    # Set processor to copy the MO-files
-    processor.copy_mo = copy_mo
-
-    # check for the most recent mo files for each conformer
-    # TODO - how would this work when multiple different programs are supported?
+    # Submit jobs directly
+    futures = []
     for job in jobs:
+        resources = {"CPU": int(job.omp)}
+        fut = client.submit(
+            task,
+            job,
+            job_config,
+            resources=resources,
+        )
+        futures.append(fut)
+
+    failed_confs: list[MoleculeData] = []
+    results: dict[str, U] = {}
+    broken = False
+
+    logger.debug("Waiting for jobs to complete...")
+    try:
+        completed_iter = dask_as_completed(futures)
+
+        # Process results as they come in
+        for completed_future in completed_iter:
+            conf_name = None
+            try:
+                result, meta = completed_future.result()
+                conf_name = meta.conf_name
+                conf = next(c for c in conformers if c.name == conf_name)
+                if not meta.success:
+                    failed_confs.append(conf)
+                    logger.warning(
+                        f"{meta.conf_name} job failed. Error: {meta.error}. Check output files."
+                    )
+                else:
+                    results[meta.conf_name] = result
+                    if prog in QmProg:
+                        conf.mo_paths[prog].append(result.mo_path)
+            except CancelledError:
+                logger.debug("Future cancelled.")
+                broken = True
+            except Exception:
+                # Fatal error: set cancel flag and best-effort cancel all remaining futures
+                logger.critical(
+                    "Encountered exception in task. Cancelling remaining tasks."
+                )
+                if cancel_var is not None:
+                    cancel_var.set(True)
+                try:
+                    client.cancel(futures)
+                except Exception:
+                    logger.debug(
+                        "client.cancel raised while trying to cancel futures.",
+                        exc_info=True,
+                    )
+                tb = traceback.format_exc()
+                logger.debug(tb)
+                # Try to identify failure
+                if conf_name is None:
+                    try:
+                        idx = futures.index(completed_future)
+                        if 0 <= idx < len(jobs):
+                            conf_name = jobs[idx].conf.name
+                    except Exception:
+                        pass
+                logger.debug(f"Job failed for {conf_name}:\n{tb}")
+                broken = True
+                break
+    except KeyboardInterrupt:
+        logger.warning("Received keyboard interrupt. Cancelling remaining tasks...")
+        if cancel_var is not None:
+            cancel_var.set(True)
         try:
-            job.mo_guess = next(
-                c for c in conformers if c.name == job.conf.name
-            ).mo_paths[-1]
-        except IndexError:
-            pass
-
-    # set cores per process for each job
-    # NOTE: since parallelization in tm is controlled using environment variables we cannot use automatic load balancing
-    if balance and not isinstance(processor, TmProc):
-        set_omp_chunking(jobs)
-    elif balance and isinstance(processor, TmProc):
-        logger.warning(
-            "Load balancing 2.0 is not supported for TURBOMOLE. Falling back to old behaviour."
-        )
-
-        # If there are not enough cores to use omp = Config.OMPMIN (to avoid unnecessary waiting)
-        if len(jobs) < Config.NCORES // Config.OMPMIN:
-            omp = Config.NCORES // len(jobs)
-        # Otherwise try find the largest number of parallel processors p that
-        # is Config.NCORES // Config.OMPMIN at most and Config.NCORES // Config.OMPMAX at least
-        # such that at least 75% of processors still work for the remainder jobs
-        # or the number of jobs can be evenly distributed between the processors
-        else:
-            for o in range(Config.OMPMIN, Config.OMPMAX + 1):
-                p = Config.NCORES // o
-                if p == 1:
-                    break
-                if len(jobs) % p >= 0.75 * p or len(jobs) % p == 0:
-                    break
-            omp = o
-
-        # Configure environment variables
-        Config.ENVIRON["PARA_ARCH"] = "SMP"
-        Config.ENVIRON["PARNODES"] = str(omp)
-
-        for job in jobs:
-            job.omp = omp
-    else:
-        omp = Config.OMP
-        if omp < Config.OMPMIN:
-            logger.warning(
-                f"User OMP setting is below the minimum value of {Config.OMPMIN}. Using {Config.OMPMIN} instead."
+            client.cancel(futures)
+        except Exception:
+            logger.debug(
+                "client.cancel raised during KeyboardInterrupt handling.", exc_info=True
             )
-            omp = Config.OMPMIN
-        elif omp > Config.NCORES:
-            logger.warning(
-                f"Value of {omp} for OMP is larger than the number of available cores {Config.NCORES}. Using OMP = {Config.NCORES}."
-            )
-            omp = Config.NCORES
+        raise
 
-        for job in jobs:
-            job.omp = omp
+    if broken:
+        raise RuntimeError("Exception encountered in parallel execution.")
 
-    # execute the jobs
-    jobs = dqp(jobs, processor)
-
-    # Try to get the mo_path from metadata and store it in the respective conformer object
-    mo_paths = {job.conf.name: job.meta["mo_path"] for job in jobs}
-    for conf in conformers:
-        if mo_paths[conf.name] is not None:
-            conf.mo_paths.append(mo_paths[conf.name])
-
-    failed_confs = []
-    if retry_failed:
-        retried, failed_confs = retry_failed_jobs(jobs, processor, balance)
-
-        # Again, try to get the mo_path from metadata and store it in the respective conformer object
-        mo_paths = {
-            job.conf.name: job.meta["mo_path"] for job in [jobs[i] for i in retried]
-        }
-        for conf in conformers:
-            if mo_paths.get(conf.name, None) is not None:
-                conf.mo_paths.append(mo_paths[conf.name])
-
-    # RuntimeError if all jobs failed
-    if len(jobs) == len(failed_confs):
+    # Summary
+    if len(failed_confs) == len(conformers):
         raise RuntimeError(
-            "Parallel execution of all jobs failed and could not be recovered!"
+            "All jobs failed to execute. Please check your setup and output files.\n"
         )
 
-    # e.g. {"CONF23": {"sp": {"energy": 1231.5}, ...}}
-    return {job.conf.name: job.results for job in jobs}, failed_confs
+    if len(failed_confs) > 0:
+        logger.info(f"Number of failed jobs: {len(failed_confs)}.")
+        logger.info("Failed conformers:")
+        logger.info(", ".join(c.name for c in failed_confs))
+        if not ignore_failed:
+            raise RuntimeError(f"Stopping CENSO due to failed jobs in {from_part}.")
+    else:
+        logger.info("All jobs executed successfully.")
+
+    return results

@@ -4,8 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "censo"
-dynamic = ["version", "readme"]
-requires-python = ">= 3.10"
+readme = "README.md"
+dynamic = ["version"]
+requires-python = ">= 3.12"
+dependencies = [
+  "tabulate",
+  "pydantic",
+  "dask",
+  "distributed"
+]
 
 [project.urls]
 homepage = "https://github.com/grimme-lab/CENSO"
@@ -17,6 +24,16 @@ scripts = [
     "matplotlib",
     "pandas"
 ]
+dev = [
+  "pytest",
+  "tox",
+  "mypy",
+  "ruff",
+  "black",
+  "pre-commit",
+  "types-tabulate",
+  "pandas-stubs"
+]
 
 [project.scripts]
 censo = "censo.cli.interface:entry_point"
@@ -27,8 +44,20 @@ nmrplot = "censo.scripts.nmrplot:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.dynamic]
-readme = {file = "README.md"}
-
 [tool.setuptools_scm]
 version_file = "src/censo/__version__.py"
+local_scheme = "no-local-version"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+pythonpath = ["src"]
+markers = [
+    "optional: mark test as optional (add --run-optional to run)",
+    "requires_xtb: skip test if xtb is not available",
+    "requires_orca: skip test if ORCA is not available",
+    "requires_turbomole: skip test if Turbomole is not available",
+    "requires_cosmotherm: skip test if COSMOtherm is not available",
+]
+
+[tool.mypy]
+mypy_path = ["src"]
