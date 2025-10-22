@@ -1,0 +1,223 @@
+{
+  "pbeh-3c": {
+    "tm": "pbeh-3c",
+    "orca": "pbeh-3c",
+    "disp": "composite",
+    "type": "composite_hybrid"
+  },
+  "b97-3c": {
+    "tm": "b97-3c",
+    "orca": "b97-3c",
+    "disp": "composite",
+    "type": "composite_gga"
+  },
+  "r2scan-3c": {
+    "tm": "r2scan-3c",
+    "orca": "r2scan-3c",
+    "disp": "composite",
+    "type": "composite_mgga"
+  },
+  "r2scan-novdw": {
+    "tm": "r2scan",
+    "orca": "r2scan",
+    "disp": "novdw",
+    "type": "mgga"
+  },
+  "r2scan-d3": {
+    "tm": "r2scan",
+    "orca": "r2scan",
+    "disp": "d3bj",
+    "type": "mgga"
+  },
+  "r2scan-d3(0)": {
+    "tm": "r2scan",
+    "orca": "r2scan",
+    "disp": "d3(0)",
+    "type": "mgga"
+  },
+  "r2scan-d4": {
+    "tm": "r2scan",
+    "orca": "r2scan",
+    "disp": "d4",
+    "type": "mgga"
+  },
+  "pbe-novdw": { "tm": "pbe", "orca": "pbe", "disp": "novdw", "type": "gga" },
+  "pbe-d3": { "tm": "pbe", "orca": "pbe", "disp": "d3bj", "type": "gga" },
+  "pbe-d3(0)": { "tm": "pbe", "orca": "pbe", "disp": "d3(0)", "type": "gga" },
+  "pbe-d4": { "tm": "pbe", "orca": "pbe", "disp": "d4", "type": "gga" },
+  "pbe-nl": { "tm": "pbe", "disp": "nl", "type": "gga" },
+  "bp86": { "tm": "b-p", "disp": "novdw", "type": "gga" },
+  "tpss-novdw": {
+    "tm": "tpss",
+    "orca": "tpss",
+    "disp": "novdw",
+    "type": "mgga"
+  },
+  "tpss-d3": { "tm": "tpss", "orca": "tpss", "disp": "d3bj", "type": "mgga" },
+  "tpss-d3(0)": {
+    "tm": "tpss",
+    "orca": "tpss",
+    "disp": "d3(0)",
+    "type": "mgga"
+  },
+  "tpss-d4": { "tm": "tpss", "orca": "tpss", "disp": "d4", "type": "mgga" },
+  "tpss-nl": { "tm": "tpss", "disp": "nl", "type": "mgga" },
+  "revtpss-novdw": {
+    "tm": "revtpss",
+    "orca": "revTPSS",
+    "disp": "novdw",
+    "type": "mgga"
+  },
+  "tpssh-novdw": {
+    "orca": "tpssh",
+    "disp": "novdw",
+    "type": "global_hybrid"
+  },
+  "tpssh-d3": { "orca": "tpssh", "disp": "d3", "type": "global_hybrid" },
+  "tpssh-d3(0)": {
+    "orca": "tpssh",
+    "disp": "d3(0)",
+    "type": "global_hybrid"
+  },
+  "tpssh-d4": { "orca": "tpssh", "disp": "d4", "type": "global_hybrid" },
+  "b97-d3": {
+    "tm": "b97-d",
+    "orca": "b97-d3",
+    "disp": "included",
+    "type": "gga"
+  },
+  "b97-d4": { "orca": "b97-d4", "disp": "included", "type": "gga" },
+  "kt1-novdw": { "tm": "kt1", "disp": "novdw", "type": "gga" },
+  "kt2-novdw": { "tm": "kt2", "orca": "kt2", "disp": "novdw", "type": "gga" },
+  "pbe0-novdw": {
+    "tm": "pbe0",
+    "orca": "pbe0",
+    "disp": "novdw",
+    "type": "global_hybrid"
+  },
+  "pbe0-d3": {
+    "tm": "pbe0",
+    "orca": "pbe0",
+    "disp": "d3bj",
+    "type": "global_hybrid"
+  },
+  "pbe0-d3(0)": {
+    "tm": "pbe0",
+    "orca": "pbe0",
+    "disp": "d3(0)",
+    "type": "global_hybrid"
+  },
+  "pbe0-d4": {
+    "tm": "pbe0",
+    "orca": "pbe0",
+    "disp": "d4",
+    "type": "global_hybrid"
+  },
+  "pbe0-nl": { "tm": "pbe0", "disp": "nl", "type": "global_hybrid" },
+  "pw6b95-novdw": {
+    "tm": "pw6b95",
+    "orca": "pw6b95",
+    "disp": "novdw",
+    "type": "global_hybrid"
+  },
+  "pw6b95-d3": {
+    "tm": "pw6b95",
+    "orca": "pw6b95",
+    "disp": "d3bj",
+    "type": "global_hybrid"
+  },
+  "pw6b95-d3(0)": {
+    "tm": "pw6b95",
+    "orca": "pw6b95",
+    "disp": "d3(0)",
+    "type": "global_hybrid"
+  },
+  "pw6b95-d4": {
+    "tm": "pw6b95",
+    "orca": "pw6b95",
+    "disp": "d4",
+    "type": "global_hybrid"
+  },
+  "b3lyp-novdw": {
+    "tm": "b3-lyp",
+    "orca": "b3lyp",
+    "disp": "novdw",
+    "type": "global_hybrid"
+  },
+  "b3lyp-d3": {
+    "tm": "b3-lyp",
+    "orca": "b3lyp",
+    "disp": "d3bj",
+    "type": "global_hybrid"
+  },
+  "b3lyp-d3(0)": {
+    "tm": "b3-lyp",
+    "orca": "b3lyp",
+    "disp": "d3(0)",
+    "type": "global_hybrid"
+  },
+  "b3lyp-d4": {
+    "tm": "b3-lyp",
+    "orca": "b3lyp",
+    "disp": "d4",
+    "type": "global_hybrid"
+  },
+  "b3lyp-nl": {
+    "tm": "b3-lyp",
+    "orca": "b3lyp",
+    "disp": "nl",
+    "type": "global_hybrid"
+  },
+  "wb97x-v": {
+    "tm": "wb97x-v",
+    "orca": "wb97x-v",
+    "disp": "included",
+    "type": "rs_hybrid"
+  },
+  "wb97x-d3": {
+    "orca": "wb97x-d3",
+    "disp": "included",
+    "type": "rs_hybrid"
+  },
+  "wb97x-d3bj": {
+    "orca": "wb97x-d3bj",
+    "disp": "included",
+    "type": "rs_hybrid"
+  },
+  "wb97x-d4": {
+    "orca": "wb97x-d4",
+    "disp": "included",
+    "type": "rs_hybrid"
+  },
+  "wb97m-v": {
+    "orca": "wb97m-v",
+    "tm": "wb97m-v",
+    "disp": "included",
+    "type": "rs_hybrid"
+  },
+  "chyf-b95-novdw": {
+    "tm": "chyf-b95",
+    "disp": "novdw",
+    "type": "local_hybrid"
+  },
+  "chyf-b95-d3": {
+    "tm": "chyf-b95",
+    "disp": "d3bj",
+    "type": "local_hybrid"
+  },
+  "chyf-b95-d4": {
+    "tm": "chyf-b95",
+    "disp": "d4",
+    "type": "local_hybrid"
+  },
+  "dsd-blyp-d3": {
+    "orca": "ri-dsd-blyp",
+    "disp": "d3bj",
+    "type": "double"
+  },
+  "dsd-pbep86-d3": {
+    "orca": "dsd-pbep86",
+    "disp": "d3bj",
+    "type": "double"
+  }
+}

@@ -1,23 +1,38 @@
 """
 Screening is basically just an extension of part0 (Prescreening).
-Additionally to part0 it is also possible to calculate gsolv implicitly and include the RRHO contribution.
+Additionally to part0 it is also possible to calculate gsolv using higher level solvation models and include the mRRHO contributions.
 """
 
-import os
 from math import exp
 from statistics import stdev
+from tabulate import tabulate
+from pathlib import Path
+from typing import Any
+import json
+from collections.abc import Callable
+from dask.distributed import Client
 
-from ..datastructure import MoleculeData
+from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, Config
-from ..utilities import format_data, h1, print, DfaHelper, Factory
-from .prescreening import Prescreening
+from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
+from ..utilities import h1, h2, printf, Factory, timeit, DataDump
+from ..config import PartsConfig
+from ..config.parts import ScreeningConfig
+from ..config.job_config import RRHOJobConfig, SPJobConfig
+from ..ensemble import EnsembleData
+from ..processing import QmProc, XtbProc
 
 logger = setup_logger(__name__)
 
 
-class Screening(Prescreening):
+@timeit
+def screening(
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    client: Client,
+    cut: bool = True,
+):
     """
     Advanced screening of the ensemble by doing single-point calculations on the input geometries,
     but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -25,133 +40,134 @@ class Screening(Prescreening):
     Basically consists of two parts:
         - screening of the ensemble by doing single-point calculations on the input geometries (just as prescreening),
         - conformers are sorted out using these values and RRHO contributions are calculated (if enabled), updating the ensemble a second time
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :type ensemble: EnsembleData
+    :param config: PartsConfig object with configuration settings.
+    :type config: PartsConfig
+    :param client: dask.distributed.Client for parallel execution.
+    :type client: Client
+    :param cut: Whether to apply cutting conditions.
+    :type cut: bool
+    :return: None
+    :rtype: None
     """
+    printf(h2("SCREENING"))
 
-    _grid = "low+"
+    config = config.model_validate(config, context={"check": "screening"})
 
-    __solv_mods = {prog: Config.SOLV_MODS[prog] for prog in Config.PROGS}
-    # __gsolv_mods = reduce(lambda x, y: x + y, GConfig.SOLV_MODS.values())
+    # Setup processor and target
+    proc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
 
-    _options = {
-        "threshold": {"default": 3.5},
-        "func": {
-            "default": "r2scan-3c",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
-        },
-        "basis": {"default": "def2-TZVP"},
-        "prog": {"default": "tm", "options": Config.PROGS},
-        "sm": {"default": "cosmors", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
-        "run": {"default": True},
-        "implicit": {"default": False},
-        "template": {"default": False},
-    }
+    contributions_dict = {conf.name: Contributions() for conf in ensemble}
+    if not config.general.gas_phase and not config.screening.gsolv_included:
+        # Calculate Gsolv using qm
+        job_config = SPJobConfig(
+            copy_mo=config.general.copy_mo,
+            func=config.screening.func,
+            basis=config.screening.basis,
+            grid=GridLevel.MEDIUM,
+            template=config.screening.template,
+            gas_phase=False,
+            solvent=config.general.solvent,
+            sm=config.screening.sm,
+            # multitemp=config.general.multitemp,
+            # trange=config.general.trange,
+            temperature=config.general.temperature,
+            paths=config.paths,
+        )
+        results = execute(
+            ensemble.conformers,
+            proc.gsolv,
+            job_config,
+            config.screening.prog,
+            "screening",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-    _settings = {}
+        for conf in ensemble:
+            contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+            contributions_dict[conf.name].energy = results[conf.name].energy_gas
+    else:
+        # Run sp calculation
+        sp_job_config = SPJobConfig(
+            func=config.screening.func,
+            basis=config.screening.basis,
+            grid=GridLevel.MEDIUM,
+            template=config.screening.template,
+            gas_phase=config.general.gas_phase,
+            solvent=config.general.solvent,
+            sm=config.screening.sm,
+            paths=config.paths,
+            copy_mo=config.general.copy_mo,
+        )
+        sp_results = execute(
+            ensemble.conformers,
+            proc.sp,
+            sp_job_config,
+            config.screening.prog,
+            "screening",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
 
-    def _optimize(self, cut: bool = True) -> None:
-        """
-        Screening ensemble optimization logic. Basically run prescreening without cutting down the ensemble
-        first, then calculate mrrho contributions if necessary.
-        """
-        super()._optimize(cut=False)
+        for conf in ensemble:
+            contributions_dict[conf.name].energy = sp_results[conf.name].energy
 
-        # NOTE: the following is only needed if 'evaluate_rrho' is enabled, since 'screening' runs the same procedure as prescreening before
-        # therefore the sorting and filtering only needs to be redone if the rrho contributions are going to be included
-        if self.get_general_settings()["evaluate_rrho"]:
-            # PART (2)
-            threshold = self.get_settings()["threshold"] / AU2KCAL
+    if config.general.evaluate_rrho:
+        # Run mRRHO calculation
+        proc_xtb = Factory[XtbProc].create(Prog.XTB, "1_SCREENING")
+        rrho_job_config = RRHOJobConfig(
+            gfnv=config.screening.gfnv,
+            paths=config.paths,
+            **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
+        )
+        rrho_results = execute(
+            ensemble.conformers,
+            proc_xtb.xtb_rrho,
+            rrho_job_config,
+            "xtb",
+            "screening",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in rrho_results)
 
-            jobtype = ["xtb_rrho"]
-            prepinfo = self._setup_prepinfo(jobtype)
+        for conf in ensemble:
+            contributions_dict[conf.name].grrho = rrho_results[conf.name].energy
 
-            # append results to previous results
-            results, failed = execute(
-                self._ensemble.conformers,
-                self._dir,
-                self.get_settings()["prog"],
-                prepinfo,
-                jobtype,
-                copy_mo=self.get_general_settings()["copy_mo"],
-                balance=self.get_general_settings()["balance"],
-                retry_failed=self.get_general_settings()["retry_failed"],
+    # Update molecules
+    ensemble.update_contributions(contributions_dict)
+
+    if cut:
+        # Threshold in kcal/mol
+        threshold = config.screening.threshold
+        if len(ensemble.conformers) > 1:
+            # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
+            fuzzy = 1 - exp(
+                -5 * (AU2KCAL * stdev([conf.grrho for conf in ensemble])) ** 2
             )
+            threshold += fuzzy
+            printf(f"Updated fuzzy threshold: {threshold:.2f} kcal/mol.")
 
-            # Remove failed conformers
-            self._ensemble.remove_conformers(failed)
+        threshold = min(conf.gtot for conf in ensemble) + threshold / AU2KCAL
 
-            # Update results
-            self._update_results(results)
+        ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 
-            for conf in self._ensemble.conformers:
-                # calculate new gtot including RRHO contribution
-                self.data["results"][conf.name]["gtot"] = self._grrho(conf)
-
-            if cut and len(self._ensemble.conformers) > 1:
-                # calculate fuzzyness of threshold (adds 1 kcal/mol at max to the threshold)
-                fuzzy = (1 / AU2KCAL) * (
-                    1
-                    - exp(
-                        -5
-                        * (
-                            AU2KCAL
-                            * stdev(
-                                [
-                                    self.data["results"][conf.name]["xtb_rrho"][
-                                        "energy"
-                                    ]
-                                    for conf in self._ensemble.conformers
-                                ]
-                            )
-                        )
-                        ** 2
-                    )
-                )
-                threshold += fuzzy
-                print(f"Updated fuzzy threshold: {threshold * AU2KCAL:.2f} kcal/mol.")
-
-                limit = min(self._grrho(conf) for conf in self._ensemble.conformers)
-                filtered = list(
-                    filter(
-                        lambda conf: self._grrho(conf) - limit > threshold,
-                        self._ensemble.conformers,
-                    )
-                )
-
-                # update the conformer list in ensemble (remove confs if below threshold)
-                self._ensemble.remove_conformers([conf.name for conf in filtered])
-                for conf in filtered:
-                    print(f"No longer considering {conf.name}.")
-
-            # calculate boltzmann weights from gtot values calculated here
-            # trying to get temperature from instructions, set it to room temperature if that fails for some reason
-            self._update_results(self._calc_boltzmannweights())
-
-    def _gsolv(self, conf: MoleculeData) -> float:
-        """
-        Override of the function from Prescreening.
-        """
-        # If solvation contributions should be included and the solvation free enthalpy
-        # should not be included in the single-point energy the 'gsolv' job should've been run
-        if "gsolv" in self.data["results"][conf.name]:
-            return self.data["results"][conf.name]["gsolv"]["energy_solv"]
-        # Otherwise, return just the single-point energy
-        else:
-            return self.data["results"][conf.name]["sp"]["energy"]
-
-    def _grrho(self, conf: MoleculeData) -> float:
-        """
-        Calculate the total Gibbs free energy (Gtot) of a given molecule using DFT single-point and gsolv (if included) and RRHO contributions.
-
-        Parameters:
-            conf (MoleculeData): The MoleculeData object containing the necessary information for the calculation.
-
-        Returns:
-            float: The total Gibbs free energy (Gtot) of the molecule.
-        """
-        # Gtot = E(DFT) + Gsolv + Grrho
-        # NOTE: grrho should only be called if evaluate_rrho is True
-        return self._gsolv(conf) + self.data["results"][conf.name]["xtb_rrho"]["energy"]
+    # Print/write out results
+    _write_results(ensemble, config)
 
     # Unused atm
     # def _write_results(self) -> None:
@@ -273,182 +289,155 @@ class Screening(Prescreening):
     #    with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
     #        outfile.writelines(lines)
 
-    def _write_results(self) -> None:
-        """
-        Additional write function in case RRHO is used.
-        Write the results to a file in formatted way. This is appended to the first file.
-        writes (2):
-            G (xtb),
-            δG (xtb),
-            E (DFT),
-            δGsolv (DFT),
-            Grrho,
-            Gtot,
-            δGtot
 
-        Also writes them into an easily digestible format.
-        """
-        print(h1(f"{self.name.upper()} SINGLE-POINT (+ mRRHO) RESULTS"))
+def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
+    """ """
+    printf(h1("SCREENING SINGLE-POINT (+ mRRHO) RESULTS"))
 
-        # column headers
-        headers = [
-            "CONF#",
-            "G (xTB)",
-            "ΔG (xTB)",
-            "E (DFT)",
-            "ΔGsolv",
-            "GmRRHO",
-            "Gtot",
-            "ΔGtot",
-            "Boltzmann weight",
-        ]
+    # column headers
+    headers = [
+        "CONF#",
+        # "G (xTB)",
+        # "ΔG (xTB)",
+        "E (DFT)",
+        "ΔGsolv",
+        "GmRRHO",
+        "Gtot",
+        "ΔGtot",
+        "Boltzmann weight",
+    ]
 
-        # column units
-        units = [
-            "",
-            "[Eh]",
-            "[kcal/mol]",
-            "[Eh]",
-            "[Eh]",
-            "[Eh]",
-            "[Eh]",
-            "[kcal/mol]",
-            f"% at {self.get_general_settings().get('temperature', 298.15)} K",
-        ]
+    # column units
+    units = [
+        "",
+        # "[Eh]",
+        # "[kcal/mol]",
+        "[Eh]",
+        "[kcal/mol]",
+        "[Eh]",
+        "[Eh]",
+        "[kcal/mol]",
+        f"% at {config.general.temperature} K",
+    ]
 
-        # minimal xtb energy from single-point (and mRRHO)
-        gxtb = None
-        gxtbmin = None
-        if (
-            any(type(p) is Prescreening for p in self._ensemble.results)
-            and not self.get_general_settings()["gas-phase"]
-        ):
-            # Get the most recent prescreening part
-            using_part = [p for p in self._ensemble.results if type(p) is Prescreening][
-                -1
-            ]
+    # variables for printmap
+    # minimal xtb single-point energy
+    # if all(
+    #     "xtb_gsolv" in self.data["results"][conf.name]
+    #     for conf in self._ensemble.conformers
+    # ):
+    #     xtbmin = min(
+    #         self.data["results"][conf.name]["xtb_gsolv"]["energy_xtb_gas"]
+    #         for conf in self._ensemble.conformers
+    #     )
 
-            gxtb = {
-                conf.name: using_part.data["results"][conf.name]["xtb_gsolv"][
-                    "energy_xtb_solv"
-                ]
-                for conf in self._ensemble.conformers
+    gtotmin = min(conf.gtot for conf in ensemble)
+
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
+    printmap = {
+        "CONF#": lambda conf: conf.name,
+        # "G (xTB)": lambda conf: (
+        #     f"{gxtb[conf.name]:.6f}" if gxtb is not None else "---"
+        # ),
+        # "ΔG (xTB)": lambda conf: (
+        #     f"{(gxtb[conf.name] - gxtbmin) * AU2KCAL:.2f}"
+        #     if gxtb is not None and gxtbmin is not None
+        #     else "---"
+        # ),
+        "E (DFT)": lambda conf: f"{conf.energy:.6f}",
+        "ΔGsolv": lambda conf: (f"{conf.gsolv * AU2KCAL:.6f}"),
+        "GmRRHO": lambda conf: (f"{conf.grrho:.6f}"),
+        "Gtot": lambda conf: f"{conf.gtot:.6f}",
+        "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
+        "Boltzmann weight": lambda conf: f"{boltzmann_populations[conf.name] * 100:.2f}",
+    }
+
+    rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
+
+    for i in range(len(headers)):
+        headers[i] += "\n" + units[i]
+
+    table = tabulate(
+        rows,
+        headers=headers,
+        colalign=["left"] + ["center" for _ in headers[1:]],
+        disable_numparse=True,
+        numalign="decimal",
+    )
+    print(table, flush=True)
+
+    # list the averaged free enthalpy of the ensemble
+    lines = []
+    lines.append(
+        "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):"
+    )
+    lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
+
+    # calculate averaged free enthalpy
+    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
+
+    # calculate averaged free energy (?)
+    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
+
+    # append the lines for the free energy/enthalpy
+    lines.append(
+        f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1=="
+    )
+    lines.append("".ljust(int(PLENGTH), "-"))
+
+    # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
+
+    # Print everything
+    for line in lines:
+        printf(line)
+
+    # write everything to a file
+    filepath = Path("1_SCREENING.out")
+    filepath.write_text(table + "\n".join(lines))
+
+    # Additionally, write results in json format
+    Path("1_SCREENING.json").write_text(
+        json.dumps(jsonify(ensemble, config.screening), indent=4)
+    )
+
+    ensemble.dump_xyz(Path("1_SCREENING.xyz"))
+
+
+# TODO: generalize this
+def jsonify(
+    ensemble: EnsembleData,
+    config: ScreeningConfig,
+    fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
+):
+    """
+    Convert ensemble data to JSON format for screening results.
+
+    :param ensemble: EnsembleData object.
+    :type ensemble: EnsembleData
+    :param config: ScreeningConfig object.
+    :type config: ScreeningConfig
+    :param fields: Optional callable to customize fields.
+    :type fields: Callable[[MoleculeData], dict[str, Any]] | None
+    :return: JSON-serializable dictionary.
+    :rtype: dict[str, Any]
+    """
+    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
+        lambda conf: {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "gtot": conf.gtot,
             }
-        elif all(conf.xtb_energy is not None for conf in self._ensemble.conformers):
-            gxtb = {conf.name: conf.xtb_energy for conf in self._ensemble.conformers}
-
-        if self.get_general_settings()["evaluate_rrho"] and gxtb is not None:
-            for conf in self._ensemble.conformers:
-                gxtb[conf.name] += self.data["results"][conf.name]["xtb_rrho"]["gibbs"][
-                    self.get_general_settings()["temperature"]
-                ]
-            gxtbmin = min(gxtb.values())
-
-        # minimal gtot from E(DFT), Gsolv and GmRRHO
-        gtotmin = min(
-            self.data["results"][conf.name]["gtot"]
-            for conf in self._ensemble.conformers
-        )
-
-        # collect all dft single point energies
-        dft_energies = (
-            {
-                conf.name: self.data["results"][conf.name]["sp"]["energy"]
-                for conf in self._ensemble.conformers
-            }
-            if not all(
-                "gsolv" in self.data["results"][conf.name]
-                for conf in self._ensemble.conformers
-            )
-            else {
-                conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
-                for conf in self._ensemble.conformers
-            }
-        )
-
-        printmap = {
-            "CONF#": lambda conf: conf.name,
-            "G (xTB)": lambda conf: (
-                f"{gxtb[conf.name]:.6f}" if gxtb is not None else "---"
-            ),
-            "ΔG (xTB)": lambda conf: (
-                f"{(gxtb[conf.name] - gxtbmin) * AU2KCAL:.2f}"
-                if gxtb is not None and gxtbmin is not None
-                else "---"
-            ),
-            "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
-            "ΔGsolv": lambda conf: (
-                f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
-                if "gsolv" in self.data["results"][conf.name]
-                else "---"
-            ),
-            "GmRRHO": lambda conf: (
-                f"{self.data['results'][conf.name]['xtb_rrho']['gibbs'][self.get_general_settings()['temperature']]:.6f}"
-                if self.get_general_settings()["evaluate_rrho"]
-                else "---"
-            ),
-            "Gtot": lambda conf: f"{self.data['results'][conf.name]['gtot']:.6f}",
-            "ΔGtot": lambda conf: f"{(self.data['results'][conf.name]['gtot'] - gtotmin) * AU2KCAL:.2f}",
-            "Boltzmann weight": lambda conf: f"{self.data['results'][conf.name]['bmw'] * 100:.2f}",
         }
+    )
 
-        rows = [
-            [printmap[header](conf) for header in headers]
-            for conf in self._ensemble.conformers
-        ]
+    dump = DataDump(part_name="screening")
 
-        lines = format_data(headers, rows, units=units)
+    for conf in ensemble:
+        dump.data.update(per_conf(conf))
 
-        # list the averaged free enthalpy of the ensemble
-        lines.append(
-            "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):\n"
-        )
-        lines.append(
-            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}\n"
-        )
+    dump.settings = config.model_dump()
 
-        # calculate averaged free enthalpy
-        avG = sum(
-            self.data["results"][conf.name]["bmw"]
-            * self.data["results"][conf.name]["gtot"]
-            for conf in self._ensemble.conformers
-        )
-
-        # calculate averaged free energy
-        avE = (
-            sum(
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["sp"]["energy"]
-                for conf in self._ensemble.conformers
-            )
-            if all(
-                "sp" in self.data["results"][conf.name]
-                for conf in self._ensemble.conformers
-            )
-            else sum(
-                self.data["results"][conf.name]["bmw"]
-                * self.data["results"][conf.name]["gsolv"]["energy_gas"]
-                for conf in self._ensemble.conformers
-            )
-        )
-
-        # append the lines for the free energy/enthalpy
-        lines.append(
-            f"{self.get_general_settings().get('temperature', 298.15):^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1==\n"
-        )
-        lines.append("".ljust(int(PLENGTH), "-") + "\n\n")
-
-        # Print everything
-        for line in lines:
-            print(line, flush=True, end="")
-
-        # append lines to already existing file
-        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
-        with open(os.path.join(os.getcwd(), filename), "a", newline=None) as outfile:
-            outfile.writelines(lines)
-
-        # Additionally, write the results to a json file
-        self._write_json()
-
-
-Factory.register_builder("screening", Screening)
+    return dump.model_dump(mode="json")

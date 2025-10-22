@@ -1,4 +1,5 @@
-from censo.cli.interface import entry_point
+import sys
+from .cli.interface import entry_point
 
 if __name__ == "__main__":
-    entry_point()
+    sys.exit(entry_point())

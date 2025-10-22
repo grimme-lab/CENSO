@@ -1,0 +1,8 @@
+! RHF CCSD(T) def2-TZVP TightSCF
+%paras
+    R= 4.0,0.5,35
+end
+* xyz 0 1
+H 0 0 0
+F 0 0 {R}
+*

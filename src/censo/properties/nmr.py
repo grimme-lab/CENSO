@@ -2,450 +2,239 @@
 Calculates the ensemble NMR spectrum for all active nuclei.
 """
 
-import os
+from collections import defaultdict
+from pathlib import Path
+from tabulate import tabulate
+from itertools import product
+import json
+from dask.distributed import Client
 
+from ..ensemble import EnsembleData
+from ..molecules import MoleculeData
+from ..config import PartsConfig
+from ..config.parts import NMRConfig
+from ..config.job_config import NMRJobConfig
 from ..parallel import execute
-from ..params import Config
-from .property_calculator import PropertyCalculator
-from ..utilities import h1, print, DfaHelper, format_data, SolventHelper, Factory
+from ..processing.results import NMRResult
+from ..utilities import printf, Factory, h1, h2, timeit, DataDump
 from ..logging import setup_logger
-from ..part import CensoPart
+from ..processing import QmProc
+from ..params import GridLevel, PLENGTH
 
 logger = setup_logger(__name__)
 
 
-class NMR(PropertyCalculator):
-    _grid = "nmr"
+@timeit
+def nmr(
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    client: Client,
+):
+    """
+    Calculation of the ensemble NMR of a (previously) optimized ensemble.
+    Note, that the ensemble will not be modified anymore.
 
-    __solv_mods = {
-        prog: tuple(
-            t for t in Config.SOLV_MODS[prog] if t not in ("cosmors", "cosmors-fine")
-        )
-        for prog in Config.PROGS
-    }
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :return: None
+    """
+    printf(h2("NMR"))
 
-    _options = {
-        "resonance_frequency": {"default": 300.0},
-        "ss_cutoff": {"default": 8.0},
-        "prog": {"default": "orca", "options": Config.PROGS},  # required
-        "func_j": {
-            "default": "pbe0-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
-        },
-        "basis_j": {"default": "def2-TZVP"},
-        "sm_j": {"default": "smd", "options": __solv_mods},
-        "func_s": {
-            "default": "pbe0-d4",
-            "options": {prog: DfaHelper.get_funcs(prog) for prog in Config.PROGS},
-        },
-        "basis_s": {"default": "def2-TZVP"},
-        "sm_s": {"default": "smd", "options": __solv_mods},
-        "gfnv": {"default": "gfn2", "options": Config.GFNOPTIONS},
-        "run": {"default": False},  # required
-        "template": {"default": False},  # required
-        "couplings": {"default": True},
-        "fc_only": {"default": True},
-        "shieldings": {"default": True},
-        "h_active": {"default": True},
-        "c_active": {"default": True},
-        "f_active": {"default": False},
-        "si_active": {"default": False},
-        "p_active": {"default": False},
-    }
+    config = config.model_validate(config, context={"check": "nmr"})
 
-    _settings = {}
-
-    @classmethod
-    def _validate(cls, tovalidate: dict[str, any]) -> None:
-        """
-        Validates the type of each setting in the given dict. Also potentially validate if the setting is allowed by
-        checking with cls._options.
-        This is the part-specific version of the method. It will run the general validation first and then
-        check part-specific logic.
-
-        Args:
-            tovalidate (dict[str, any]): The dict containing the settings to be validated.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the setting is not allowed or the value is not within the allowed options.
-        """
-        # General validation
-        super()._validate(tovalidate)
-
-        # Part-specific validation
-        # NOTE: tovalidate is always complete
-        for ending in ["_s", "_j"]:
-            mapping = {"_s": "shieldings", "_j": "couplings"}
-
-            # Only check settings for shieldings/couplings calculations if they are actually turned on
-            if tovalidate[mapping[ending]]:
-                # Check availability of func for prog
-                func = tovalidate[f"func{ending}"]
-                if (
-                    func
-                    not in cls._options[f"func{ending}"]["options"][tovalidate["prog"]]
-                ):
-                    raise ValueError(
-                        f"Functional {func} is not available for {tovalidate['prog']}. "
-                        "Check spelling w.r.t. CENSO functional naming convention (case insensitive)."
-                    )
-
-                # Check sm availability for prog
-                # Remember: tovalidate is always complete so we don't need .get with default None here
-                sm = tovalidate[f"sm{ending}"]
-                if sm not in cls._options[f"sm{ending}"]["options"][tovalidate["prog"]]:
-                    raise ValueError(
-                        f"Solvent model {sm} not available for {tovalidate['prog']}."
-                    )
-
-                # Check solvent availability for sm
-                if (
-                    cls.get_general_settings()["solvent"]
-                    not in CensoPart._options["solvent"]["options"][sm]
-                ):
-                    raise ValueError(
-                        f"Solvent {cls.get_general_settings()['solvent']} is not available for {sm}. "
-                    )
-
-                # dummy/template functionality not implemented yet for TM
-                if tovalidate["prog"] == "tm" and (func == "dummy"):
-                    raise NotImplementedError(
-                        "Dummy functionality is not implemented for use with TURBOMOLE."
-                    )
-
-    def _property(self) -> None:
-        """
-        Calculation of the ensemble NMR of a (previously) optimized ensemble.
-        Note, that the ensemble will not be modified anymore.
-        """
-        jobtype = ["nmr"]
-        if (
-            not self.get_settings()["couplings"]
-            and not self.get_settings()["shieldings"]
-        ):
-            # This case should basically never happen except for user input error
-            raise (
-                RuntimeError(
-                    "No jobtype selected. "
-                    "Please select at least one of the following: couplings, shieldings"
-                )
-            )
-
-        # Compile all information required for the preparation of input files in parallel execution step
-        prepinfo = self._setup_prepinfo()
-
-        # compute results
-        # for structure of results from handler.execute look there
-        results, failed = execute(
-            self._ensemble.conformers,
-            self._dir,
-            self.get_settings()["prog"],
-            prepinfo,
-            jobtype,
-            copy_mo=self.get_general_settings()["copy_mo"],
-            balance=self.get_general_settings()["balance"],
-            retry_failed=self.get_general_settings()["retry_failed"],
+    # Assert that all conformers have energies defined
+    # TODO: this is not optimal since == 0 does not mean that no ensembleopt has been performed before
+    if not all(conf.energy != 0 for conf in ensemble):
+        raise RuntimeError(
+            "Before calculating an ensemble property one has to run at least one ensemble refinement step (prescreening, screening, optimization or refinement)."
         )
 
-        # Remove failed conformers
-        self._ensemble.remove_conformers(failed)
+    # Setup processor and target
+    proc = Factory[QmProc].create(config.nmr.prog, "4_NMR")
 
-        # Update results
-        self._update_results(results)
+    # Run NMR calculations
+    job_config = NMRJobConfig(
+        copy_mo=config.general.copy_mo,
+        grid=GridLevel.NMR,
+        gas_phase=config.general.gas_phase,
+        solvent=config.general.solvent,
+        paths=config.paths,
+        **config.nmr.model_dump(),
+    )
 
-        # Generate files for ANMR
-        self.__generate_anmr()
+    results = execute(
+        ensemble.conformers,
+        proc.nmr,
+        job_config,
+        config.nmr.prog,
+        "nmr",
+        client,
+        ignore_failed=config.general.ignore_failed,
+        balance=config.general.balance,
+        copy_mo=config.general.copy_mo,
+    )
+    if config.general.ignore_failed:
+        ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-    def _setup_prepinfo(self) -> dict[str, dict]:
-        prepinfo = {}
+    _write_results(ensemble, config, results)
 
-        prepinfo["partname"] = self.name
-        prepinfo["charge"] = self._ensemble.runinfo.get("charge")
-        prepinfo["unpaired"] = self._ensemble.runinfo.get("unpaired")
-        prepinfo["general"] = self.get_general_settings()
 
-        # The first condition checks if the settings are the same for shieldings and couplings calculations
-        # The second and third check which one should be executed
-        conds = (
-            self.get_settings()["func_s"] == self.get_settings()["func_j"]
-            and self.get_settings()["basis_s"] == self.get_settings()["basis_j"]
-            and self.get_settings()["sm_s"] == self.get_settings()["sm_j"],
-            self.get_settings()["shieldings"],
-            self.get_settings()["couplings"],
-        )
+def read_chemeq() -> dict[int, list[int]]:
+    """
+    Read chemical equivalent nuclei from anmr_nucinfo.
+    NOTE: crest starts counting from 1. In CENSO, we're counting from 0.
 
-        # Configure the jobtypes in prepinfo according to what can be done
-        # (only one calculation if all the settings are the same and/or only one type of calculation should be done,
-        # otherwise both)
-        # TODO - this doesn't look very nice
-        if all(conds):
-            prepinfo["nmr"] = {
-                "func_name": DfaHelper.get_name(
-                    self.get_settings()["func_s"], self.get_settings()["prog"]
-                ),
-                "func_type": DfaHelper.get_type(self.get_settings()["func_s"]),
-                "disp": DfaHelper.get_disp(self.get_settings()["func_s"]),
-                "basis": self.get_settings()["basis_s"],
-                "grid": self._grid,  # hardcoded grid settings
-                "template": self.get_settings()["template"],
-                "gcp": False,  # GCP is not necessary for spectra calculations
-                "fc_only": self.get_settings()["fc_only"],
-                "ss_cutoff": self.get_settings()["ss_cutoff"],
-                "h_active": self.get_settings()["h_active"],
-                "c_active": self.get_settings()["c_active"],
-                "f_active": self.get_settings()["f_active"],
-                "si_active": self.get_settings()["si_active"],
-                "p_active": self.get_settings()["p_active"],
-            }
-            # Only look up solvent if solvation is used
-            if not self.get_general_settings()["gas-phase"]:
-                prepinfo["nmr"]["sm"] = self.get_settings()["sm_s"]
-                prepinfo["nmr"]["solvent_key_prog"] = SolventHelper.get_solvent(
-                    self.get_settings()["sm_s"], self.get_general_settings()["solvent"]
-                )
-        else:
-            todo = {
-                "_s": self.get_settings()["shieldings"],
-                "_j": self.get_settings()["couplings"],
-            }
-            endings = [ending for ending, active in todo.items() if active]
-            for ending in endings:
-                prepinfo[f"nmr{ending}"] = {
-                    "func_name": DfaHelper.get_name(
-                        self.get_settings()[f"func{ending}"],
-                        self.get_settings()["prog"],
-                    ),
-                    "func_type": DfaHelper.get_type(
-                        self.get_settings()[f"func{ending}"]
-                    ),
-                    "disp": DfaHelper.get_disp(self.get_settings()[f"func{ending}"]),
-                    "basis": self.get_settings()[f"basis{ending}"],
-                    "grid": "high+",
-                    "template": self.get_settings()["template"],
-                    "gcp": False,  # GCP is not necessary for spectra calculations
-                    "fc_only": self.get_settings()["fc_only"],
-                    "ss_cutoff": self.get_settings()["ss_cutoff"],
-                    "h_active": self.get_settings()["h_active"],
-                    "c_active": self.get_settings()["c_active"],
-                    "f_active": self.get_settings()["f_active"],
-                    "si_active": self.get_settings()["si_active"],
-                    "p_active": self.get_settings()["p_active"],
-                }
-            # Only look up solvent if solvation is used
-            if not self.get_general_settings()["gas-phase"]:
-                prepinfo[f"nmr{ending}"]["sm"] = self.get_settings()[f"sm{ending}"]
-                prepinfo[f"nmr{ending}"]["solvent_key_prog"] = (
-                    SolventHelper.get_solvent(
-                        self.get_settings()[f"sm{ending}"],
-                        self.get_general_settings()["solvent"],
-                    )
-                )
+    :return: dict[int, list[int]]
+    """
+    lines = Path("anmr_nucinfo").read_text().split("\n")
+    atoms = []
+    equiv: dict[int, list[int]] = {}
+    for line in lines[1::2]:
+        atoms.append(int(line.split()[0]))
 
-        return prepinfo
+    for i, line in enumerate(lines[2::2]):
+        equiv[atoms[i]] = [int(x) for x in line.split()]
 
-    def __generate_anmr(self):
-        """
-        Generate all necessary files for an ANMR run.
-        """
-        # Write 'anmr_enso'
-        headers = [
-            "ONOFF",
-            "NMR",
-            "CONF",
-            "BW",
-            "Energy",
-            "Gsolv",
-            "mRRHO",
-            "gi",
+    return equiv
+
+
+def _write_results(
+    ensemble: EnsembleData, config: PartsConfig, results: dict[str, NMRResult]
+):
+    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+
+    try:
+        equiv = read_chemeq()
+        printf("Applying chemical equivalence as predicted by CREST.")
+    except FileNotFoundError:
+        printf("Could not find anmr_nucinfo file. Did you run crest with -nmr?")
+        # In this case set every atom equivalent to only itself
+        conf = next(iter(ensemble.conformers))
+        equiv = {i: [i] for (i, _) in results[conf.name].shieldings}
+
+    # Average shielding and coupling values
+    shieldings = [
+        (i, s * boltzmann_populations[conf.name])
+        for conf in ensemble
+        for (i, s) in results[conf.name].shieldings
+    ]
+    averaged_shieldings: defaultdict[int, float] = defaultdict(float)
+    for i, v in shieldings:
+        # Apply chemical equivalence
+        for j in equiv[i]:
+            averaged_shieldings[j] += v / len(equiv[i])
+
+    couplings = [
+        (i, j, c * boltzmann_populations[conf.name])
+        for conf in ensemble
+        for ((i, j), c) in results[conf.name].couplings
+    ]
+    averaged_couplings: defaultdict[tuple[int, int], float] = defaultdict(float)
+    for i, j, v in couplings:
+        # Apply chemical equivalence
+        equiv_i = equiv[i]
+        equiv_j = equiv[j]
+        n_pairs = len(equiv_i) * len(equiv_j)
+        for ieq, jeq in product(equiv_i, equiv_j):
+            averaged_couplings[(ieq, jeq)] += v / n_pairs
+
+    filepath = Path("4_NMR.out")
+    text = ""
+    if len(averaged_shieldings) > 0:
+        headers = ["Atom #", "σ"]
+        printmap = {"Atom #": lambda k, v: str(k), "σ": lambda k, v: f"{v:.4f}"}
+
+        rows = [
+            [printmap[header](k, v) for header in headers]
+            for k, v in averaged_shieldings.items()
         ]
 
-        # determines what to print for each conformer in each column
+        printf(h1("Averaged NMR Shielding Constants"))
+        table = tabulate(
+            rows,
+            headers=headers,
+            colalign=["left"] + ["center" for _ in headers[1:]],
+            disable_numparse=True,
+            numalign="decimal",
+        )
+        printf(table)
+        text += table
+    else:
+        printf("No shieldings calculated.")
+
+    # Print couplings
+    if len(averaged_couplings) > 0:
+        headers = ["Atom A #", "Atom B #", "J"]
+        units = ["", "", "[Hz]"]
         printmap = {
-            "ONOFF": lambda conf: "1",
-            "NMR": lambda conf: f"{conf.name[4:]}",
-            "CONF": lambda conf: f"{conf.name[4:]}",
-            "BW": lambda conf: f"{self.data['results'][conf.name]['bmw']:.4f}",
-            "Energy": lambda conf: f"{self.data['results'][conf.name]['energy']:.6f}",
-            "Gsolv": lambda conf: f"{self.data['results'][conf.name]['gsolv']:.6f}",
-            "mRRHO": lambda conf: f"{self.data['results'][conf.name]['grrho']:.6f}",
-            "gi": lambda conf: f"{conf.degen}",
+            "Atom A #": lambda k, v: str(k[0]),
+            "Atom B #": lambda k, v: str(k[1]),
+            "J": lambda k, v: f"{v:.2f}",
         }
 
         rows = [
-            [printmap[header](conf) for header in headers]
-            for conf in self._ensemble.conformers
+            [printmap[header](k, v) for header in headers]
+            for k, v in averaged_couplings.items()
         ]
+        for i in range(len(headers)):
+            headers[i] += "\n" + units[i]
 
-        lines = format_data(headers, rows)
-
-        # Write lines to file
-        logger.debug(f"Writing to {os.path.join(os.getcwd(), 'anmr_enso')}.")
-        with open(os.path.join(os.getcwd(), "anmr_enso"), "w", newline=None) as outfile:
-            outfile.writelines(lines)
-
-        # Write 'anmrrc'
-        # TODO - this is not finished, also don't do this for now, it's pretty straightforward to configure .anmrrc
-        # manually
-        """
-        lines = []
-
-        general_settings = self.get_general_settings()
-        lines.append("7 8 XH acid atoms\n")
-        lines.append(
-                f"ENSO qm= {self._settigs['prog'].upper()} "
-                f"mf= {self._settings['resonance_frequency']:.2f} "
-                f"lw= 1.0 J= {'on' if self._settings['couplings'] else 'off'} "
-                f"S= {'on' if self._settings['shieldings'] else 'off'} "
-                f"T= {general_settings['temperature']:6.2f}\n"
-                )
-
-        # TODO - since the only program right now is ORCA, the reference solvent model is always SMD
-        # Check, if a geometry optimization has been done before
-        if all("optimization" in conf.results.keys() for conf in self._ensemble.conformers):
-            from .._ensembleopt.optimization import Optimization
-            func_geomopt = Optimization.get_settings()["func"]
-            basis_geomopt = Optimization.get_setting()["basis"]
-        # Otherwise, warn the user
-        else:
-            logger.warning("Geometries of conformers have not been optimized using CENSO. "
-                           "This is advised for accurate results. Also, user configuration"
-                           " of .anmrrc is required. Insert functional and basis used for "
-                           "reference geometry as well as reference shieldings.")
-            func_geomopt = "GEOMOPT_FUNC"
-            basis_geomopt = "GEOMOPT_BASIS"
-
-        # '{reference molecule}[{solvent}] {func used for nmr}[{reference solvent model}]/
-        # {reference basis}//{geomopt func}[{reference solvent model geomopt}]/{geomopt basis}'
-        lines.append(
-                f"{self._settings['h_ref']}"
-                f"[{general_settings['solvent'] if not general_settings['gas-phase'] else 'gas'}] "
-                f"{self._settings['func_s']}[{'SMD' if not general_settings['gas-phase'] else None}]/"
-                f"{'def2-TZVP'}//{func_geomopt}[{'SMD' if not general_settings['gas-phase'] else None}]/"
-                f"{basis_geomopt}\n"
-                )
-        """
-        # Write 'nmrprop.dat's and coord files
-        couplings = self.get_settings()["couplings"]
-        shieldings = self.get_settings()["shieldings"]
-        for conf in self._ensemble.conformers:
-            confdir = os.path.join(self._dir, conf.name)
-            lines = []
-
-            if shieldings:
-                # first: atom no. | sigma(iso)
-                # atom no.s according to their appearance in the xyz-file
-                # NOTE: keep in mind that ANMR is written in Fortran, so the indices have to be incremented by 1
-                for i, shielding in self.data["results"][conf.name]["nmr"][
-                    "shieldings"
-                ]:
-                    lines.append(f"{i + 1:4} {shielding:.3f}\n")
-
-                # Fill in blank lines
-                for _ in range(
-                    conf.geom.nat
-                    - len(self.data["results"][conf.name]["nmr"]["shieldings"])
-                ):
-                    lines.append("\n")
-
-            if couplings:
-                # then: atom no.1 | atom no.2 | J12
-                for (i, j), coupling in self.data["results"][conf.name]["nmr"][
-                    "couplings"
-                ]:
-                    lines.append(f"{i + 1:4} {j + 1:4} {coupling:.3f}\n")
-
-            logger.debug(f"Writing to {os.path.join(confdir, 'nmrprop.dat')}.")
-            with open(os.path.join(confdir, "nmrprop.dat"), "w") as f:
-                f.writelines(lines)
-
-        print(
-            "\nGeneration of ANMR files done. Don't forget to setup your .anmrrc file."
+        printf(h1("Averaged NMR Spin-Spin Coupling Constants"))
+        table = tabulate(
+            rows,
+            headers=headers,
+            colalign=["left"] + ["center" for _ in headers[1:]],
+            disable_numparse=True,
+            numalign="decimal",
         )
+        printf(table)
+        text += table
+    else:
+        printf("No couplings calculated.")
 
-    def _params_averaging(
-        self,
-    ) -> tuple[dict[int, float], dict[tuple[int, int], float]]:
-        """
-        Calculate the population weighted shielding and coupling constants for the ensemble NMR spectrum.
-        """
-        shieldings = {}
-        couplings = {}
+    printf("".ljust(int(PLENGTH), "-"))
+    filepath.write_text(text)
 
-        if self.get_settings()["shieldings"]:
-            for conf, result in self.data["results"].items():
-                bmw = result["bmw"]
-                for atom, shielding in result["nmr"]["shieldings"]:
-                    shieldings.setdefault(atom, 0.0)
-                    shieldings[atom] += shielding * bmw
-
-        if self.get_settings()["couplings"]:
-            for conf, result in self.data["results"].items():
-                bmw = result["bmw"]
-                for (atom1, atom2), coupling in result["nmr"]["couplings"]:
-                    couplings.setdefault((atom1, atom2), 0.0)
-                    couplings[(atom1, atom2)] += coupling * bmw
-
-        return shieldings, couplings
-
-    def _write_results(self) -> None:
-        """
-        Write result shieldings and/or couplings to files.
-        """
-        # Print averaged parameters
-        shieldings, couplings = self._params_averaging()
-
-        filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
-        with open(filename, "w") as f:
-            # Print shieldings
-            if len(shieldings) > 0:
-                headers = ["Atom #", "σ"]
-                printmap = {"Atom #": lambda k, v: str(k), "σ": lambda k, v: f"{v:.4f}"}
-
-                rows = [
-                    [printmap[header](k, v) for header in headers]
-                    for k, v in shieldings.items()
-                ]
-
-                lines = format_data(headers, rows)
-
-                print(h1("Averaged NMR Shielding Constants"))
-                for line in lines:
-                    print(line, flush=True, end="")
-
-                f.writelines(lines)
-            else:
-                print("No shieldings calculated.")
-
-            # Print couplings
-            if len(couplings) > 0:
-                headers = ["Atom A #", "Atom B #", "J"]
-                units = ["", "", "[Hz]"]
-                printmap = {
-                    "Atom A #": lambda k, v: str(k[0]),
-                    "Atom B #": lambda k, v: str(k[1]),
-                    "J": lambda k, v: f"{v:.2f}",
-                }
-
-                rows = [
-                    [printmap[header](k, v) for header in headers]
-                    for k, v in couplings.items()
-                ]
-
-                lines = format_data(headers, rows, units=units)
-
-                print(h1("Averaged NMR Spin-Spin Coupling Constants"))
-                for line in lines:
-                    print(line, flush=True, end="")
-
-                f.writelines(lines)
-            else:
-                print("No couplings calculated.")
-
-        # Write results to json file
-        self._write_json()
+    # Additionally, write results in json format
+    Path("4_NMR.json").write_text(
+        json.dumps(jsonify(ensemble, config.nmr, results), indent=4)
+    )
 
 
-Factory.register_builder("nmr", NMR)
+def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRResult]):
+    """
+    Prepare NMR results for JSON serialization.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: NMRConfig object with NMR configuration settings.
+    :param results: Dictionary of NMRResult objects for each conformer.
+    :return: Dictionary ready for JSON serialization.
+    """
+
+    def per_conf(
+        conf: MoleculeData,
+    ) -> dict[
+        str,
+        dict[
+            str, float | list[tuple[int, float]] | list[tuple[tuple[int, int], float]]
+        ],
+    ]:
+        return {
+            conf.name: {
+                "energy": conf.energy,
+                "gsolv": conf.gsolv,
+                "grrho": conf.grrho,
+                "nat": conf.geom.nat,
+                "shieldings": results[conf.name].shieldings,
+                "couplings": results[conf.name].couplings,
+            }
+        }
+
+    dump = DataDump(part_name="nmr")
+
+    for conf in ensemble:
+        dump.data.update(per_conf(conf))
+
+    dump.settings = config.model_dump()
+
+    return dump.model_dump(mode="json")
