@@ -1,11 +1,11 @@
 name: Build & Publish Package
 on:
-  push:
-    branches:
-      - dev
-      # - main
-    tags:
-      - '*'
+  # push:
+  #   branches:
+  #     - dev
+  #     # - main
+  #   tags:
+  #     - '*'
   release:
     branches:
       - dev
