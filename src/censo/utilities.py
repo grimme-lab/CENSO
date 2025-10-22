@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable
 from pydantic import BaseModel
 from typing import Any
+from datetime import timedelta
 
 from .params import BOHR2ANG, PLENGTH
 from .logging import setup_logger
@@ -207,6 +208,21 @@ def timeit(f: Callable[..., None]) -> Callable[..., float]:
         return end - start
 
     return wrapper
+
+
+def get_time(time: float) -> tuple[int, int, int]:
+    """
+    Calculate seconds, minutes, hours from time in seconds.
+
+    :param time: The time in seconds.
+    :return: Tuple of seconds, minutes, hours.
+    """
+    time_taken = timedelta(seconds=int(time))
+    hours, r = divmod(time_taken.seconds, 3600)
+    minutes, seconds = divmod(r, 60)
+    if time_taken.days:
+        hours += time_taken.days * 24
+    return seconds, minutes, hours
 
 
 def h1(text: str) -> str:

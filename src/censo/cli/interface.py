@@ -14,7 +14,7 @@ from ..params import DESCR, __version__, Returncode, PLENGTH
 from ..utilities import printf
 from ..logging import setup_logger, set_loglevel
 from .cml_parser import parse
-from ..utilities import print_validation_errors
+from ..utilities import print_validation_errors, get_time
 
 logger = setup_logger(__name__)
 
@@ -76,14 +76,16 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
 
     comparison: dict[str, dict[str, float]] = {}
     cut: bool = not args.keep_all
-    time = 0.0
+    times: dict[str, float] = {}
 
     logger.debug("Setting up parallel managers for CLI run...")
     try:
-        for func in [task for _, enabled, task in tasks[:4] if enabled]:
+        for partname, func in [
+            (partname, task) for partname, enabled, task in tasks[:4] if enabled
+        ]:
             runtime = func(ensemble, parts_config, client, cut=cut)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
-            time += runtime
+            times[partname] = runtime
 
             # Collect results for comparison
             from ..params import AU2KCAL
@@ -102,10 +104,12 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         if any(enabled for _, enabled, _ in tasks[4:]):
             print("\nRunning property calculations\n")
 
-        for func in [task for _, enabled, task in tasks[4:] if enabled]:
+        for partname, func in [
+            (partname, task) for partname, enabled, task in tasks[4:] if enabled
+        ]:
             runtime = func(ensemble, parts_config, client)
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
-            time += runtime
+            times[partname] = runtime
     except Exception:
         import traceback
 
@@ -120,14 +124,17 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
         return Returncode.GENERIC_ERROR
 
-    from datetime import timedelta
+    total_time = sum(times.values())
 
-    time_taken = timedelta(seconds=int(time))
-    hours, r = divmod(time_taken.seconds, 3600)
-    minutes, seconds = divmod(r, 60)
-    if time_taken.days:
-        hours += time_taken.days * 24
+    printf("\nTimings:")
+    for part in times:
+        seconds, minutes, hours = get_time(times[part])
+        printf(
+            f"{part.capitalize():>20}: {hours:02d}:{minutes:02d}:{seconds:02d}  ({times[part]/total_time*100:5.1f} %)"
+        )
 
+    printf("=" * 40)
+    seconds, minutes, hours = get_time(total_time)
     printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     printf("\nCENSO all done!")
