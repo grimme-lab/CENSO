@@ -1,5 +1,4 @@
 import pytest
-import os
 from pathlib import Path
 import shutil
 
@@ -22,12 +21,12 @@ def example_ensemble_file(tmp_path: Path):
     return dst
 
 
-@pytest.fixture(autouse=True)
-def tmp_wd(tmp_path, monkeypatch):
-    orig = os.getcwd()
-    monkeypatch.chdir(tmp_path)
-    yield
-    os.chdir(orig)
+# @pytest.fixture(autouse=True)
+# def tmp_wd(tmp_path, monkeypatch):
+#     orig = os.getcwd()
+#     monkeypatch.chdir(tmp_path)
+#     yield
+#     os.chdir(orig)
 
 
 @pytest.fixture

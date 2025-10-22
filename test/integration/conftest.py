@@ -1,4 +1,5 @@
 import pytest
+import os
 from pathlib import Path
 import shutil
 from censo.config.paths import PathsConfig
@@ -65,3 +66,8 @@ def config():
     config = PartsConfig()
     config.paths = PathsConfig.model_construct(None, **find_program_paths())
     return config
+
+
+@pytest.fixture(autouse=True)
+def sync_worker_cwd(tmp_path, client):
+    client.run(os.chdir, str(tmp_path))
