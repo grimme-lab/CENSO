@@ -127,14 +127,13 @@ class XtbProc(GenericProc):
                 xcout.writelines(["$gbsa\n", "  gbsagrid=tight\n", "$end\n"])
 
         # call xtb
-        returncode, errors = self._make_call(call, outputpath, jobdir)
+        returncode, _ = self._make_call(call, outputpath, jobdir)
 
         # if returncode != 0 then some error happened in xtb
         # TODO: returncodes
         if returncode != 0:
             meta.success = False
             meta.error = "unknown_error"
-            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             return result, meta
 
         # read energy from outputfile
@@ -351,7 +350,6 @@ class XtbProc(GenericProc):
         if returncode != 0:
             meta.success = False
             meta.error = "unknown_error"
-            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             return result, meta
 
         # read output and store lines

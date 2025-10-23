@@ -521,11 +521,9 @@ class TmProc(QmProc):
         env = ENVIRON.copy()
         env["PARA_ARCH"] = "SMP"
         env["PARNODES"] = str(job.omp)
-        returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
+        returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
 
         meta.success = returncode == 0
-        if not meta.success:
-            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
 
         lines = Path(outputpath).read_text().split("\n")
 
@@ -751,13 +749,10 @@ class TmProc(QmProc):
             env = ENVIRON.copy()
             env["PARA_ARCH"] = "SMP"
             env["PARNODES"] = str(job.omp)
-            returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
+            returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
 
             meta.success = returncode == 0
             if not meta.success:
-                logger.warning(
-                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}"
-                )
                 meta.error = "unknown_error"
                 return result, meta
 
@@ -901,14 +896,13 @@ class TmProc(QmProc):
         env = ENVIRON.copy()
         env["PARA_ARCH"] = "SMP"
         env["PARNODES"] = str(job.omp)
-        returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
+        returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
 
         # check if optimization finished without errors
         # NOTE: right now, not converging scfs are not handled because returncodes need to be implemented first
         if returncode != 0:
             meta.success = False
             meta.error = "unknown_error"
-            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             # TODO: the xtb returncodes should be handled
             return result, meta
 
@@ -1060,13 +1054,10 @@ class TmProc(QmProc):
             env = ENVIRON.copy()
             env["PARA_ARCH"] = "SMP"
             env["PARNODES"] = str(job.omp)
-            returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
+            returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
 
             meta.success = returncode == 0
             if not meta.success:
-                logger.warning(
-                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}"
-                )
                 meta.error = "unknown_error"
                 return result, meta
 
@@ -1112,13 +1103,10 @@ class TmProc(QmProc):
             env = ENVIRON.copy()
             env["PARA_ARCH"] = "SMP"
             env["PARNODES"] = str(job.omp)
-            returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
+            returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
 
             meta.success = returncode == 0
             if not meta.success:
-                logger.warning(
-                    f"Job for {job.conf.name} failed. Stderr output:\n{errors}"
-                )
                 meta.error = "unknown_error"
                 return result, meta
 
@@ -1221,11 +1209,10 @@ class TmProc(QmProc):
         env = ENVIRON.copy()
         env["PARA_ARCH"] = "SMP"
         env["PARNODES"] = str(job.omp)
-        returncode, errors = self._make_call(call, outputpath, jobdir, env=env)
+        returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
 
         meta.success = returncode == 0
         if not meta.success:
-            logger.warning(f"Job for {job.conf.name} failed. Stderr output:\n{errors}")
             meta.error = "unknown_error"
             return result, meta
 

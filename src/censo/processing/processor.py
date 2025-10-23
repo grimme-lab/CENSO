@@ -198,9 +198,10 @@ class GenericProc:
                 _, stderr = sub.communicate()
                 errors = stderr.decode(errors="replace")
                 returncode = sub.returncode
-                logger.debug(
-                    f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"
-                )
+                if returncode != 0:
+                    logger.info(
+                        f"{f'worker{os.getpid()}:':{WARNLEN}} Returncode: {returncode} Errors:\n{errors}"
+                    )
 
             logger.debug(f"{f'worker{os.getpid()}:':{WARNLEN}}Done.")
 
