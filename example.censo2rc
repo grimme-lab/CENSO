@@ -88,7 +88,7 @@ template = False
 # Program used for refinement
 prog = tm
 # Functional used for refinement
-func = wb97x-v
+func = wb97m-v
 # Basis set for refinement
 basis = def2-tzvp
 # Solvation model for refinement

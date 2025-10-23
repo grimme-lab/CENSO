@@ -80,7 +80,7 @@ Furthermore, it will try to automatically detect the number of available CPU cor
 usage: censo [-h] [--prescreening] [--screening] [--optimization] [--refinement] [--nmr] [--rot] [--uvvis] [-i INP] [-n NCONF] [-c CHARGE] [-u UNPAIRED] [-v] [--cleanup] [--cleanup-all]
              [--new-config] [--inprc INPRCPATH] [--constraints CONSTRAINTS] [--maxcores MAXCORES] [--omp-min OMPMIN] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logpath LOGPATH]
              [--reload RELOAD [RELOAD ...]] [--keep-all] [--ignore-failed] [-T TEMPERATURE] [--trange start end step] [--bhess] [--consider-sym] [--sm-rrho SM_RRHO] [--evaluate-rrho]
-             [-s SOLVENT] [--gas-phase] [--imagthr IMAGTHR] [--sthr STHR] [--scale SCALE]
+             [--solvent SOLVENT] [--gas-phase] [--imagthr IMAGTHR] [--sthr STHR] [--scale SCALE]
 
 Energetic sorting of Conformer Rotamer Ensembles (command line version).
 
@@ -88,19 +88,17 @@ options:
   -h, --help            show this help message and exit
 
 RUN SETTINGS:
-  --prescreening        Enable the prescreening part.
-  --screening           Enable the screening part.
-  --optimization        Enable the optimization part.
-  --refinement          Enable the refinement part.
+  --prescreening, -P    Enable the prescreening part.
+  --screening, -S       Enable the screening part.
+  --optimization, -O    Enable the optimization part.
+  --refinement, -R      Enable the refinement part.
   --nmr                 Enable the NMR calculation part.
   --rot                 Enable the optical rotation calculation part.
   --uvvis               Enable the UV/Vis calculation part.
-  -i INP, --input INP   Relative path to ensemble file, e.g. crest_conformers.xyz (default).
-  -n NCONF, --nconf NCONF
-                        The first 'nconf' conformers will be considered.
-  -c CHARGE, --charge CHARGE
-                        Integer charge of the investigated molecule.
-  -u UNPAIRED, --unpaired UNPAIRED
+  -i, --input INP       Relative path to ensemble file, e.g. crest_conformers.xyz (default).
+  -n, --nconf NCONF     The first 'nconf' conformers will be considered.
+  -c, --charge CHARGE   Integer charge of the investigated molecule.
+  -u, --unpaired UNPAIRED
                         Integer number of unpaired electrons of the investigated molecule.
   -v, --version         Print CENSO version and exit.
   --cleanup             Delete unneeded files from current working directory.
@@ -122,7 +120,7 @@ RUN SETTINGS:
   --ignore-failed       Ignore failed calculations. If this is not set, failed calculations will raise RuntimeError.
 
 GENERAL SETTINGS:
-  -T TEMPERATURE, --temperature TEMPERATURE
+  -T, --temperature TEMPERATURE
                         Temperature in Kelvin for thermostatistical evaluation.
   --trange start end step
                         specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0 resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].
@@ -130,8 +128,7 @@ GENERAL SETTINGS:
   --consider-sym        Consider symmetry in mRRHO calcuation (based on desy xtb threshold).
   --sm-rrho SM_RRHO     Solvation model used in xTB GmRRHO calculation. Applied if not in gas-phase. Options are 'gbsa' or 'alpb'.
   --evaluate-rrho       Evaluate mRRHO contribution.
-  -s SOLVENT, --solvent SOLVENT
-                        Solvent to be used for Gsolv calculation.
+  --solvent SOLVENT     Solvent to be used for Gsolv calculation.
   --gas-phase           Run calculation in gas-phase, overriding all solvation settings.
   --imagthr IMAGTHR     threshold for inverting imaginary frequencies for thermo in cm-1, e.g. -30.0.
   --sthr STHR           Rotor cut-off for thermo in cm-1, e.g. 50.0.
