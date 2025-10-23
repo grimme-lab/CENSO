@@ -196,6 +196,10 @@ def timeit(f: Callable[..., None]) -> Callable[..., float]:
     """
     Time function execution.
 
+    .. deprecated::
+        This decorator is deprecated. Timing should be handled at the CLI level.
+        TODO: Remove in a follow-up change.
+
     :param f: The function to time (should have no return value).
     :return: A wrapper that returns the execution time.
     """
@@ -243,7 +247,7 @@ def h2(text: str) -> str:
     :return: The formatted header.
     """
     return f"""
-{'-' * PLENGTH}
+{"-" * PLENGTH}
 {text.center(PLENGTH, " ")}
-{'-' * PLENGTH}
+{"-" * PLENGTH}
     """

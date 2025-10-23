@@ -16,7 +16,7 @@ from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
-from ..utilities import h1, h2, printf, Factory, timeit, DataDump
+from ..utilities import h1, h2, printf, Factory, DataDump
 from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
@@ -26,13 +26,12 @@ from ..processing import QmProc, XtbProc
 logger = setup_logger(__name__)
 
 
-@timeit
 def screening(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
     cut: bool = True,
-):
+) -> dict[str, Any]:
     """
     Advanced screening of the ensemble by doing single-point calculations on the input geometries,
     but this time with the ability to additionally consider implicit solvation and finite temperature contributions.
@@ -49,8 +48,8 @@ def screening(
     :type client: Client
     :param cut: Whether to apply cutting conditions.
     :type cut: bool
-    :return: None
-    :rtype: None
+    :return: JSON-serializable dictionary of screening results.
+    :rtype: dict
     """
     printf(h2("SCREENING"))
 
@@ -167,130 +166,15 @@ def screening(
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 
     # Print/write out results
-    _write_results(ensemble, config)
+    results_dict = jsonify(ensemble, config.screening)
+    _write_results(ensemble, config, results_dict)
 
-    # Unused atm
-    # def _write_results(self) -> None:
-    #    """
-    #    Similar to the _write_results from prescreening.
-    #    Write the results to a file in formatted way.
-    #    writes (1):
-    #        E (xtb),
-    #        δE (xtb),
-    #        E (DFT),
-    #        δGsolv (DFT),
-    #        Gtot,
-    #        δGtot
-
-    #    Generates NO csv file. All info is included in the file written in write_results2.
-    #    """
-    #    print(h1(f"{self.name.upper()} SINGLE-POINT RESULTS"))
-    #    # PART (1) of writing
-    #    # column headers
-    #    headers = [
-    #        "CONF#",
-    #        "E (xTB)",
-    #        "ΔE (xTB)",
-    #        "E (DFT)",
-    #        "ΔGsolv",
-    #        "Gtot",
-    #        "ΔGtot",
-    #    ]
-
-    #    # column units
-    #    units = [
-    #        "",
-    #        "[Eh]",
-    #        "[kcal/mol]",
-    #        "[Eh]",
-    #        "[Eh]",
-    #        "[Eh]",
-    #        "[kcal/mol]",
-    #    ]
-
-    #    # variables for printmap
-    #    # minimum xtb single-point energy (taken from prescreening)
-    #    xtb_energies = None
-    #    xtbmin = None
-    #    if (
-    #        any(type(p) is Prescreening for p in self._ensemble.results)
-    #        and not self.get_general_settings()["gas-phase"]
-    #    ):
-    #        # Get the most recent prescreening part
-    #        using_part = [
-    #            p for p in self._ensemble.results if type(p) is Prescreening
-    #        ][-1]
-
-    #        xtb_energies = {
-    #            conf.name: using_part.data["results"][conf.name]["xtb_gsolv"][
-    #                "energy_xtb_gas"
-    #            ]
-    #            for conf in self._ensemble.conformers
-    #        }
-    #        xtbmin = min(xtb_energies.values())
-
-    #    # minimum total free enthalpy (single-point and potentially gsolv)
-    #    gsolvmin = min(self._gsolv(conf) for conf in self._ensemble.conformers)
-
-    #    # collect all dft single point energies
-    #    dft_energies = (
-    #        {
-    #            conf.name: self.data["results"][conf.name]["sp"]["energy"]
-    #            for conf in self._ensemble.conformers
-    #        }
-    #        if not all(
-    #            "gsolv" in self.data["results"][conf.name].keys()
-    #            for conf in self._ensemble.conformers
-    #        )
-    #        else {
-    #            conf.name: self.data["results"][conf.name]["gsolv"]["energy_gas"]
-    #            for conf in self._ensemble.conformers
-    #        }
-    #    )
-
-    #    # determines what to print for each conformer in each column
-    #    printmap = {
-    #        "CONF#": lambda conf: conf.name,
-    #        "E (xTB)": lambda conf: (
-    #            f"{xtb_energies[conf.name]:.6f}" if xtb_energies is not None else "---"
-    #        ),
-    #        "ΔE (xTB)": lambda conf: (
-    #            f"{(xtb_energies[conf.name] - xtbmin) * AU2KCAL:.2f}"
-    #            if xtb_energies is not None
-    #            else "---"
-    #        ),
-    #        "E (DFT)": lambda conf: f"{dft_energies[conf.name]:.6f}",
-    #        "ΔGsolv": lambda conf: (
-    #            f"{self._gsolv(conf) - dft_energies[conf.name]:.6f}"
-    #            if "xtb_gsolv" in self.data["results"][conf.name].keys()
-    #            or "gsolv" in self.data["results"][conf.name].keys()
-    #            else "---"
-    #        ),
-    #        "Gtot": lambda conf: f"{self._gsolv(conf):.6f}",
-    #        "ΔGtot": lambda conf: f"{(self._gsolv(conf) - gsolvmin) * AU2KCAL:.2f}",
-    #    }
-
-    #    rows = [
-    #        [printmap[header](conf) for header in headers]
-    #        for conf in self._ensemble.conformers
-    #    ]
-
-    #    lines = format_data(headers, rows, units=units)
-
-    #    # Print everything
-    #    for line in lines:
-    #        print(line, flush=True, end="")
-
-    #    print("".ljust(PLENGTH, "-"))
-
-    #    # write everything to a file
-    #    filename = f"{self._part_nos[self.name]}_{self.name.upper()}.out"
-    #    logger.debug(f"Writing to {os.path.join(os.getcwd(), filename)}.")
-    #    with open(os.path.join(os.getcwd(), filename), "w", newline=None) as outfile:
-    #        outfile.writelines(lines)
+    return results_dict
 
 
-def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
+def _write_results(
+    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+) -> None:
     """ """
     printf(h1("SCREENING SINGLE-POINT (+ mRRHO) RESULTS"))
 
@@ -397,9 +281,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("1_SCREENING.json").write_text(
-        json.dumps(jsonify(ensemble, config.screening), indent=4)
-    )
+    Path("1_SCREENING.json").write_text(json.dumps(results_dict, indent=4))
 
     ensemble.dump_xyz(Path("1_SCREENING.xyz"))
 

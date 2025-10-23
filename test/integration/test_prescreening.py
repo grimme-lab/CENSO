@@ -25,7 +25,7 @@ def test_prescreening_integration(
 ):
     config.general.gas_phase = gas_phase
     config.prescreening.prog = prog
-    timing = prescreening(ensemble_from_xyz, config, client, cut=True)
+    result = prescreening(ensemble_from_xyz, config, client, cut=True)
 
-    assert timing is not None
+    assert result is not None
     # Add more assertions to verify the output

@@ -4,6 +4,7 @@ Calculates the ensemble UV/Vis spectrum.
 
 from pathlib import Path
 from tabulate import tabulate
+from typing import Any
 import json
 from dask.distributed import Client
 
@@ -15,26 +16,25 @@ from ..config.parts import UVVisConfig
 from ..params import GridLevel, PLENGTH
 from ..parallel import execute
 from ..processing.results import UVVisResult
-from ..utilities import printf, Factory, h1, h2, timeit, DataDump
+from ..utilities import printf, Factory, h1, h2, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
 
 logger = setup_logger(__name__)
 
 
-@timeit
 def uvvis(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
-):
+) -> dict[str, Any]:
     """
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :return: None
+    :return: JSON-serializable dictionary of UV/Vis results.
     """
     printf(h2("UVVIS"))
 
@@ -75,11 +75,17 @@ def uvvis(
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-    _write_results(ensemble, config, results)
+    results_dict = jsonify(ensemble, config.uvvis, results)
+    _write_results(ensemble, config, results, results_dict)
+
+    return results_dict
 
 
 def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results: dict[str, UVVisResult]
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results: dict[str, UVVisResult],
+    results_dict: dict[str, Any],
 ):
     boltzmann_populations = ensemble.get_populations(config.general.temperature)
 
@@ -128,9 +134,7 @@ def _write_results(
     filepath.write_text(table)
 
     # Additionally, write results in json format
-    Path("6_UVVIS.json").write_text(
-        json.dumps(jsonify(ensemble, config.uvvis, results), indent=4)
-    )
+    Path("6_UVVIS.json").write_text(json.dumps(results_dict, indent=4))
 
 
 def jsonify(

@@ -9,7 +9,7 @@ from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
 from ..parallel import execute
 from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
-from ..utilities import h1, h2, printf, Factory, timeit, DataDump
+from ..utilities import h1, h2, printf, Factory, DataDump
 from ..config import PartsConfig, RefinementConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..ensemble import EnsembleData
@@ -19,13 +19,12 @@ logger = setup_logger(__name__)
 
 
 # TODO: this is not very DRY considering the screening function
-@timeit
 def refinement(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
     cut: bool = True,
-):
+) -> dict[str, Any]:
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
 
@@ -33,7 +32,7 @@ def refinement(
     :param config: PartsConfig object with configuration settings.
     :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions.
-    :return: None
+    :return: JSON-serializable dictionary of refinement results.
     """
     printf(h2("REFINEMENT"))
 
@@ -150,10 +149,15 @@ def refinement(
         )
 
     # Print/write out results
-    _write_results(ensemble, config)
+    results_dict = jsonify(ensemble, config.refinement)
+    _write_results(ensemble, config, results_dict)
+
+    return results_dict
 
 
-def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
+def _write_results(
+    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+) -> None:
     """ """
     printf(h1("REFINEMENT SINGLE-POINT (+ mRRHO) RESULTS"))
 
@@ -258,9 +262,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("3_REFINEMENT.json").write_text(
-        json.dumps(jsonify(ensemble, config.refinement), indent=4)
-    )
+    Path("3_REFINEMENT.json").write_text(json.dumps(results_dict, indent=4))
 
     ensemble.dump_xyz(Path("3_REFINEMENT.xyz"))
 

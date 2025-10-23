@@ -4,6 +4,7 @@ Calculates the ensemble optical rotation spectrum.
 
 from pathlib import Path
 from tabulate import tabulate
+from typing import Any
 import json
 from dask.distributed import Client
 
@@ -15,26 +16,25 @@ from ..processing.results import RotResult
 from ..config.parts import RotConfig
 from ..params import GridLevel, PLENGTH
 from ..parallel import execute
-from ..utilities import printf, Factory, h1, h2, timeit, DataDump
+from ..utilities import printf, Factory, h1, h2, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
 
 logger = setup_logger(__name__)
 
 
-@timeit
 def rot(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
-):
+) -> dict[str, Any]:
     """
     Calculation of the ensemble optical rotation spectrum of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :return: None
+    :return: JSON-serializable dictionary of optical rotation results.
     """
     printf(h2("ROT"))
 
@@ -77,11 +77,17 @@ def rot(
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-    _write_results(ensemble, config, results)
+    results_dict = jsonify(ensemble, config.rot, results)
+    _write_results(ensemble, config, results, results_dict)
+
+    return results_dict
 
 
 def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results: dict[str, RotResult]
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results: dict[str, RotResult],
+    results_dict: dict[str, Any],
 ):
     boltzmann_populations = ensemble.get_populations(config.general.temperature)
 
@@ -180,9 +186,7 @@ def _write_results(
     filepath.write_text(table_velocity)
 
     # Additionally, write results in json format
-    Path("5_ROT.json").write_text(
-        json.dumps(jsonify(ensemble, config.rot, results), indent=4)
-    )
+    Path("5_ROT.json").write_text(json.dumps(results_dict, indent=4))
 
 
 def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotResult]):

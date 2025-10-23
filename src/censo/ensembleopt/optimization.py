@@ -23,7 +23,6 @@ from ..utilities import (
     printf,
     h1,
     Factory,
-    timeit,
     DataDump,
     h2,
 )
@@ -32,13 +31,12 @@ from ..logging import setup_logger
 logger = setup_logger(__name__)
 
 
-@timeit
 def optimization(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
     cut: bool = True,
-):
+) -> dict[str, Any]:
     """
     Geometry optimization of the ensemble at DFT level (possibly with implicit solvation)
 
@@ -51,7 +49,7 @@ def optimization(
     :param config: PartsConfig object with configuration settings.
     :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions during optimization.
-    :return: None
+    :return: JSON-serializable dictionary of optimization results.
     """
     printf(h2("OPTIMIZATION"))
 
@@ -104,7 +102,10 @@ def optimization(
         ensemble.remove_conformers(lambda conf: conf.gtot > threshold)
 
     # Print/write out results
-    _write_results(ensemble, config)
+    results_dict = jsonify(ensemble, config.optimization)
+    _write_results(ensemble, config, results_dict)
+
+    return results_dict
 
 
 def _macrocycle_opt(
@@ -353,7 +354,9 @@ def _full_opt(
     return contributions_dict
 
 
-def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
+def _write_results(
+    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+) -> None:
     """ """
     printf(h1("OPTIMIZATION RESULTS"))
 
@@ -450,9 +453,7 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("2_OPTIMIZATION.json").write_text(
-        json.dumps(jsonify(ensemble, config.optimization), indent=4)
-    )
+    Path("2_OPTIMIZATION.json").write_text(json.dumps(results_dict, indent=4))
 
     ensemble.dump_xyz(Path("2_OPTIMIZATION.xyz"))
 
