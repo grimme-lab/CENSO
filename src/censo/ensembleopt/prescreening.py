@@ -9,7 +9,7 @@ from ..processing.xtb_processor import XtbProc
 from ..config.parts.prescreening import PrescreeningConfig
 from ..molecules import Contributions, MoleculeData
 from ..ensemble import EnsembleData
-from ..utilities import Factory, timeit, h1, h2, DataDump, printf
+from ..utilities import Factory, h1, h2, DataDump, printf
 from ..config import PartsConfig
 from ..parallel import execute
 from ..processing import QmProc
@@ -20,13 +20,12 @@ from ..logging import setup_logger
 logger = setup_logger(__name__)
 
 
-@timeit
 def prescreening(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
     cut: bool = True,
-):
+) -> dict[str, Any]:
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
     solvation contributions calculated using xtb.
@@ -41,8 +40,8 @@ def prescreening(
     :type client: Client
     :param cut: Whether to apply cutting conditions.
     :type cut: bool
-    :return: None
-    :rtype: None
+    :return: JSON-serializable dictionary of prescreening results.
+    :rtype: dict
     """
     printf(h2("PRESCREENING"))
 
@@ -119,10 +118,15 @@ def prescreening(
         ensemble.remove_conformers(cond=lambda conf: conf.gtot > threshold)
 
     # print results
-    _write_results(ensemble, config)
+    results_dict = jsonify(ensemble, config.prescreening)
+    _write_results(ensemble, config, results_dict)
+
+    return results_dict
 
 
-def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
+def _write_results(
+    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+) -> None:
     """ """
     printf(h1("PRESCREENING SINGLE-POINT RESULTS"))
 
@@ -244,14 +248,11 @@ def _write_results(ensemble: EnsembleData, config: PartsConfig) -> None:
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("0_PRESCREENING.json").write_text(
-        json.dumps(jsonify(ensemble, config.prescreening), indent=4)
-    )
+    Path("0_PRESCREENING.json").write_text(json.dumps(results_dict, indent=4))
 
     ensemble.dump_xyz(Path("0_PRESCREENING.xyz"))
 
 
-# TODO: generalize this
 def jsonify(
     ensemble: EnsembleData,
     config: PrescreeningConfig,

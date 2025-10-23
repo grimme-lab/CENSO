@@ -168,13 +168,13 @@ config.general.solvent = "dmso"
 config = config.model_validate(config)
 
 # Execute workflow steps
-timings = [
+results = [
     part(ensemble, config, client)
     for part in [prescreening, screening, optimization, nmr]
 ]
 ```
 
-> **Note**: Results are stored in `<part>.json` files. For multiple runs, rename or move output folders to avoid overwriting.
+> **Note**: Results are also stored in `<part>.json` files. For multiple runs, rename or move output folders to avoid overwriting.
 
 ---
 

@@ -3,6 +3,7 @@ import sys
 from argparse import ArgumentError, Namespace
 from typing import cast, TYPE_CHECKING
 from pathlib import Path
+import time
 from time import sleep
 
 from pydantic import ValidationError
@@ -84,7 +85,10 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         for partname, func in [
             (partname, task) for partname, enabled, task in tasks[:4] if enabled
         ]:
-            runtime = func(ensemble, parts_config, client, cut=cut)
+            start = time.perf_counter()
+            _ = func(ensemble, parts_config, client, cut=cut)  # type: ignore[operator]
+            end = time.perf_counter()
+            runtime = end - start
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             times[partname] = runtime
 
@@ -108,7 +112,10 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         for partname, func in [
             (partname, task) for partname, enabled, task in tasks[4:] if enabled
         ]:
-            runtime = func(ensemble, parts_config, client)
+            start = time.perf_counter()
+            _ = func(ensemble, parts_config, client)  # type: ignore[operator]
+            end = time.perf_counter()
+            runtime = end - start
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
             times[partname] = runtime
     except Exception:
@@ -132,12 +139,12 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     for part in times:
         seconds, minutes, hours = get_time(times[part])
         printf(
-            f"{part.capitalize():>20}: {hours:02d}:{minutes:02d}:{seconds:02d}  ({times[part]/total_time*100:5.1f} %)"
+            f"{part.capitalize():>19}: {hours:02d}:{minutes:02d}:{seconds:02d}  ({times[part] / total_time * 100:5.1f} %)"
         )
 
     printf("=" * 40)
     seconds, minutes, hours = get_time(total_time)
-    printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
+    printf(f"\n{'Total CENSO runtime':>19}: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     printf("\nCENSO all done!")
     sleep(5)  # Make dask exit more graceful

@@ -57,6 +57,6 @@ def test_screening_integration(
             config.screening.gsolv_included = True
     else:
         config.general.gas_phase = True
-    timing = screening(ensemble_from_xyz, config, client, cut=True)
-    assert timing is not None
+    result = screening(ensemble_from_xyz, config, client, cut=True)
+    assert result is not None
     # Optionally add more output checks

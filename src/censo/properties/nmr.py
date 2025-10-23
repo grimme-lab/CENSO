@@ -6,6 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from tabulate import tabulate
 from itertools import product
+from typing import Any
 import json
 from dask.distributed import Client
 
@@ -16,7 +17,7 @@ from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
 from ..parallel import execute
 from ..processing.results import NMRResult
-from ..utilities import printf, Factory, h1, h2, timeit, DataDump
+from ..utilities import printf, Factory, h1, h2, DataDump
 from ..logging import setup_logger
 from ..processing import QmProc
 from ..params import GridLevel, PLENGTH
@@ -24,19 +25,18 @@ from ..params import GridLevel, PLENGTH
 logger = setup_logger(__name__)
 
 
-@timeit
 def nmr(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
-):
+) -> dict[str, Any]:
     """
     Calculation of the ensemble NMR of a (previously) optimized ensemble.
     Note, that the ensemble will not be modified anymore.
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
-    :return: None
+    :return: JSON-serializable dictionary of NMR results.
     """
     printf(h2("NMR"))
 
@@ -76,7 +76,10 @@ def nmr(
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-    _write_results(ensemble, config, results)
+    results_dict = jsonify(ensemble, config.nmr, results)
+    _write_results(ensemble, config, results, results_dict)
+
+    return results_dict
 
 
 def read_chemeq() -> dict[int, list[int]]:
@@ -99,7 +102,10 @@ def read_chemeq() -> dict[int, list[int]]:
 
 
 def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results: dict[str, NMRResult]
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results: dict[str, NMRResult],
+    results_dict: dict[str, Any],
 ):
     boltzmann_populations = ensemble.get_populations(config.general.temperature)
 
@@ -196,9 +202,7 @@ def _write_results(
     filepath.write_text(text)
 
     # Additionally, write results in json format
-    Path("4_NMR.json").write_text(
-        json.dumps(jsonify(ensemble, config.nmr, results), indent=4)
-    )
+    Path("4_NMR.json").write_text(json.dumps(results_dict, indent=4))
 
 
 def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRResult]):
