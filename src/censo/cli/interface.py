@@ -3,6 +3,7 @@ import sys
 from argparse import ArgumentError, Namespace
 from typing import cast, TYPE_CHECKING
 from pathlib import Path
+from time import sleep
 
 from pydantic import ValidationError
 
@@ -122,6 +123,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         )
         ensemble.dump_json(Path("CRASH_DUMP.json"))
         ensemble.dump_xyz(Path("CRASH_DUMP.xyz"))
+        sleep(5)  # Make dask exit more graceful
         return Returncode.GENERIC_ERROR
 
     total_time = sum(times.values())
@@ -138,6 +140,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
     printf(f"\nTotal CENSO runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
     printf("\nCENSO all done!")
+    sleep(5)  # Make dask exit more graceful
     return Returncode.OK
 
 
