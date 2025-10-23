@@ -1107,7 +1107,7 @@ class OrcaProc(QmProc):
         for row in uvvis_table:
             spl = row.split()
             result.excitations.append(
-                {"wavelength": float(spl[2]), "osc_str": float(spl[3])}
+                {"wavelength": float(spl[-6]), "osc_str": float(spl[-5])}
             )
 
         meta.success = True
