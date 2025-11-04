@@ -1,51 +1,71 @@
 name: Build & Publish Package
 on:
-  # push:
-  #   tags:
-  #     - '*'
+  push:
+    tags:
+      - '*'
   release:
-    # branches:
-    #   - main
     types:
       - published
   workflow_dispatch:
+
 concurrency:
   group: ${{ github.event_name }}_${{  github.ref_name }}
 permissions:
   contents: write # IMPORTANT: mandatory for making GitHub Releases
   id-token: write # IMPORTANT: mandatory for OICD token
+
 jobs:
   # Build and verify wheels
   build:
     name: Build & Verify Package
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Set version (strip leading v/V)
+        id: set-version
+        run: |
+          # GITHUB_REF_NAME is set by Actions and equals the tag name when this is a tag push or release
+          ref="${GITHUB_REF_NAME}"
+          # strip leading v or V if present
+          ver="${ref#v}"
+          ver="${ver#V}"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "Ref: $ref -> Version: $ver"
+
       - name: Clean
         run: |
           python -c 'import shutil; [shutil.rmtree(p, True) for p in ("build", "dist")]'
           python -c 'import pathlib, shutil; [shutil.rmtree(p, True) for p in pathlib.Path(".").glob("*.egg-info")]'
+
       - name: Create Wheel and Dist
         run: |
           pip install build
           python -m build --sdist --wheel --outdir dist/ .
           ls -lat dist
+
       - name: Check Wheel
         shell: bash
         run: |
           pip install check-wheel-contents
           check-wheel-contents dist/*.whl
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Dist_${{  github.ref_name }}
+          name: Dist_${{ steps.set-version.outputs.version }}
           path: dist
-  # Upload to Test PyPI on every tag
+
+  # Upload to Test PyPI on every tag push
   release-test-pypi:
     needs: build
     name: Publish to test.pypi.org
@@ -56,13 +76,15 @@ jobs:
       - name: Download packages built
         uses: actions/download-artifact@v4
         with:
-          name: Dist_${{  github.ref_name }}
+          name: Dist_${{ needs.build.outputs.version }}
           path: dist
       - name: Upload package to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          verbose: true
+          pypi_token: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
+          verbose: true
+
   # Upload to real PyPI on GitHub Releases.
   release-pypi:
     needs: build
@@ -75,15 +97,19 @@ jobs:
         id: setup-python
         with:
           python-version: '3.12'
-      - name: Install test-package
+
+      - name: Install test-package (verify it exists on TestPyPI)
         run: |
-          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ censo==${{  github.ref_name }}
+          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ censo==${{ needs.build.outputs.version }}
+
       - name: Download packages built
         uses: actions/download-artifact@v4
         with:
-          name: Dist_${{  github.ref_name }}
+          name: Dist_${{ needs.build.outputs.version }}
           path: dist
+
       - name: Upload package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          pypi_token: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
