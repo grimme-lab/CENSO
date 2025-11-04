@@ -49,6 +49,11 @@ It now also includes an example for the calculation of the NMR spectrum of glyce
 ## **Installation**
 
 ### **Using `pip`**
+From pypi:
+```bash
+pip install censo
+```
+or after cloning the repository:
 ```bash
 pip install .
 ```
