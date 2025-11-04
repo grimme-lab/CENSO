@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     # compute a TAG_NAME that works for push-tag runs and release runs
     env:
-      TAG_NAME: ${{ github.event_name == 'push' && github.ref_name || (github.event_name == 'release' && github.event.release.tag_name) || '' }}
+      TAG_NAME: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name || (github.event_name == 'release' && github.event.release.tag_name) || '' }}
     steps:
       - uses: actions/checkout@v4
         # if this workflow is triggered by a release event, checkout the released tag so setuptools_scm
@@ -55,7 +55,7 @@ jobs:
     needs: build
     name: Publish to test.pypi.org
     environment: release
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Download packages built
