@@ -9,10 +9,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.event_name }}_${{  github.ref_name }}
+  group: ${{ github.event_name }}_${{ github.ref_name }}
 permissions:
-  contents: write # IMPORTANT: mandatory for making GitHub Releases
-  id-token: write # IMPORTANT: mandatory for OICD token
+  contents: write # mandatory for making GitHub Releases
+  id-token: write # mandatory for OIDC token
 
 jobs:
   # Build and verify wheels
@@ -34,11 +34,21 @@ jobs:
       - name: Set version (strip leading v/V)
         id: set-version
         run: |
-          # GITHUB_REF_NAME is set by Actions and equals the tag name when this is a tag push or release
-          ref="${GITHUB_REF_NAME}"
-          # strip leading v or V if present
-          ver="${ref#v}"
-          ver="${ver#V}"
+          # Prefer the Git tag name provided by GitHub Actions
+          ref="${GITHUB_REF_NAME:-}"
+          if [ -z "$ref" ]; then
+            # If no tag name is available (e.g. manual dispatch), try setuptools_scm if present
+            if python -c "import importlib, sys; print(importlib.util.find_spec('setuptools_scm') is not None)" | grep -q True; then
+              ver="$(python -c 'from setuptools_scm import get_version; print(get_version())')"
+            else
+              echo "No GITHUB_REF_NAME and setuptools_scm not available; setting version to 'manual'"
+              ver="manual"
+            fi
+          else
+            # Strip leading 'v' or 'V' from tag names like v1.2.3 -> 1.2.3
+            ver="${ref#v}"
+            ver="${ver#V}"
+          fi
           echo "version=$ver" >> "$GITHUB_OUTPUT"
           echo "Ref: $ref -> Version: $ver"
 
@@ -49,6 +59,7 @@ jobs:
 
       - name: Create Wheel and Dist
         run: |
+          python -m pip install --upgrade pip
           pip install build
           python -m build --sdist --wheel --outdir dist/ .
           ls -lat dist
@@ -78,6 +89,7 @@ jobs:
         with:
           name: Dist_${{ needs.build.outputs.version }}
           path: dist
+
       - name: Upload package to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
