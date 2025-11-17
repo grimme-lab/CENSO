@@ -126,6 +126,18 @@ active_nuclei = h,c
 # Tries to insert template file (should be located in ~/.censo2_assets)
 template = False
 
+[rot]
+# Program used for optical rotatory dispersion calculations
+prog = tm
+# Functional used for optical rotatory dispersion calculations
+func = pbe-d4
+# Basis set for optical rotatory dispersion calculations
+basis = def2-svpd
+# Wavelengths for which polarizabilities will be calculated in nm
+freq = [589.0, 633.0]
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
 [uvvis]
 # Program used for UV/Vis
 prog = orca
