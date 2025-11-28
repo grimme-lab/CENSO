@@ -44,7 +44,7 @@ class Returncode(int, Enum):
     CONFIG_ERROR = 5
 
 
-OMPMIN_DEFAULT = 4  # we use 4 because ORCA/OpenMPI is buggy as hell below that?
+OMPMIN_DEFAULT = 1
 OMPMAX_DEFAULT = os.cpu_count() or 16
 
 ASSETS_PATH = Path(__file__).parent / "assets"
