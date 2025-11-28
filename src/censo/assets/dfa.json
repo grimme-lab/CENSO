@@ -227,6 +227,8 @@
     "type": "double"
   },
   "generic": {
-    "generic": "generic"
+    "generic": "generic",
+    "disp": "generic",
+    "type": "generic"
   }
 }

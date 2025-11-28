@@ -9,7 +9,7 @@ from ...params import OrcaSolvMod, QmProg
 class UVVisConfig(BasePartConfig):
     """Config class for UVVis"""
 
-    prog: Literal[QmProg.ORCA] = QmProg.ORCA
+    prog: Literal[QmProg.ORCA] | Literal[QmProg.GENERIC] = QmProg.ORCA
     """Program that should be used for calculations."""
 
     func: str = "wb97x-d4"
