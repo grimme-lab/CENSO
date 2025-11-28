@@ -41,6 +41,9 @@ class PathsConfig(BaseModel):
     xtb: str = Field("")
     """Absolute path to the xtb binary."""
 
+    generic: str = Field("")
+    """Absolute path to the generic binary."""
+
     cosmotherm: str = Field("")
     """Absolute path to the cosmotherm binary."""
 
