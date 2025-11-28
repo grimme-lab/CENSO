@@ -42,7 +42,13 @@
     "type": "mgga"
   },
   "pbe-novdw": { "tm": "pbe", "orca": "pbe", "disp": "novdw", "type": "gga" },
-  "pbe-d3": { "tm": "pbe", "orca": "pbe", "disp": "d3bj", "type": "gga" },
+  "pbe-d3": {
+    "tm": "pbe",
+    "orca": "pbe",
+    "psi4": "pbe-d3",
+    "disp": "d3bj",
+    "type": "gga"
+  },
   "pbe-d3(0)": { "tm": "pbe", "orca": "pbe", "disp": "d3(0)", "type": "gga" },
   "pbe-d4": { "tm": "pbe", "orca": "pbe", "disp": "d4", "type": "gga" },
   "pbe-nl": { "tm": "pbe", "disp": "nl", "type": "gga" },
