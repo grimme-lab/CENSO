@@ -113,6 +113,7 @@ class QmProg(str, Enum):
     ORCA = Prog.ORCA.value
     PSI4 = Prog.PSI4.value
     TM = Prog.TM.value
+    GENERIC = Prog.GENERIC.value
 
 
 class GridLevel(str, Enum):

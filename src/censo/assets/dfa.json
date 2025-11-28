@@ -225,5 +225,8 @@
     "orca": "dsd-pbep86",
     "disp": "d3bj",
     "type": "double"
+  },
+  "generic": {
+    "generic": "generic"
   }
 }
