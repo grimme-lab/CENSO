@@ -4,7 +4,6 @@ Contains Psi4Proc class for calculating psi4 related properties of conformers.
 
 import os
 import pathlib
-import subprocess
 import typing
 
 from ..config.job_config import (
@@ -138,13 +137,12 @@ class Psi4Proc(QmProc):
         inputpath = os.path.join(jobdir, f"{filename}.inp")
         outputpath = os.path.join(jobdir, f"{filename}.out")
 
+        # check for unsupported config
         solvation = not (config.gas_phase or no_solv)
         if solvation:
             logger.warning("Solvation is not implemented for psi4")
-
         if job.omp > 1:
             logger.warning("omp is not implemented for psi4")
-
         if config.copy_mo:
             logger.warning("copy_mo is not implemented for psi4")
 
@@ -169,8 +167,8 @@ class Psi4Proc(QmProc):
 
             logger.warn("Grid is not implemnented for psi4")
 
-            # write input into file "{filename}.inp" in a subdir created for the
-            # conformer
+            # write input into file "{filename}.inp" in a subdir
+            # created for the conformer
             with open(inputpath, "w") as f:
                 f.write('\n'.join(inp))
 
