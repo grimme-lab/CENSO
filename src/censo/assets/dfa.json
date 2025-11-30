@@ -151,6 +151,7 @@
   "pbe0-d3": {
     "tm": "pbe0",
     "orca": "pbe0",
+    "psi4": "pbe0-d3",
     "disp": "d3bj",
     "type": "global_hybrid"
   },
@@ -163,10 +164,16 @@
   "pbe0-d4": {
     "tm": "pbe0",
     "orca": "pbe0",
+    "psi4": "pbe0-d4",
     "disp": "d4",
     "type": "global_hybrid"
   },
-  "pbe0-nl": { "tm": "pbe0", "disp": "nl", "type": "global_hybrid" },
+  "pbe0-nl": {
+    "tm": "pbe0",
+    "psi4": "pbe0-nl",
+    "disp": "nl",
+    "type": "global_hybrid"
+  },
   "pw6b95-novdw": {
     "tm": "pw6b95",
     "orca": "pw6b95",
@@ -176,6 +183,7 @@
   "pw6b95-d3": {
     "tm": "pw6b95",
     "orca": "pw6b95",
+    "psi4": "pw6b95-d3",
     "disp": "d3bj",
     "type": "global_hybrid"
   },
@@ -188,6 +196,7 @@
   "pw6b95-d4": {
     "tm": "pw6b95",
     "orca": "pw6b95",
+    "psi4": "pw6b95-d4",
     "disp": "d4",
     "type": "global_hybrid"
   },
@@ -200,6 +209,7 @@
   "b3lyp-d3": {
     "tm": "b3-lyp",
     "orca": "b3lyp",
+    "psi4": "b3lyp-d3",
     "disp": "d3bj",
     "type": "global_hybrid"
   },
@@ -212,39 +222,46 @@
   "b3lyp-d4": {
     "tm": "b3-lyp",
     "orca": "b3lyp",
+    "psi4": "b3lyp-d4",
     "disp": "d4",
     "type": "global_hybrid"
   },
   "b3lyp-nl": {
     "tm": "b3-lyp",
     "orca": "b3lyp",
+    "psi4": "b3lyp-nl",
     "disp": "nl",
     "type": "global_hybrid"
   },
   "wb97x-v": {
     "tm": "wb97x-v",
     "orca": "wb97x-v",
+    "psi4": "wb97x-v",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97x-d3": {
     "orca": "wb97x-d3",
+    "psi4": "wb97x-d3",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97x-d3bj": {
     "orca": "wb97x-d3bj",
+    "psi4": "wb97x-d3bj",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97x-d4": {
     "orca": "wb97x-d4",
+    "psi4": "wb97x-d4",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97m-v": {
     "orca": "wb97m-v",
     "tm": "wb97m-v",
+    "psi4": "wb97m-v",
     "disp": "included",
     "type": "rs_hybrid"
   },
