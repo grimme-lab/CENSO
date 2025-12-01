@@ -303,7 +303,7 @@ def execute[
                     )
                 else:
                     results[meta.conf_name] = result
-                    if prog in QmProg:
+                    if (prog in QmProg) and (prog is not QmProg.PSI4):  # TODO: implement mo for psi4
                         conf.mo_paths[prog].append(result.mo_path)
             except CancelledError:
                 logger.debug("Future cancelled.")

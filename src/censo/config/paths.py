@@ -32,11 +32,17 @@ class PathsConfig(BaseModel):
     _orcaversion: str = PrivateAttr("")
     """ORCA version string. Should be extracted from somewhere."""
 
+    psi4: str = Field("")
+    """Absolute path to the psi4 binary directory."""
+
     tm: str = Field("")
     """Absolute path to the turbomole binary directory."""
 
     xtb: str = Field("")
     """Absolute path to the xtb binary."""
+
+    generic: str = Field("")
+    """Absolute path to the generic binary."""
 
     cosmotherm: str = Field("")
     """Absolute path to the cosmotherm binary."""
@@ -74,6 +80,18 @@ class PathsConfig(BaseModel):
         """
         if not Path(value).is_file():
             raise ValueError(f"orca executable not found at {value}.")
+        return value
+
+    @field_validator("psi4")
+    def validate_psi4(cls, value: str):
+        """
+        Validate the psi4 executable path.
+
+        :param value: The path to validate.
+        :return: The validated path.
+        """
+        if not Path(value).is_file():
+            raise ValueError(f"psi4 executable not found at {value}.")
         return value
 
     @field_validator("tm")
