@@ -33,7 +33,7 @@ class PathsConfig(BaseModel):
     """ORCA version string. Should be extracted from somewhere."""
 
     psi4: str = Field("")
-    """Absolute path to the turbomole binary directory."""
+    """Absolute path to the psi4 binary directory."""
 
     tm: str = Field("")
     """Absolute path to the turbomole binary directory."""
