@@ -18,6 +18,7 @@ class TestScreening:
         mock_ensemble: EnsembleData,
         mock_execute_results,
         parallel_setup,
+        skip_paths_validation,
     ):
         """Test screening function in gas phase"""
         # Set up gas phase
@@ -49,6 +50,7 @@ class TestScreening:
         mock_ensemble: EnsembleData,
         mock_execute_results,
         parallel_setup,
+        skip_paths_validation,
     ):
         """Test screening function in gas phase"""
         # Set up gas phase
@@ -80,6 +82,7 @@ class TestScreening:
         mock_ensemble: EnsembleData,
         mock_execute_results,
         parallel_setup,
+        skip_paths_validation,
     ):
         """Test screening function with solvation"""
         # Mock execute results for gsolv (not included)
@@ -118,6 +121,7 @@ class TestScreening:
         threshold: float,
         expected_count: int,
         parallel_setup,
+        skip_paths_validation,
     ):
         """Test energy threshold-based conformer removal"""
         config = PartsConfig()

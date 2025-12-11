@@ -103,8 +103,10 @@ class PartsConfig(GenericConfig):
         :param info: Validation info.
         :return: The validated instance.
         """
+        print(info)
         context = info.context
         if context:
+            print(context)
             parts_to_check = self._selected_parts(context)
             self._parts_check(parts_to_check)
 
@@ -160,12 +162,13 @@ class PartsConfig(GenericConfig):
                 required_progs.add(prog.value)
 
             # Special cases
-            if name == "general":
+            # NOTE: in principle you would also need to check if a part that actually runs xtb_rrho is checked
+            if (
+                (name == "general" and part.evaluate_rrho)
+                or (name == "prescreening" and not self.general.gas_phase)
+                or (name == "optimization" and part.xtb_opt)
+            ):
                 required_progs.add("xtb")
-
-            if name == "optimization":
-                if part.xtb_opt:
-                    required_progs.add("xtb")
 
             # Check for solvent model specific programs
             sm: TmSolvMod | OrcaSolvMod | None = getattr(part, "sm", None)
@@ -182,7 +185,7 @@ class PartsConfig(GenericConfig):
             path = getattr(self.paths, p, None)
             if not path:
                 raise ValueError(
-                    f"Program '{p}' is required but its path is not set in the configuration."
+                    f"Path for '{p}' is required but it is not set in the configuration."
                 )
             # Re-assign to trigger validation since `validate_assignment` is True
             # on failure this should raise a ValueError

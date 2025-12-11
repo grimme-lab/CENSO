@@ -66,8 +66,9 @@ def mock_solvents():
 
 
 # Patch PartsConfig.model_validate to default context['check_paths'] = False unless explicitly set
-@pytest.fixture(autouse=True)
-def patch_model_validate(monkeypatch):
+# This is an opt-in fixture - use it in tests where you want to skip path validation by default
+@pytest.fixture
+def skip_paths_validation(monkeypatch):
     original_model_validate = PartsConfig.model_validate
 
     def patched_model_validate(self, *args, **kwargs):

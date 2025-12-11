@@ -18,6 +18,7 @@ class TestPrescreening:
         mock_ensemble: EnsembleData,
         mock_execute_results,
         parallel_setup,
+        skip_paths_validation,
     ):
         """Test prescreening function in gas phase and rrho"""
         # Set up gas phase
@@ -50,6 +51,7 @@ class TestPrescreening:
         threshold: float,
         expected_count: int,
         parallel_setup,
+        skip_paths_validation,
     ):
         """Test energy threshold-based conformer removal"""
         config = PartsConfig()

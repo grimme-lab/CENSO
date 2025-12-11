@@ -34,7 +34,7 @@ def test_help_startup():
     entry_point(argv)
 
 
-def test_general_startup(example_ensemble_file):
+def test_general_startup(example_ensemble_file, skip_paths_validation):
     argv = str(
         f"-i {example_ensemble_file} --prescreening --solvent water -c 0 -u 0"
     ).split()
@@ -48,7 +48,7 @@ def test_writeconfig():
     assert Path("censo2rc_NEW").is_file()
 
 
-def test_writereadconfig(example_ensemble_file):
+def test_writereadconfig(example_ensemble_file, skip_paths_validation):
     argv = "--new-config".split()
     entry_point(argv)
 
@@ -58,7 +58,7 @@ def test_writereadconfig(example_ensemble_file):
     ensemble, config = startup(parse(argv), {"check": ["prescreening"]})
 
 
-def test_rc_override(example_ensemble_file):
+def test_rc_override(example_ensemble_file, skip_paths_validation):
     argv = "--new-config".split()
     entry_point(argv)
 
