@@ -1,8 +1,25 @@
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from censo.cli.cml_parser import parse
 from censo.cli.interface import startup, entry_point
 from censo.params import Returncode
+
+
+@pytest.fixture(autouse=True)
+def mock_find_program_paths():
+    """Mock find_program_paths to return empty strings for all program paths."""
+    mock_paths = {
+        "orca": "",
+        "tm": "",
+        "xtb": "",
+        "cosmotherm": "",
+        "cosmorssetup": "",
+    }
+    with patch("censo.config.setup.find_program_paths", return_value=mock_paths):
+        yield
 
 
 def test_blank_startup(capsys):

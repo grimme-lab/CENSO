@@ -168,7 +168,9 @@ class PathsConfig(BaseModel):
                 match_bytes = re.search(version_pattern, binary_content)
 
                 if not match_bytes:
-                    raise ValueError("Could not determine ORCA version.")
+                    raise ValueError(
+                        f"Could not determine ORCA version. Please check {self.orca}"
+                    )
                 else:
                     version_bytes = match_bytes.group(1)
                     version_string = version_bytes.decode("utf-8")

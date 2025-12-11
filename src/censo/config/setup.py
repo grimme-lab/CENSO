@@ -44,18 +44,30 @@ def configure(
             raise FileNotFoundError(f"No configuration file found at {rcpath}.")
         censorc_path = Path(rcpath).resolve()
 
+    # Try to find paths
+    paths = find_program_paths()
+
     if censorc_path is not None:
         # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
         settings_dict = read_rcfile(censorc_path, silent=False)
+
+        # Auto-detect missing paths
+        if "paths" in settings_dict:
+            empty = [
+                path_key
+                for path_key, path_value in settings_dict["paths"].items()
+                if path_value == ""
+            ]
+            for path_key in empty:
+                settings_dict["paths"][path_key] = paths[path_key]
+        else:
+            settings_dict["paths"] = paths
 
         # Create configurations without solvlent and paths validation for now (will be validated in the end after cml args)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             parts_config = PartsConfig.model_validate(settings_dict)
     else:
-        # Try to find paths
-        paths = find_program_paths()
-
         # Create default configurations with auto-detected paths (no path or solvent validation)
         parts_config = PartsConfig.model_validate({"paths": paths})
 

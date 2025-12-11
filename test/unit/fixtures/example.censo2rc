@@ -1,0 +1,165 @@
+[general]
+# Default temperature in Kelvin used for xtb and COSMOtherm
+temperature = 298.15
+# Calculate thermal energy contributions using xtb
+evaluate_rrho = True
+# Solvation model used for rrho corrections
+sm_rrho = gbsa
+# Threshold for accepting imaginary frequencies (cm^-1)
+imagthr = -100.0
+# Wave number threshold for switching in rrho approximation (cm^-1)
+sthr = 50.0
+# Default solvent identifier (used by solvation models)
+solvent = h2o
+# If True, calculations treat system as gas-phase
+gas_phase = False
+# Copy molecular orbitals between steps when supported
+copy_mo = True
+# Attempt to maximize core utilization
+balance = True
+# Continue workflow even if intermediate jobs fail
+ignore_failed = True
+
+[prescreening]
+# Program used for prescreening jobs (orca or turbomole (tm))
+prog = tm
+# Functional used for prescreening
+func = pbe-d3
+# Basis set for prescreening
+basis = def2-sv(p)
+# xTB variant for gsolv contributions
+gfnv = gfn2
+# Energy threshold (kcal/mol) to keep candidates
+threshold = 4.0
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[screening]
+# Program used for screening
+prog = tm
+# Functional used for screening
+func = r2scan-3c
+# Basis set used during screening
+basis = def2-mtzvpp
+# Solvation model for screening
+sm = cosmors
+# xTB variant
+gfnv = gfn2
+# Energy cutoff for keeping candidates (kcal/mol)
+threshold = 3.5
+# Whether solvation free energy should be included in energies or calculated separately (doubles computational effort)
+gsolv_included = False
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[optimization]
+# Program used for optimizations
+prog = tm
+# Functional used for optimizations
+func = r2scan-3c
+# Basis set for optimizations
+basis = def2-mtzvpp
+# Solvation model
+sm = dcosmors
+# xTB variant for any semiempirical steps
+gfnv = gfn2
+# Number of optimization macrocycles to attempt
+optcycles = 8
+# Maximum optimization microcycles
+maxcyc = 200
+# Optimization thoroughness (e.g., loose, normal, tight)
+optlevel = normal
+# Energy threshold (kcal/mol)
+threshold = 3.0
+# Gradient threshold (a.u.) below which the energy threshold will be applied
+gradthr = 0.01
+#
+hlow = 0.01
+# Allow macrocycle protocol
+macrocycles = True
+# Apply geometry constraints if True
+constrain = False
+# Whether to use ANCOPT as driver
+xtb_opt = True
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[refinement]
+# Program used for refinement
+prog = tm
+# Functional used for refinement
+func = wb97m-v
+# Basis set for refinement
+basis = def2-tzvp
+# Solvation model for refinement
+sm = cosmors
+# xTB variant
+gfnv = gfn2
+# Boltzmann population threshold
+threshold = 0.95
+# Whether solvation free energy should be included in energies or calculated separately (doubles computational effort)
+gsolv_included = False
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[nmr]
+# Program used for NMR
+prog = orca
+# Functional used for NMR properties
+func = pbe0-d4
+# Basis set for NMR shieldings/couplings
+basis = def2-tzvp
+# Solvation model
+sm = smd
+# NMR spectrometer frequency (MHz)
+resonance_frequency = 300.0
+# Spin–spin coupling cutoff (Hz) (only used in ORCA)
+ss_cutoff = 8.0
+# Compute Fermi-contact term only for couplings if True
+fc_only = True
+# Compute chemical shieldings
+shieldings = True
+# Compute spin–spin couplings
+couplings = True
+# List of nuclei to include (e.g., H, C)
+active_nuclei = h,c
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[rot]
+# Program used for optical rotatory dispersion calculations
+prog = tm
+# Functional used for optical rotatory dispersion calculations
+func = pbe-d4
+# Basis set for optical rotatory dispersion calculations
+basis = def2-svpd
+# Wavelengths for which polarizabilities will be calculated in nm
+freq = [589.0, 633.0]
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[uvvis]
+# Program used for UV/Vis
+prog = orca
+# Functional used for excited states
+func = wb97x-d4
+# Basis set for excited-state calculations
+basis = def2-tzvp
+# Solvation model for excited-state calculations
+sm = smd
+# Number of excited states (roots) to compute
+nroots = 20
+# Tries to insert template file (should be located in ~/.censo2_assets)
+template = False
+
+[paths]
+# ORCA binary path
+orca =
+# xtb binary path
+xtb =
+# TURBOMOLE path
+tm = /path/to/tm
+# COSMOtherm path
+cosmotherm =
+# COSMORS parameter file (.ctd)
+cosmorssetup =
