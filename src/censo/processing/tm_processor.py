@@ -1257,7 +1257,11 @@ class TmProc(QmProc):
             if "specific" in line
         ]
 
-        if not len(frequencies) == len(rotations_velocity) == len(rotations_length):
+        # Check only one of them because for hybrids length representation is not output
+        if not (
+            len(frequencies) == len(rotations_velocity)
+            or len(frequencies) == len(rotations_length)
+        ):
             meta.success = False
             meta.error = "Mismatch in number of frequencies and rotations"
             return result, meta

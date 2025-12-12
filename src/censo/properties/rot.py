@@ -103,20 +103,23 @@ def _write_results(
     rows_length: list[list[str]] = []
     rows_velocity: list[list[str]] = []
 
-    for conf in ensemble:
-        row = [conf.name]
-        for freq in frequencies:
-            rotation = next(
-                (
-                    rotation
-                    for f, rotation in results[conf.name].rotations_length
-                    if abs(f - freq) < 0.1
-                ),
-                0.0,
-            )
-            row.append(f"{rotation:.3f}")
-        rows_length.append(row)
+    # Only print if lengths representation is available
+    if all(result.rotations_length for result in results.values()):
+        for conf in ensemble:
+            row = [conf.name]
+            for freq in frequencies:
+                rotation = next(
+                    (
+                        rotation
+                        for f, rotation in results[conf.name].rotations_length
+                        if abs(f - freq) < 0.1
+                    ),
+                    0.0,
+                )
+                row.append(f"{rotation:.3f}")
+            rows_length.append(row)
 
+    # Velocity represtntation should always be available
     for conf in ensemble:
         row = [conf.name]
         for freq in frequencies:
@@ -132,16 +135,17 @@ def _write_results(
         rows_velocity.append(row)
 
     # Add ensemble averaged values for length representation
-    ensemble_avg_length = ["Ensemble avg."]
-    for i, freq in enumerate(frequencies):
-        avg_rotation = sum(
-            rotation * boltzmann_populations[conf.name]
-            for conf in ensemble
-            for f, rotation in results[conf.name].rotations_length
-            if abs(f - freq) < 0.1  # Match frequency within tolerance
-        )
-        ensemble_avg_length.append(f"{avg_rotation:.3f}")
-    rows_length.append(ensemble_avg_length)
+    if all(result.rotations_length for result in results.values()):
+        ensemble_avg_length = ["Ensemble avg."]
+        for i, freq in enumerate(frequencies):
+            avg_rotation = sum(
+                rotation * boltzmann_populations[conf.name]
+                for conf in ensemble
+                for f, rotation in results[conf.name].rotations_length
+                if abs(f - freq) < 0.1  # Match frequency within tolerance
+            )
+            ensemble_avg_length.append(f"{avg_rotation:.3f}")
+        rows_length.append(ensemble_avg_length)
 
     # Add ensemble averaged values for velocity representation
     ensemble_avg_velocity = ["Ensemble avg."]
@@ -159,14 +163,20 @@ def _write_results(
     for i in range(len(headers)):
         headers[i] += "\n" + units[i]
 
-    table_length = tabulate(
-        rows_length,
-        headers=headers,
-        colalign=["left"] + ["center" for _ in headers[1:]],
-        disable_numparse=True,
-        numalign="decimal",
-    )
+    # Write length representation if available
+    if rows_length:
+        table_length = tabulate(
+            rows_length,
+            headers=headers,
+            colalign=["left"] + ["center" for _ in headers[1:]],
+            disable_numparse=True,
+            numalign="decimal",
+        )
+        printf(h1("Optical Rotation Values (Length Representation)"))
+        printf(table_length)
+        filepath.write_text(table_length)
 
+    # Write velocity representation
     table_velocity = tabulate(
         rows_velocity,
         headers=headers,
@@ -174,16 +184,11 @@ def _write_results(
         disable_numparse=True,
         numalign="decimal",
     )
-
-    # Print everything
-    printf(h1("Optical Rotation Values (Length Representation)"))
-    printf(table_length)
     printf(h1("Optical Rotation Values (Velocity Representation)"))
     printf(table_velocity)
-    printf("".ljust(int(PLENGTH), "-"))
-
-    filepath.write_text(table_length)
     filepath.write_text(table_velocity)
+
+    printf("".ljust(int(PLENGTH), "-"))
 
     # Additionally, write results in json format
     Path("5_ROT.json").write_text(json.dumps(results_dict, indent=4))
