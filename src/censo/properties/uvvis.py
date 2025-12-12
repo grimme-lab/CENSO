@@ -38,7 +38,7 @@ def uvvis(
     """
     printf(h2("UVVIS"))
 
-    config = config.model_validate(config, context={"check": "uvvis"})
+    config = PartsConfig.model_validate(config, context={"check": ["uvvis"]})
 
     # Assert that all conformers have energies defined
     # TODO: this is not optimal since == 0 does not mean that no ensembleopt has been performed before

@@ -114,7 +114,7 @@ def test_parts_validation():
     config = PartsConfig()
     config.screening.func = "invalid"
     with pytest.raises(ValueError):
-        PartsConfig.model_validate(config, context={"check": "screening"})
+        PartsConfig.model_validate(config, context={"check": ["screening"]})
 
     # Assert that PartsConfig._sm_check and PartsConfig._paths_check are called once each
     config = PartsConfig()
@@ -127,7 +127,7 @@ def test_parts_validation():
         ) as mock_paths_check,
     ):
         config = PartsConfig.model_validate(
-            config, context={"check": "screening", "check_paths": False}
+            config, context={"check": ["screening"], "check_paths": False}
         )
         mock_sm_check.assert_called_once()
         # _paths_check is not called when check_paths=False
@@ -155,7 +155,7 @@ def test_parts_validation():
     ):
         # Mock Path to make validation pass
         mock_path.return_value.is_file.return_value = True
-        config = PartsConfig.model_validate(config, context={"check": "screening"})
+        config = PartsConfig.model_validate(config, context={"check": ["screening"]})
         mock_sm_check.assert_called_once()
         mock_paths_check.assert_called_once()
 
@@ -172,7 +172,7 @@ def test_screening_requires_cosmors_and_turbomole_paths():
     ):
         PartsConfig.model_validate(
             config,
-            context={"check": "screening", "check_sm": False},
+            context={"check": ["screening"], "check_sm": False},
         )
 
 
@@ -221,38 +221,38 @@ def test_context_specific_path_validation_for_all_parts():
 
         # Screening should pass (has TM and COSMO-RS paths)
         validated = PartsConfig.model_validate(
-            config, context={"check": "screening", "check_sm": False}
+            config, context={"check": ["screening"], "check_sm": False}
         )
         assert validated.screening.prog == QmProg.TM
 
         # Optimization should pass (has TM path, no COSMO-RS needed)
         validated = PartsConfig.model_validate(
-            config, context={"check": "optimization", "check_sm": False}
+            config, context={"check": ["optimization"], "check_sm": False}
         )
         assert validated.optimization.prog == QmProg.TM
 
         # Refinement should pass (has TM path)
         validated = PartsConfig.model_validate(
-            config, context={"check": "refinement", "check_sm": False}
+            config, context={"check": ["refinement"], "check_sm": False}
         )
         assert validated.refinement.prog == QmProg.TM
 
         # Rot should pass (has TM path)
         validated = PartsConfig.model_validate(
-            config, context={"check": "rot", "check_sm": False}
+            config, context={"check": ["rot"], "check_sm": False}
         )
         assert validated.rot.prog == QmProg.TM
 
         # NMR should fail (needs ORCA, which is not provided)
         with pytest.raises(ValueError, match="orca.*is not set"):
             PartsConfig.model_validate(
-                config, context={"check": "nmr", "check_sm": False}
+                config, context={"check": ["nmr"], "check_sm": False}
             )
 
         # UVVis should fail (needs ORCA)
         with pytest.raises(ValueError, match="orca.*is not set"):
             PartsConfig.model_validate(
-                config, context={"check": "uvvis", "check_sm": False}
+                config, context={"check": ["uvvis"], "check_sm": False}
             )
 
     # Test 2: Validate prescreening, NMR, and UVVis with only ORCA path (no TM or COSMO-RS)
@@ -270,19 +270,19 @@ def test_context_specific_path_validation_for_all_parts():
 
         # Prescreening should pass (has ORCA, gas_phase=True so no xtb needed)
         validated = PartsConfig.model_validate(
-            config, context={"check": "prescreening", "check_sm": False}
+            config, context={"check": ["prescreening"], "check_sm": False}
         )
         assert validated.prescreening.prog == QmProg.ORCA
 
         # NMR should pass (has ORCA)
         validated = PartsConfig.model_validate(
-            config, context={"check": "nmr", "check_sm": False}
+            config, context={"check": ["nmr"], "check_sm": False}
         )
         assert validated.nmr.prog == QmProg.ORCA
 
         # UVVis should pass (has ORCA)
         validated = PartsConfig.model_validate(
-            config, context={"check": "uvvis", "check_sm": False}
+            config, context={"check": ["uvvis"], "check_sm": False}
         )
         assert validated.uvvis.prog == QmProg.ORCA
 
@@ -291,116 +291,23 @@ def test_context_specific_path_validation_for_all_parts():
             ValueError, match="(tm|cosmotherm|cosmorssetup).*is not set"
         ):
             PartsConfig.model_validate(
-                config, context={"check": "screening", "check_sm": False}
+                config, context={"check": ["screening"], "check_sm": False}
             )
 
         # Optimization should fail (needs TM)
         with pytest.raises(ValueError, match="tm.*is not set"):
             PartsConfig.model_validate(
-                config, context={"check": "optimization", "check_sm": False}
+                config, context={"check": ["optimization"], "check_sm": False}
             )
 
         # Refinement should fail (needs TM)
         with pytest.raises(ValueError, match="tm.*is not set"):
             PartsConfig.model_validate(
-                config, context={"check": "refinement", "check_sm": False}
+                config, context={"check": ["refinement"], "check_sm": False}
             )
 
         # Rot should fail (needs TM)
         with pytest.raises(ValueError, match="tm.*is not set"):
             PartsConfig.model_validate(
-                config, context={"check": "rot", "check_sm": False}
-            )
-
-    with patch("censo.config.paths.Path") as mock_path:
-        mock_path.return_value.is_file.return_value = True
-        mock_path.return_value.resolve.return_value = mock_path.return_value
-        mock_path.return_value.parent = mock_path.return_value
-        mock_path.return_value.__truediv__.return_value = mock_path.return_value
-
-        # Screening should pass (has TM and COSMO-RS paths)
-        validated = PartsConfig.model_validate(
-            config, context={"check": "screening", "check_sm": False}
-        )
-        assert validated.screening.prog == QmProg.TM
-
-        # Optimization should pass (has TM path, no COSMO-RS needed)
-        validated = PartsConfig.model_validate(
-            config, context={"check": "optimization", "check_sm": False}
-        )
-        assert validated.optimization.prog == QmProg.TM
-
-        # Refinement should pass (has TM path)
-        validated = PartsConfig.model_validate(
-            config, context={"check": "refinement", "check_sm": False}
-        )
-        assert validated.refinement.prog == QmProg.TM
-
-        # Rot should pass (has TM path)
-        validated = PartsConfig.model_validate(
-            config, context={"check": "rot", "check_sm": False}
-        )
-        assert validated.rot.prog == QmProg.TM
-
-        # NMR should fail (needs ORCA, which is not provided)
-        with pytest.raises(ValueError, match="orca.*is not set"):
-            PartsConfig.model_validate(
-                config, context={"check": "nmr", "check_sm": False}
-            )
-
-        # UVVis should fail (needs ORCA)
-        with pytest.raises(ValueError, match="orca.*is not set"):
-            PartsConfig.model_validate(
-                config, context={"check": "uvvis", "check_sm": False}
-            )
-
-    # Test 2: Validate NMR/UVVis with only ORCA path (no TM or COSMO-RS)
-    config.paths = PathsConfig.model_construct(
-        orca="/fake/path/orca",
-    )
-
-    with (
-        patch("censo.config.paths.Path") as mock_path,
-        patch("builtins.open", create=True) as mock_open,
-    ):
-        mock_path.return_value.is_file.return_value = True
-        mock_file = mock_open.return_value.__enter__.return_value
-        mock_file.read.return_value = b"Program Version 5.0.3"
-
-        # NMR should pass (has ORCA)
-        validated = PartsConfig.model_validate(
-            config, context={"check": "nmr", "check_sm": False}
-        )
-        assert validated.nmr.prog == QmProg.ORCA
-
-        # UVVis should pass (has ORCA)
-        validated = PartsConfig.model_validate(
-            config, context={"check": "uvvis", "check_sm": False}
-        )
-        assert validated.uvvis.prog == QmProg.ORCA
-
-        # Screening should fail (needs TM and COSMO-RS paths)
-        with pytest.raises(
-            ValueError, match="(tm|cosmotherm|cosmorssetup).*is not set"
-        ):
-            PartsConfig.model_validate(
-                config, context={"check": "screening", "check_sm": False}
-            )
-
-        # Optimization should fail (needs TM)
-        with pytest.raises(ValueError, match="tm.*is not set"):
-            PartsConfig.model_validate(
-                config, context={"check": "optimization", "check_sm": False}
-            )
-
-        # Refinement should fail (needs TM)
-        with pytest.raises(ValueError, match="tm.*is not set"):
-            PartsConfig.model_validate(
-                config, context={"check": "refinement", "check_sm": False}
-            )
-
-        # Rot should fail (needs TM)
-        with pytest.raises(ValueError, match="tm.*is not set"):
-            PartsConfig.model_validate(
-                config, context={"check": "rot", "check_sm": False}
+                config, context={"check": ["rot"], "check_sm": False}
             )

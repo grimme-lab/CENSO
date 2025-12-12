@@ -45,7 +45,7 @@ def prescreening(
     """
     printf(h2("PRESCREENING"))
 
-    config = config.model_validate(config, context={"check": "prescreening"})
+    config = PartsConfig.model_validate(config, context={"check": ["prescreening"]})
 
     # Setup processor and target
     proc = Factory[QmProc].create(config.prescreening.prog, "0_PRESCREENING")

@@ -103,10 +103,8 @@ class PartsConfig(GenericConfig):
         :param info: Validation info.
         :return: The validated instance.
         """
-        print(info)
         context = info.context
         if context:
-            print(context)
             parts_to_check = self._selected_parts(context)
             self._parts_check(parts_to_check)
 
@@ -172,13 +170,17 @@ class PartsConfig(GenericConfig):
 
             # Check for solvent model specific programs
             sm: TmSolvMod | OrcaSolvMod | None = getattr(part, "sm", None)
-            if sm is not None:
-                if sm in [
+            if (
+                sm is not None
+                and sm
+                in [
                     TmSolvMod.COSMORS,
                     TmSolvMod.COSMORS_FINE,
-                ]:
-                    required_progs.add("cosmotherm")
-                    required_progs.add("cosmorssetup")
+                ]
+                and not self.general.gas_phase
+            ):
+                required_progs.add("cosmotherm")
+                required_progs.add("cosmorssetup")
 
         # Now check if the required paths are actually set and run the validators
         for p in required_progs:
