@@ -19,6 +19,7 @@ def configure(
     rcpath: str | None = None,
     args: Namespace | None = None,
     context: dict[str, list[str]] | None = None,
+    allow_home_lookup: bool = True,
 ) -> PartsConfig:
     """
     Configure the application based on the provided configuration file path.
@@ -29,6 +30,9 @@ def configure(
     :param rcpath: Path to the configuration file.
     :param args: Parsed command line arguments. Defaults to None.
     :param context: Additional context for validation. Defaults to None.
+    :param allow_home_lookup: If True (default), search for .censo2rc in home directory
+        and CENSORC_PATH environment variable when rcpath is None. Set to False in
+        tests to prevent non-deterministic behavior from user's configuration files.
     :return: Configuration instance.
     """
     # Try to find the .censo2rc in the user's home directory
@@ -37,12 +41,14 @@ def configure(
     # - args.inprcfile
     # - home dir
     # - env variable
-    if rcpath is None:
+    if rcpath is None and allow_home_lookup:
         censorc_path = find_rcfile()
-    else:
+    elif rcpath is not None:
         if not Path(rcpath).resolve().is_file():
             raise FileNotFoundError(f"No configuration file found at {rcpath}.")
         censorc_path = Path(rcpath).resolve()
+    else:
+        censorc_path = None
 
     # Try to find paths
     paths = find_program_paths()
@@ -56,7 +62,7 @@ def configure(
             empty = [
                 path_key
                 for path_key, path_value in settings_dict["paths"].items()
-                if path_value == ""
+                if path_value == "" and path_key in paths
             ]
             for path_key in empty:
                 settings_dict["paths"][path_key] = paths[path_key]
@@ -209,7 +215,6 @@ def find_rcfile() -> Path | None:
 
     :return: Path to the configuration file if found, else None.
     """
-
     rcpath = None
     homepath = Path("~").expanduser() / CENSORCNAME
     try:

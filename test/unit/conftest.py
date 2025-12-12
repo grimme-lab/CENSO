@@ -88,6 +88,33 @@ def skip_paths_validation(monkeypatch):
     monkeypatch.setattr(PartsConfig, "model_validate", patched_model_validate)
 
 
+# Patch configure() to disable home directory lookup during tests
+# This prevents tests from depending on user's ~/.censo2rc file
+@pytest.fixture(autouse=True)
+def disable_home_lookup(monkeypatch):
+    """
+    Automatically disable home directory lookup in configure() for all tests.
+
+    This prevents non-deterministic test failures caused by the presence of
+    .censo2rc in the user's home directory or CENSORC_PATH environment variable.
+    Tests should only use fixture data and explicit rcpath parameters.
+    """
+    from censo.config.setup import configure as original_configure
+
+    def patched_configure(
+        rcpath=None, args=None, context=None, allow_home_lookup=False
+    ):
+        # Default to allow_home_lookup=False in tests
+        return original_configure(
+            rcpath=rcpath,
+            args=args,
+            context=context,
+            allow_home_lookup=allow_home_lookup,
+        )
+
+    monkeypatch.setattr("censo.config.setup.configure", patched_configure)
+
+
 @pytest.fixture(scope="session")
 def parallel_setup():
     """Provide real parallel setup for tests that need it."""
