@@ -1273,12 +1273,13 @@ class TmProc(QmProc):
                     rotations_velocity[i],
                 )
             )
-            result.rotations_length.append(
-                (
-                    frequencies[i],
-                    rotations_length[i],
+            if len(rotations_length) > 0:
+                result.rotations_length.append(
+                    (
+                        frequencies[i],
+                        rotations_length[i],
+                    )
                 )
-            )
 
         return result, meta
 
