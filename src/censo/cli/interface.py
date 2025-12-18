@@ -40,6 +40,13 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
         printf("CENSO needs at least one argument!")
         return Returncode.ARGUMENT_ERROR
 
+    from ..logging import set_filehandler
+
+    # Set up logging
+    set_loglevel(args.loglevel)
+    logpath = Path(args.logpath or Path(args.inp).parent / "censo.log").resolve()
+    set_filehandler(logpath)
+
     # Startup description
     print(DESCR + "\n")
 
@@ -166,7 +173,6 @@ def startup(
 
     from ..config.setup import configure, write_rcfile
     from ..ensemble import EnsembleData
-    from ..logging import set_filehandler
 
     # Load up the ensemble and configure settings
     cwd = os.getcwd()
@@ -196,11 +202,6 @@ def startup(
     except ValidationError as e:
         print_validation_errors(e)
         sys.exit(Returncode.CONFIG_ERROR)
-
-    # Set up logging
-    set_loglevel(args.loglevel)
-    logpath = Path(args.logpath or Path(args.inp).parent / "censo.log").resolve()
-    set_filehandler(logpath)
 
     # initialize ensemble
     ensemble = EnsembleData()
