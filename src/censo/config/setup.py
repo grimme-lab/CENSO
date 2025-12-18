@@ -62,9 +62,8 @@ def configure(
         if "paths" in settings_dict:
             empty = [
                 path_key
-                for path_key, path_value in settings_dict["paths"].items()
-                if path_value == ""
-                and path_key in PathsConfig.model_fields.keys()
+                for path_key in PathsConfig.model_fields.keys()
+                if settings_dict["paths"].get(path_key, "") == ""
                 and path_key != "_orcaversion"
             ]
             logger.debug(f"Auto-detect paths: {empty}")
