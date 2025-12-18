@@ -56,6 +56,7 @@ def configure(
     if censorc_path is not None:
         # Read the actual configuration file (located at rcpath if not None, otherwise rcfile in home dir)
         settings_dict = read_rcfile(censorc_path, silent=False)
+        logger.debug(f"Read paths: {settings_dict['paths']}")
 
         # Auto-detect missing paths
         if "paths" in settings_dict:
@@ -64,6 +65,7 @@ def configure(
                 for path_key, path_value in settings_dict["paths"].items()
                 if path_value == "" and path_key in paths
             ]
+            logger.debug(f"Auto-detect paths: {empty}")
             for path_key in empty:
                 settings_dict["paths"][path_key] = paths[path_key]
         else:
@@ -76,6 +78,8 @@ def configure(
     else:
         # Create default configurations with auto-detected paths (no path or solvent validation)
         parts_config = PartsConfig.model_validate({"paths": paths})
+
+    logger.debug(f"Final paths: {parts_config.paths.model_dump()}")
 
     # Override general settings only for now
     for field in parts_config.general.__class__.model_fields:
@@ -206,6 +210,7 @@ def find_program_paths() -> dict[str, str]:
             if "BP_TZVP" in file.name and file.is_file():
                 paths["cosmorssetup"] = file.name
 
+    logger.debug(f"Found paths: {paths}")
     return paths
 
 
