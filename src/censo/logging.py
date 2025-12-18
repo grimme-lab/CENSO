@@ -56,6 +56,7 @@ def set_filehandler(path: str | Path):
             )
             if not filehandler_exists:
                 handler = logging.FileHandler(path)
+                handler.setLevel(__loglevel)
                 handler.setFormatter(formatter)
                 logger.addHandler(handler)
 
@@ -67,7 +68,6 @@ def set_loglevel(loglevel: str) -> None:
     :param loglevel: The log level to set.
     :return: None
     """
-    global __loglevel
     __loglevel = getattr(logging, loglevel)
     for logger_name, logger in logging.Logger.manager.loggerDict.items():
         if isinstance(logger, logging.Logger) and logger_name.startswith("censo"):
