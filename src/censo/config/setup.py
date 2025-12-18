@@ -63,7 +63,9 @@ def configure(
             empty = [
                 path_key
                 for path_key, path_value in settings_dict["paths"].items()
-                if path_value == "" and path_key in paths
+                if path_value == ""
+                and path_key in PathsConfig.model_fields.keys()
+                and path_key != "_orcaversion"
             ]
             logger.debug(f"Auto-detect paths: {empty}")
             for path_key in empty:
@@ -190,20 +192,26 @@ def find_program_paths() -> dict[str, str]:
 
     :return: Dictionary of found program paths.
     """
-    paths: dict[str, str] = {}
-    for program in PathsConfig.model_fields.keys():
+    paths: dict[str, str] = {
+        program: ""
+        for program in PathsConfig.model_fields.keys()
+        if program != "_orcaversion"
+    }
+    check = [program for program in paths if program not in ["tm", "cosmorssetup"]]
+    for program in check:
         path = shutil.which(program)
 
         if path:
             paths[program] = path
 
+    # Check TM and cosmorssetup differently
     if QmProg.TM.value in PathsConfig.model_fields.keys():
         path = shutil.which("ridft")
         if path:
             paths[QmProg.TM.value] = str(Path(path).parent)
 
     # If cosmotherm is found try to set cosmorssetup automatically
-    if "cosmotherm" in paths:
+    if paths["cosmotherm"]:
         # cosmotherm path parent should be BIN-LINUX, CTDATA-FILES is on the same level
         ctdata = (Path(paths["cosmotherm"]).parent / ".." / "CTDATA-FILES").resolve()
         for file in ctdata.glob("*.ctd"):
