@@ -41,6 +41,7 @@ def set_filehandler(path: str | Path):
     :param path: Path to the log file.
     :return: None
     """
+    global __loglevel
     filehandler_path = str(path)
     formatter = logging.Formatter(
         "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
@@ -68,6 +69,7 @@ def set_loglevel(loglevel: str) -> None:
     :param loglevel: The log level to set.
     :return: None
     """
+    global __loglevel
     __loglevel = getattr(logging, loglevel)
     for logger_name, logger in logging.Logger.manager.loggerDict.items():
         if isinstance(logger, logging.Logger) and logger_name.startswith("censo"):
