@@ -90,6 +90,8 @@ def read_chemeq() -> dict[int, list[int]]:
     :return: dict[int, list[int]]
     """
     lines = Path("anmr_nucinfo").read_text().split("\n")
+    # Filter out empty lines (e.g., from trailing newlines)
+    lines = [line for line in lines if line.strip()]
     atoms = []
     equiv: dict[int, list[int]] = {}
     for line in lines[1::2]:
