@@ -21,21 +21,21 @@ def test_read_chemeq_fixture(fixtures_path, monkeypatch, tmp_path):
     # Verify structure - should have 14 atoms based on fixture
     assert len(result) == 14
 
-    # Check specific equivalences from the fixture
-    assert result[1] == [1]
-    assert result[2] == [2, 3]
-    assert result[3] == [3, 2]
-    assert result[4] == [4]
-    assert result[5] == [5, 6]
-    assert result[6] == [6, 5]
-    assert result[7] == [7, 9]
-    assert result[8] == [8]
-    assert result[9] == [9, 7]
-    assert result[10] == [10]
+    # Check specific equivalences from the fixture (converted to 0-indexed)
+    assert result[0] == [0]
+    assert result[1] == [1, 2]
+    assert result[2] == [2, 1]
+    assert result[3] == [3]
+    assert result[4] == [4, 5]
+    assert result[5] == [5, 4]
+    assert result[6] == [6, 8]
+    assert result[7] == [7]
+    assert result[8] == [8, 6]
+    assert result[9] == [9]
+    assert result[10] == [10, 12]
     assert result[11] == [11, 13]
-    assert result[12] == [12, 14]
+    assert result[12] == [12, 10]
     assert result[13] == [13, 11]
-    assert result[14] == [14, 12]
 
 
 def test_read_chemeq_file_not_found(tmp_path, monkeypatch):
@@ -56,7 +56,7 @@ def test_read_chemeq_single_atom(tmp_path, monkeypatch):
 
     result = read_chemeq()
 
-    assert result == {1: [1]}
+    assert result == {0: [0]}
 
 
 def test_read_chemeq_all_equivalent(tmp_path, monkeypatch):
@@ -70,9 +70,9 @@ def test_read_chemeq_all_equivalent(tmp_path, monkeypatch):
     result = read_chemeq()
 
     assert result == {
-        1: [1, 2, 3],
-        2: [2, 1, 3],
-        3: [3, 1, 2],
+        0: [0, 1, 2],
+        1: [1, 0, 2],
+        2: [2, 0, 1],
     }
 
 

@@ -95,10 +95,12 @@ def read_chemeq() -> dict[int, list[int]]:
     atoms = []
     equiv: dict[int, list[int]] = {}
     for line in lines[1::2]:
-        atoms.append(int(line.split()[0]))
+        atoms.append(int(line.split()[0]) - 1)  # Convert from 1-indexed to 0-indexed
 
     for i, line in enumerate(lines[2::2]):
-        equiv[atoms[i]] = [int(x) for x in line.split()]
+        equiv[atoms[i]] = [
+            int(x) - 1 for x in line.split()
+        ]  # Convert from 1-indexed to 0-indexed
 
     return equiv
 
