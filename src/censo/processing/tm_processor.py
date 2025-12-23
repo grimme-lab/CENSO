@@ -253,8 +253,10 @@ class TmProc(QmProc):
 
         inp.append("$rij")
 
-        # Add charge and unpaired info
-        inp.append(f"$charge={job.charge} unpaired={job.unpaired}")
+        # Add charge and unpaired info via eht guess
+        inp.append(f"$eht charge={job.charge} unpaired={job.unpaired}")
+        if job.unpaired > 0:
+            inp.append("$uhf")
 
         # Write coord file
         with open(os.path.join(jobdir, "coord"), "w") as f:
