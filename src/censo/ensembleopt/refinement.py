@@ -130,6 +130,9 @@ def refinement(
         for conf in ensemble:
             contributions_dict[conf.name].grrho = rrho_results[conf.name].energy
 
+    # Update molecules
+    ensemble.update_contributions(contributions_dict)
+
     if cut:
         # Prepare Boltzmann populations
         boltzmann_populations = ensemble.get_populations(config.general.temperature)
