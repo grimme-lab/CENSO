@@ -771,7 +771,9 @@ class OrcaProc(QmProc):
         inputpath = os.path.join(jobdir, f"{filename}.inp")
 
         # prepare input dict
-        inp = self.__prep(job, config, "xtb_opt", xyzfile=f"{filename}.xyz")
+        inp = self.__prep(
+            job, config, "xtb_opt", no_solv=config.gas_phase, xyzfile=f"{filename}.xyz"
+        )
 
         # write orca input into file "xtb_opt.inp" in a subdir created for the
         # conformer

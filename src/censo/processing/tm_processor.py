@@ -607,7 +607,7 @@ class TmProc(QmProc):
                 return result, meta
 
             # Run solution sp
-            spres, spmeta = self._sp(job, config, jobdir=jobdir)
+            spres, spmeta = self._sp(job, config, jobdir=jobdir, no_solv=False)
 
             if spmeta.success:
                 result.energy_solv = spres.energy
@@ -878,7 +878,7 @@ class TmProc(QmProc):
         if config.copy_mo and job.mo_guess is not None:
             self.__copy_mo(str(jobdir), job.mo_guess)
 
-        self.__prep(job, config, "xtb_opt", jobdir)
+        self.__prep(job, config, "xtb_opt", jobdir, no_solv=config.gas_phase)
 
         # prepare xtb call
         call = [
@@ -1031,7 +1031,7 @@ class TmProc(QmProc):
         jobdir = self._setup(job, "nmr")
 
         # Run sp first
-        self.__prep(job, config, "nmr", jobdir)
+        self.__prep(job, config, "nmr", jobdir, no_solv=config.gas_phase)
         _, spmeta = self._sp(job, config, jobdir=jobdir, prep=False)
 
         if not spmeta.success:
