@@ -21,6 +21,7 @@ Created on Mar 17, 2024
 last updated on 17-March-2024
 @author: lmseidler
 """
+
 import matplotlib.pyplot as plt
 import os
 import argparse
@@ -31,6 +32,9 @@ import pandas as pd
 PLANCK = 6.62607015e-34
 C = 2.998e8
 COULOMB = 1.602e-19
+# Physical constants for Boltzmann weighting
+AU2J = 4.3597482e-18  # Hartree to Joules
+KB = 1.3806485279e-23  # Boltzmann constant in J/K
 
 
 descr = """
@@ -39,8 +43,8 @@ descr = """
     |                    UVVISPLOT                     |
     |        Plotting of ensemble UV/Vis spectra       |
     |             University of Bonn, MCTC             |
-    |                   March 2024                     |
-    |                     v 1.0.0                      |
+    |                   January 2026                   |
+    |                     v 1.1.0                      |
     |                  L. M. Seidler                   |
     |__________________________________________________|
     """
@@ -91,7 +95,7 @@ def get_args():
         required=False,
         default="UVVis-PLOT",
         type=str,
-        help="Set title of entire plot. If no title is required use " "'<--title ''>'.",
+        help="Set title of entire plot. If no title is required use '<--title ''>'.",
     )
     parser.add_argument(
         "-lw",
@@ -130,6 +134,16 @@ def get_args():
         default="nmrplot",
         help="Provide name of the output file (including ending).",
     )
+    parser.add_argument(
+        "-T",
+        "--temperature",
+        dest="temperature",
+        action="store",
+        required=False,
+        default=298.15,
+        type=float,
+        help="Temperature in Kelvin for Boltzmann weighting. Default: 298.15 K.",
+    )
     args = parser.parse_args()
     return args
 
@@ -146,6 +160,78 @@ def read_data(inp):
         data = json.load(f)
 
     return data
+
+
+def process_data(json_data, temperature):
+    """
+    Process JSON data from CENSO uvvis output into flat format for plotting.
+
+    Converts the hierarchical DataDump format (with conformer data and excitations)
+    into a flat list of [wavelength, weighted_osc_str, conf_name] entries.
+    Applies Boltzmann weighting based on free energies.
+
+    :param json_data: JSON data loaded from file (either DataDump format or legacy flat list).
+    :param temperature: Temperature in Kelvin for Boltzmann weighting.
+    :return: List of [wavelength, weighted_intensity, conf_name] entries.
+    """
+    # Check if this is the new DataDump format
+    if not isinstance(json_data, dict) or "data" not in json_data:
+        # Assume legacy format (already a flat list)
+        print("Legacy data format detected. Using data as-is.")
+        return json_data
+
+    print(
+        f"Processing CENSO DataDump format with Boltzmann weighting at {temperature} K."
+    )
+
+    conformer_data = json_data["data"]
+
+    # Step 1: Calculate Boltzmann populations
+    # Calculate total free energy (gtot) for each conformer
+    gtot_values = {}
+    for conf_name, conf_info in conformer_data.items():
+        gtot = conf_info["energy"] + conf_info["gsolv"] + conf_info["grrho"]
+        gtot_values[conf_name] = gtot
+
+    # Find minimum gtot
+    min_gtot = min(gtot_values.values())
+
+    # Calculate Boltzmann factors
+    from math import exp
+
+    boltzmann_factors = {}
+    for conf_name, gtot in gtot_values.items():
+        delta_g = gtot - min_gtot
+        boltzmann_factors[conf_name] = exp(-(delta_g * AU2J) / (KB * temperature))
+
+    # Normalize to get populations
+    partition_sum = sum(boltzmann_factors.values())
+    populations = {
+        conf_name: factor / partition_sum
+        for conf_name, factor in boltzmann_factors.items()
+    }
+
+    # Print population summary
+    print("\nBoltzmann populations:")
+    for conf_name in sorted(populations.keys()):
+        print(f"  {conf_name}: {populations[conf_name]:.4f}")
+    print()
+
+    # Step 2: Flatten excitations with Boltzmann weighting
+    flat_data = []
+    for conf_name, conf_info in conformer_data.items():
+        population = populations[conf_name]
+        for excitation in conf_info["excitations"]:
+            wavelength = excitation["wavelength"]
+            osc_str = excitation["osc_str"]
+            weighted_osc_str = osc_str * population
+            flat_data.append([wavelength, weighted_osc_str, conf_name])
+
+    print(
+        f"Processed {len(flat_data)} excitations from {len(conformer_data)} conformers."
+    )
+
+    return flat_data
 
 
 def plot(data, args):
@@ -254,10 +340,13 @@ def main():
     args = get_args()
 
     # Read data
-    data = read_data(args.inp)
+    raw_data = read_data(args.inp)
+
+    # Process data (handles both new DataDump format and legacy flat format)
+    processed_data = process_data(raw_data, args.temperature)
 
     # Plot data
-    figure = plot(data, args)
+    figure = plot(processed_data, args)
 
     # Save plot
     save_plot(figure, args.out)
