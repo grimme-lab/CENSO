@@ -1085,7 +1085,8 @@ class TmProc(QmProc):
 
             for i in line_indices:
                 split = lines[i].split()
-                result.shieldings.append((int(split[2]), float(split[4])))
+                result.shieldings.append((int(split[2]) - 1, float(split[4])))
+                # Convert 1-based index to 0-based index
 
             # Sort shieldings by atom index
             result.shieldings.sort(key=lambda x: x[0])
