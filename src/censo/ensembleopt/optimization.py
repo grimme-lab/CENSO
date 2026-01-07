@@ -244,13 +244,13 @@ def _macrocycle_opt(
 
         # TODO: molbar topology check
 
+        # Update contributions
+        unconverged_ensemble.update_contributions(contributions_dict)
+
         # Remove converged conformers
         unconverged_ensemble.remove_conformers(
             lambda conf: results[conf.name].converged
         )
-
-        # Update contributions
-        unconverged_ensemble.update_contributions(contributions_dict)
 
         if len(unconverged_ensemble.conformers) != 0 and cut:
             gradthr = config.optimization.gradthr
