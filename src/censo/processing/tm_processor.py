@@ -1144,7 +1144,7 @@ class TmProc(QmProc):
                 # pair needs to be a frozenset because normal sets are not hashable and can therefore not be part
                 # of a normal set
                 split = lines[i].split()
-                pair = frozenset((int(split[1]), int(split[4].split(":")[0])))
+                pair = frozenset((int(split[1]) - 1, int(split[4].split(":")[0]) - 1))
                 coupling = float(split[5])
                 couplings.append((pair, coupling))
 
