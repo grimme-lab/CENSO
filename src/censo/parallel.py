@@ -161,31 +161,29 @@ def prepare_jobs(
     jobs = [
         JobContext(conf.geom, conf.charge, conf.unpaired, omp) for conf in conformers
     ]
+    mo_paths: dict[str, list[str | tuple[str, str]]] = {}
     if copy_mo:
-        for job in jobs:
-            # Insert mo guess file path
-            if prog == "orca":
-                job.mo_guess = next(
-                    (
-                        mo_path
-                        for conf in conformers
-                        for mo_path in conf.mo_paths["orca"]
-                        if conf.name == job.conf.name and ".gbw" in mo_path
-                    ),
-                    None,
-                )
-            elif prog == "tm":
-                job.mo_guess = next(
-                    (
-                        mo_path
-                        for conf in conformers
-                        for mo_path in conf.mo_paths["tm"]
-                        if conf.name == job.conf.name
-                        and any(kw in mo_path for kw in ["alpha", "beta", "mos"])
-                    ),
-                    None,
-                )
-            job.from_part = from_part
+        if prog == "orca":
+            mo_paths = {
+                conf.name: [
+                    mo_path for mo_path in conf.mo_paths["orca"] if ".gbw" in mo_path
+                ]
+                for conf in conformers
+            }
+        elif prog == "tm":
+            mo_paths = {
+                conf.name: [
+                    mo_path
+                    for mo_path in conf.mo_paths["tm"]
+                    if any(kw in mo_path for kw in ["alpha", "beta", "mos"])
+                ]
+                for conf in conformers
+            }
+
+    for job in jobs:
+        if mo_paths.get(job.conf.name, None):
+            job.mo_guess = mo_paths[job.conf.name][-1]
+        job.from_part = from_part
 
     if balance:
         set_omp(jobs, balance, omp, ncores)
