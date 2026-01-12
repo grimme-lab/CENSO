@@ -264,7 +264,7 @@ class EnsembleData:
 
             # Create a new conformer object and append it to the ensemble
             conformers.append(
-                MoleculeData(
+                MoleculeData.from_xyz(
                     confname,
                     lines[split_index + 2 : conf_end_index],
                 )

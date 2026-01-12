@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Union
 
 from ..molecules import GeometryData
 
@@ -26,9 +25,7 @@ class JobContext:
 
         # stores path to an mo file which is supposed to be used as a guess
         # In case of open shell tm calculation this can be a tuple of files
-        self.mo_guess: Union[
-            Path, str, tuple[Union[str, Path], Union[str, Path]], None
-        ] = None
+        self.mo_guess: Path | str | tuple[str | Path, str | Path] | None = None
 
         self.from_part: str = ""
 

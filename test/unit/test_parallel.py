@@ -40,8 +40,8 @@ def molecule_data():
     """Create a real MoleculeData instance"""
     from censo.molecules import MoleculeData
 
-    mol = MoleculeData(
-        name="CONF1", xyz=["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"], charge=0, unpaired=0
+    mol = MoleculeData.from_xyz(
+        "CONF1", ["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"], charge=0, unpaired=0
     )
     mol.mo_paths = {
         QmProg.TM: ["path/to/mos"],
@@ -84,9 +84,9 @@ def create_conformers():
 
         conformers = []
         for i in range(1, count + 1):
-            mol = MoleculeData(
-                name=f"CONF{i}",
-                xyz=["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"],
+            mol = MoleculeData.from_xyz(
+                f"CONF{i}",
+                ["C 0.0 0.0 0.0\n", "H 1.0 0.0 0.0\n"],
                 charge=0,
                 unpaired=0,
             )

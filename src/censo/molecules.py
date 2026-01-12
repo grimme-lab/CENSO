@@ -1,5 +1,7 @@
+from typing import cast
 from dataclasses import dataclass
 from pydantic import BaseModel
+import warnings
 
 from .params import BOHR2ANG, QmProg
 
@@ -21,7 +23,7 @@ class Atom(BaseModel):
     """
 
     element: str
-    xyz: list[float]
+    xyz: tuple[float, float, float]
 
 
 class GeometryData:
@@ -30,7 +32,7 @@ class GeometryData:
     in order to keep the object small, since it has to be pickled for multiprocessing
     """
 
-    def __init__(self, name: str, xyz: list[str]):
+    def __init__(self, name: str, atoms: list[Atom]):
         """
         Takes an identifier and the geometry lines from the xyz-file as input.
 
@@ -42,19 +44,52 @@ class GeometryData:
         # name of the linked MoleculeData
         self.name: str = name
 
-        # list of dicts preserving the order of the input file for easy mapping
-        # the coordinates should be given in Angstrom
-        # self.xyz = [{"element": "H", "xyz": [0.0, 0.0, 0.0]}, {"element": "C", "xyz": [0.0, 0.0 0.7]}, ...]
         self.xyz: list[Atom] = []
 
-        # set up xyz dict from the input lines
-        for line in xyz:
-            spl = [s.strip() for s in line.split()]
-            element = spl[0].capitalize()
-            self.xyz.append(Atom(element=element, xyz=[float(i) for i in spl[1:]]))
+        if isinstance(atoms, list) and all(isinstance(x, Atom) for x in atoms):
+            self.xyz = atoms
+        elif isinstance(atoms, list) and all(isinstance(x, str) for x in atoms):
+            # ensure backwards compatibility (would expect second arg to be list[str])
+            warnings.warn(
+                "Passing xyz file content as list of strings is deprecated, use GeometryData.from_xyz instead",
+                DeprecationWarning,
+            )
+            # set up xyz dict from the input lines
+            for line in atoms:
+                spl = [s.strip() for s in cast(str, cast(object, line)).split()]
+                if len(spl) != 4:
+                    raise ValueError(f"Unexpected xyz line: {line}")
+                element = spl[0].capitalize()
+                x, y, z = (float(i) for i in spl[1:])
+                self.xyz.append(Atom(element=element, xyz=(x, y, z)))
 
         # Count atoms
         self.nat: int = len(self.xyz)
+
+    @classmethod
+    def from_xyz(cls, name: str, xyz: list[str]):
+        atoms = []
+        # set up xyz dict from the input lines
+        for line in xyz:
+            spl = [s.strip() for s in line.split()]
+            if len(spl) != 4:
+                raise ValueError(f"Unexpected xyz line: {line}")
+            element = spl[0].capitalize()
+            x, y, z = (float(i) for i in spl[1:])
+            atoms.append(Atom(element=element, xyz=(x, y, z)))
+        return cls(name, atoms)
+
+    @classmethod
+    def from_mol(
+        cls,
+        name: str,
+        atomic_numbers: list[int],
+        coords: list[tuple[float, float, float]],
+    ):
+        from .params import PSE
+
+        atoms = [Atom(element=PSE[i], xyz=c) for i, c in zip(atomic_numbers, coords)]
+        return cls(name, atoms)
 
     def toorca(self) -> list[str]:
         """
@@ -89,7 +124,15 @@ class GeometryData:
 
         return coord
 
-    def fromcoord(self, path: str) -> None:
+    def fromcoord(self, *args):
+        """Wrapper for deprecated code."""
+        warnings.warn(
+            "fromcoord is deprecated, use update_from_coord_file instead",
+            DeprecationWarning,
+        )
+        self.update_from_coord_file(*args)
+
+    def update_from_coord_file(self, path: str) -> None:
         """
         Method to convert the content of a coord file to cartesian coordinates for the 'xyz' attribute.
 
@@ -105,13 +148,23 @@ class GeometryData:
         for line in lines:
             if not line.startswith("$"):
                 coords = line.split()
+                if len(coords) != 4:
+                    raise ValueError(f"Unexpected coord line: {line}")
                 element = coords[-1]
-                cartesian_coords = [float(x) * BOHR2ANG for x in coords[:-1]]
-                self.xyz.append(Atom(element=element, xyz=cartesian_coords))
+                x, y, z = (float(x) * BOHR2ANG for x in coords[:-1])
+                self.xyz.append(Atom(element=element, xyz=(x, y, z)))
             elif line.startswith("$end"):
                 break
 
-    def fromxyz(self, path: str) -> None:
+    def fromxyz(self, *args):
+        """Wrapper for deprecated code."""
+        warnings.warn(
+            "fromxyz is deprecated, use update_from_xyz_file instead",
+            DeprecationWarning,
+        )
+        self.update_from_xyz_file(*args)
+
+    def update_from_xyz_file(self, path: str) -> None:
         """
         Method to convert the content of an xyz file to cartesian coordinates for the 'xyz' attribute.
 
@@ -128,8 +181,8 @@ class GeometryData:
         for line in lines[2:]:
             split = line.split()
             element = split[0]
-            coords = [float(x) for x in split[1:]]
-            self.xyz.append(Atom(element=element, xyz=coords))
+            x, y, z = (float(x) for x in split[1:])
+            self.xyz.append(Atom(element=element, xyz=(x, y, z)))
 
     def toxyz(self) -> list[str]:
         """
@@ -155,7 +208,9 @@ class MoleculeData:
     The confomers' MoleculeData are set up in censo.ensemble.EnsembleData.setup_conformers
     """
 
-    def __init__(self, name: str, xyz: list[str], charge: int = 0, unpaired: int = 0):
+    def __init__(
+        self, name: str, geom: GeometryData, charge: int = 0, unpaired: int = 0
+    ):
         """
         Takes geometry lines from the xyz-file as input to pass it to the GeometryData constructor.
 
@@ -172,8 +227,17 @@ class MoleculeData:
         # stores a name for printing and (limited) between-run comparisons
         self.name: str = name
 
-        # stores the geometry info to have a small object to be used for multiprocessing
-        self.geom: GeometryData = GeometryData(self.name, xyz)
+        self.geom: GeometryData
+        if isinstance(geom, GeometryData):
+            # stores the geometry info to have a small object to be used for multiprocessing
+            self.geom = geom
+        elif isinstance(geom, list) and all(isinstance(x, str) for x in geom):
+            # ensure backwards compatibility (would expect second arg to be list[str])
+            warnings.warn(
+                "Passing xyz file content as list of strings is deprecated, use MoleculeData.from_xyz instead",
+                DeprecationWarning,
+            )
+            self.geom = GeometryData.from_xyz(name, geom)
 
         # stores the degeneration factor of the conformer
         self.degen: int = 1
@@ -194,6 +258,30 @@ class MoleculeData:
             QmProg.ORCA: [],
             QmProg.TM: [],
         }
+
+    @classmethod
+    def from_mol(
+        cls,
+        name: str,
+        atomic_numbers: list[int],
+        coords: list[tuple[float, float, float]],
+        charge: int = 0,
+        unpaired: int = 0,
+    ):
+        """
+        Constructor to create a MoleculeData object from a list of atomic numbers and
+        cartesian coordinates in Angstrom.
+        """
+        geom = GeometryData.from_mol(name, atomic_numbers, coords)
+        return cls(name, geom, charge=charge, unpaired=unpaired)
+
+    @classmethod
+    def from_xyz(cls, name: str, xyz: list[str], charge: int = 0, unpaired: int = 0):
+        """
+        Constructor to create a MoleculeData object from a list of xyz-file lines.
+        """
+        geom = GeometryData.from_xyz(name, xyz)
+        return cls(name, geom, charge=charge, unpaired=unpaired)
 
     @property
     def energy(self) -> float:
