@@ -84,7 +84,13 @@ class EnsembleData:
         :rtype: None
         """
 
-        data = json.loads(Path(outpath).read_text())
+        loaded_data = json.loads(Path(outpath).read_text())
+
+        # Handle both formats: nested (with "data" key) and flat
+        if "data" in loaded_data:
+            data = loaded_data["data"]
+        else:
+            data = loaded_data
 
         # Check if all conformers from the current ensemble are also found in the output data
         if not all(conf.name in data for conf in self.conformers):
