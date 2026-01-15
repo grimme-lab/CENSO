@@ -88,14 +88,16 @@ def set_omp(
     :rtype: None
     """
     if balance:
-        jobs_left, tot_jobs = len(jobs), len(jobs)
+        tot_jobs = len(jobs)
 
         if tot_jobs >= ncores // omp:
             # Assign minimum OMP for as many jobs as possible
-            for i in range(tot_jobs - tot_jobs % omp):
+            for i in range(tot_jobs - tot_jobs % (ncores // omp)):
                 jobs[i].omp = omp
 
-            jobs_left = tot_jobs % omp
+            jobs_left = tot_jobs % (ncores // omp)
+        else:
+            jobs_left = tot_jobs
 
         if jobs_left > 0:
             if jobs_left == 1:
@@ -106,23 +108,40 @@ def set_omp(
                     jobs_in_parallel = {o: ncores // o for o in omps}
 
                     # Remove OMP values that would lead to idle groups
-                    omps = [o for o in omps if jobs_left - jobs_in_parallel[o] >= 0]
-
-                    divisors = [o for o in omps if ncores % o == 0 and o != ncores]
+                    # and check for divisors of ncores
+                    divisors = [
+                        o
+                        for o in jobs_in_parallel
+                        if ncores % o == 0
+                        and o != ncores
+                        and jobs_in_parallel[o] <= jobs_left
+                    ]
                     if len(divisors) > 0:
                         tmp_omp = min(divisors)
                     else:
                         # Not possible to evenly divide cores
-                        # Pick OMP value with least idle cores that is not ncores
-                        # Chances are that it is one of the smallest OMP values
-                        omps = [o for o in omps if o != ncores]
-                        if len(omps) > 0:
-                            tmp_omp = min(omps, key=lambda x: ncores % x)
+                        # We want the smallest OMP value possible but we need to determine how many idle cores are acceptable
+                        idle_cores = {
+                            o: ncores % o + max(0, ncores // o - jobs_left) * o
+                            for o in omps
+                            if o != ncores
+                        }
+                        if len(idle_cores) > 0:
+                            least_idle = min(idle_cores.values())
+                            tmp_omp = min(
+                                o for o in idle_cores if idle_cores[o] == least_idle
+                            )
                         else:
                             tmp_omp = ncores
 
-                    jobs[tot_jobs - jobs_left].omp = tmp_omp
-                    jobs_left -= jobs_in_parallel[tmp_omp]
+                    for job in jobs[
+                        tot_jobs
+                        - jobs_left : tot_jobs
+                        - jobs_left
+                        + min(jobs_left, ncores // tmp_omp)
+                    ]:
+                        job.omp = tmp_omp
+                    jobs_left -= min(jobs_left, ncores // tmp_omp)
     else:
         for job in jobs:
             job.omp = omp
