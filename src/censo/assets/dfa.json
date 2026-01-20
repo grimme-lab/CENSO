@@ -2,18 +2,21 @@
   "pbeh-3c": {
     "tm": "pbeh-3c",
     "orca": "pbeh-3c",
+    "psi4": "pbeh-3c",
     "disp": "composite",
     "type": "composite_hybrid"
   },
   "b97-3c": {
     "tm": "b97-3c",
     "orca": "b97-3c",
+    "psi4": "b97-3c",
     "disp": "composite",
     "type": "composite_gga"
   },
   "r2scan-3c": {
     "tm": "r2scan-3c",
     "orca": "r2scan-3c",
+    "psi4": "r2scan-3c",
     "disp": "composite",
     "type": "composite_mgga"
   },
@@ -38,30 +41,70 @@
   "r2scan-d4": {
     "tm": "r2scan",
     "orca": "r2scan",
+    "psi4": "r2scan-d4",
     "disp": "d4",
     "type": "mgga"
   },
   "pbe-novdw": { "tm": "pbe", "orca": "pbe", "disp": "novdw", "type": "gga" },
-  "pbe-d3": { "tm": "pbe", "orca": "pbe", "disp": "d3bj", "type": "gga" },
+  "pbe-d3": {
+    "tm": "pbe",
+    "orca": "pbe",
+    "psi4": "pbe-d3",
+    "disp": "d3bj",
+    "type": "gga"
+  },
   "pbe-d3(0)": { "tm": "pbe", "orca": "pbe", "disp": "d3(0)", "type": "gga" },
-  "pbe-d4": { "tm": "pbe", "orca": "pbe", "disp": "d4", "type": "gga" },
-  "pbe-nl": { "tm": "pbe", "disp": "nl", "type": "gga" },
-  "bp86": { "tm": "b-p", "disp": "novdw", "type": "gga" },
+  "pbe-d4": {
+    "tm": "pbe",
+    "orca": "pbe",
+    "psi4": "pbe-d4",
+    "disp": "d4",
+    "type": "gga"
+  },
+  "pbe-nl": {
+    "tm": "pbe",
+    "psi4": "pbe-nl",
+    "disp": "nl",
+    "type": "gga"
+  },
+  "bp86": {
+    "tm": "b-p",
+    "psi4": "bp86",
+    "disp": "novdw",
+    "type": "gga"
+  },
   "tpss-novdw": {
     "tm": "tpss",
     "orca": "tpss",
     "disp": "novdw",
     "type": "mgga"
   },
-  "tpss-d3": { "tm": "tpss", "orca": "tpss", "disp": "d3bj", "type": "mgga" },
+  "tpss-d3": {
+    "tm": "tpss",
+    "orca": "tpss",
+    "psi4": "tpss-d3",
+    "disp": "d3bj",
+    "type": "mgga"
+  },
   "tpss-d3(0)": {
     "tm": "tpss",
     "orca": "tpss",
     "disp": "d3(0)",
     "type": "mgga"
   },
-  "tpss-d4": { "tm": "tpss", "orca": "tpss", "disp": "d4", "type": "mgga" },
-  "tpss-nl": { "tm": "tpss", "disp": "nl", "type": "mgga" },
+  "tpss-d4": {
+    "tm": "tpss",
+    "orca": "tpss",
+    "psi4": "tpss-d4",
+    "disp": "d4",
+    "type": "mgga"
+  },
+  "tpss-nl": {
+    "tm": "tpss",
+    "psi4": "tpss-nl",
+    "disp": "nl",
+    "type": "mgga"
+  },
   "revtpss-novdw": {
     "tm": "revtpss",
     "orca": "revTPSS",
@@ -73,13 +116,23 @@
     "disp": "novdw",
     "type": "global_hybrid"
   },
-  "tpssh-d3": { "orca": "tpssh", "disp": "d3", "type": "global_hybrid" },
+  "tpssh-d3": {
+    "orca": "tpssh",
+    "psi4": "tpssh-d3",
+    "disp": "d3",
+    "type": "global_hybrid"
+  },
   "tpssh-d3(0)": {
     "orca": "tpssh",
     "disp": "d3(0)",
     "type": "global_hybrid"
   },
-  "tpssh-d4": { "orca": "tpssh", "disp": "d4", "type": "global_hybrid" },
+  "tpssh-d4": {
+    "orca": "tpssh",
+    "psi4": "tpssh-d4",
+    "disp": "d4",
+    "type": "global_hybrid"
+  },
   "b97-d3": {
     "tm": "b97-d",
     "orca": "b97-d3",
@@ -98,6 +151,7 @@
   "pbe0-d3": {
     "tm": "pbe0",
     "orca": "pbe0",
+    "psi4": "pbe0-d3",
     "disp": "d3bj",
     "type": "global_hybrid"
   },
@@ -110,10 +164,16 @@
   "pbe0-d4": {
     "tm": "pbe0",
     "orca": "pbe0",
+    "psi4": "pbe0-d4",
     "disp": "d4",
     "type": "global_hybrid"
   },
-  "pbe0-nl": { "tm": "pbe0", "disp": "nl", "type": "global_hybrid" },
+  "pbe0-nl": {
+    "tm": "pbe0",
+    "psi4": "pbe0-nl",
+    "disp": "nl",
+    "type": "global_hybrid"
+  },
   "pw6b95-novdw": {
     "tm": "pw6b95",
     "orca": "pw6b95",
@@ -123,6 +183,7 @@
   "pw6b95-d3": {
     "tm": "pw6b95",
     "orca": "pw6b95",
+    "psi4": "pw6b95-d3",
     "disp": "d3bj",
     "type": "global_hybrid"
   },
@@ -135,6 +196,7 @@
   "pw6b95-d4": {
     "tm": "pw6b95",
     "orca": "pw6b95",
+    "psi4": "pw6b95-d4",
     "disp": "d4",
     "type": "global_hybrid"
   },
@@ -147,6 +209,7 @@
   "b3lyp-d3": {
     "tm": "b3-lyp",
     "orca": "b3lyp",
+    "psi4": "b3lyp-d3",
     "disp": "d3bj",
     "type": "global_hybrid"
   },
@@ -159,39 +222,46 @@
   "b3lyp-d4": {
     "tm": "b3-lyp",
     "orca": "b3lyp",
+    "psi4": "b3lyp-d4",
     "disp": "d4",
     "type": "global_hybrid"
   },
   "b3lyp-nl": {
     "tm": "b3-lyp",
     "orca": "b3lyp",
+    "psi4": "b3lyp-nl",
     "disp": "nl",
     "type": "global_hybrid"
   },
   "wb97x-v": {
     "tm": "wb97x-v",
     "orca": "wb97x-v",
+    "psi4": "wb97x-v",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97x-d3": {
     "orca": "wb97x-d3",
+    "psi4": "wb97x-d3",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97x-d3bj": {
     "orca": "wb97x-d3bj",
+    "psi4": "wb97x-d3bj",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97x-d4": {
     "orca": "wb97x-d4",
+    "psi4": "wb97x-d4",
     "disp": "included",
     "type": "rs_hybrid"
   },
   "wb97m-v": {
     "orca": "wb97m-v",
     "tm": "wb97m-v",
+    "psi4": "wb97m-v",
     "disp": "included",
     "type": "rs_hybrid"
   },
@@ -219,5 +289,10 @@
     "orca": "dsd-pbep86",
     "disp": "d3bj",
     "type": "double"
+  },
+  "generic": {
+    "generic": "generic",
+    "disp": "generic",
+    "type": "generic"
   }
 }
