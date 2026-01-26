@@ -227,6 +227,7 @@ class OrcaProc(QmProc):
             "d3(0)": "D3ZERO",
             "d4": "d4",
             "nl": "NL",
+            "novdw": "",
         }
 
         if disp != "composite" and disp != "included":
