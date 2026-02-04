@@ -11,7 +11,7 @@
   - **Geometry Optimization** using:
     - ORCA (native optimizer)
     - xtb (ANCOPT)
-  - **Thermal contributions** using xtb single-point Hessians (`--bhess`)
+  - **Thermal contributions** using xtb Hessians
 - **Solvent Models**:
   - ORCA: **CPCM**, **SMD**
   - Turbomole: **COSMO**, **DCOSMORS**, **COSMORS**
@@ -20,7 +20,7 @@
   - **NMR**: ORCA, Turbomole
   - **Optical Rotation**: Turbomole
   - **UV/Vis**: ORCA
-- **Agnostic to global optimizer**, input files just need to be in xyz-format
+- **Agnostic to global optimizer**, input files just need to be in xyz-format (CLI)
 - CLI and Python API
 
 ---
