@@ -146,16 +146,19 @@ GENERAL SETTINGS:
 CENSO can be integrated into Python scripts for custom workflows. Below is a basic setup example:
 
 ```python
-from censo.ensembledata import EnsembleData
-from censo.configuration import configure
+from censo.ensemble import EnsembleData
+from censo.config.setup import configure
 from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
-from censo.config import GeneralConfig
-from censo.parallel import get_cluster
+from censo.config import PartsConfig
+from censo.config.parallel_config import ParallelConfig
+from censo.parallel import get_client
 
 # CENSO outputs files in the current working directory (os.getcwd())
+# When called from the CLI version, the output dir will be the same as the input file's location
 input_path = "rel/path/to/your/inputfile"  # Relative to working directory
-ensemble = EnsembleData(input_file=input_path)
+ensemble = EnsembleData()
+ensemble.read_input(input_path)
 
 # For charged/open-shell systems:
 # ensemble = EnsembleData()
@@ -164,22 +167,28 @@ ensemble = EnsembleData(input_file=input_path)
 # Load a custom rcfile (optional)
 config = configure(rcpath="/path/to/rcfile")
 
-# Configure dask client
-cluster = get_cluster()
-client = cluster.get_client()
+# Configure parallelization
+parallel_config = ParallelConfig(ncores=os.cpu_count(), ompmin=4)
+# ompmin denotes the minimum number of OMP threads assigned to each task
 
 # Ensure valid configuration
 config.general.solvent = "dmso"
 config = config.model_validate(config)
 
+# Set up task management
+client, cluster = get_client(parallel_config)
+
 # Execute workflow steps
 results = [
-    part(ensemble, config, client)
+    part(ensemble, config, parallel_config, client=client)
     for part in [prescreening, screening, optimization, nmr]
 ]
+
+# The results are then also output to json files in the working directory
+# The molecules stored in the ensemble contain the most up-to-date energy values and geometries
 ```
 
-> **Note**: Results are also stored in `<part>.json` files. For multiple runs, rename or move output folders to avoid overwriting.
+> **Note**: For multiple runs, rename or move output folders to avoid overwriting.
 
 ---
 
