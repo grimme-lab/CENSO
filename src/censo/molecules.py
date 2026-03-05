@@ -50,7 +50,7 @@ class GeometryData:
     :vartype name: str
     :ivar xyz: List of Atom objects containing element symbols and Cartesian coordinates.
     :vartype xyz: list[Atom]
-    :ivar nat: Number of atoms in the geometry.
+    :ivar nat: Number of atoms in the geometry (read-only property).
     :vartype nat: int
     """
 
@@ -86,9 +86,17 @@ class GeometryData:
                 element = spl[0].capitalize()
                 x, y, z = (float(i) for i in spl[1:])
                 self.xyz.append(Atom(element=element, xyz=(x, y, z)))
+        else:
+            raise ValueError(
+                "Invalid geometry format. Pass list[Atom] (deprecated: list[str])."
+            )
 
-        # Count atoms
-        self.nat: int = len(self.xyz)
+    @property
+    def nat(self) -> int:
+        """
+        Number of atoms in the geometry.
+        """
+        return len(self.xyz)
 
     @classmethod
     def from_xyz(cls, name: str, xyz: list[str]):
@@ -244,7 +252,8 @@ class GeometryData:
         Update geometry from an xyz file.
 
         Reads an xyz file and updates the xyz attribute with parsed coordinates.
-        Skips the first two header lines (atom count and comment).
+        Skips the first two header lines (atom count and comment). Blank lines
+        are silently skipped.
 
         :param path: Path to the xyz file.
         :type path: str
@@ -256,6 +265,10 @@ class GeometryData:
         # Just skip the first two lines
         for line in lines[2:]:
             split = line.split()
+            if not split:
+                continue
+            if len(split) != 4:
+                raise ValueError(f"Unexpected xyz line: {line}")
             element = split[0]
             x, y, z = (float(x) for x in split[1:])
             self.xyz.append(Atom(element=element, xyz=(x, y, z)))
@@ -337,6 +350,8 @@ class MoleculeData:
                 DeprecationWarning,
             )
             self.geom = GeometryData.from_xyz(name, geom)
+        else:
+            raise ValueError("geom must be a GeometryData (deprecated: list[str]).")
 
         # stores the degeneration factor of the conformer
         self.degen: int = 1
