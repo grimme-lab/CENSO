@@ -3,7 +3,6 @@
 from pathlib import Path
 import mmap
 import re
-import shutil
 import time
 
 import pytest
@@ -14,9 +13,9 @@ def _parse_orca_version_with_mmap(orca_path: Path) -> str:
     with open(orca_path, "rb") as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
             match = re.search(version_pattern, mm)
-    if match is None:
-        raise ValueError(f"Could not parse ORCA version from {orca_path}")
-    return match.group(1).decode("utf-8")
+            if match is None:
+                raise ValueError(f"Could not parse ORCA version from {orca_path}")
+            return bytes(match.group(1)).decode("utf-8")
 
 
 def _parse_orca_version_with_read(orca_path: Path) -> str:
@@ -29,13 +28,13 @@ def _parse_orca_version_with_read(orca_path: Path) -> str:
     return match.group(1).decode("utf-8")
 
 
+@pytest.mark.optional
+@pytest.mark.requires_orca
 def test_orca_version_parsing_mmap_matches_previous_and_reports_speedup():
     """Compare mmap ORCA version parsing with previous full-read approach."""
-    orca = shutil.which("orca")
-    if orca is None:
-        pytest.skip("ORCA is not present in PATH.")
+    import shutil
 
-    orca_path = Path(orca)
+    orca_path = Path(shutil.which("orca"))  # type: ignore[arg-type]
 
     version_from_mmap = _parse_orca_version_with_mmap(orca_path)
     version_from_read = _parse_orca_version_with_read(orca_path)

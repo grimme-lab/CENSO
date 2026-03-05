@@ -6,6 +6,33 @@ import shutil
 from censo.logging import set_filehandler, set_loglevel
 
 
+def _has_xtb() -> bool:
+    return shutil.which("xtb") is not None
+
+
+def _has_orca() -> bool:
+    return shutil.which("orca") is not None
+
+
+def _has_turbomole() -> bool:
+    return shutil.which("ridft") is not None
+
+
+def _has_cosmotherm() -> bool:
+    return shutil.which("cosmotherm") is not None
+
+
+def pytest_runtest_setup(item):
+    if "requires_xtb" in item.keywords and not _has_xtb():
+        pytest.skip("xtb is not present in your path.")
+    if "requires_orca" in item.keywords and not _has_orca():
+        pytest.skip("ORCA is not present in your path.")
+    if "requires_turbomole" in item.keywords and not _has_turbomole():
+        pytest.skip("Turbomole (ridft) is not present in your path.")
+    if "requires_cosmotherm" in item.keywords and not _has_cosmotherm():
+        pytest.skip("CosmoTherm is not present in your path.")
+
+
 @pytest.fixture(autouse=True)
 def tmp_wd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request):
     orig = os.getcwd()

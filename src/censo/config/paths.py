@@ -159,24 +159,29 @@ class PathsConfig(BaseModel):
             # Try parsing version from binary directly
             with open(self.orca, "rb") as f:
                 version_pattern = rb"Program Version (\d+\.\d+\.\d+)"
-                match_bytes: re.Match[bytes] | None = None
+                version_bytes: bytes | None = None
 
                 try:
                     with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
                         match_bytes = re.search(version_pattern, mm)
+                        if match_bytes:
+                            # Copy the matched bytes out of the mmap buffer before
+                            # it is closed; accessing group(1) after context exit
+                            # raises TypeError on some platforms.
+                            version_bytes = bytes(match_bytes.group(1))
                 except (OSError, ValueError):
                     # Some files (or mocked files in tests) cannot be memory-mapped,
                     # e.g. empty files. Fall back to reading bytes directly.
                     f.seek(0)
                     match_bytes = re.search(version_pattern, f.read())
+                    if match_bytes:
+                        version_bytes = bytes(match_bytes.group(1))
 
-                if not match_bytes:
+                if not version_bytes:
                     raise ValueError(
                         f"Could not determine ORCA version. Please check {self.orca}"
                     )
 
-                version_bytes = match_bytes.group(1)
-                version_string = version_bytes.decode("utf-8")
-                self._orcaversion = version_string
+                self._orcaversion = version_bytes.decode("utf-8")
 
         return self

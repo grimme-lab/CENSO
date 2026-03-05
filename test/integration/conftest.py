@@ -9,38 +9,6 @@ from censo.config.setup import find_program_paths
 from censo.parallel import get_cluster
 
 
-def pytest_runtest_setup(item):
-    if "requires_xtb" in item.keywords and not has_xtb():
-        pytest.skip("xtb is not present in your path.")
-    if "requires_orca" in item.keywords and not has_orca():
-        pytest.skip("ORCA is not present in your path.")
-    if "requires_turbomole" in item.keywords and not has_turbomole():
-        pytest.skip("Turbomole (ridft) is not present in your path.")
-    if "requires_cosmotherm" in item.keywords and not has_cosmotherm():
-        pytest.skip("CosmoTherm is not present in your path.")
-
-
-# Utility functions for program availability checks
-
-
-def has_cosmotherm():
-    # Check for the presence of the CosmoTherm binary in PATH or via env variable
-    # This logic may need to be adapted to your environment
-    return shutil.which("cosmotherm") is not None
-
-
-def has_xtb():
-    return shutil.which("xtb") is not None
-
-
-def has_orca():
-    return shutil.which("orca") is not None
-
-
-def has_turbomole():
-    return shutil.which("ridft") is not None
-
-
 @pytest.fixture
 def ensemble_from_xyz(tmp_path: Path) -> EnsembleData:
     def load_xyz(filepath: str) -> EnsembleData:
