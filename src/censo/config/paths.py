@@ -10,6 +10,7 @@ from pydantic import (
     model_validator,
 )
 from pathlib import Path
+import mmap
 
 from ..params import PLENGTH
 from ..utilities import h2
@@ -154,26 +155,33 @@ class PathsConfig(BaseModel):
 
         :return: The validated instance.
         """
-        # if orca was found try to determine orca version from the path (kinda hacky)
         if self.orca:
-            match = re.search(r"(\d+\.\d+\.\d+)", str(self.orca))
-            if match:
-                self._orcaversion = match.group(1)
-            else:
-                # Try to extract version from binary content
-                with open(self.orca, "rb") as f:
-                    binary_content = f.read()
-
+            # Try parsing version from binary directly
+            with open(self.orca, "rb") as f:
                 version_pattern = rb"Program Version (\d+\.\d+\.\d+)"
-                match_bytes = re.search(version_pattern, binary_content)
+                version_bytes: bytes | None = None
 
-                if not match_bytes:
+                try:
+                    with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                        match_bytes = re.search(version_pattern, mm)
+                        if match_bytes:
+                            # Copy the matched bytes out of the mmap buffer before
+                            # it is closed; accessing group(1) after context exit
+                            # raises TypeError on some platforms.
+                            version_bytes = bytes(match_bytes.group(1))
+                except (OSError, ValueError):
+                    # Some files (or mocked files in tests) cannot be memory-mapped,
+                    # e.g. empty files. Fall back to reading bytes directly.
+                    f.seek(0)
+                    match_bytes = re.search(version_pattern, f.read())
+                    if match_bytes:
+                        version_bytes = bytes(match_bytes.group(1))
+
+                if not version_bytes:
                     raise ValueError(
                         f"Could not determine ORCA version. Please check {self.orca}"
                     )
-                else:
-                    version_bytes = match_bytes.group(1)
-                    version_string = version_bytes.decode("utf-8")
-                    self._orcaversion = version_string
+
+                self._orcaversion = version_bytes.decode("utf-8")
 
         return self
