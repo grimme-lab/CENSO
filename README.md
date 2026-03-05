@@ -151,8 +151,7 @@ from censo.config.setup import configure
 from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
 from censo.config import PartsConfig
-from censo.config.parallel_config import ParallelConfig
-from censo.parallel import get_client
+from censo.parallel import get_cluster
 
 # CENSO outputs files in the current working directory (os.getcwd())
 # When called from the CLI version, the output dir will be the same as the input file's location
@@ -167,20 +166,21 @@ ensemble.read_input(input_path)
 # Load a custom rcfile (optional)
 config = configure(rcpath="/path/to/rcfile")
 
-# Configure parallelization
-parallel_config = ParallelConfig(ncores=os.cpu_count(), ompmin=4)
-# ompmin denotes the minimum number of OMP threads assigned to each task
-
 # Ensure valid configuration
 config.general.solvent = "dmso"
-config = config.model_validate(config)
+config = PartsConfig.model_validate(
+    config.model_dump(),
+    context={"check": ["prescreening", "screening", "optimization", "nmr"]}
+)
+# passing a context enables paths and solvent validation, which is usually skipped
 
 # Set up task management
-client, cluster = get_client(parallel_config)
+cluster = get_cluster() # instead you can also supply your own cluster
+client = cluster.get_client()
 
 # Execute workflow steps
 results = [
-    part(ensemble, config, parallel_config, client=client)
+    part(ensemble, config, client)
     for part in [prescreening, screening, optimization, nmr]
 ]
 
