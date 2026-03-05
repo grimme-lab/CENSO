@@ -132,10 +132,24 @@ class GeometryData:
         :type coords: list[tuple[float, float, float]]
         :return: New GeometryData instance.
         :rtype: GeometryData
+        :raises ValueError: If the number of atomic numbers and coordinates differs or an
+            invalid atomic number is provided.
         """
         from .params import PSE
 
-        atoms = [Atom(element=PSE[i], xyz=c) for i, c in zip(atomic_numbers, coords)]
+        if len(atomic_numbers) != len(coords):
+            raise ValueError(
+                "Number of atomic numbers and coordinates must be equal "
+                f"(got {len(atomic_numbers)} atomic_numbers and {len(coords)} coords)."
+            )
+
+        atoms: list[Atom] = []
+        for i, c in zip(atomic_numbers, coords):
+            try:
+                element = PSE[i]
+            except KeyError as exc:
+                raise ValueError(f"Invalid atomic number: {i}") from exc
+            atoms.append(Atom(element=element, xyz=c))
         return cls(name, atoms)
 
     def toorca(self) -> list[str]:
