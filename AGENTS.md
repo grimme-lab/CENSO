@@ -5,54 +5,9 @@ Conformer–Rotamer Ensembles (CREs) at the DFT level.
 
 ---
 
-## Repository Layout
-
-```
-src/censo/
-├── cli/          - CLI parsing and user interface
-├── config/       - Pydantic-based configuration models
-│   └── parts/    - Per-part configs (prescreening, screening, etc.)
-├── ensembleopt/  - Workflow steps (prescreening, screening, optimization, refinement)
-├── processing/   - Processors for external programs (ORCA, xtb, Turbomole)
-├── properties/   - Property calculators (NMR, optical rotation, UV/Vis)
-├── parallel/     - Dask cluster orchestration
-├── assets/       - Static data files (DFA, solvents JSON)
-└── scripts/      - Auxiliary scripts (c2anmr, nmrplot, uvvisplot)
-test/
-├── unit/         - Unit tests (mirror of src structure)
-└── integration/  - Integration tests (require external programs)
-```
-
----
-
-## Development Setup
-
-```bash
-pip install -e .[dev]       # install in editable mode with all dev dependencies
-pip install -e .[scripts]   # additionally install numpy/matplotlib/pandas for scripts
-```
-
-Requires **Python >= 3.12**.
-
----
-
 ## Build / Lint / Test Commands
 
 ### Running Tests
-
-```bash
-pytest                          # run all tests (skips optional/integration tests)
-pytest -svv                     # verbose output with captured output shown
-pytest test/unit/               # unit tests only
-pytest test/unit/test_ensemble.py                        # single test file
-pytest test/unit/test_ensemble.py::TestEnsembleDataReadOutput  # single class
-pytest test/unit/test_ensemble.py::TestEnsembleDataReadOutput::test_read_output_success  # single test
-pytest -k "test_read_output"    # pattern-match test name
-pytest --run-optional           # include optional/integration tests
-pytest --keep-log               # keep censo.log after test run
-tox                             # test against Python 3.12 and 3.13 (CI matrix)
-tox -e py312                    # test against specific Python version
-```
 
 Custom pytest markers (defined in `pyproject.toml`):
 - `optional` – skipped by default; run with `--run-optional`
@@ -86,27 +41,11 @@ pre-commit run --all-files      # runs trailing-whitespace, EOF, black, ruff, py
 pre-commit run --files <file>   # run only on specific files
 ```
 
-The full pre-commit pipeline (`.pre-commit-config.yaml`):
-1. `trailing-whitespace`, `end-of-file-fixer`, `check-toml`, `check-yaml`,
-   `check-added-large-files` (max 10 MB), `debug-statements`
-2. `ruff` (with `--fix`)
-3. `black`
-4. `pyupgrade`
-5. `mypy` (`--explicit-package-bases --check-untyped-defs`)
-
 CI runs pre-commit and tox (py312 + py313) on every push/PR.
 
 ---
 
 ## Code Style Guidelines
-
-### General
-
-- Formatter: **black** (default settings, line length 88).
-- Linter/import sorter: **ruff**.
-- Type checker: **mypy** with `--check-untyped-defs`.
-- Target language version: **Python 3.12+**; use modern syntax freely (e.g.,
-  `list[str]`, `X | Y`, `type Alias = ...`, generic classes `class Foo[T]:`).
 
 ### Naming Conventions
 
@@ -118,13 +57,6 @@ CI runs pre-commit and tox (py312 + py313) on every push/PR.
 | Private instance attributes | `__double_underscore` (name-mangled) |
 | Protected / internal helpers | `_single_underscore` |
 | Logger instance | `logger = setup_logger(__name__)` at module level |
-
-### Imports
-
-- Order enforced by ruff: stdlib → third-party → local (relative).
-- Use **relative imports** within the `censo` package (e.g., `from ..molecules import ...`).
-- Prefer `from pathlib import Path` over `os.path` for filesystem operations.
-- Use `from collections.abc import Callable` (not `typing.Callable`).
 
 ### Type Annotations
 
@@ -155,14 +87,6 @@ def prescreening(ensemble: EnsembleData, config: PartsConfig) -> dict[str, Any]:
     """
 ```
 
-### Configuration / Pydantic Models
-
-- All configuration classes extend `GenericConfig` (which extends `pydantic.BaseModel`).
-- Use `ConfigDict(str_to_lower=True, str_strip_whitespace=True, validate_default=True,
-  use_attribute_docstrings=True)`.
-- Enum fields should extend both `str` and `Enum` for JSON-safe serialization.
-- Centralize defaults in `src/censo/config/parts/`.
-
 ### Error Handling
 
 - Raise concrete exceptions (`ValueError`, `RuntimeError`, `TypeError`) with descriptive
@@ -172,29 +96,3 @@ def prescreening(ensemble: EnsembleData, config: PartsConfig) -> dict[str, Any]:
 - Log errors/warnings with the module-level `logger` (never `print()` for diagnostics).
 - User-facing output uses `printf()` from `censo.utilities` (wraps `print` with
   consistent formatting).
-
-### Logging
-
-- Obtain a logger per module: `logger = setup_logger(__name__)` from `censo.logging`.
-- Do not call `logging.basicConfig()` or configure handlers outside `censo.logging`.
-
-### Parallel / Dask
-
-- Parallel work is dispatched via `censo.parallel.execute()`; do not call
-  `client.submit()` / `client.map()` directly in workflow code.
-- Keep objects that cross the Dask boundary small and picklable (e.g., pass
-  `GeometryData` rather than full `MoleculeData`).
-
-### Tests
-
-- Tests live in `test/unit/` mirroring the `src/censo/` structure.
-- Test classes use `UpperCamelCase` prefixed with `Test`; test functions are
-  `lower_snake_case` prefixed with `test_`.
-- Use `pytest.approx` for floating-point comparisons.
-- Fixtures (shared data) go in `test/unit/fixtures/`; the `fixtures_path` fixture
-  is defined in `test/unit/conftest.py`.
-- The `tmp_wd` autouse fixture changes the working directory to a temp path for every
-  test—do not rely on the project root as CWD inside tests.
-- Mark slow or external-tool-dependent tests with `@pytest.mark.optional` or the
-  appropriate `requires_*` marker.
-- Do not modify test files unless explicitly approved.
