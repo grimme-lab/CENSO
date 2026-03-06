@@ -1245,10 +1245,14 @@
     "smd": "acetamide"
   },
   "acetic acid": {
+    "cosmors": "aceticacid_c0",
+    "cosmors-fine": "aceticacid_c0",
     "cpcm": "acetic acid",
     "smd": "acetic acid"
   },
   "acetic_acid": {
+    "cosmors": "aceticacid_c0",
+    "cosmors-fine": "aceticacid_c0",
     "cpcm": "acetic acid",
     "smd": "acetic acid"
   },
@@ -1510,10 +1514,14 @@
     "smd": "benzonitrile"
   },
   "benzyl alcohol": {
+    "cosmors": "benzylalcohol_c0",
+    "cosmors-fine": "benzylalcohol_c0",
     "cpcm": "benzyl alcohol",
     "smd": "benzyl alcohol"
   },
   "benzyl_alcohol": {
+    "cosmors": "benzylalcohol_c0",
+    "cosmors-fine": "benzylalcohol_c0",
     "cpcm": "benzyl alcohol",
     "smd": "benzyl alcohol"
   },
@@ -2163,13 +2171,13 @@
     "gbsa": "ch2cl2",
     "smd": "dichloromethane"
   },
-  "decalin (cis/trans mixture)": {
-    "cpcm": "decalin (cis/trans mixture)",
-    "smd": "decalin (cis/trans mixture)"
+  "decalin": {
+    "cpcm": "decalin",
+    "smd": "decalin"
   },
   "decalin_mix": {
-    "cpcm": "decalin (cis/trans mixture)",
-    "smd": "decalin (cis/trans mixture)"
+    "cpcm": "decalin",
+    "smd": "decalin"
   },
   "di-n-butylether": {
     "cosmors": "di-n-butylether_c0",
@@ -2256,20 +2264,32 @@
     "smd": "dichloromethane"
   },
   "diethyl ether": {
-    "cpcm": "diethyl ether",
-    "smd": "diethyl ether"
+    "cosmo": "diethylether",
+    "cosmors": "diethylether_c0",
+    "cosmors-fine": "diethylether_c0",
+    "cpcm": "diethylether",
+    "dcosmors": "diethylether",
+    "sdosmors": "diethylether"
   },
   "diethyl sulfide": {
-    "cpcm": "diethyl sulfide",
-    "smd": "diethyl sulfide"
+    "cosmors": "diethylsulfide_c0",
+    "cosmors-fine": "diethylsulfide_c0",
+    "cpcm": "diethylsulfide",
+    "smd": "diethylsulfide"
   },
   "diethyl_ether": {
-    "cpcm": "diethyl ether",
-    "smd": "diethyl ether"
+    "cosmo": "diethylether",
+    "cosmors": "diethylether_c0",
+    "cosmors-fine": "diethylether_c0",
+    "cpcm": "diethylether",
+    "dcosmors": "diethylether",
+    "sdosmors": "diethylether"
   },
   "diethyl_sulfide": {
-    "cpcm": "diethyl sulfide",
-    "smd": "diethyl sulfide"
+    "cosmors": "diethylsulfide_c0",
+    "cosmors-fine": "diethylsulfide_c0",
+    "cpcm": "diethylsulfide",
+    "smd": "diethylsulfide"
   },
   "diethylamine": {
     "cosmors": "diethylamine_c0",
@@ -2299,13 +2319,17 @@
     "cosmo": "diethylether",
     "cosmors": "diethylether_c0",
     "cosmors-fine": "diethylether_c0",
-    "dcosmors": "diethylether"
+    "cpcm": "diethylether",
+    "dcosmors": "diethylether",
+    "sdosmors": "diethylether"
   },
   "diethylether_c0": {
     "cosmo": "diethylether",
     "cosmors": "diethylether_c0",
     "cosmors-fine": "diethylether_c0",
-    "dcosmors": "diethylether"
+    "cpcm": "diethylether",
+    "dcosmors": "diethylether",
+    "sdosmors": "diethylether"
   },
   "diethylsulfide": {
     "cosmors": "diethylsulfide_c0",
@@ -2336,12 +2360,16 @@
     "smd": "diiodomethane"
   },
   "diisopropyl ether": {
-    "cpcm": "diisopropyl ether",
-    "smd": "diisopropyl ether"
+    "cosmors": "diisopropylether_c0",
+    "cosmors-fine": "diisopropylether_c0",
+    "cpcm": "diisopropylether",
+    "smd": "diisopropylether"
   },
   "diisopropyl_ether": {
-    "cpcm": "diisopropyl ether",
-    "smd": "diisopropyl ether"
+    "cosmors": "diisopropylether_c0",
+    "cosmors-fine": "diisopropylether_c0",
+    "cpcm": "diisopropylether",
+    "smd": "diisopropylether"
   },
   "diisopropylamine": {
     "cosmors": "diisopropylamine_c0",
@@ -2368,12 +2396,16 @@
     "smd": "diisopropylether"
   },
   "dimethyl disulfide": {
-    "cpcm": "dimethyl disulfide",
-    "smd": "dimethyl disulfide"
+    "cosmors": "dimethyldisulfide_c0",
+    "cosmors-fine": "dimethyldisulfide_c0",
+    "cpcm": "dimethyldisulfide",
+    "smd": "dimethyldisulfide"
   },
   "dimethyl_disulfide": {
-    "cpcm": "dimethyl disulfide",
-    "smd": "dimethyl disulfide"
+    "cosmors": "dimethyldisulfide_c0",
+    "cosmors-fine": "dimethyldisulfide_c0",
+    "cpcm": "dimethyldisulfide",
+    "smd": "dimethyldisulfide"
   },
   "dimethylamine": {
     "cosmors": "dimethylamine_c0",
@@ -2642,28 +2674,48 @@
     "smd": "ethoxyethanol"
   },
   "ethyl ethanoate": {
-    "cpcm": "ethyl ethanoate",
-    "smd": "ethyl ethanoate"
+    "alpb": "ethylacetate",
+    "cosmo": "ethylacetate",
+    "cosmors": "ethylacetate_c0",
+    "cosmors-fine": "ethylacetate_c0",
+    "cpcm": "ethylacetate",
+    "dcosmors": "ethylacetate",
+    "gbsa": "ethylacetate",
+    "smd": "ethylacetate"
   },
   "ethyl methanoate": {
-    "cpcm": "ethyl methanoate",
-    "smd": "ethyl methanoate"
+    "cosmors": "ethylformate_c0",
+    "cosmors-fine": "ethylformate_c0",
+    "cpcm": "ethylformate",
+    "smd": "ethylformate"
   },
   "ethyl phenyl ether": {
-    "cpcm": "ethyl phenyl ether",
-    "smd": "ethyl phenyl ether"
+    "cosmors": "ethoxybenzene_c0",
+    "cosmors-fine": "ethoxybenzene_c0",
+    "cpcm": "ethoxybenzene",
+    "smd": "ethoxybenzene"
   },
   "ethyl_ethanoate": {
-    "cpcm": "ethyl ethanoate",
-    "smd": "ethyl ethanoate"
+    "alpb": "ethylacetate",
+    "cosmo": "ethylacetate",
+    "cosmors": "ethylacetate_c0",
+    "cosmors-fine": "ethylacetate_c0",
+    "cpcm": "ethylacetate",
+    "dcosmors": "ethylacetate",
+    "gbsa": "ethylacetate",
+    "smd": "ethylacetate"
   },
   "ethyl_methanoate": {
-    "cpcm": "ethyl methanoate",
-    "smd": "ethyl methanoate"
+    "cosmors": "ethylformate_c0",
+    "cosmors-fine": "ethylformate_c0",
+    "cpcm": "ethylformate",
+    "smd": "ethylformate"
   },
   "ethyl_phenyl_ether": {
-    "cpcm": "ethyl phenyl ether",
-    "smd": "ethyl phenyl ether"
+    "cosmors": "ethoxybenzene_c0",
+    "cosmors-fine": "ethoxybenzene_c0",
+    "cpcm": "ethoxybenzene",
+    "smd": "ethoxybenzene"
   },
   "ethylacetate": {
     "alpb": "ethylacetate",
@@ -2802,12 +2854,16 @@
     "smd": "formamide"
   },
   "formic acid": {
-    "cpcm": "formic acid",
-    "smd": "formic acid"
+    "cosmors": "formicacid_c0",
+    "cosmors-fine": "formicacid_c0",
+    "cpcm": "formicacid",
+    "smd": "formicacid"
   },
   "formic_acid": {
-    "cpcm": "formic acid",
-    "smd": "formic acid"
+    "cosmors": "formicacid_c0",
+    "cosmors-fine": "formicacid_c0",
+    "cpcm": "formicacid",
+    "smd": "formicacid"
   },
   "formicacid": {
     "cosmors": "formicacid_c0",
@@ -3262,44 +3318,64 @@
     "smd": "methanol"
   },
   "methyl benzoate": {
-    "cpcm": "methyl benzoate",
-    "smd": "methyl benzoate"
+    "cosmors": "methylbenzoate_c0",
+    "cosmors-fine": "methylbenzoate_c0",
+    "cpcm": "methylbenzoate",
+    "smd": "methylbenzoate"
   },
   "methyl butanoate": {
-    "cpcm": "methyl butanoate",
-    "smd": "methyl butanoate"
+    "cosmors": "methylbutyrate_c0",
+    "cosmors-fine": "methylbutyrate_c0",
+    "cpcm": "methylbutyrate",
+    "smd": "methylbutyrate"
   },
   "methyl ethanoate": {
-    "cpcm": "methyl ethanoate",
-    "smd": "methyl ethanoate"
+    "cosmors": "methylacetate_c0",
+    "cosmors-fine": "methylacetate_c0",
+    "cpcm": "methylacetate",
+    "smd": "methylacetate"
   },
   "methyl methanoate": {
-    "cpcm": "methyl methanoate",
-    "smd": "methyl methanoate"
+    "cosmors": "methylformate_c0",
+    "cosmors-fine": "methylformate_c0",
+    "cpcm": "methylformate",
+    "smd": "methylformate"
   },
   "methyl propanoate": {
-    "cpcm": "methyl propanoate",
-    "smd": "methyl propanoate"
+    "cosmors": "methylpropionate_c0",
+    "cosmors-fine": "methylpropionate_c0",
+    "cpcm": "methylpropionate",
+    "smd": "methylpropionate"
   },
   "methyl_benzoate": {
-    "cpcm": "methyl benzoate",
-    "smd": "methyl benzoate"
+    "cosmors": "methylbenzoate_c0",
+    "cosmors-fine": "methylbenzoate_c0",
+    "cpcm": "methylbenzoate",
+    "smd": "methylbenzoate"
   },
   "methyl_butanoate": {
-    "cpcm": "methyl butanoate",
-    "smd": "methyl butanoate"
+    "cosmors": "methylbutyrate_c0",
+    "cosmors-fine": "methylbutyrate_c0",
+    "cpcm": "methylbutyrate",
+    "smd": "methylbutyrate"
   },
   "methyl_ethanoate": {
-    "cpcm": "methyl ethanoate",
-    "smd": "methyl ethanoate"
+    "cosmors": "methylacetate_c0",
+    "cosmors-fine": "methylacetate_c0",
+    "cpcm": "methylacetate",
+    "smd": "methylacetate"
   },
   "methyl_methanoate": {
-    "cpcm": "methyl methanoate",
-    "smd": "methyl methanoate"
+    "cosmors": "methylformate_c0",
+    "cosmors-fine": "methylformate_c0",
+    "cpcm": "methylformate",
+    "smd": "methylformate"
   },
   "methyl_propanoate": {
-    "cpcm": "methyl propanoate",
-    "smd": "methyl propanoate"
+    "cosmors": "methylpropionate_c0",
+    "cosmors-fine": "methylpropionate_c0",
+    "cpcm": "methylpropionate",
+    "smd": "methylpropionate"
   },
   "methylacetate": {
     "cosmors": "methylacetate_c0",
@@ -4018,12 +4094,16 @@
     "smd": "pentene"
   },
   "pentyl ethanoate": {
-    "cpcm": "pentyl ethanoate",
-    "smd": "pentyl ethanoate"
+    "cosmors": "n-pentylacetate_c0",
+    "cosmors-fine": "n-pentylacetate_c0",
+    "cpcm": "n-pentylacetate",
+    "smd": "n-pentylacetate"
   },
   "pentyl_ethanoate": {
-    "cpcm": "pentyl ethanoate",
-    "smd": "pentyl ethanoate"
+    "cosmors": "n-pentylacetate_c0",
+    "cosmors-fine": "n-pentylacetate_c0",
+    "cpcm": "n-pentylacetate",
+    "smd": "n-pentylacetate"
   },
   "pentylamine": {
     "cpcm": "pentylamine",
@@ -4126,12 +4206,16 @@
     "smd": "propane"
   },
   "propanoic acid": {
-    "cpcm": "propanoic acid",
-    "smd": "propanoic acid"
+    "cosmors": "propionicacid_c0",
+    "cosmors-fine": "propionicacid_c0",
+    "cpcm": "propionicacid",
+    "smd": "propionicacid"
   },
   "propanoic_acid": {
-    "cpcm": "propanoic acid",
-    "smd": "propanoic acid"
+    "cosmors": "propionicacid_c0",
+    "cosmors-fine": "propionicacid_c0",
+    "cpcm": "propionicacid",
+    "smd": "propionicacid"
   },
   "propanol": {
     "cosmors": "propanol_c0",
@@ -4194,12 +4278,16 @@
     "smd": "propionitrile"
   },
   "propyl ethanoate": {
-    "cpcm": "propyl ethanoate",
-    "smd": "propyl ethanoate"
+    "cosmors": "n-propylacetate_c0",
+    "cosmors-fine": "n-propylacetate_c0",
+    "cpcm": "n-propylacetate",
+    "smd": "n-propylacetate"
   },
   "propyl_ethanoate": {
-    "cpcm": "propyl ethanoate",
-    "smd": "propyl ethanoate"
+    "cosmors": "n-propylacetate_c0",
+    "cosmors-fine": "n-propylacetate_c0",
+    "cpcm": "n-propylacetate",
+    "smd": "n-propylacetate"
   },
   "propylamine": {
     "cpcm": "propylamine",
@@ -4667,13 +4755,13 @@
     "dcosmors": "woctanol",
     "gbsa": "woctanol"
   },
-  "xylene (mixture)": {
-    "cpcm": "xylene (mixture)",
-    "smd": "xylene (mixture)"
+  "xylene": {
+    "cpcm": "xylene",
+    "smd": "xylene"
   },
   "xylene_mix": {
-    "cpcm": "xylene (mixture)",
-    "smd": "xylene (mixture)"
+    "cpcm": "xylene",
+    "smd": "xylene"
   },
   "z-1,2-dichloroethene": {
     "cpcm": "z-1,2-dichloroethene",
