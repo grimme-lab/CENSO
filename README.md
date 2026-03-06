@@ -11,7 +11,7 @@
   - **Geometry Optimization** using:
     - ORCA (native optimizer)
     - xtb (ANCOPT)
-  - **Thermal contributions** using xtb single-point Hessians (`--bhess`)
+  - **Thermal contributions** using xtb Hessians
 - **Solvent Models**:
   - ORCA: **CPCM**, **SMD**
   - Turbomole: **COSMO**, **DCOSMORS**, **COSMORS**
@@ -20,7 +20,7 @@
   - **NMR**: ORCA, Turbomole
   - **Optical Rotation**: Turbomole
   - **UV/Vis**: ORCA
-- **Agnostic to global optimizer**, input files just need to be in xyz-format
+- **Agnostic to global optimizer**, input files just need to be in xyz-format (CLI)
 - CLI and Python API
 
 ---
@@ -146,16 +146,18 @@ GENERAL SETTINGS:
 CENSO can be integrated into Python scripts for custom workflows. Below is a basic setup example:
 
 ```python
-from censo.ensembledata import EnsembleData
-from censo.configuration import configure
+from censo.ensemble import EnsembleData
+from censo.config.setup import configure
 from censo.ensembleopt import prescreening, screening, optimization
 from censo.properties import nmr
-from censo.config import GeneralConfig
+from censo.config import PartsConfig
 from censo.parallel import get_cluster
 
 # CENSO outputs files in the current working directory (os.getcwd())
+# When called from the CLI version, the output dir will be the same as the input file's location
 input_path = "rel/path/to/your/inputfile"  # Relative to working directory
-ensemble = EnsembleData(input_file=input_path)
+ensemble = EnsembleData()
+ensemble.read_input(input_path)
 
 # For charged/open-shell systems:
 # ensemble = EnsembleData()
@@ -164,22 +166,29 @@ ensemble = EnsembleData(input_file=input_path)
 # Load a custom rcfile (optional)
 config = configure(rcpath="/path/to/rcfile")
 
-# Configure dask client
-cluster = get_cluster()
-client = cluster.get_client()
-
 # Ensure valid configuration
 config.general.solvent = "dmso"
-config = config.model_validate(config)
+config = PartsConfig.model_validate(
+    config.model_dump(),
+    context={"check": ["prescreening", "screening", "optimization", "nmr"]}
+)
+# passing a context enables paths and solvent validation, which is usually skipped
+
+# Set up task management
+cluster = get_cluster() # instead you can also supply your own cluster
+client = cluster.get_client()
 
 # Execute workflow steps
 results = [
     part(ensemble, config, client)
     for part in [prescreening, screening, optimization, nmr]
 ]
+
+# The results are then also output to json files in the working directory
+# The molecules stored in the ensemble contain the most up-to-date energy values and geometries
 ```
 
-> **Note**: Results are also stored in `<part>.json` files. For multiple runs, rename or move output folders to avoid overwriting.
+> **Note**: For multiple runs, rename or move output folders to avoid overwriting.
 
 ---
 
