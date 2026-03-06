@@ -807,7 +807,6 @@
     "cpcm": "dichloromethane",
     "gbsa": "ch2cl2",
     "alpb": "ch2cl2",
-    "cpcm": "ch2cl2",
     "cosmors-fine": "ch2cl2_c0",
     "cosmors": "ch2cl2_c0"
   },
@@ -816,7 +815,6 @@
     "cpcm": "dichloromethane",
     "gbsa": "ch2cl2",
     "alpb": "ch2cl2",
-    "cpcm": "ch2cl2",
     "cosmors-fine": "ch2cl2_c0",
     "cosmors": "ch2cl2_c0"
   },
@@ -953,7 +951,6 @@
     "cpcm": "dichloromethane",
     "gbsa": "ch2cl2",
     "alpb": "ch2cl2",
-    "cpcm": "ch2cl2",
     "cosmors-fine": "ch2cl2_c0",
     "cosmors": "ch2cl2_c0"
   },
@@ -982,7 +979,6 @@
     "cpcm": "dichloromethane",
     "gbsa": "ch2cl2",
     "alpb": "ch2cl2",
-    "cpcm": "ch2cl2",
     "cosmors-fine": "ch2cl2_c0",
     "cosmors": "ch2cl2_c0"
   },
@@ -1338,6 +1334,8 @@
     "smd": "n-hexadecane",
     "cosmors-fine": "n-hexadecane_c0",
     "cosmors": "n-hexadecane_c0",
+    "dcosmors": "hexadecane",
+    "cosmo": "hexadecane",
     "cpcm": "n-hexadecane"
   },
   "hexane": {
@@ -1558,6 +1556,14 @@
     "cosmors": "n-decane_c0",
     "cosmors-fine": "n-decane_c0"
   },
+  "n,n-dimethylformamide": {
+    "smd": "dmf",
+    "gbsa": "dmf",
+    "alpb": "dmf",
+    "cpcm": "dmf",
+    "cosmors-fine": "dimethylformamide_c0",
+    "cosmors": "dimethylformamide_c0"
+  },
   "n-dodecane": {
     "smd": "n-dodecane",
     "cpcm": "n-dodecane"
@@ -1580,6 +1586,8 @@
     "smd": "n-hexadecane",
     "cosmors-fine": "n-hexadecane_c0",
     "cosmors": "n-hexadecane_c0",
+    "dcosmors": "hexadecane",
+    "cosmo": "hexadecane",
     "cpcm": "n-hexadecane"
   },
   "n-hexadecane_c0": {
@@ -1588,6 +1596,8 @@
     "smd": "n-hexadecane",
     "cosmors-fine": "n-hexadecane_c0",
     "cosmors": "n-hexadecane_c0",
+    "dcosmors": "hexadecane",
+    "cosmo": "hexadecane",
     "cpcm": "n-hexadecane"
   },
   "n-hexane": {
@@ -2025,26 +2035,26 @@
   "wet-octanol": {
     "gbsa": "woctanol",
     "alpb": "woctanol",
-    "cosmors-fine": "wet-octanol",
-    "cosmors": "wet-octanol",
-    "dcosmors": "wet-octanol",
-    "cosmo": "wet-octanol"
+    "cosmors-fine": "woctanol",
+    "cosmors": "woctanol",
+    "dcosmors": "woctanol",
+    "cosmo": "woctanol"
   },
   "wet_octanol": {
     "gbsa": "woctanol",
     "alpb": "woctanol",
-    "cosmors-fine": "wet-octanol",
-    "cosmors": "wet-octanol",
-    "dcosmors": "wet-octanol",
-    "cosmo": "wet-octanol"
+    "cosmors-fine": "woctanol",
+    "cosmors": "woctanol",
+    "dcosmors": "woctanol",
+    "cosmo": "woctanol"
   },
   "woctanol": {
     "gbsa": "woctanol",
     "alpb": "woctanol",
-    "cosmors-fine": "wet-octanol",
-    "cosmors": "wet-octanol",
-    "dcosmors": "wet-octanol",
-    "cosmo": "wet-octanol"
+    "cosmors-fine": "woctanol",
+    "cosmors": "woctanol",
+    "dcosmors": "woctanol",
+    "cosmo": "woctanol"
   },
   "xylene (mixture)": {
     "smd": "xylene (mixture)",
