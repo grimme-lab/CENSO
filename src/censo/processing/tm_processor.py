@@ -987,7 +987,7 @@ class TmProc(QmProc):
                 )
 
         # read out optimized geometry and update conformer geometry with this
-        job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
+        job.conf.update_from_coord_file(os.path.join(jobdir, "xtbopt.coord"))
         result.geom = job.conf.xyz
 
         return result, meta
