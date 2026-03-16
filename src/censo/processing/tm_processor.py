@@ -886,6 +886,10 @@ class TmProc(QmProc):
             "coord",  # name of the coord file generated above
             "--opt",
             config.optlevel,
+            "--chrg",
+            f"{job.charge}",
+            "--uhf",
+            f"{job.unpaired}",
             "--tm",
             "-I",
             xcontrolname,

@@ -834,6 +834,10 @@ class OrcaProc(QmProc):
             f"{filename}.coord",  # name of the coord file generated above
             "--opt",
             config.optlevel,
+            "--chrg",
+            f"{job.charge}",
+            "--uhf",
+            f"{job.unpaired}",
             "--orca",
             "-I",
             xcontrolname,
