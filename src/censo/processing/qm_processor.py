@@ -2,7 +2,7 @@
 Base class for all QM-based processors, e.g. ORCA, TM (or QChem, ...).
 """
 
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 
 from .processor import GenericProc
@@ -29,7 +29,7 @@ from ..logging import setup_logger
 logger = setup_logger(__name__)
 
 
-class QmProc(GenericProc):
+class QmProc(GenericProc, metaclass=ABCMeta):
     """
     QmProc base class
     """
