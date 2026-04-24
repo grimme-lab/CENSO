@@ -53,7 +53,9 @@ def screening(
     """
     printf(h2("SCREENING"))
 
-    config = PartsConfig.model_validate(config, context={"check": ["screening"]})
+    config = PartsConfig.model_validate(
+        config.model_dump(), context={"check": ["screening"]}
+    )
 
     # Setup processor and target
     proc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")

@@ -12,7 +12,7 @@ from censo.config.parts import (
     NMRConfig,
     UVVisConfig,
 )
-from censo.params import OrcaSolvMod, TmSolvMod, QmProg
+from censo.params import GfnVersion, OrcaSolvMod, TmSolvMod, QmProg
 
 
 def test_parts_config_default_initialization():
@@ -311,3 +311,15 @@ def test_context_specific_path_validation_for_all_parts():
             PartsConfig.model_validate(
                 config, context={"check": ["rot"], "check_sm": False}
             )
+
+
+def test_prescreening_gxtb_rejected_without_gas_phase():
+    """Test that prescreening with gfnv='gxtb' is rejected when gas_phase is False."""
+    config = PartsConfig()
+    config.general.gas_phase = False
+    config.prescreening.gfnv = GfnVersion.GXTB
+
+    with pytest.raises(ValueError, match="gxtb does not support solvation"):
+        PartsConfig.model_validate(
+            config, context={"check": ["prescreening"], "check_paths": False}
+        )

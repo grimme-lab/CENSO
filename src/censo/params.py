@@ -91,6 +91,7 @@ class GfnVersion(str, Enum):
     GFNFF = "gfnff"
     GFN1 = "gfn1"
     GFN2 = "gfn2"
+    GXTB = "gxtb"
 
 
 class Prog(str, Enum):
