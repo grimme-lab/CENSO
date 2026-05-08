@@ -110,7 +110,8 @@ class XtbProc(GenericProc):
         ]
 
         # add solvent to xtb call if not a gas-phase sp
-        if not no_solv and not config.gas_phase:
+        # NOTE: gxtb has no solvation currently
+        if not no_solv and not config.gas_phase and config.gfnv != "gxtb":
             assert config.solvent
             assert config.sm_rrho
             solvent_key = SOLVENTS[config.solvent][config.sm_rrho]
@@ -176,8 +177,14 @@ class XtbProc(GenericProc):
         :returns: Tuple of (GsolvResult, MetaData)
         :rtype: tuple[GsolvResult, MetaData]
         """
+
         result = GsolvResult()
         meta = MetaData(job.conf.name)
+
+        if config.gfnv == "gxtb":
+            meta.success = False
+            meta.error = "gxtb does not support solvation currently"
+            return result, meta
 
         jobdir = self._setup(job, "xtb_gsolv")
 
@@ -322,10 +329,11 @@ class XtbProc(GenericProc):
             xcontrolname,
             "--parallel",
             f"{job.omp}",
+            "--acc=0.1",
         ]
 
         # add solvent to xtb call if necessary
-        if not config.gas_phase:
+        if not config.gas_phase and config.gfnv != "gxtb":
             assert config.solvent
             assert config.sm_rrho
             solvent_key = SOLVENTS[config.solvent][config.sm_rrho]

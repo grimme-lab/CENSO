@@ -89,7 +89,9 @@ def configure(
             parts_config.general.__setattr__(field, setting)
 
     # Revalidate after command line args incl. solvents and paths with context
-    parts_config = PartsConfig.model_validate(parts_config, context=context)
+    parts_config = PartsConfig.model_validate(
+        parts_config.model_dump(), context=context
+    )
 
     return parts_config
 

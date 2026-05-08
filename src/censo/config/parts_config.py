@@ -125,9 +125,23 @@ class PartsConfig(GenericConfig):
         """
         Call attribute validators.
         """
+        gxtb_used = False
         for name, part in parts_to_check:
-            checked = part.model_validate(part)
+            checked = part.model_validate(part.model_dump())
             setattr(self, name, checked)
+            if (
+                name == "prescreening"
+                and not self.general.gas_phase
+                and getattr(checked, "gfnv", None) == "gxtb"
+            ):
+                raise ValueError("gxtb does not support solvation currently.")
+            if getattr(checked, "gfnv", None) == "gxtb":
+                gxtb_used = True
+
+        if not self.general.gas_phase and gxtb_used:
+            warnings.warn(
+                "gxtb does not support solvation currently. xtb calls with gxtb will not include solvation effects."
+            )
 
     # SOLVENT/SM VALIDATION
     # NOTE: since solvent is a general settings this is validated here because we need access
