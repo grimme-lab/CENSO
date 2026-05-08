@@ -329,6 +329,7 @@ class XtbProc(GenericProc):
             xcontrolname,
             "--parallel",
             f"{job.omp}",
+            "--acc=0.1",
         ]
 
         # add solvent to xtb call if necessary
