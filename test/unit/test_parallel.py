@@ -23,7 +23,6 @@ from censo.processing.results import (
 from censo.params import GridLevel, QmProg
 from censo.config.job_config import SPJobConfig
 
-
 # ============= Fixtures and Mock Classes =============
 
 

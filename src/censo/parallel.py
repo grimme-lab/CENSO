@@ -19,7 +19,6 @@ from .processing.results import Result, MetaData
 from .processing.job import JobContext
 from .config import GenericConfig
 
-
 logger = setup_logger(__name__)
 
 
@@ -191,9 +190,7 @@ def prepare_jobs(
     return sorted(jobs, key=lambda job: job.omp)
 
 
-def execute[
-    T: GenericConfig, U: Result
-](
+def execute[T: GenericConfig, U: Result](
     conformers: list[MoleculeData],
     task: Callable[[JobContext, T], tuple[U, MetaData]],
     job_config: XTBJobConfig | SPJobConfig,

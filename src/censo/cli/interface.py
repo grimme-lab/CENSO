@@ -93,7 +93,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             (partname, task) for partname, enabled, task in tasks[:4] if enabled
         ]:
             start = time.perf_counter()
-            _ = func(ensemble, parts_config, client, cut=cut)  # type: ignore[operator]
+            _ = func(ensemble, parts_config, client, cut=cut)  # type: ignore[call-arg]
             end = time.perf_counter()
             runtime = end - start
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")

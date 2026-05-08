@@ -1,6 +1,10 @@
 import logging
+import os
 import sys
 from pathlib import Path
+
+CENSO_LOG_PATH_ENV_KEY = "CENSO_LOG_PATH"
+CENSO_LOG_LEVEL_ENV_KEY = "CENSO_LOG_LEVEL"
 
 __loglevel = logging.INFO
 __filehandler_path: str | Path | None = None
@@ -20,6 +24,17 @@ def setup_logger(name: str) -> logging.Logger:
     :return: The configured logger instance.
     """
     global __loglevel, __filehandler_path
+
+    # In worker processes, module-level state is not inherited from the
+    # main process. Fall back to environment variables set by set_filehandler().
+    if __filehandler_path is None:
+        _env_path = os.environ.get(CENSO_LOG_PATH_ENV_KEY)
+        if _env_path is not None:
+            __filehandler_path = _env_path
+    if __loglevel == logging.INFO:
+        _env_level = os.environ.get(CENSO_LOG_LEVEL_ENV_KEY)
+        if _env_level is not None:
+            __loglevel = getattr(logging, _env_level, logging.INFO)
 
     # Create a logger instance with the specified name
     logger = logging.getLogger(name)
@@ -68,6 +83,8 @@ def set_filehandler(path: str | Path):
     """
     global __loglevel, __filehandler_path
     __filehandler_path = path
+    # Persist to environment so dask worker processes can pick it up
+    os.environ[CENSO_LOG_PATH_ENV_KEY] = str(path)
     filehandler_path = str(path)
     formatter = logging.Formatter(
         "{asctime:24s}-{name:^24s}-{levelname:^10s}- {message}", style="{"
@@ -97,6 +114,8 @@ def set_loglevel(loglevel: str) -> None:
     """
     global __loglevel
     __loglevel = getattr(logging, loglevel)
+    # Persist to environment so dask worker processes can pick it up
+    os.environ[CENSO_LOG_LEVEL_ENV_KEY] = loglevel
     for logger_name, logger in logging.Logger.manager.loggerDict.items():
         if isinstance(logger, logging.Logger) and logger_name.startswith("censo"):
             logger.setLevel(__loglevel)

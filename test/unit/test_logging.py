@@ -3,6 +3,7 @@ Unit tests for logging module.
 """
 
 import logging
+import os
 import tempfile
 from pathlib import Path
 
@@ -19,6 +20,10 @@ def reset_logging_state():
 
     # Reset to None for the test
     censo.logging.__filehandler_path = None
+
+    # Clean up env vars set by set_filehandler / set_loglevel
+    os.environ.pop("CENSO_LOG_PATH", None)
+    os.environ.pop("CENSO_LOG_LEVEL", None)
 
     yield
 
@@ -191,6 +196,78 @@ def test_no_duplicate_filehandlers_for_same_path():
         assert (
             initial_file_handler_count == final_file_handler_count
         ), "Should not create duplicate FileHandlers for the same path"
+
+
+def test_set_filehandler_persists_to_env():
+    """Test that set_filehandler stores the path in an env var for worker processes."""
+    from censo.logging import set_filehandler
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        log_path = Path(tmpdir) / "test.log"
+
+        # Env var should not be set before calling set_filehandler
+        assert os.environ.get("CENSO_LOG_PATH") is None
+
+        set_filehandler(log_path)
+
+        # Env var should now be set
+        assert os.environ.get("CENSO_LOG_PATH") == str(log_path)
+
+
+def test_set_loglevel_persists_to_env():
+    """Test that set_loglevel stores the level in an env var for worker processes."""
+    from censo.logging import set_loglevel
+
+    # Env var should not be set before calling set_loglevel
+    os.environ.pop("CENSO_LOG_LEVEL", None)
+
+    set_loglevel("DEBUG")
+
+    # Env var should now be set
+    assert os.environ.get("CENSO_LOG_LEVEL") == "DEBUG"
+
+
+def test_setup_logger_reads_env_vars():
+    """Test that setup_logger falls back to env vars when module state is unset.
+
+    This simulates what happens in a dask worker process: the module-level
+    __filehandler_path is None because it's a fresh process, but the env
+    vars are inherited from the parent process.
+    """
+    from censo.logging import setup_logger
+    import censo.logging
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        log_path = Path(tmpdir) / "test.log"
+
+        # Simulate a worker process: module state is None, but env vars are set
+        censo.logging.__filehandler_path = None
+        os.environ["CENSO_LOG_PATH"] = str(log_path)
+        os.environ["CENSO_LOG_LEVEL"] = "DEBUG"
+
+        # Create logger - should pick up env vars
+        logger = setup_logger("censo.test_env_vars")
+
+        # Verify logger has FileHandler with correct path
+        has_file_handler = any(
+            isinstance(h, logging.FileHandler) for h in logger.handlers
+        )
+        assert has_file_handler, "Logger should have FileHandler from env var"
+
+        # Verify the FileHandler points to the correct file
+        file_handler = next(
+            h for h in logger.handlers if isinstance(h, logging.FileHandler)
+        )
+        assert file_handler.baseFilename == str(log_path)
+
+        # Verify the log level was picked up
+        assert logger.level == logging.DEBUG
+
+        # Verify logging actually works
+        logger.info("Test message from env var path")
+        assert log_path.exists()
+        content = log_path.read_text()
+        assert "Test message from env var path" in content
 
 
 def test_cli_lazy_import_modules_receive_filehandler():

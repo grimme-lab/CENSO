@@ -198,3 +198,8 @@ cython_debug/
 
 # Automatically created version file
 __version__.py
+
+.opencode
+openspec
+.serena
+uv.lock
