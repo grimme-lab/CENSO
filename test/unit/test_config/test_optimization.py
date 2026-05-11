@@ -69,7 +69,15 @@ def test_invalid_optlevel():
 
 
 @pytest.mark.parametrize(
-    "sm", [TmSolvMod.DCOSMORS, TmSolvMod.COSMO, OrcaSolvMod.CPCM, OrcaSolvMod.SMD]
+    "sm",
+    [
+        TmSolvMod.DCOSMORS,
+        TmSolvMod.COSMO,
+        TmSolvMod.COSMORS,
+        TmSolvMod.COSMORS_FINE,
+        OrcaSolvMod.CPCM,
+        OrcaSolvMod.SMD,
+    ],
 )
 def test_valid_solvent_models(sm):
     """Test valid solvent model combinations"""
@@ -77,10 +85,10 @@ def test_valid_solvent_models(sm):
     assert config.sm == sm
 
 
-def test_invalid_solvent_model():
-    """Test invalid solvent model"""
-    with pytest.raises(ValueError):
-        OptimizationConfig(sm=TmSolvMod.COSMORS)  # type: ignore[arg-type]
+def test_default_gsolv_included():
+    """Test default gsolv_included is False"""
+    config = OptimizationConfig()
+    assert config.gsolv_included is False
 
 
 @pytest.mark.parametrize(
@@ -101,6 +109,33 @@ def test_functional_validation(prog, func, should_pass):
     else:
         with pytest.raises(ValueError):
             OptimizationConfig(prog=prog, func=func)
+
+
+def test_cosmors_solvent_model_sets_gsolv_included():
+    """Test that cosmors/cosmors-fine sets gsolv_included to False and warns about dcosmors"""
+    import warnings as w
+
+    for sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]:
+        with w.catch_warnings(record=True) as caught:
+            w.simplefilter("always")
+            config = OptimizationConfig(sm=sm)
+            assert config.sm == sm
+            assert config.gsolv_included is False
+            # Should warn that geometry optimizations will use dcosmors
+            assert any("dcosmors" in str(c.message) for c in caught)
+
+
+def test_dcosmors_solvent_model_does_not_warn_or_change_gsolv_included():
+    """Test that dcosmors does not trigger the cosmors warning and gsolv_included stays default"""
+    import warnings as w
+
+    with w.catch_warnings(record=True) as caught:
+        w.simplefilter("always")
+        config = OptimizationConfig(sm=TmSolvMod.DCOSMORS)
+        assert config.sm == TmSolvMod.DCOSMORS
+        assert config.gsolv_included is False
+        # dcosmors should NOT produce a warning about using dcosmors for optimization
+        assert not any("dcosmors" in str(c.message) for c in caught)
 
 
 def test_constraints_validation():

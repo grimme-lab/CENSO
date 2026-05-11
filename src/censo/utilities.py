@@ -231,7 +231,9 @@ def get_time(time: float) -> tuple[int, int, int]:
 
 def h1(text: str) -> str:
     """
-    Create a formatted header of type 1.
+    Create a formatted header of type 1:
+
+    --- text ---
 
     :param text: The text to be formatted.
     :return: The formatted header.
@@ -241,7 +243,11 @@ def h1(text: str) -> str:
 
 def h2(text: str) -> str:
     """
-    Create a formatted header of type 2.
+    Create a formatted header of type 2:
+
+    ---
+    text
+    ---
 
     :param text: The text to be formatted.
     :return: The formatted header.
