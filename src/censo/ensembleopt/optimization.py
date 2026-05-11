@@ -15,10 +15,15 @@ from ..ensemble import EnsembleData
 from ..molecules import MoleculeData, Contributions
 from ..processing import QmProc, XtbProc
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
+from ..params import AU2KCAL, PLENGTH, GridLevel, Prog, TmSolvMod
 from ..config import PartsConfig
 from ..config.parts import OptimizationConfig
-from ..config.job_config import RRHOJobConfig, OptJobConfig, XTBOptJobConfig
+from ..config.job_config import (
+    RRHOJobConfig,
+    OptJobConfig,
+    SPJobConfig,
+    XTBOptJobConfig,
+)
 from ..utilities import (
     printf,
     h1,
@@ -57,13 +62,27 @@ def optimization(
         config.model_dump(), context={"check": ["optimization"]}
     )
 
+    # When cosmors/cosmors-fine is selected, create a config copy with sm=dcosmors
+    # for geometry optimization (cosmors cannot compute gradients), then use the
+    # original config for gsolv reranking with the chosen COSMO-RS model.
+    if config.optimization.sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]:
+        opt_config = config.model_copy(
+            update={
+                "optimization": config.optimization.model_copy(
+                    update={"sm": TmSolvMod.DCOSMORS}
+                )
+            }
+        )
+    else:
+        opt_config = config
+
     # Setup processor
     proc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
 
     if config.optimization.macrocycles:
-        contributions_dict = _macrocycle_opt(proc, ensemble, config, client, cut)
+        contributions_dict = _macrocycle_opt(proc, ensemble, opt_config, client, cut)
     else:
-        contributions_dict = _full_opt(proc, ensemble, config, client=client)
+        contributions_dict = _full_opt(proc, ensemble, opt_config, client=client)
 
     printf("\n")
 
@@ -93,6 +112,45 @@ def optimization(
 
         for conf in ensemble:
             contributions_dict[conf.name].grrho = results[conf.name].energy
+
+    # When cosmors or cosmors-fine is chosen as solvent model, geometry optimizations
+    # used dcosmors, so now we compute gsolv with the chosen COSMO-RS model for final reranking
+    if not config.general.gas_phase and (
+        config.optimization.sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]
+        or not config.optimization.gsolv_included
+    ):
+        printf(f"Reranking using {config.optimization.sm}.")
+
+        gsolv_job_config = SPJobConfig(
+            copy_mo=config.general.copy_mo,
+            func=config.optimization.func,
+            basis=config.optimization.basis,
+            grid=GridLevel.HIGH,
+            template=config.optimization.template,
+            gas_phase=False,
+            solvent=config.general.solvent,
+            sm=config.optimization.sm,
+            temperature=config.general.temperature,
+            paths=config.paths,
+        )
+
+        gsolv_results = execute(
+            ensemble.conformers,
+            proc.gsolv,
+            gsolv_job_config,
+            config.optimization.prog,
+            "optimization",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in gsolv_results)
+
+        for conf in ensemble:
+            contributions_dict[conf.name].gsolv = gsolv_results[conf.name].gsolv
 
     ensemble.update_contributions(contributions_dict)
 
