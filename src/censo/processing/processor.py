@@ -3,7 +3,7 @@ Generic processor class. Only abstract methods: sp, opt (single-point and geomet
 Also implements important methods inherited by all other processors, e.g. making external program calls and creating job dirs.
 """
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 import os
 from pathlib import Path
 import subprocess
@@ -35,7 +35,7 @@ from ..logging import setup_logger
 logger = setup_logger(__name__)
 
 
-class GenericProc:
+class GenericProc(ABC):
     """
     Generic processor class
     """

@@ -702,7 +702,7 @@ class OrcaProc(QmProc):
         meta.success = True
 
         # Read out optimized geometry and update conformer geometry with this
-        job.conf.fromxyz(os.path.join(jobdir, f"{filename}.xyz"))
+        job.conf.update_from_xyz_file(os.path.join(jobdir, f"{filename}.xyz"))
         result.geom = job.conf.xyz
 
         if config.copy_mo:
@@ -928,7 +928,7 @@ class OrcaProc(QmProc):
             result.mo_path = os.path.join(jobdir, f"{filename}.gbw")
 
         # read out optimized geometry and update conformer geometry with this
-        job.conf.fromcoord(os.path.join(jobdir, "xtbopt.coord"))
+        job.conf.update_from_coord_file(os.path.join(jobdir, "xtbopt.coord"))
         result.geom = job.conf.xyz
 
         return result, meta
