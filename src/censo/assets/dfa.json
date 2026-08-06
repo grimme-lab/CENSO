@@ -290,5 +290,10 @@
     "orca": "dsd-pbep86",
     "disp": "d3bj",
     "type": "double"
+  },
+  "revdsd-pbep86-d4": {
+    "tm": "revdsd-pbep86",
+    "disp": "d4",
+    "type": "double"
   }
 }

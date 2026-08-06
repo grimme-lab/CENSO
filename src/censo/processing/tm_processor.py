@@ -3,6 +3,7 @@ Contains TmProc class for calculating TURBOMOLE related properties of conformers
 """
 
 import os
+import re
 import shutil
 import math
 from pathlib import Path
@@ -36,6 +37,34 @@ from ..config.job_config import NMRJobConfig, SPJobConfig, XTBOptJobConfig, RotJ
 from ..assets import FUNCTIONALS, SOLVENTS
 
 logger = setup_logger(__name__)
+
+# revDSD-PBEP86-D4 (Santra, Sylvetsky, Martin, J. Phys. Chem. A 123 (2019) 5129).
+# TURBOMOLE does not know this functional, so it is assembled by hand:
+#   - the DFT part is a custom xcfun DFA evaluated by ridft
+#   - the SCS-MP2 part is evaluated by ricc2 on top of it
+#   - D4 cannot be done by TM for a custom DFA, so the standalone dftd4 binary is used
+REVDSD = "revdsd-pbep86-d4"
+
+# Spin-component scaling factors for the MP2 part (opposite spin/same spin)
+REVDSD_COS = 0.5922
+REVDSD_CSS = 0.0636
+
+# D4 damping parameters in the order expected by `dftd4 --param`: s6, s8, a1, a2
+REVDSD_D4_PARAMS = ("0.5132", "0.0", "0.44", "3.60")
+
+# Custom control file datagroups (replace the usual '$dft' block)
+REVDSD_CONTROL = [
+    "$dft",
+    "   functional xcfun set-gga",
+    "   functional xcfun pbex  0.31",
+    "   functional xcfun p86c  0.4210",
+    "   functional xcfun set-hybrid 0.69",
+    "   gridsize m4",
+    "$denconv 1d-7",
+    "$ricc2",
+    "   mp2",
+    f"   scs  cos={REVDSD_COS}  css={REVDSD_CSS}",
+]
 
 
 @final
@@ -224,32 +253,38 @@ class TmProc(QmProc):
         if basis.endswith("D"):
             inp.append("    jbas=universal")
 
-        inp.extend(["$dft", f"   functional {func_name}"])
-
-        # Configure grid
-        inp.extend(self.__gridsettings[config.grid])
-
-        # r2scan-3c should use m4 grid and radsize 10
-        if func == "r2scan-3c":
-            if "m3" in inp:
-                inp[inp.index("m3")] = "m4"
-            inp.insert(inp.index("$dft") + 2, "    radsize 10")
-
-        # Add dispersion
-        # dispersion correction information
-        # TODO: temporary solution (not very nice)
-        mapping = {
-            "d3bj": "$disp3 -bj",
-            "d3(0)": "$disp3 -zero",
-            "d4": "$disp4",
-            "nl": "$donl",
-        }
-
         disp = FUNCTIONALS[func]["disp"]
-        if disp not in ["composite", "novdw", "included"]:
-            inp.append(mapping[disp])
-        elif func.endswith("-v"):
-            inp.append("$doscnl")
+
+        if func == REVDSD:
+            # Custom double hybrid, dispersion is added afterwards using the
+            # standalone dftd4 binary (see __revdsd_post)
+            inp.extend(REVDSD_CONTROL)
+        else:
+            inp.extend(["$dft", f"   functional {func_name}"])
+
+            # Configure grid
+            inp.extend(self.__gridsettings[config.grid])
+
+            # r2scan-3c should use m4 grid and radsize 10
+            if func == "r2scan-3c":
+                if "m3" in inp:
+                    inp[inp.index("m3")] = "m4"
+                inp.insert(inp.index("$dft") + 2, "    radsize 10")
+
+            # Add dispersion
+            # dispersion correction information
+            # TODO: temporary solution (not very nice)
+            mapping = {
+                "d3bj": "$disp3 -bj",
+                "d3(0)": "$disp3 -zero",
+                "d4": "$disp4",
+                "nl": "$donl",
+            }
+
+            if disp not in ["composite", "novdw", "included"]:
+                inp.append(mapping[disp])
+            elif func.endswith("-v"):
+                inp.append("$doscnl")
 
         inp.append("$rij")
 
@@ -316,8 +351,8 @@ class TmProc(QmProc):
         if disp == "nl":
             inp.append("$donl\n")
 
-        # Handle GCP
-        if func_type != "composite":
+        # Handle GCP (never for double hybrids)
+        if func_type not in ("composite", "double"):
             gcp_keywords = {
                 "minis": "MINIS",
                 "sv": "SV",
@@ -473,6 +508,211 @@ class TmProc(QmProc):
                 return out_to_err[key]
         return ""
 
+    @staticmethod
+    def __terminated_normally(lines: list[str]) -> bool:
+        """
+        Check whether a TURBOMOLE module reached its regular end. All modules print
+        '****  <module> : all done  ****' on success and '<module> ended abnormally'
+        otherwise.
+
+        :param lines: list of lines from the output file.
+        :type lines: list[str]
+        :returns: True if the module terminated normally
+        :rtype: bool
+        """
+        return any("all done" in line for line in lines) and not any(
+            "ended abnormally" in line for line in lines
+        )
+
+    @staticmethod
+    def __parse_scs_corr(lines: list[str]) -> float | None:
+        """
+        Extract the spin-component-scaled MP2 correlation energy from a ricc2 output.
+
+        Preferred route are the explicitly printed spin components, which are scaled
+        here (independent of what ricc2 uses as reference energy):
+
+            *    E(S)   =     -0.0332844105      E(T)   =     -0.0032381435      *
+            *    E(OS)  =     -0.0343637916      E(SS)  =     -0.0021587623      *
+
+        As a fallback the printed SCS-MP2 total energy is used, which only works if
+        it was computed with the coefficients we asked for:
+
+            *   RHF  energy                             :    -74.9644564256      *
+            *   SCS-MP2 energy                          :    -75.0064125631      *
+            *   (computed with  C(OS) =   1.2000  and  C(SS) =   0.3333)         *
+
+        :param lines: list of lines from the ricc2 output file.
+        :type lines: list[str]
+        :returns: the scaled correlation energy or None if it could not be determined
+        :rtype: float | None
+        """
+        components: tuple[float, float] | None = None
+        ref_energy: float | None = None
+        scs_energy: float | None = None
+        coefficients: tuple[float, float] | None = None
+
+        for line in lines:
+            match = re.search(
+                r"E\(OS\)\s*=\s*(-?\d+\.\d+)\s+E\(SS\)\s*=\s*(-?\d+\.\d+)", line
+            )
+            if match:
+                components = (float(match.group(1)), float(match.group(2)))
+                continue
+
+            match = re.search(r"[RU]HF\s+energy\s*:\s*(-?\d+\.\d+)", line)
+            if match:
+                ref_energy = float(match.group(1))
+                continue
+
+            match = re.search(r"SCS-MP2 energy\s*:\s*(-?\d+\.\d+)", line)
+            if match:
+                scs_energy = float(match.group(1))
+                continue
+
+            match = re.search(
+                r"computed with\s+C\(OS\)\s*=\s*(-?\d+\.\d+)\s+and\s+C\(SS\)\s*=\s*(-?\d+\.\d+)",
+                line,
+            )
+            if match:
+                coefficients = (float(match.group(1)), float(match.group(2)))
+
+        # Only usable if ricc2 actually applied the requested scaling
+        scs_corr: float | None = None
+        if (
+            scs_energy is not None
+            and ref_energy is not None
+            and coefficients is not None
+            and math.isclose(coefficients[0], REVDSD_COS, abs_tol=1e-4)
+            and math.isclose(coefficients[1], REVDSD_CSS, abs_tol=1e-4)
+        ):
+            scs_corr = scs_energy - ref_energy
+
+        if components is None:
+            return scs_corr
+
+        corr = REVDSD_COS * components[0] + REVDSD_CSS * components[1]
+
+        # Both routes have to agree, otherwise ricc2 used a different reference
+        # energy than the one ridft converged to
+        if scs_corr is not None and not math.isclose(corr, scs_corr, abs_tol=1e-6):
+            logger.warning(
+                f"{f'worker{os.getpid()}:':{WARNLEN}}Scaled MP2 correlation energy from the "
+                f"spin components ({corr:.10f}) does not match the SCS-MP2 energy printed by "
+                f"ricc2 ({scs_corr:.10f})."
+            )
+
+        return corr
+
+    @staticmethod
+    def __parse_d4_energy(jobdir: str | Path, lines: list[str]) -> float | None:
+        """
+        Extract the D4 dispersion energy from a dftd4 run. By default dftd4 dumps the
+        energy into a '.EDISP' file, the stdout printout is only used as fallback.
+
+        :param jobdir: Path to the job directory
+        :type jobdir: str | Path
+        :param lines: list of lines from the dftd4 output file.
+        :type lines: list[str]
+        :returns: the dispersion energy in Eh or None if it could not be determined
+        :rtype: float | None
+        """
+        edisp = Path(jobdir) / ".EDISP"
+        if edisp.is_file():
+            try:
+                return float(edisp.read_text().strip())
+            except ValueError:
+                pass
+
+        for line in lines:
+            match = re.search(
+                r"Dispersion energy:\s*(-?\d+\.\d+(?:[eE][-+]?\d+)?)",
+                line,
+            )
+            if match:
+                return float(match.group(1))
+
+        return None
+
+    def __revdsd_post(
+        self,
+        job: JobContext,
+        config: SPJobConfig,
+        jobdir: str | Path,
+        energy: float,
+        meta: MetaData,
+    ) -> float | None:
+        """
+        Add the missing contributions to a revDSD-PBEP86-D4 energy. Runs ricc2 for the
+        SCS-MP2 correlation energy and the standalone dftd4 binary for the dispersion
+        correction, both on top of the finished ridft run in `jobdir`.
+
+        :param job: Job context
+        :type job: JobContext
+        :param config: Configuration for the job
+        :type config: SPJobConfig
+        :param jobdir: Path to the job directory (must contain a finished ridft run)
+        :type jobdir: str | Path
+        :param energy: total energy of the ridft run (DFT part)
+        :type energy: float
+        :param meta: metadata of the job, errors are stored here
+        :type meta: MetaData
+        :returns: the total revDSD-PBEP86-D4 energy or None if any step failed
+        :rtype: float | None
+        """
+        # MP2 part
+        ricc2 = Path(config.paths.tm) / "ricc2"
+        if not ricc2.is_file():
+            meta.error = f"ricc2 binary not found in {config.paths.tm}"
+            return None
+
+        outputpath = os.path.join(jobdir, "ricc2.out")
+        env = ENVIRON.copy()
+        env["PARA_ARCH"] = "SMP"
+        env["PARNODES"] = str(job.omp)
+
+        returncode, _ = self._make_call([str(ricc2)], outputpath, jobdir, env=env)
+
+        lines = Path(outputpath).read_text().split("\n")
+        if returncode != 0 or not self.__terminated_normally(lines):
+            meta.error = "ricc2 did not terminate normally"
+            return None
+
+        corr = self.__parse_scs_corr(lines)
+        if corr is None:
+            meta.error = "Could not parse SCS-MP2 correlation energy"
+            return None
+
+        # Dispersion part, TM cannot do D4 for a custom DFA
+        dftd4 = shutil.which("dftd4")
+        if dftd4 is None:
+            meta.error = f"dftd4 binary not found, required for {REVDSD}"
+            return None
+
+        # Make sure a leftover file from a previous run is never picked up
+        edisp = Path(jobdir) / ".EDISP"
+        edisp.unlink(missing_ok=True)
+
+        outputpath = os.path.join(jobdir, "dftd4.out")
+        returncode, _ = self._make_call(
+            [dftd4, "--param", *REVDSD_D4_PARAMS, "--charge", str(job.charge), "coord"],
+            outputpath,
+            jobdir,
+        )
+
+        if returncode != 0:
+            meta.error = "dftd4 call failed"
+            return None
+
+        edisp_energy = self.__parse_d4_energy(
+            jobdir, Path(outputpath).read_text().split("\n")
+        )
+        if edisp_energy is None:
+            meta.error = "Could not parse D4 dispersion energy"
+            return None
+
+        return energy + corr + edisp_energy
+
     def _sp(
         self,
         job: JobContext,
@@ -546,6 +786,19 @@ class TmProc(QmProc):
         except StopIteration:
             meta.success = False
             meta.error = "Could not parse final energy"
+
+        # For revDSD-PBEP86-D4 ridft only provides the DFT part of the energy,
+        # the SCS-MP2 and D4 contributions are added on top
+        if meta.success and config.func == REVDSD:
+            if not self.__terminated_normally(lines):
+                meta.success = False
+                meta.error = "ridft did not terminate normally"
+            else:
+                energy = self.__revdsd_post(job, config, jobdir, result.energy, meta)
+                if energy is None:
+                    meta.success = False
+                else:
+                    result.energy = energy
 
         if config.copy_mo:
             # store the path to the current MO file(s) for this conformer if possible

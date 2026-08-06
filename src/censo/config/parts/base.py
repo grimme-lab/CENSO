@@ -38,8 +38,14 @@ class BasePartConfig(GenericConfig):
 
             try:
                 disp = FUNCTIONALS[func]["disp"]
+                func_type = FUNCTIONALS[func]["type"]
             except KeyError:
                 raise ValueError("Received invalid functional key.")
+
+            # Double hybrids don't use TM's own D4 implementation, so they are
+            # unaffected by the GCP bug
+            if func_type == "double":
+                return self
 
             gcp_keywords = {
                 "minis": "MINIS",
