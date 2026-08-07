@@ -542,6 +542,12 @@ class TmProc(QmProc):
             *   SCS-MP2 energy                          :    -75.0064125631      *
             *   (computed with  C(OS) =   1.2000  and  C(SS) =   0.3333)         *
 
+        TURBOMOLE 7.9+ prints neither the spin components nor the SCS-MP2 total,
+        only the already scaled correlation energy (the applied scaling factors
+        are printed in the header):
+
+            *   MP2 correlation energy                  :     -0.6320247028      *
+
         :param lines: list of lines from the ricc2 output file.
         :type lines: list[str]
         :returns: the scaled correlation energy or None if it could not be determined
@@ -551,6 +557,8 @@ class TmProc(QmProc):
         ref_energy: float | None = None
         scs_energy: float | None = None
         coefficients: tuple[float, float] | None = None
+        # TURBOMOLE 7.9+ prints the scaled correlation energy directly
+        direct_corr: float | None = None
 
         for line in lines:
             match = re.search(
@@ -576,6 +584,20 @@ class TmProc(QmProc):
             )
             if match:
                 coefficients = (float(match.group(1)), float(match.group(2)))
+                continue
+
+            # TURBOMOLE 7.9+: the scaling factors are only printed in the header
+            match = re.search(
+                r"scaling factors:\s*C_os\s*=\s*(\d+\.\d+)\s*C_ss\s*=\s*(\d+\.\d+)",
+                line,
+            )
+            if match:
+                coefficients = (float(match.group(1)), float(match.group(2)))
+                continue
+
+            match = re.search(r"MP2 correlation energy\s*:\s*(-?\d+\.\d+)", line)
+            if match:
+                direct_corr = float(match.group(1))
 
         # Only usable if ricc2 actually applied the requested scaling
         scs_corr: float | None = None
@@ -583,12 +605,20 @@ class TmProc(QmProc):
             scs_energy is not None
             and ref_energy is not None
             and coefficients is not None
-            and math.isclose(coefficients[0], REVDSD_COS, abs_tol=1e-4)
-            and math.isclose(coefficients[1], REVDSD_CSS, abs_tol=1e-4)
+            and math.isclose(coefficients[0], REVDSD_COS, abs_tol=1e-3)
+            and math.isclose(coefficients[1], REVDSD_CSS, abs_tol=1e-3)
         ):
             scs_corr = scs_energy - ref_energy
 
         if components is None:
+            # TURBOMOLE 7.9+ prints the scaled correlation energy directly
+            if (
+                direct_corr is not None
+                and coefficients is not None
+                and math.isclose(coefficients[0], REVDSD_COS, abs_tol=1e-3)
+                and math.isclose(coefficients[1], REVDSD_CSS, abs_tol=1e-3)
+            ):
+                return direct_corr
             return scs_corr
 
         corr = REVDSD_COS * components[0] + REVDSD_CSS * components[1]
