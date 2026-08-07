@@ -61,9 +61,6 @@ REVDSD_CONTROL = [
     "   functional xcfun set-hybrid 0.69",
     "   gridsize m4",
     "$denconv 1d-7",
-    # The MOs from ridft are KS orbitals, not converged HF orbitals. ricc2
-    # requires this data group to accept them as reference (see TM manual).
-    "$non-canonical MOs",
     "$ricc2",
     "   mp2",
     f"   scs  cos={REVDSD_COS}  css={REVDSD_CSS}",
@@ -663,6 +660,14 @@ class TmProc(QmProc):
         :returns: the total revDSD-PBEP86-D4 energy or None if any step failed
         :rtype: float | None
         """
+        # The MOs from ridft are KS orbitals, not converged HF orbitals. ricc2
+        # requires this data group to accept them as reference (see TM manual).
+        # Added only after ridft finished so it never affects the ridft run.
+        control = Path(jobdir) / "control"
+        lines = control.read_text().split("\n")
+        lines.insert(lines.index("$ricc2"), "$non-canonical MOs")
+        control.write_text("\n".join(lines))
+
         # MP2 part
         ricc2 = Path(config.paths.tm) / "ricc2"
         if not ricc2.is_file():
