@@ -61,6 +61,9 @@ REVDSD_CONTROL = [
     "   functional xcfun set-hybrid 0.69",
     "   gridsize m4",
     "$denconv 1d-7",
+    # The MOs from ridft are KS orbitals, not converged HF orbitals. ricc2
+    # requires this data group to accept them as reference (see TM manual).
+    "$non-canonical MOs",
     "$ricc2",
     "   mp2",
     f"   scs  cos={REVDSD_COS}  css={REVDSD_CSS}",
