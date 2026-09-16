@@ -40,8 +40,9 @@ logger = setup_logger(__name__)
 
 # revDSD-PBEP86-D4 (Santra, Sylvetsky, Martin, J. Phys. Chem. A 123 (2019) 5129).
 # TURBOMOLE does not know this functional, so it is assembled by hand:
-#   - the DFT part is a custom xcfun DFA evaluated by ridft
-#   - the SCS-MP2 part is evaluated by ricc2 on top of it
+#   - the DFT part is a custom libxc DFA evaluated by ridft
+#   - before ricc2 the $dft block is switched to b2-plyp (same hybrid mixing);
+#     only then does the SCS-MP2 energy agree with ORCA
 #   - D4 cannot be done by TM for a custom DFA, so the standalone dftd4 binary is used
 REVDSD = "revdsd-pbep86-d4"
 
@@ -49,21 +50,20 @@ REVDSD = "revdsd-pbep86-d4"
 REVDSD_COS = 0.5922
 REVDSD_CSS = 0.0636
 
-# D4 damping parameters in the order expected by `dftd4 --param`: s6, s8, a1, a2
-REVDSD_D4_PARAMS = ("0.5132", "0.0", "0.44", "3.60")
+# D4 damping parameters in the order expected by `dftd4 --param`: s6, s8, a1, a2.
+# s9 is fixed at 1.0 (the dftd4 default) for revDSD.
+REVDSD_D4_PARAMS = ("0.5917", "0.0000", "0.3710", "4.2014")
 
-# Custom control file datagroups (replace the usual '$dft' block)
+# ridft-only $dft block; the ricc2 input is added in __revdsd_post together with
+# the switch to b2-plyp
 REVDSD_CONTROL = [
     "$dft",
-    "   functional xcfun set-gga",
-    "   functional xcfun pbex  0.31",
-    "   functional xcfun p86c  0.4210",
-    "   functional xcfun set-hybrid 0.69",
+    "   functional libxc 101",
+    "   functional libxc add 1 252",
+    "   functional libxc factors 0.31 0.4224",
+    "   functional libxc set-hybrid 0.69",
     "   gridsize m4",
     "$denconv 1d-7",
-    "$ricc2",
-    "   mp2",
-    f"   scs  cos={REVDSD_COS}  css={REVDSD_CSS}",
 ]
 
 
@@ -687,16 +687,31 @@ class TmProc(QmProc):
         :type energy: float
         :param meta: metadata of the job, errors are stored here
         :type meta: MetaData
-        :returns: the total revDSD-PBEP86-D4 energy or None if any step failed
         :rtype: float | None
         """
-        # The MOs from ridft are KS orbitals, not converged HF orbitals. ricc2
-        # requires this data group to accept them as reference (see TM manual).
-        # Added only after ridft finished so it never affects the ridft run.
+        # Before ricc2 the $dft block is switched from the libxc assembly to
+        # b2-plyp: ricc2 gives the same SCS-MP2 energy as ORCA only for that
+        # functional. The MOs from ridft are KS orbitals, so ricc2 additionally
+        # needs the $non-canonical MOs data group (see TM manual). The $ricc2
+        # datagroup with the revDSD scaling factors is appended as well. Added
+        # only after ridft finished so it never affects the ridft run.
         control = Path(jobdir) / "control"
         lines = control.read_text().split("\n")
-        lines.insert(lines.index("$ricc2"), "$non-canonical MOs")
-        control.write_text("\n".join(lines))
+        out = []
+        for line in lines:
+            if line.startswith("   functional libxc"):
+                if line == "   functional libxc 101":
+                    out.append("   functional b2-plyp")
+                continue
+            out.append(line)
+        end = out.index("$end")
+        out[end:end] = [
+            "$non-canonical MOs",
+            "$ricc2",
+            "   mp2",
+            f"   scs  cos={REVDSD_COS}  css={REVDSD_CSS}",
+        ]
+        control.write_text("\n".join(out))
 
         # MP2 part
         ricc2 = Path(config.paths.tm) / "ricc2"
