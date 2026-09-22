@@ -635,6 +635,18 @@ class TmProc(QmProc):
         return corr
 
     @staticmethod
+    def __parse_gcp_energy(lines: list[str]) -> float | None:
+        """Extract the gCP correction in Hartree from ridft output."""
+        for line in lines:
+            match = re.search(
+                r"\bEgcp:\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][-+]?\d+)?)\s*/\s*\(a\.u\.\)",
+                line,
+            )
+            if match:
+                return float(match.group(1).replace("D", "E").replace("d", "e"))
+        return None
+
+    @staticmethod
     def __parse_d4_energy(jobdir: str | Path, lines: list[str]) -> float | None:
         """
         Extract the D4 dispersion energy from a dftd4 run. By default dftd4 dumps the
@@ -671,34 +683,47 @@ class TmProc(QmProc):
         jobdir: str | Path,
         energy: float,
         meta: MetaData,
+        ridft_lines: list[str],
     ) -> float | None:
         """
-        Add the missing contributions to a revDSD-PBEP86-D4 energy. Runs ricc2 for the
-        SCS-MP2 correlation energy and the standalone dftd4 binary for the dispersion
-        correction, both on top of the finished ridft run in `jobdir`.
+        Add gCP, SCS-MP2, and D4 corrections to a revDSD-PBEP86-D4 DFT energy.
+
+        Runs ricc2 and standalone dftd4 on top of the finished ridft run in
+        `jobdir`. The gCP correction is read from ridft output when requested
+        by the generated control file.
 
         :param job: Job context
-        :type job: JobContext
         :param config: Configuration for the job
-        :type config: SPJobConfig
         :param jobdir: Path to the job directory (must contain a finished ridft run)
-        :type jobdir: str | Path
         :param energy: total energy of the ridft run (DFT part)
-        :type energy: float
         :param meta: metadata of the job, errors are stored here
-        :type meta: MetaData
+        :param ridft_lines: lines from the finished ridft output
         :rtype: float | None
         """
-        # Before ricc2 the $dft block is switched from the libxc assembly to
-        # b2-plyp: ricc2 gives the same SCS-MP2 energy as ORCA only for that
-        # functional. The MOs from ridft are KS orbitals, so ricc2 additionally
-        # needs the $non-canonical MOs data group (see TM manual). The $ricc2
-        # datagroup with the revDSD scaling factors is appended as well. Added
-        # only after ridft finished so it never affects the ridft run.
+        # Switch the custom DFA to b2-plyp and install the exact frozen-core
+        # ricc2 input. TURBOMOLE may have added groups that are invalid here.
         control = Path(jobdir) / "control"
         lines = control.read_text().split("\n")
+        gcp_requested = any(line.startswith("$gcp") for line in lines)
+        gcp_energy = self.__parse_gcp_energy(ridft_lines) if gcp_requested else 0.0
+        if gcp_energy is None:
+            meta.error = (
+                "Could not parse requested gCP correction energy from ridft output"
+            )
+            return None
+
         out = []
+        skip_freeze = False
         for line in lines:
+            if line.startswith("$freeze"):
+                skip_freeze = True
+                continue
+            if skip_freeze:
+                if not line.startswith("$"):
+                    continue
+                skip_freeze = False
+            if line.startswith("$non-canonical MOs"):
+                continue
             if line.startswith("   functional libxc"):
                 if line == "   functional libxc 101":
                     out.append("   functional b2-plyp")
@@ -706,7 +731,8 @@ class TmProc(QmProc):
             out.append(line)
         end = out.index("$end")
         out[end:end] = [
-            "$non-canonical MOs",
+            "$freeze",
+            "defcore",
             "$ricc2",
             "   mp2",
             f"   scs  cos={REVDSD_COS}  css={REVDSD_CSS}",
@@ -764,7 +790,7 @@ class TmProc(QmProc):
             meta.error = "Could not parse D4 dispersion energy"
             return None
 
-        return energy + corr + edisp_energy
+        return energy + gcp_energy + corr + edisp_energy
 
     def _sp(
         self,
@@ -840,14 +866,16 @@ class TmProc(QmProc):
             meta.success = False
             meta.error = "Could not parse final energy"
 
-        # For revDSD-PBEP86-D4 ridft only provides the DFT part of the energy,
-        # the SCS-MP2 and D4 contributions are added on top
+        # For revDSD-PBEP86-D4 ridft provides the DFT and optional gCP parts;
+        # SCS-MP2 and D4 contributions are added afterward.
         if meta.success and config.func == REVDSD:
             if not self.__terminated_normally(lines):
                 meta.success = False
                 meta.error = "ridft did not terminate normally"
             else:
-                energy = self.__revdsd_post(job, config, jobdir, result.energy, meta)
+                energy = self.__revdsd_post(
+                    job, config, jobdir, result.energy, meta, lines
+                )
                 if energy is None:
                     meta.success = False
                 else:
