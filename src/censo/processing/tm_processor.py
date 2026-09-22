@@ -47,8 +47,8 @@ logger = setup_logger(__name__)
 REVDSD = "revdsd-pbep86-d4"
 
 # Spin-component scaling factors for the MP2 part (opposite spin/same spin)
-REVDSD_COS = 0.5922
-REVDSD_CSS = 0.0636
+REVDSD_COS = 0.5935
+REVDSD_CSS = 0.0566
 
 # D4 damping parameters in the order expected by `dftd4 --param`: s6, s8, a1, a2.
 # s9 is fixed at 1.0 (the dftd4 default) for revDSD.
@@ -351,8 +351,8 @@ class TmProc(QmProc):
         if disp == "nl":
             inp.append("$donl\n")
 
-        # Handle GCP (never for double hybrids)
-        if func_type not in ("composite", "double"):
+        # Handle GCP (also for the custom revDSD double hybrid)
+        if func_type not in ("composite", "double") or func == REVDSD:
             gcp_keywords = {
                 "minis": "MINIS",
                 "sv": "SV",
