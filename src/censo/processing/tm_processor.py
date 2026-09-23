@@ -43,7 +43,7 @@ logger = setup_logger(__name__)
 #   - the DFT part is a custom libxc DFA evaluated by ridft
 #   - before ricc2 the $dft block is switched to b2-plyp (same hybrid mixing);
 #     only then does the SCS-MP2 energy agree with ORCA
-#   - D4 cannot be done by TM for a custom DFA, so the standalone dftd4 binary is used
+#   - D4 and gCP use standalone dftd4 and mctc-gcp binaries
 REVDSD = "revdsd-pbep86-d4"
 
 # Spin-component scaling factors for the MP2 part (opposite spin/same spin)
@@ -351,8 +351,8 @@ class TmProc(QmProc):
         if disp == "nl":
             inp.append("$donl\n")
 
-        # Handle GCP (also for the custom revDSD double hybrid)
-        if func_type not in ("composite", "double") or func == REVDSD:
+        # TURBOMOLE gCP applies only to other functionals; revDSD uses mctc-gcp.
+        if func_type not in ("composite", "double"):
             gcp_keywords = {
                 "minis": "MINIS",
                 "sv": "SV",
@@ -636,7 +636,7 @@ class TmProc(QmProc):
 
     @staticmethod
     def __parse_gcp_energy(lines: list[str]) -> float | None:
-        """Extract the gCP correction in Hartree from ridft output."""
+        """Extract the gCP correction in Hartree from mctc-gcp output."""
         for line in lines:
             match = re.search(
                 r"\bEgcp:\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eEdD][-+]?\d+)?)\s*/\s*\(a\.u\.\)",
@@ -683,34 +683,26 @@ class TmProc(QmProc):
         jobdir: str | Path,
         energy: float,
         meta: MetaData,
-        ridft_lines: list[str],
     ) -> float | None:
         """
         Add gCP, SCS-MP2, and D4 corrections to a revDSD-PBEP86-D4 DFT energy.
 
-        Runs ricc2 and standalone dftd4 on top of the finished ridft run in
-        `jobdir`. The gCP correction is read from ridft output when requested
-        by the generated control file.
+        Runs ricc2, standalone dftd4 and mctc-gcp on the finished ridft run
+        in `jobdir`. gCP applies only to supported basis sets.
 
         :param job: Job context
         :param config: Configuration for the job
         :param jobdir: Path to the job directory (must contain a finished ridft run)
         :param energy: total energy of the ridft run (DFT part)
         :param meta: metadata of the job, errors are stored here
-        :param ridft_lines: lines from the finished ridft output
         :rtype: float | None
         """
         # Switch the custom DFA to b2-plyp and install the exact frozen-core
         # ricc2 input. TURBOMOLE may have added groups that are invalid here.
         control = Path(jobdir) / "control"
         lines = control.read_text().split("\n")
-        gcp_requested = any(line.startswith("$gcp") for line in lines)
-        gcp_energy = self.__parse_gcp_energy(ridft_lines) if gcp_requested else 0.0
-        if gcp_energy is None:
-            meta.error = (
-                "Could not parse requested gCP correction energy from ridft output"
-            )
-            return None
+        # Never carry a TURBOMOLE gCP correction into ricc2, even with prep=False.
+        lines = [line for line in lines if not line.startswith("$gcp")]
 
         out = []
         skip_freeze = False
@@ -790,7 +782,39 @@ class TmProc(QmProc):
             meta.error = "Could not parse D4 dispersion energy"
             return None
 
-        return energy + gcp_energy + corr + edisp_energy
+        gcp_energy = 0.0
+        if config.basis.lower() in (
+            "minis",
+            "sv",
+            "6-31g(d)",
+            "def2-sv(p)",
+            "def2-svp",
+            "def2-tzvp",
+        ):
+            gcp = shutil.which("mctc-gcp")
+            if gcp is None:
+                meta.error = f"mctc-gcp binary not found, required for {REVDSD}"
+                return None
+
+            outputpath = os.path.join(jobdir, "gcp.out")
+            returncode, _ = self._make_call(
+                [gcp, "coord", "-l", f"dft/{config.basis.lower()}"],
+                outputpath,
+                jobdir,
+            )
+            if returncode != 0:
+                meta.error = "mctc-gcp call failed"
+                return None
+
+            parsed = self.__parse_gcp_energy(Path(outputpath).read_text().split("\n"))
+            if parsed is None:
+                meta.error = (
+                    "Could not parse gCP correction energy from mctc-gcp output"
+                )
+                return None
+            gcp_energy = parsed
+
+        return energy + corr + edisp_energy + gcp_energy
 
     def _sp(
         self,
@@ -866,16 +890,14 @@ class TmProc(QmProc):
             meta.success = False
             meta.error = "Could not parse final energy"
 
-        # For revDSD-PBEP86-D4 ridft provides the DFT and optional gCP parts;
-        # SCS-MP2 and D4 contributions are added afterward.
+        # For revDSD-PBEP86-D4 ridft provides DFT; standalone gCP and D4
+        # plus ricc2 SCS-MP2 contributions are added afterward.
         if meta.success and config.func == REVDSD:
             if not self.__terminated_normally(lines):
                 meta.success = False
                 meta.error = "ridft did not terminate normally"
             else:
-                energy = self.__revdsd_post(
-                    job, config, jobdir, result.energy, meta, lines
-                )
+                energy = self.__revdsd_post(job, config, jobdir, result.energy, meta)
                 if energy is None:
                     meta.success = False
                 else:
