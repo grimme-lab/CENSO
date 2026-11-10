@@ -80,15 +80,8 @@ class SPJobConfig(GenericConfig):
     solvent: str | None = None
     """Solvent name to apply. Naming in solvation model will be automatically mapped."""
 
-    # # Only used for COSMORS calculations
-    # multitemp: bool | None = None
-    # """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
-
-    temperature: float | None = None
-    """Equivalent to general settings variant. If not multitemp then use this temperature (only used in COSMORS calculations)."""
-
-    # trange: tuple[float, float, float] | None = None
-    # """Equivalent to general settings variant. (min, max, step) for the temperature range (only used in COSMORS calculations)."""
+    temperatures: list[float] | None = None
+    """Temperatures in K for COSMO-RS evaluation, main temperature last (only used in COSMO-RS calculations)."""
 
     @field_validator("solvent", "sm")
     @classmethod
@@ -139,9 +132,6 @@ class XTBOptJobConfig(OptJobConfig):
 class RRHOJobConfig(XTBJobConfig):
     """Configuration for RRHO jobs."""
 
-    # multitemp: bool
-    # """Equivalent to general settings variant. Whether to calculate temperature range (only used in COSMORS calculations)."""
-
     sthr: float
 
     imagthr: float
@@ -149,9 +139,8 @@ class RRHOJobConfig(XTBJobConfig):
     # bhess: bool
     # """Whether to utilize a single-point Hessian calculation for frequencies. Otherwise geometry will be optimized (equivalent to `--bhess` vs `--ohess` for xtb)."""
 
-    temperature: float
-
-    # trange: tuple[float, float, float]
+    temperatures: list[float]
+    """Temperatures in K for the thermostatistical evaluation, main temperature last (xtb reports G(T) of the last entry in xtb_enso.json)."""
 
     # rmsdbias: bool
 

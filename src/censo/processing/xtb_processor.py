@@ -30,6 +30,32 @@ from ..params import Prog
 logger = setup_logger(__name__)
 
 
+def _parse_thermo_table(lines: list[str]) -> dict[float, float]:
+    """
+    Parse the thermostatistics table (one row per temperature) from xtb stdout.
+
+    :param lines: Lines of the xtb output.
+    :type lines: list[str]
+    :return: G(T) (ZPVE + H - TS) in Eh per temperature (rounded to 0.01 K).
+    :rtype: dict[float, float]
+    """
+    start = next((i for i, line in enumerate(lines) if "T/K" in line), None)
+    if start is None:
+        return {}
+
+    gibbs: dict[float, float] = {}
+    for line in lines[start + 1 :]:
+        cols = line.split()
+        if gibbs and (not cols or "-----" in line):
+            break
+        try:
+            temp = float(cols[0])
+        except (IndexError, ValueError):
+            continue
+        gibbs[round(temp, 2)] = float(cols[4])
+    return gibbs
+
+
 @final
 class XtbProc(GenericProc):
     """
@@ -235,6 +261,8 @@ class XtbProc(GenericProc):
         meta = MetaData(job.conf.name)
 
         jobdir = self._setup(job, "xtb_rrho")
+        # xtb reports G(T) of the last temp= entry in xtb_enso.json
+        main_t = config.temperatures[-1]
         filename = "xtb_rrho"
 
         # set in/out path
@@ -260,24 +288,7 @@ class XtbProc(GenericProc):
         # setup xcontrol
         with open(xcontrolpath, "w", newline=None) as xcout:
             xcout.write("$thermo\n")
-            # if config.multitemp:
-            #     trange = frange(
-            #         config.trange[0],
-            #         config.trange[1],
-            #         step=config.trange[2],
-            #     )
-            #
-            #     # Always append the fixed temperature to the trange so that it is the last value
-            #     # (important since --enso will make xtb give the G(T) value for this temperature)
-            #     assert config.temperature
-            #     trange.append(config.temperature)
-            #
-            #     # Write trange to the xcontrol file
-            #     xcout.write(f"    temp=" + ",".join([str(i) for i in trange]) + "\n")
-            #     if config.temperature in trange[:-1]:
-            #         trange = trange[:-1]
-            # else:
-            xcout.write(f"    temp={config.temperature}\n")
+            xcout.write(f"    temp={','.join(str(t) for t in config.temperatures)}\n")
 
             xcout.write(f"    sthr={config.sthr}\n")
 
@@ -368,50 +379,17 @@ class XtbProc(GenericProc):
         with open(outputpath) as outputfile:
             lines = outputfile.readlines()
 
-        # if config.multitemp:
-        #     # get gibbs energy, enthalpy and entropy for given temperature range
-        #     # gibbs energy
-        #     gt: dict[float, float] = {}
-        #
-        #     # enthalpy
-        #     ht: dict[float, float] = {}
-        #
-        #     # Get Gibbs energy and enthalpy
-        #     for i, line in enumerate(lines):
-        #         if "T/K" in line:
-        #             for line2 in lines[i + 2 :]:
-        #                 if "----------------------------------" in line2:
-        #                     break
-        #
-        #                 temp = float(line2.split()[0])
-        #                 gt[temp] = float(line2.split()[4])
-        #                 ht[temp] = float(line2.split()[2])
-        #             break
-        #
-        #     # rotational entropy
-        #     rotS: dict[float, float] = {}
-        #
-        #     # Get rotational entropy
-        #     entropy_lines = [
-        #         (line, lines[i + 1]) for i, line in enumerate(lines) if "VIB" in line
-        #     ]
-        #     for line in entropy_lines:
-        #         temp = float(line[0].split()[0])
-        #         rotS[temp] = float(line[1].split()[4])
-        #
-        #     # check if xtb calculated the temperature range correctly
-        #     if not (
-        #         len(trange) == len(gt)
-        #         and len(trange) == len(ht)
-        #         and len(trange) == len(rotS)
-        #     ):
-        #         meta.success = False
-        #         meta.error = "xtb_trange_inconsistent"
-        #         return result, meta
-        #     else:
-        #         result.gibbs = gt
-        #         result.enthalpy = ht
-        #         result.entropy = rotS
+        if len(config.temperatures) > 1:
+            gibbs = _parse_thermo_table(lines)
+            missing = [t for t in config.temperatures if t not in gibbs]
+            if missing:
+                meta.success = False
+                meta.error = "xtb_trange_inconsistent"
+                logger.warning(
+                    f"xtb did not report G(T) for {missing} K for {job.conf.name}."
+                )
+                return result, meta
+            result.gibbs.update({t: gibbs[t] for t in config.temperatures})
 
         # Extract symmetry
         result.linear = next(
@@ -447,17 +425,15 @@ class XtbProc(GenericProc):
         if "G(T)" in data:
             meta.success = True
 
-            temp = float(config.temperature)
-            if config.temperature == 0.0:
+            temp = main_t
+            if temp == 0.0:
                 result.energy = data.get("ZPVE", 0.0)
                 result.gibbs[temp] = data.get("ZPVE", 0.0)
                 result.enthalpy[temp] = data.get("ZPVE", 0.0)
-                # if not config.multitemp:
                 result.entropy[temp] = 0.0  # set this to None for predictability (?)
             else:
                 result.energy = data.get("G(T)", 0.0)
                 result.gibbs[temp] = data.get("G(T)", 0.0)
-                # if not config.multitemp:
                 result.enthalpy[temp] = 0.0  # set this to None for predictability (?)
                 result.entropy[temp] = 0.0  # set this to None for predictability (?)
 

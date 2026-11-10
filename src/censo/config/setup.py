@@ -88,6 +88,12 @@ def configure(
         if setting is not None:
             parts_config.general.__setattr__(field, setting)
 
+    # --trange implies --multitemp
+    trange = getattr(args, "trange", None)
+    if trange is not None:
+        parts_config.general.trange = tuple(trange)
+        parts_config.general.multitemp = True
+
     # Revalidate after command line args incl. solvents and paths with context
     parts_config = PartsConfig.model_validate(
         parts_config.model_dump(), context=context

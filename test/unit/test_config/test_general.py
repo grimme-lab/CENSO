@@ -10,8 +10,8 @@ def test_general_config_default_values():
     config = GeneralConfig()
 
     assert config.temperature == 298.15
-    # assert config.multitemp is True
-    # assert config.trange == (273.15, 373.15, 5)
+    assert config.multitemp is False
+    assert config.trange == (273.15, 373.15, 5.0)
     assert config.evaluate_rrho is True
     assert config.sm_rrho == XtbSolvMod.GBSA
     # assert config.consider_sym is True
@@ -31,21 +31,49 @@ def test_temperature_validation():
         GeneralConfig(temperature=-1.0)
 
 
-# def test_trange_validation():
-#     """Test trange validation"""
-#     # Test negative temperature
-#     with pytest.raises(ValueError, match="Negative temperature"):
-#         GeneralConfig(trange=(-1.0, 373.15, 5))
-#
-#     # Test wrong order
-#     with pytest.raises(ValueError, match="must be larger than"):
-#         GeneralConfig(trange=(373.15, 273.15, 5))
-#
-#     # Test invalid step size
-#     with pytest.raises(ValueError, match="must be positive"):
-#         GeneralConfig(trange=(273.15, 373.15, 0))
-#     with pytest.raises(ValueError, match="must be positive"):
-#         GeneralConfig(trange=(273.15, 373.15, -1))
+def test_trange_validation():
+    """Test trange validation"""
+    with pytest.raises(ValueError, match="must be positive"):
+        GeneralConfig(trange=(-1.0, 373.15, 5))
+    with pytest.raises(ValueError, match="must not be smaller than start"):
+        GeneralConfig(trange=(373.15, 273.15, 5))
+    with pytest.raises(ValueError, match="Step size for trange must be positive"):
+        GeneralConfig(trange=(273.15, 373.15, 0))
+    with pytest.raises(ValueError, match="No valid temperature range"):
+        GeneralConfig.model_validate({"trange": "[1, 2]"})
+
+
+def test_trange_str_cast():
+    """Rcfile strings are parsed into a float tuple"""
+    config = GeneralConfig.model_validate({"trange": "[250, 300, 10]"})
+    assert config.trange == (250.0, 300.0, 10.0)
+
+
+def test_get_temperatures_default_multitemp():
+    """Default trange gives 21 temperatures, main temperature last"""
+    grid = GeneralConfig(multitemp=True).get_temperatures()
+    assert len(grid) == 21
+    assert grid[-1] == 298.15
+    assert 288.15 in grid and 373.15 in grid
+    assert grid[:-1] == sorted(grid[:-1])
+    assert 298.15 not in grid[:-1]
+
+
+def test_get_temperatures_without_multitemp():
+    """Only the main temperature without multitemp"""
+    assert GeneralConfig().get_temperatures() == [298.15]
+
+
+def test_get_temperatures_main_outside_range():
+    """Main temperature is appended even if not on the grid"""
+    config = GeneralConfig(multitemp=True, temperature=310, trange=(250, 300, 25))
+    assert config.get_temperatures() == [250.0, 275.0, 300.0, 310.0]
+
+
+def test_get_temperatures_xtb_limit():
+    """xtb accepts at most 24 temperatures"""
+    with pytest.raises(ValueError, match="at most 24"):
+        GeneralConfig(multitemp=True, trange=(100, 400, 5))
 
 
 def test_imagthr_validation():

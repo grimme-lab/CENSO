@@ -199,6 +199,17 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help="Ignore failed calculations. If this is not set, failed calculations will raise RuntimeError.",
     )
+    groups[0].add_argument(
+        "--retemp",
+        dest="retemp",
+        nargs="?",
+        const="xtb",
+        choices=["xtb", "cosmors"],
+        default=None,
+        help="Re-evaluate only the temperature-dependent contributions (mRRHO, COSMO-RS) of the selected part using the data from --reload. "
+        "'xtb' (default) reruns xtb mRRHO and COSMOtherm on the stored out.cosmo files, 'cosmors' additionally recomputes the BP86 COSMO files. "
+        "Results are written to <part>_RETEMP.out/.json.",
+    )
 
     # GENERAL SETTINGS
     groups.append(parser.add_argument_group("GENERAL SETTINGS"))
@@ -216,7 +227,14 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         metavar=("start", "end", "step"),
         type=float,
         help="specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0"
-        "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].",
+        "  resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0]. Implies --multitemp.",
+    )
+    groups[1].add_argument(
+        "--multitemp",
+        dest="multitemp",
+        action="store_const",
+        const=True,
+        help="Evaluate temperature-dependent contributions (mRRHO, COSMO-RS) for all temperatures in trange.",
     )
     groups[1].add_argument(
         "--bhess",

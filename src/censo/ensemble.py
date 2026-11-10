@@ -6,15 +6,19 @@ functionality for program setup
 from pathlib import Path
 import re
 import json
-from typing import Callable, Iterator
+from typing import Any, Callable, Iterator
 from math import exp
 
+from .config.parts.general import GeneralConfig
 from .molecules import MoleculeData, Contributions
 from .logging import setup_logger
 from .params import AU2J, KB
 from .utilities import check_for_float, printf, t2x
 
 logger = setup_logger(__name__)
+
+# DataDump part names of the property parts
+PROPERTY_PARTS = ("nmr", "rot", "uvvis")
 
 
 class EnsembleData:
@@ -35,6 +39,9 @@ class EnsembleData:
         # String containing the constraints in xtb format to be applied to geometry optimizations
         # TODO: and xtb_rrho?
         self.constraints: str | None = None
+
+        # property results reloaded from property JSON files (part name -> conformer name -> data), only used with --retemp
+        self.property_results: dict[str, dict[str, dict[str, Any]]] = {}
 
     def __iter__(self) -> Iterator[MoleculeData]:
         return iter(self.__conformers)
@@ -98,11 +105,22 @@ class EnsembleData:
                 "Not all conformers from the current ensemble are found in the output data."
             )
 
+        part_name = loaded_data.get("part_name")
+        if part_name in PROPERTY_PARTS:
+            self.property_results[part_name] = {
+                conf.name: data[conf.name] for conf in self.conformers
+            }
+            logger.info(f"Reloaded {part_name} property results from {outpath}.")
+            return
+
         for conf in self.conformers:
+            conf_data = data[conf.name]
             contributions = Contributions(
-                data[conf.name]["energy"],
-                data[conf.name]["gsolv"],
-                data[conf.name]["grrho"],
+                conf_data["energy"],
+                conf_data["gsolv"],
+                conf_data["grrho"],
+                gsolv_t={float(t): v for t, v in conf_data.get("gsolv_t", {}).items()},
+                grrho_t={float(t): v for t, v in conf_data.get("grrho_t", {}).items()},
             )
             conf.update(contributions)
 
@@ -178,12 +196,12 @@ class EnsembleData:
         :rtype: dict[str, float]
         """
         # find lowest gtot value
-        minfree: float = min(conf.gtot for conf in self.conformers)
+        minfree: float = min(conf.gtot_at(temperature) for conf in self.conformers)
 
         # calculate boltzmann factors
         bmfactors = {
             conf.name: conf.degen
-            * exp(-(conf.gtot - minfree) * AU2J / (KB * temperature))
+            * exp(-(conf.gtot_at(temperature) - minfree) * AU2J / (KB * temperature))
             for conf in self.conformers
         }
 
@@ -196,6 +214,64 @@ class EnsembleData:
             populations[conf.name] = bmfactors[conf.name] / bsum
 
         return populations
+
+    def boltzmann_averages(self, temperature: float) -> dict[str, float]:
+        """
+        Boltzmann averaged contributions of the ensemble at the given temperature.
+
+        :param temperature: Temperature in K.
+        :type temperature: float
+        :return: Averaged E, GmRRHO, Gsolv and Gtot ("avE", "avGmRRHO", "avGsolv", "avG").
+        :rtype: dict[str, float]
+        """
+        populations = self.get_populations(temperature)
+        return {
+            key: sum(populations[conf.name] * value(conf) for conf in self.conformers)
+            for key, value in (
+                ("avE", lambda conf: conf.energy),
+                ("avGmRRHO", lambda conf: conf.grrho_at(temperature)),
+                ("avGsolv", lambda conf: conf.gsolv_at(temperature)),
+                ("avG", lambda conf: conf.gtot_at(temperature)),
+            )
+        }
+
+    def temperature_range(self, general: GeneralConfig, part: str) -> list[float]:
+        """
+        Temperatures (ascending) for which per-temperature output is written.
+
+        :param general: General settings (multitemp, trange, temperature).
+        :type general: GeneralConfig
+        :param part: Name of the part requesting the range (for messages).
+        :type part: str
+        :return: Temperature grid, empty if multitemp is off or no temperature-dependent contributions exist.
+        :rtype: list[float]
+        :raises RuntimeError: If temperature-dependent contributions are incomplete for the grid.
+        """
+        if not general.multitemp:
+            return []
+
+        grid = sorted(general.get_temperatures())
+        with_data = [conf for conf in self.conformers if conf.gsolv_t or conf.grrho_t]
+
+        if not with_data:
+            if any(conf.grrho != 0.0 for conf in self.conformers):
+                raise RuntimeError(
+                    f"{part}: mRRHO contributions were only evaluated at a single temperature. Rerun the preceding ensemble optimization part with --multitemp and --retemp to evaluate the temperature range."
+                )
+            logger.info(
+                f"{part}: no temperature-dependent contributions available, skipping temperature range output."
+            )
+            return []
+
+        for conf in self.conformers:
+            maps = [m for m in (conf.gsolv_t, conf.grrho_t) if m]
+            missing = [t for t in grid if not maps or any(t not in m for m in maps)]
+            if missing:
+                raise RuntimeError(
+                    f"{part}: temperature-dependent contributions missing for {missing}. Rerun the ensemble optimization part with --retemp to evaluate the current trange."
+                )
+
+        return grid
 
     def update_contributions(self, contributions_dict: dict[str, Contributions]):
         """
@@ -338,6 +414,7 @@ class EnsembleData:
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
+                **conf.temperature_data(),
             }
             for conf in self.conformers
         }

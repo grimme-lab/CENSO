@@ -38,6 +38,35 @@ from ..assets import FUNCTIONALS, SOLVENTS
 logger = setup_logger(__name__)
 
 
+# molar volume for ideal gas at 298.15 K 100.0 kPa
+COSMORS_VIDEAL = 24.789561955 / 298.15
+
+
+def _parse_cosmotherm_tab(lines: list[str]) -> dict[float, float]:
+    """
+    Parse Gsolv per temperature for the solute (out.cosmo) from a cosmotherm.tab file.
+
+    :param lines: Lines of cosmotherm.tab.
+    :type lines: list[str]
+    :return: Gsolv including volume work in Eh per temperature (rounded to 0.01 K).
+    :rtype: dict[float, float]
+    """
+    gsolv_t: dict[float, float] = {}
+    temp = 0.0
+    vwork = 0.0
+    for line in lines:
+        if "T=" in line:
+            temp = float(line.split()[5])
+
+            # Add volume work
+            vwork = R * temp * math.log(COSMORS_VIDEAL * temp)
+        elif " out " in line:
+            gsolv_t[round(temp, 2)] = (
+                float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
+            )
+    return gsolv_t
+
+
 @final
 class TmProc(QmProc):
     """
@@ -589,10 +618,8 @@ class TmProc(QmProc):
 
         jobdir = self._setup(job, "gsolv")
 
-        if not config.sm or not config.solvent or not config.temperature:
-            raise ValueError("sm, solvent, or temperature not set.")
-        # assert config.multitemp
-        # assert config.trange
+        if not config.sm or not config.solvent or not config.temperatures:
+            raise ValueError("sm, solvent, or temperatures not set.")
 
         if config.sm in [TmSolvMod.COSMO, TmSolvMod.DCOSMORS]:
             # Non-COSMORS procedure:
@@ -631,187 +658,243 @@ class TmProc(QmProc):
                 meta.error = spmeta.error
                 return result, meta
 
-            # Run gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
-            # Turn off copying mos since this will lead to errors otherwise
-            # (due to incorrect order of prep/copy_mos)
-            spconfig = SPJobConfig(
-                copy_mo=False,
-                func="bp86",
-                basis="def2-tzvp" if config.sm == TmSolvMod.COSMORS else "def2-tzvpd",
-                grid=config.grid,
-                template=config.template,
-                gas_phase=True,
-                paths=config.paths,
-            )
-
-            spres, spmeta = self._sp(job, spconfig, jobdir=jobdir, no_solv=True)
-
+            spmeta = self._cosmors_sps(job, config, jobdir)
             if not spmeta.success:
                 meta.success = False
                 meta.error = spmeta.error
                 return result, meta
 
-            # Run special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
-            # Write special settings for cosmo into control file
-            with open(os.path.join(jobdir, "control"), "r+") as f:
-                lines = f.readlines()
-
-                lines[-1:-1] = [
-                    "$cosmo\n",
-                    " epsilon=infinity\n",
-                    " use_contcav\n",
-                    " cavity closed\n",
-                    " nspa=272\n",
-                    " nsph=162\n",
-                    "$cosmo_out  file=out.cosmo\n",
-                ]
-
-                f.seek(0)
-                f.writelines(lines)
-                f.truncate()
-
-            # Run sp
-            spconfig.gas_phase = True
-            spconfig.sm = config.sm
-            spconfig.solvent = config.solvent
-            spres, spmeta = self._sp(job, spconfig, jobdir=jobdir, prep=False)
-
-            if not spmeta.success:
-                meta.success = False
-                meta.error = spmeta.error
-                return result, meta
-
-            # Prepare cosmotherm.inp
-            if config.sm == TmSolvMod.COSMORS:
-                setup = (
-                    config.paths.cosmorssetup
-                    if "FINE" not in config.paths.cosmorssetup
-                    else config.paths.cosmorssetup.replace("TZVPD_FINE", "TZVP")
-                )
-            else:
-                setup = (
-                    config.paths.cosmorssetup
-                    if "FINE" in config.paths.cosmorssetup
-                    else config.paths.cosmorssetup.replace("TZVP", "TZVPD_FINE")
-                )
-            lines = [
-                f"ctd = {setup} cdir = {(Path(config.paths.cosmotherm).parent / '..' / 'CTDATA-FILES').resolve()}\n",
-                "EFILE VPFILE\n",
-                "!!\n",
-            ]
-            db = (
-                Path(config.paths.cosmotherm).parent
-                / ".."
-                / "DATABASE-COSMO"
-                / (
-                    "BP-TZVP-COSMO"
-                    if config.sm == TmSolvMod.COSMORS
-                    else "BP-TZVPD-FINE"
-                )
-            ).resolve()
-
-            solv_key = SOLVENTS[config.solvent][config.sm]
-            if solv_key == "woctanol":
-                lines.extend(
-                    [
-                        f"f = h2o.cosmo fdir={db} autoc\n",
-                        f"f = 1-octanol.cosmo fdir={db} autoc\n",
-                    ]
-                )
-                mix = "0.27 0.73"
-            else:
-                lines.append(f"f = {solv_key}.cosmo" + f" fdir={db} autoc\n")
-                mix = "1.0 0.0"
-
-            lines.append("f = out.cosmo\n")
-
-            # TODO: are these temperature dependent terms used somewhere?
-            # if config.multitemp:
-            #     trange = frange(
-            #         config.trange[0],
-            #         config.trange[1],
-            #         step=config.trange[2],
-            #     )
-            #
-            #     # Always append the fixed temperature to the trange so that it is the last value
-            #     trange.append(config.temperature)
-            #
-            #     # Write trange to the xcontrol file
-            #     for t in trange:
-            #         lines.append(f"henry xh={{{mix}}} tc={t - 273.15} Gsolv\n")
-            # else:
-            lines.append(f"henry xh={{{mix}}} tc={config.temperature - 273.15} Gsolv\n")
-
-            with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
-                f.writelines(lines)
-
-            # Run cosmotherm
-            outputpath = os.path.join(jobdir, "cosmotherm.out")
-            call = [config.paths.cosmotherm, "cosmotherm.inp"]
-            env = ENVIRON.copy()
-            env["PARA_ARCH"] = "SMP"
-            env["PARNODES"] = str(job.omp)
-            returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
-
-            meta.success = returncode == 0
+            gsolv_t, meta = self._cosmotherm(job, config, jobdir)
             if not meta.success:
-                meta.error = "unknown_error"
                 return result, meta
-
-            # Read output
-            gsolvt = {}
-            videal = (
-                24.789561955 / 298.15
-            )  # molar volume for ideal gas at 298.15 K 100.0 kPa
-
-            cosmothermtab = os.path.join(jobdir, "cosmotherm.tab")
-            with open(cosmothermtab) as inp:
-                lines = inp.readlines()
-            temp = 0.0
-            vwork = 0.0
-            for line in lines:
-                if "T=" in line:
-                    temp = float(line.split()[5])
-
-                    # Add volume work
-                    vwork = R * temp * math.log(videal * temp)
-                elif " out " in line:
-                    # Add volume work
-                    gsolvt[temp] = float(line.split()[-1]) / AU2KCAL + vwork / AU2KCAL
-
-            # result.gsolvt = gsolvt
-            if config.temperature not in gsolvt:
-                logger.warning(
-                    f"Job for {job.conf.name} failed. Gsolv not parsed correcly."
-                )
-                meta.error = "parsing_error"
-                return result, meta
-            result.gsolv = gsolvt[config.temperature]
+            result.gsolv = gsolv_t[config.temperatures[-1]]
+            result.gsolv_t = gsolv_t
             result.energy_solv = result.energy_gas + result.gsolv
 
-            # cosmothermd
-            with open(os.path.join(jobdir, "cosmors.out"), "w") as out:
-                temp = config.temperature
-                vwork = R * temp * math.log(videal * temp)
+        return result, meta
 
-                out.writelines(
-                    [
-                        "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
-                        "final thermochemical solvation properties in kcal/mol\n"
-                        "----------------------------------------------------------\n",
-                        " Gsolv({} K)= {:10.3f}\n".format(
-                            temp, result.gsolv * AU2KCAL - vwork
-                        ),
-                        " VWork({} K)= {:10.3f}\n".format(temp, vwork),
-                        " Gsolv+VWork({} K)= {:10.3f}\n".format(
-                            # volwork already included!
-                            temp,
-                            result.gsolv * AU2KCAL,
-                        ),
-                    ]
-                )
+    def cosmotherm(
+        self,
+        job: JobContext,
+        config: SPJobConfig,
+    ) -> tuple[GsolvResult, MetaData]:
+        """
+        Re-evaluate COSMO-RS Gsolv with COSMOtherm only, reusing out.cosmo from a previous gsolv run of the same part.
+
+        :param job: JobContext object containing the job information
+        :param config: SP configuration (sm, solvent and temperatures are used)
+        :return: Tuple of (GsolvResult, MetaData), energy_gas and energy_solv are not set
+        """
+        result = GsolvResult()
+        meta = MetaData(job.conf.name)
+
+        jobdir = self._setup(job, "gsolv")
+
+        if not Path(jobdir, "out.cosmo").is_file():
+            meta.error = "missing_cosmo_file"
+            logger.warning(
+                f"No out.cosmo found for {job.conf.name} in {jobdir}. Use '--retemp cosmors' to recompute it."
+            )
+            return result, meta
+
+        gsolv_t, meta = self._cosmotherm(job, config, jobdir)
+        if meta.success:
+            result.gsolv = gsolv_t[config.temperatures[-1]]  # type: ignore[index]
+            result.gsolv_t = gsolv_t
 
         return result, meta
+
+    def cosmors(
+        self,
+        job: JobContext,
+        config: SPJobConfig,
+    ) -> tuple[GsolvResult, MetaData]:
+        """
+        Recompute the COSMO-RS input (BP86 gas and COSMO single-points) and re-evaluate Gsolv with COSMOtherm, without the single-point using the part's functional.
+
+        :param job: JobContext object containing the job information
+        :param config: SP configuration (sm, solvent and temperatures are used)
+        :return: Tuple of (GsolvResult, MetaData), energy_gas and energy_solv are not set
+        """
+        result = GsolvResult()
+
+        jobdir = self._setup(job, "gsolv")
+
+        meta = self._cosmors_sps(job, config, jobdir)
+        if not meta.success:
+            return result, meta
+
+        gsolv_t, meta = self._cosmotherm(job, config, jobdir)
+        if meta.success:
+            result.gsolv = gsolv_t[config.temperatures[-1]]  # type: ignore[index]
+            result.gsolv_t = gsolv_t
+
+        return result, meta
+
+    def _cosmors_sps(
+        self, job: JobContext, config: SPJobConfig, jobdir: str | Path
+    ) -> MetaData:
+        """
+        Run the BP86 gas-phase and COSMO (epsilon=infinity) single-points that produce out.cosmo for COSMOtherm.
+
+        :param job: JobContext object containing the job information
+        :param config: SP configuration of the part (sm, solvent, grid, template are used)
+        :param jobdir: Job directory
+        :return: MetaData of the last single-point
+        """
+        # Run gas-phase sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+        # Turn off copying mos since this will lead to errors otherwise
+        # (due to incorrect order of prep/copy_mos)
+        spconfig = SPJobConfig(
+            copy_mo=False,
+            func="bp86",
+            basis="def2-tzvp" if config.sm == TmSolvMod.COSMORS else "def2-tzvpd",
+            grid=config.grid,
+            template=config.template,
+            gas_phase=True,
+            paths=config.paths,
+        )
+
+        _, spmeta = self._sp(job, spconfig, jobdir=jobdir, no_solv=True)
+
+        if not spmeta.success:
+            return spmeta
+
+        # Run special cosmo sp with BP86 and def2-TZVP (normal)/def2-TZVPD (fine)
+        # Write special settings for cosmo into control file
+        with open(os.path.join(jobdir, "control"), "r+") as f:
+            lines = f.readlines()
+
+            lines[-1:-1] = [
+                "$cosmo\n",
+                " epsilon=infinity\n",
+                " use_contcav\n",
+                " cavity closed\n",
+                " nspa=272\n",
+                " nsph=162\n",
+                "$cosmo_out  file=out.cosmo\n",
+            ]
+
+            f.seek(0)
+            f.writelines(lines)
+            f.truncate()
+
+        # Run sp
+        spconfig.gas_phase = True
+        spconfig.sm = config.sm
+        spconfig.solvent = config.solvent
+        _, spmeta = self._sp(job, spconfig, jobdir=jobdir, prep=False)
+
+        return spmeta
+
+    def _cosmotherm(
+        self, job: JobContext, config: SPJobConfig, jobdir: str | Path
+    ) -> tuple[dict[float, float], MetaData]:
+        """
+        Run COSMOtherm on out.cosmo for all temperatures in config.temperatures.
+
+        :param job: JobContext object containing the job information
+        :param config: SP configuration (sm, solvent and temperatures are used)
+        :param jobdir: Job directory containing out.cosmo
+        :return: Tuple of (Gsolv incl. volume work in Eh per temperature, MetaData)
+        """
+        meta = MetaData(job.conf.name)
+        assert config.sm and config.solvent and config.temperatures
+
+        # Prepare cosmotherm.inp
+        if config.sm == TmSolvMod.COSMORS:
+            setup = (
+                config.paths.cosmorssetup
+                if "FINE" not in config.paths.cosmorssetup
+                else config.paths.cosmorssetup.replace("TZVPD_FINE", "TZVP")
+            )
+        else:
+            setup = (
+                config.paths.cosmorssetup
+                if "FINE" in config.paths.cosmorssetup
+                else config.paths.cosmorssetup.replace("TZVP", "TZVPD_FINE")
+            )
+        lines = [
+            f"ctd = {setup} cdir = {(Path(config.paths.cosmotherm).parent / '..' / 'CTDATA-FILES').resolve()}\n",
+            "EFILE VPFILE\n",
+            "!!\n",
+        ]
+        db = (
+            Path(config.paths.cosmotherm).parent
+            / ".."
+            / "DATABASE-COSMO"
+            / ("BP-TZVP-COSMO" if config.sm == TmSolvMod.COSMORS else "BP-TZVPD-FINE")
+        ).resolve()
+
+        solv_key = SOLVENTS[config.solvent][config.sm]
+        if solv_key == "woctanol":
+            lines.extend(
+                [
+                    f"f = h2o.cosmo fdir={db} autoc\n",
+                    f"f = 1-octanol.cosmo fdir={db} autoc\n",
+                ]
+            )
+            mix = "0.27 0.73"
+        else:
+            lines.append(f"f = {solv_key}.cosmo" + f" fdir={db} autoc\n")
+            mix = "1.0 0.0"
+
+        lines.append("f = out.cosmo\n")
+
+        for t in config.temperatures:
+            lines.append(f"henry xh={{{mix}}} tc={t - 273.15:.2f} Gsolv\n")
+
+        with open(os.path.join(jobdir, "cosmotherm.inp"), "w") as f:
+            f.writelines(lines)
+
+        # Run cosmotherm
+        outputpath = os.path.join(jobdir, "cosmotherm.out")
+        call = [config.paths.cosmotherm, "cosmotherm.inp"]
+        env = ENVIRON.copy()
+        env["PARA_ARCH"] = "SMP"
+        env["PARNODES"] = str(job.omp)
+        returncode, _ = self._make_call(call, outputpath, jobdir, env=env)
+
+        meta.success = returncode == 0
+        if not meta.success:
+            meta.error = "unknown_error"
+            return {}, meta
+
+        # Read output
+        with open(os.path.join(jobdir, "cosmotherm.tab")) as inp:
+            gsolv_t = _parse_cosmotherm_tab(inp.readlines())
+
+        if any(t not in gsolv_t for t in config.temperatures):
+            logger.warning(
+                f"Job for {job.conf.name} failed. Gsolv not parsed correcly."
+            )
+            meta.success = False
+            meta.error = "parsing_error"
+            return gsolv_t, meta
+
+        # cosmothermd
+        with open(os.path.join(jobdir, "cosmors.out"), "w") as out:
+            temp = config.temperatures[-1]
+            vwork = R * temp * math.log(COSMORS_VIDEAL * temp)
+
+            out.writelines(
+                [
+                    "This is cosmothermrd (python version in ENSO) (SG,FB,SAW, 06/18)\n",
+                    "final thermochemical solvation properties in kcal/mol\n"
+                    "----------------------------------------------------------\n",
+                    " Gsolv({} K)= {:10.3f}\n".format(
+                        temp, gsolv_t[temp] * AU2KCAL - vwork
+                    ),
+                    " VWork({} K)= {:10.3f}\n".format(temp, vwork),
+                    " Gsolv+VWork({} K)= {:10.3f}\n".format(
+                        # volwork already included!
+                        temp,
+                        gsolv_t[temp] * AU2KCAL,
+                    ),
+                ]
+            )
+
+        return gsolv_t, meta
 
     @override
     def xtb_opt(

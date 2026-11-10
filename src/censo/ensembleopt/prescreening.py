@@ -1,6 +1,6 @@
 from pathlib import Path
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 import json
 from tabulate import tabulate
 from dask.distributed import Client
@@ -25,6 +25,7 @@ def prescreening(
     config: PartsConfig,
     client: Client,
     cut: bool = True,
+    retemp: Literal["xtb", "cosmors"] | None = None,
 ) -> dict[str, Any]:
     """
     This implements a cheap prescreening step using low-cost DFT and possibly
@@ -40,9 +41,17 @@ def prescreening(
     :type client: Client
     :param cut: Whether to apply cutting conditions.
     :type cut: bool
-    :return: JSON-serializable dictionary of prescreening results.
+    :param retemp: Prescreening has no temperature-dependent contributions, so nothing is done if this is set.
+    :type retemp: Literal["xtb", "cosmors"] | None
+    :return: JSON-serializable dictionary of prescreening results (empty if retemp is set).
     :rtype: dict
     """
+    if retemp is not None:
+        printf(
+            "Prescreening has no temperature-dependent contributions, nothing to re-evaluate (--retemp)."
+        )
+        return {}
+
     printf(h2("PRESCREENING"))
 
     config = PartsConfig.model_validate(
@@ -129,7 +138,17 @@ def prescreening(
 def _write_results(
     ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
 ) -> None:
-    """ """
+    """
+    Print the prescreening results and write them to 0_PRESCREENING.out/.json/.xyz.
+
+    :param ensemble: EnsembleData object.
+    :param config: PartsConfig object.
+    :param results_dict: JSON results.
+    """
+    if config.general.multitemp:
+        logger.info(
+            "prescreening: no temperature-dependent contributions, skipping temperature range output."
+        )
     printf(h1("PRESCREENING SINGLE-POINT RESULTS"))
 
     # column headers
@@ -272,13 +291,14 @@ def jsonify(
     :return: JSON-serializable dictionary.
     :rtype: dict[str, Any]
     """
-    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
+    per_conf: Callable[[MoleculeData], dict[str, dict[str, Any]]] = fields or (
         lambda conf: {
             conf.name: {
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
                 "gtot": conf.gtot,
+                **conf.temperature_data(),
             }
         }
     )

@@ -7,7 +7,7 @@ from copy import copy
 import json
 from pathlib import Path
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 from tabulate import tabulate
 from dask.distributed import Client
 
@@ -27,6 +27,7 @@ from ..utilities import (
     h2,
 )
 from ..logging import setup_logger
+from .temperature import temperature_block
 
 logger = setup_logger(__name__)
 
@@ -36,6 +37,7 @@ def optimization(
     config: PartsConfig,
     client: Client,
     cut: bool = True,
+    retemp: Literal["xtb", "cosmors"] | None = None,
 ) -> dict[str, Any]:
     """
     Geometry optimization of the ensemble at DFT level (possibly with implicit solvation)
@@ -49,6 +51,8 @@ def optimization(
     :param config: PartsConfig object with configuration settings.
     :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions during optimization.
+    :param retemp: If set, skip the optimization and only re-evaluate the mRRHO contributions on the input geometries,
+        starting from the reloaded energies. No conformers are removed and results are written to 2_OPTIMIZATION_RETEMP.out/.json.
     :return: JSON-serializable dictionary of optimization results.
     """
     printf(h2("OPTIMIZATION"))
@@ -60,7 +64,13 @@ def optimization(
     # Setup processor
     proc = Factory[QmProc].create(config.optimization.prog, "2_OPTIMIZATION")
 
-    if config.optimization.macrocycles:
+    if retemp is not None:
+        # Energies and Gsolv come from the reloaded results
+        contributions_dict = {
+            conf.name: Contributions(energy=conf.energy, gsolv=conf.gsolv)
+            for conf in ensemble
+        }
+    elif config.optimization.macrocycles:
         contributions_dict = _macrocycle_opt(proc, ensemble, config, client, cut)
     else:
         contributions_dict = _full_opt(proc, ensemble, config, client=client)
@@ -74,6 +84,7 @@ def optimization(
         job_config = RRHOJobConfig(
             gfnv=config.optimization.gfnv,
             paths=config.paths,
+            temperatures=config.general.get_temperatures(),
             **config.general.model_dump(),
         )
         results = execute(
@@ -93,10 +104,12 @@ def optimization(
 
         for conf in ensemble:
             contributions_dict[conf.name].grrho = results[conf.name].energy
+            if config.general.multitemp:
+                contributions_dict[conf.name].grrho_t = results[conf.name].gibbs
 
     ensemble.update_contributions(contributions_dict)
 
-    if cut:
+    if cut and retemp is None:
         threshold = (
             min(conf.gtot for conf in ensemble)
             + config.optimization.threshold / AU2KCAL
@@ -105,7 +118,7 @@ def optimization(
 
     # Print/write out results
     results_dict = jsonify(ensemble, config.optimization)
-    _write_results(ensemble, config, results_dict)
+    _write_results(ensemble, config, results_dict, "_RETEMP" if retemp else "")
 
     return results_dict
 
@@ -217,6 +230,7 @@ def _macrocycle_opt(
             job_config_rrho = RRHOJobConfig(
                 gfnv=config.optimization.gfnv,
                 paths=config.paths,
+                temperatures=config.general.get_temperatures(),
                 **config.general.model_dump(),
             )
             results_rrho = execute(
@@ -241,6 +255,10 @@ def _macrocycle_opt(
 
             for conf in unconverged_ensemble:
                 contributions_dict[conf.name].grrho = results_rrho[conf.name].energy
+                if config.general.multitemp:
+                    contributions_dict[conf.name].grrho_t = results_rrho[
+                        conf.name
+                    ].gibbs
 
             rrho_done = True
 
@@ -357,9 +375,19 @@ def _full_opt(
 
 
 def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results_dict: dict[str, Any],
+    suffix: str,
 ) -> None:
-    """ """
+    """
+    Print the optimization results and write them to 2_OPTIMIZATION<suffix>.out/.json (and .xyz without suffix).
+
+    :param ensemble: EnsembleData object.
+    :param config: PartsConfig object.
+    :param results_dict: JSON results, per-temperature averages and populations are added with multitemp.
+    :param suffix: File name suffix ("_RETEMP" for --retemp runs, which skip the xyz output).
+    """
     printf(h1("OPTIMIZATION RESULTS"))
 
     # column headers
@@ -430,18 +458,32 @@ def _write_results(
     lines.append(
         "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (DFT optimized):"
     )
-    lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
+    temperatures = ensemble.temperature_range(config.general, "optimization")
+    if temperatures:
+        lines.extend(
+            temperature_block(
+                ensemble,
+                temperatures,
+                config.general.temperature,
+                "part2",
+                results_dict,
+            )
+        )
+    else:
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}"
+        )
 
-    # calculate averaged free enthalpy
-    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
+        # calculate averaged free enthalpy
+        avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
-    # calculate averaged free energy (?)
-    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
+        # calculate averaged free energy (?)
+        avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
-    # append the lines for the free energy/enthalpy
-    lines.append(
-        f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2=="
-    )
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2=="
+        )
     lines.append("".ljust(int(PLENGTH), "-"))
 
     # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
@@ -451,13 +493,14 @@ def _write_results(
         printf(line)
 
     # write everything to a file
-    filepath = Path("2_OPTIMIZATION.out")
+    filepath = Path(f"2_OPTIMIZATION{suffix}.out")
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("2_OPTIMIZATION.json").write_text(json.dumps(results_dict, indent=4))
+    Path(f"2_OPTIMIZATION{suffix}.json").write_text(json.dumps(results_dict, indent=4))
 
-    ensemble.dump_xyz(Path("2_OPTIMIZATION.xyz"))
+    if not suffix:
+        ensemble.dump_xyz(Path("2_OPTIMIZATION.xyz"))
 
 
 # TODO: generalize this
@@ -474,13 +517,14 @@ def jsonify(
     :param fields: Optional callable to customize fields.
     :return: JSON-serializable dictionary.
     """
-    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
+    per_conf: Callable[[MoleculeData], dict[str, dict[str, Any]]] = fields or (
         lambda conf: {
             conf.name: {
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
                 "gtot": conf.gtot,
+                **conf.temperature_data(),
             }
         }
     )

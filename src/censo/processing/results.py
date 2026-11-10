@@ -24,6 +24,8 @@ class GsolvResult(Result):
     gsolv: float = 0.0
     energy_gas: float = 0.0
     energy_solv: float = 0.0
+    # Gsolv per temperature (COSMO-RS only)
+    gsolv_t: dict[float, float] = field(default_factory=dict)
 
 
 @dataclass

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pydantic import BaseModel
 
 from .params import BOHR2ANG, QmProg
@@ -13,6 +13,9 @@ class Contributions:
     energy: float = 0.0
     gsolv: float = 0.0
     grrho: float = 0.0
+    # Gsolv/GmRRHO per temperature (only filled with multitemp)
+    gsolv_t: dict[float, float] = field(default_factory=dict)
+    grrho_t: dict[float, float] = field(default_factory=dict)
 
 
 class Atom(BaseModel):
@@ -188,6 +191,10 @@ class MoleculeData:
         self.__gsolv: float = 0.0
         self.__grrho: float = 0.0
 
+        # per-temperature contributions (only filled with multitemp), temperatures rounded to 0.01 K
+        self.__gsolv_t: dict[float, float] = {}
+        self.__grrho_t: dict[float, float] = {}
+
         # list to store the paths to all MO-files from the jobs run for this conformer
         # might also include tuples if open shell and tm is used
         self.mo_paths: dict[str, list[str | tuple[str, str]]] = {
@@ -235,6 +242,73 @@ class MoleculeData:
         """
         return self.__energy + self.__gsolv + self.__grrho
 
+    @property
+    def gsolv_t(self) -> dict[float, float]:
+        """
+        Gsolv per temperature (empty without multitemp).
+
+        :return: Mapping of temperature to Gsolv.
+        :rtype: dict[float, float]
+        """
+        return self.__gsolv_t
+
+    @property
+    def grrho_t(self) -> dict[float, float]:
+        """
+        GmRRHO per temperature (empty without multitemp).
+
+        :return: Mapping of temperature to GmRRHO.
+        :rtype: dict[float, float]
+        """
+        return self.__grrho_t
+
+    def gsolv_at(self, temperature: float) -> float:
+        """
+        Gsolv at the given temperature, falling back to the scalar value if not evaluated there.
+
+        :param temperature: Temperature in K.
+        :type temperature: float
+        :return: Gsolv value.
+        :rtype: float
+        """
+        return self.__gsolv_t.get(round(temperature, 2), self.__gsolv)
+
+    def grrho_at(self, temperature: float) -> float:
+        """
+        GmRRHO at the given temperature, falling back to the scalar value if not evaluated there.
+
+        :param temperature: Temperature in K.
+        :type temperature: float
+        :return: GmRRHO value.
+        :rtype: float
+        """
+        return self.__grrho_t.get(round(temperature, 2), self.__grrho)
+
+    def gtot_at(self, temperature: float) -> float:
+        """
+        energy+gsolv+grrho at the given temperature.
+
+        :param temperature: Temperature in K.
+        :type temperature: float
+        :return: Total free energy.
+        :rtype: float
+        """
+        return self.__energy + self.gsolv_at(temperature) + self.grrho_at(temperature)
+
+    def temperature_data(self) -> dict[str, dict[str, float]]:
+        """
+        JSON-ready per-temperature contributions; only non-empty maps are included.
+
+        :return: Mapping of "gsolv_t"/"grrho_t" to {temperature: value}.
+        :rtype: dict[str, dict[str, float]]
+        """
+        maps = {"gsolv_t": self.__gsolv_t, "grrho_t": self.__grrho_t}
+        return {
+            key: {str(t): v for t, v in values.items()}
+            for key, values in maps.items()
+            if values
+        }
+
     def update(self, contributions: Contributions):
         """
         Update contributions.
@@ -247,3 +321,5 @@ class MoleculeData:
         self.__energy = contributions.energy
         self.__gsolv = contributions.gsolv
         self.__grrho = contributions.grrho
+        self.__gsolv_t = dict(contributions.gsolv_t)
+        self.__grrho_t = dict(contributions.grrho_t)

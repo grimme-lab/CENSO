@@ -47,6 +47,9 @@ class Returncode(int, Enum):
 OMPMIN_DEFAULT = 4  # we use 4 because ORCA/OpenMPI is buggy as hell below that?
 OMPMAX_DEFAULT = os.cpu_count() or 16
 
+# xtb parses at most 24 comma-separated $thermo temp= entries and silently drops the rest
+XTB_MAX_TEMPERATURES = 24
+
 ASSETS_PATH = Path(__file__).parent / "assets"
 
 USER_ASSETS_PATH = Path("~/.censo2_assets").expanduser()
@@ -72,6 +75,10 @@ class TmSolvMod(str, Enum):
     DCOSMORS = "dcosmors"
     COSMORS = "cosmors"
     COSMORS_FINE = "cosmors-fine"
+
+
+# TURBOMOLE solvation models evaluated with COSMOtherm (temperature-dependent Gsolv)
+COSMORS_MODELS = (TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE)
 
 
 class XtbSolvMod(str, Enum):

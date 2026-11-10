@@ -4,7 +4,7 @@ Calculates the ensemble UV/Vis spectrum.
 
 from pathlib import Path
 from tabulate import tabulate
-from typing import Any
+from typing import Any, Literal
 import json
 from dask.distributed import Client
 
@@ -27,6 +27,7 @@ def uvvis(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
+    retemp: Literal["xtb", "cosmors"] | None = None,
 ) -> dict[str, Any]:
     """
     Calculation of the ensemble UV/Vis spectrum of a (previously) optimized ensemble.
@@ -34,6 +35,9 @@ def uvvis(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
+    :param client: dask.distributed.Client for parallel execution.
+    :param retemp: If set, reuse the reloaded UV/Vis results (no calculations) and only redo the Boltzmann averaging.
+        Results are written to 6_UVVIS_RETEMP.out/.json.
     :return: JSON-serializable dictionary of UV/Vis results.
     """
     printf(h2("UVVIS"))
@@ -49,76 +53,76 @@ def uvvis(
             "Before calculating an ensemble property one has to run at least one ensemble refinement step (prescreening, screening, optimization or refinement)."
         )
 
-    # Setup processor and target
-    proc = Factory[QmProc].create(config.uvvis.prog, "6_UVVIS")
+    if retemp is not None:
+        stored = ensemble.property_results.get("uvvis")
+        if stored is None:
+            raise RuntimeError(
+                "--retemp for uvvis requires the previous results: add 6_UVVIS.json to --reload."
+            )
+        results = {
+            conf.name: UVVisResult(excitations=stored[conf.name]["excitations"])
+            for conf in ensemble
+        }
+    else:
+        # Setup processor and target
+        proc = Factory[QmProc].create(config.uvvis.prog, "6_UVVIS")
 
-    # Run UVVis calculations
-    # TODO: if some calculations fail we would need to recalculate boltzmann populations
-    job_config = UVVisJobConfig(
-        copy_mo=config.general.copy_mo,
-        grid=GridLevel.VERY_HIGH,
-        gas_phase=config.general.gas_phase,
-        solvent=config.general.solvent,
-        paths=config.paths,
-        **config.uvvis.model_dump(),
-    )
+        # Run UVVis calculations
+        # TODO: if some calculations fail we would need to recalculate boltzmann populations
+        job_config = UVVisJobConfig(
+            copy_mo=config.general.copy_mo,
+            grid=GridLevel.VERY_HIGH,
+            gas_phase=config.general.gas_phase,
+            solvent=config.general.solvent,
+            paths=config.paths,
+            **config.uvvis.model_dump(),
+        )
 
-    results = execute(
-        ensemble.conformers,
-        proc.uvvis,
-        job_config,
-        config.uvvis.prog,
-        "uvvis",
-        client,
-        ignore_failed=config.general.ignore_failed,
-        balance=config.general.balance,
-        copy_mo=config.general.copy_mo,
-    )
-    if config.general.ignore_failed:
-        ensemble.remove_conformers(lambda conf: conf.name not in results)
+        results = execute(
+            ensemble.conformers,
+            proc.uvvis,
+            job_config,
+            config.uvvis.prog,
+            "uvvis",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
     results_dict = jsonify(ensemble, config.uvvis, results)
-    _write_results(ensemble, config, results, results_dict)
+    _write_results(ensemble, config, results, results_dict, "_RETEMP" if retemp else "")
 
     return results_dict
 
 
-def _write_results(
+def _table(
     ensemble: EnsembleData,
-    config: PartsConfig,
     results: dict[str, UVVisResult],
-    results_dict: dict[str, Any],
-):
-    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+    populations: dict[str, float],
+) -> tuple[str, list[tuple[str, float, float]]]:
+    """
+    Boltzmann weight all excitations and format them as a table.
 
-    # Average excitations
+    :param ensemble: EnsembleData object containing the conformers.
+    :param results: UV/Vis results per conformer.
+    :param populations: Boltzmann populations per conformer.
+    :return: Table and (conformer, wavelength, weighted oscillator strength) per excitation.
+    """
     excitations = [
         (
             conf.name,
             excitation["wavelength"],
-            excitation["osc_str"] * boltzmann_populations[conf.name],
+            excitation["osc_str"] * populations[conf.name],
         )
         for conf in ensemble
         for excitation in results[conf.name].excitations
     ]
 
-    filepath = Path("6_UVVIS.out")
-
-    # Create table
-    headers = ["λ", "ε_max", "Origin. CONF#"]
-
-    units = ["[nm]", "", ""]
-
-    printmap = {
-        "λ": lambda exc: f"{exc[1]:.2f}",
-        "ε_max": lambda exc: f"{exc[2]:.6f}",
-        "Origin. CONF#": lambda exc: f"{exc[0]}",
-    }
-
-    rows = [[printmap[header](exc) for header in headers] for exc in excitations]
-
-    for i in range(len(headers)):
-        headers[i] += "\n" + units[i]
+    headers = ["λ\n[nm]", "ε_max\n", "Origin. CONF#\n"]
+    rows = [[f"{exc[1]:.2f}", f"{exc[2]:.6f}", f"{exc[0]}"] for exc in excitations]
 
     table = tabulate(
         rows,
@@ -127,16 +131,55 @@ def _write_results(
         disable_numparse=True,
         numalign="decimal",
     )
+    return table, excitations
+
+
+def _write_results(
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results: dict[str, UVVisResult],
+    results_dict: dict[str, Any],
+    suffix: str,
+):
+    """
+    Print the averaged UV/Vis excitations and write them to 6_UVVIS<suffix>.out/.json, including per-temperature averages with multitemp.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param results: UV/Vis results per conformer.
+    :param results_dict: JSON results, per-temperature averages and populations are added with multitemp.
+    :param suffix: File name suffix ("_RETEMP" for --retemp runs).
+    """
+    table, _ = _table(
+        ensemble, results, ensemble.get_populations(config.general.temperature)
+    )
 
     # Print everything
     printf(h1("Averaged UVVis excitations"))
     printf(table)
     printf("".ljust(int(PLENGTH), "-"))
 
-    filepath.write_text(table)
+    text = table
+    temperatures = ensemble.temperature_range(config.general, "uvvis")
+    if temperatures:
+        results_dict["populations_t"] = {}
+        results_dict["averages_t"] = {}
+    for t in temperatures:
+        populations = ensemble.get_populations(t)
+        table_t, excitations = _table(ensemble, results, populations)
+        text += f"\n\nT = {t} K\n" + table_t
+        results_dict["populations_t"][str(t)] = populations
+        results_dict["averages_t"][str(t)] = {
+            "excitations": [
+                {"conf": name, "wavelength": wavelength, "osc_str": osc_str}
+                for name, wavelength, osc_str in excitations
+            ]
+        }
+
+    Path(f"6_UVVIS{suffix}.out").write_text(text)
 
     # Additionally, write results in json format
-    Path("6_UVVIS.json").write_text(json.dumps(results_dict, indent=4))
+    Path(f"6_UVVIS{suffix}.json").write_text(json.dumps(results_dict, indent=4))
 
 
 def jsonify(
@@ -151,14 +194,13 @@ def jsonify(
     :return: Dictionary ready for JSON serialization.
     """
 
-    def per_conf(
-        conf: MoleculeData,
-    ) -> dict[str, dict[str, float | list[dict[str, float]]]]:
+    def per_conf(conf: MoleculeData) -> dict[str, dict[str, Any]]:
         return {
             conf.name: {
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
+                **conf.temperature_data(),
                 "excitations": results[conf.name].excitations,
             }
         }

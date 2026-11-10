@@ -84,7 +84,8 @@ Furthermore, it will try to automatically detect the number of available CPU cor
 ```
 usage: censo [-h] [--prescreening] [--screening] [--optimization] [--refinement] [--nmr] [--rot] [--uvvis] [-i INP] [-n NCONF] [-c CHARGE] [-u UNPAIRED] [-v] [--cleanup] [--cleanup-all]
              [--new-config] [--inprc INPRCPATH] [--constraints CONSTRAINTS] [--maxcores MAXCORES] [--omp-min OMPMIN] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logpath LOGPATH]
-             [--reload RELOAD [RELOAD ...]] [--keep-all] [--ignore-failed] [-T TEMPERATURE] [--trange start end step] [--bhess] [--consider-sym] [--sm-rrho SM_RRHO] [--evaluate-rrho]
+             [--reload RELOAD [RELOAD ...]] [--keep-all] [--ignore-failed] [--retemp [{xtb,cosmors}]] [-T TEMPERATURE] [--trange start end step] [--multitemp] [--bhess] [--consider-sym]
+             [--sm-rrho SM_RRHO] [--evaluate-rrho]
              [--solvent SOLVENT] [--gas-phase] [--imagthr IMAGTHR] [--sthr STHR] [--scale SCALE]
 
 Energetic sorting of Conformer Rotamer Ensembles (command line version).
@@ -123,12 +124,16 @@ RUN SETTINGS:
                         ensemble need to be included in the output data keys.
   --keep-all            Do not cut down the ensemble, keep all conformers from start to end.
   --ignore-failed       Ignore failed calculations. If this is not set, failed calculations will raise RuntimeError.
+  --retemp [{xtb,cosmors}]
+                        Re-evaluate only the temperature-dependent contributions (mRRHO, COSMO-RS) of the selected part using the data from --reload. 'xtb' (default) reruns xtb
+                        mRRHO and COSMOtherm on the stored out.cosmo files, 'cosmors' additionally recomputes the BP86 COSMO files. Results are written to <part>_RETEMP.out/.json.
 
 GENERAL SETTINGS:
   -T, --temperature TEMPERATURE
                         Temperature in Kelvin for thermostatistical evaluation.
   --trange start end step
-                        specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0 resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0].
+                        specify a temperature range [start, end, step] e.g.: 250.0 300.0 10.0 resulting in the range [250.0, 260.0, 270.0, 280.0, 290.0, 300.0]. Implies --multitemp.
+  --multitemp           Evaluate temperature-dependent contributions (mRRHO, COSMO-RS) for all temperatures in trange.
   --bhess               Uses SPH and applies structure constraint to input/DFT geometry for mRRHO calcuation.
   --consider-sym        Consider symmetry in mRRHO calcuation (based on desy xtb threshold).
   --sm-rrho SM_RRHO     Solvation model used in xTB GmRRHO calculation. Applied if not in gas-phase. Options are 'gbsa' or 'alpb'.

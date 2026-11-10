@@ -1,6 +1,6 @@
 from tabulate import tabulate
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 import json
 from collections.abc import Callable
 from dask.distributed import Client
@@ -8,12 +8,13 @@ from dask.distributed import Client
 from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
+from ..params import AU2KCAL, PLENGTH, COSMORS_MODELS, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, DataDump
 from ..config import PartsConfig, RefinementConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..ensemble import EnsembleData
-from ..processing import QmProc, XtbProc
+from ..processing import QmProc, TmProc, XtbProc
+from .temperature import temperature_block
 
 logger = setup_logger(__name__)
 
@@ -24,6 +25,7 @@ def refinement(
     config: PartsConfig,
     client: Client,
     cut: bool = True,
+    retemp: Literal["xtb", "cosmors"] | None = None,
 ) -> dict[str, Any]:
     """
     Basically the same as screening, however here we use a Boltzmann population cutoff instead of kcal cutoff.
@@ -32,6 +34,9 @@ def refinement(
     :param config: PartsConfig object with configuration settings.
     :param client: dask.distributed.Client for parallel execution.
     :param cut: Whether to apply cutting conditions.
+    :param retemp: If set, only re-evaluate the temperature-dependent contributions (mRRHO, COSMO-RS) starting from the
+        reloaded energies ('xtb': rerun xtb mRRHO and COSMOtherm, 'cosmors': additionally recompute the COSMO files).
+        No conformers are removed and results are written to 3_REFINEMENT_RETEMP.out/.json.
     :return: JSON-serializable dictionary of refinement results.
     """
     printf(h2("REFINEMENT"))
@@ -43,69 +48,100 @@ def refinement(
     # Setup processor and target
     proc = Factory[QmProc].create(config.refinement.prog, "3_REFINEMENT")
 
-    contributions_dict = {conf.name: Contributions() for conf in ensemble}
-    if not config.general.gas_phase and not config.refinement.gsolv_included:
-        # Calculate Gsolv using qm
-        job_config = SPJobConfig(
-            copy_mo=config.general.copy_mo,
-            func=config.refinement.func,
-            basis=config.refinement.basis,
-            grid=GridLevel.VERY_HIGH,
-            template=config.refinement.template,
-            gas_phase=False,
-            solvent=config.general.solvent,
-            sm=config.refinement.sm,
-            # multitemp=config.general.multitemp,
-            # trange=config.general.trange,
-            temperature=config.general.temperature,
-            paths=config.paths,
-        )
-        results = execute(
-            ensemble.conformers,
-            proc.gsolv,
-            job_config,
-            config.refinement.prog,
-            "refinement",
-            client,
-            ignore_failed=config.general.ignore_failed,
-            balance=config.general.balance,
-            copy_mo=config.general.copy_mo,
-        )
-        if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+    gsolv_job_config = SPJobConfig(
+        copy_mo=config.general.copy_mo,
+        func=config.refinement.func,
+        basis=config.refinement.basis,
+        grid=GridLevel.VERY_HIGH,
+        template=config.refinement.template,
+        gas_phase=False,
+        solvent=config.general.solvent,
+        sm=config.refinement.sm,
+        temperatures=config.general.get_temperatures(),
+        paths=config.paths,
+    )
+    explicit_gsolv = (
+        not config.general.gas_phase and not config.refinement.gsolv_included
+    )
 
-        for conf in ensemble:
-            contributions_dict[conf.name].gsolv = results[conf.name].gsolv
-            contributions_dict[conf.name].energy = results[conf.name].energy_gas
+    if retemp is None:
+        contributions_dict = {conf.name: Contributions() for conf in ensemble}
+        if explicit_gsolv:
+            # Calculate Gsolv using qm
+            results = execute(
+                ensemble.conformers,
+                proc.gsolv,
+                gsolv_job_config,
+                config.refinement.prog,
+                "refinement",
+                client,
+                ignore_failed=config.general.ignore_failed,
+                balance=config.general.balance,
+                copy_mo=config.general.copy_mo,
+            )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(lambda conf: conf.name not in results)
+
+            for conf in ensemble:
+                contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+                contributions_dict[conf.name].energy = results[conf.name].energy_gas
+                if config.general.multitemp:
+                    contributions_dict[conf.name].gsolv_t = results[conf.name].gsolv_t
+        else:
+            # Run sp calculation
+            sp_job_config = SPJobConfig(
+                copy_mo=config.general.copy_mo,
+                func=config.refinement.func,
+                basis=config.refinement.basis,
+                grid=GridLevel.VERY_HIGH,
+                template=config.refinement.template,
+                gas_phase=config.general.gas_phase,
+                solvent=config.general.solvent,
+                sm=config.refinement.sm,
+                paths=config.paths,
+            )
+            sp_results = execute(
+                ensemble.conformers,
+                proc.sp,
+                sp_job_config,
+                config.refinement.prog,
+                "refinement",
+                client,
+                ignore_failed=config.general.ignore_failed,
+                balance=config.general.balance,
+                copy_mo=config.general.copy_mo,
+            )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
+
+            for conf in ensemble:
+                contributions_dict[conf.name].energy = sp_results[conf.name].energy
     else:
-        # Run sp calculation
-        sp_job_config = SPJobConfig(
-            copy_mo=config.general.copy_mo,
-            func=config.refinement.func,
-            basis=config.refinement.basis,
-            grid=GridLevel.VERY_HIGH,
-            template=config.refinement.template,
-            gas_phase=config.general.gas_phase,
-            solvent=config.general.solvent,
-            sm=config.refinement.sm,
-            paths=config.paths,
-        )
-        sp_results = execute(
-            ensemble.conformers,
-            proc.sp,
-            sp_job_config,
-            config.refinement.prog,
-            "refinement",
-            client,
-            ignore_failed=config.general.ignore_failed,
-            balance=config.general.balance,
-            copy_mo=config.general.copy_mo,
-        )
-        if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
+        # Energies and temperature-independent Gsolv come from the reloaded results
+        contributions_dict = {
+            conf.name: Contributions(energy=conf.energy, gsolv=conf.gsolv)
+            for conf in ensemble
+        }
+        if explicit_gsolv and config.refinement.sm in COSMORS_MODELS:
+            tm_proc = Factory[TmProc].create(Prog.TM, "3_REFINEMENT")
+            results = execute(
+                ensemble.conformers,
+                tm_proc.cosmotherm if retemp == "xtb" else tm_proc.cosmors,
+                gsolv_job_config,
+                config.refinement.prog,
+                "refinement",
+                client,
+                ignore_failed=config.general.ignore_failed,
+                balance=config.general.balance,
+                copy_mo=config.general.copy_mo,
+            )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-        for conf in ensemble:
-            contributions_dict[conf.name].energy = sp_results[conf.name].energy
+            for conf in ensemble:
+                contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+                if config.general.multitemp:
+                    contributions_dict[conf.name].gsolv_t = results[conf.name].gsolv_t
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
@@ -113,6 +149,7 @@ def refinement(
         rrho_job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
+            temperatures=config.general.get_temperatures(),
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
         rrho_results = execute(
@@ -131,11 +168,13 @@ def refinement(
 
         for conf in ensemble:
             contributions_dict[conf.name].grrho = rrho_results[conf.name].energy
+            if config.general.multitemp:
+                contributions_dict[conf.name].grrho_t = rrho_results[conf.name].gibbs
 
     # Update molecules
     ensemble.update_contributions(contributions_dict)
 
-    if cut:
+    if cut and retemp is None:
         # Prepare Boltzmann populations
         boltzmann_populations = ensemble.get_populations(config.general.temperature)
         ensemble.conformers.sort(
@@ -155,15 +194,25 @@ def refinement(
 
     # Print/write out results
     results_dict = jsonify(ensemble, config.refinement)
-    _write_results(ensemble, config, results_dict)
+    _write_results(ensemble, config, results_dict, "_RETEMP" if retemp else "")
 
     return results_dict
 
 
 def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results_dict: dict[str, Any],
+    suffix: str,
 ) -> None:
-    """ """
+    """
+    Print the refinement results and write them to 3_REFINEMENT<suffix>.out/.json (and .xyz without suffix).
+
+    :param ensemble: EnsembleData object.
+    :param config: PartsConfig object.
+    :param results_dict: JSON results, per-temperature averages and populations are added with multitemp.
+    :param suffix: File name suffix ("_RETEMP" for --retemp runs, which skip the xyz output).
+    """
     printf(h1("REFINEMENT SINGLE-POINT (+ mRRHO) RESULTS"))
 
     # column headers
@@ -242,18 +291,32 @@ def _write_results(
     # list the averaged free enthalpy of the ensemble
     lines = []
     lines.append("\nBoltzmann averaged free energy/enthalpy of ensemble:")
-    lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
+    temperatures = ensemble.temperature_range(config.general, "refinement")
+    if temperatures:
+        lines.extend(
+            temperature_block(
+                ensemble,
+                temperatures,
+                config.general.temperature,
+                "part3",
+                results_dict,
+            )
+        )
+    else:
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}"
+        )
 
-    # calculate averaged free enthalpy
-    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
+        # calculate averaged free enthalpy
+        avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
-    # calculate averaged free energy (?)
-    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
+        # calculate averaged free energy (?)
+        avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
-    # append the lines for the free energy/enthalpy
-    lines.append(
-        f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part3=="
-    )
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part3=="
+        )
     lines.append("".ljust(int(PLENGTH), "-"))
 
     # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
@@ -263,13 +326,14 @@ def _write_results(
         printf(line)
 
     # write everything to a file
-    filepath = Path("3_REFINEMENT.out")
+    filepath = Path(f"3_REFINEMENT{suffix}.out")
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("3_REFINEMENT.json").write_text(json.dumps(results_dict, indent=4))
+    Path(f"3_REFINEMENT{suffix}.json").write_text(json.dumps(results_dict, indent=4))
 
-    ensemble.dump_xyz(Path("3_REFINEMENT.xyz"))
+    if not suffix:
+        ensemble.dump_xyz(Path("3_REFINEMENT.xyz"))
 
 
 # TODO: generalize this
@@ -290,13 +354,14 @@ def jsonify(
     :return: JSON-serializable dictionary.
     :rtype: dict[str, Any]
     """
-    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
+    per_conf: Callable[[MoleculeData], dict[str, dict[str, Any]]] = fields or (
         lambda conf: {
             conf.name: {
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
                 "gtot": conf.gtot,
+                **conf.temperature_data(),
             }
         }
     )

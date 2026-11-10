@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -72,3 +73,59 @@ def test_rc_override(example_ensemble_file, skip_paths_validation):
     assert config.general.solvent == "water"
     assert ensemble.conformers[0].charge == 1
     assert ensemble.conformers[0].unpaired == 1
+
+
+def test_trange_implies_multitemp(example_ensemble_file, skip_paths_validation):
+    argv = f"-i {example_ensemble_file} --prescreening --gas-phase --trange 250 300 10".split()
+    _, config = startup(parse(argv), {"check": ["prescreening"]})
+
+    assert config.general.multitemp is True
+    assert config.general.trange == (250.0, 300.0, 10.0)
+
+
+def test_multitemp_flag(example_ensemble_file, skip_paths_validation):
+    argv = f"-i {example_ensemble_file} --prescreening --gas-phase --multitemp".split()
+    _, config = startup(parse(argv), {"check": ["prescreening"]})
+
+    assert config.general.multitemp is True
+
+
+def test_retemp_parsing():
+    assert parse(["--retemp"]).retemp == "xtb"
+    assert parse(["--retemp", "cosmors"]).retemp == "cosmors"
+    assert parse([]).retemp is None
+
+
+@pytest.mark.parametrize(
+    "flags",
+    ["--screening --retemp", "--screening --refinement --retemp --reload x.json"],
+)
+def test_retemp_argument_errors(example_ensemble_file, flags):
+    args = parse(f"-i {example_ensemble_file} {flags}".split())
+    context = {
+        "check": [p for p in ("screening", "refinement") if getattr(args, p, False)]
+    }
+    with pytest.raises(SystemExit) as exc:
+        startup(args, context)
+    assert exc.value.code == Returncode.ARGUMENT_ERROR
+
+
+def test_property_reload_requires_retemp(
+    example_ensemble_file, skip_paths_validation, tmp_path
+):
+    from censo.ensemble import EnsembleData
+
+    ensemble = EnsembleData()
+    ensemble.read_input(example_ensemble_file)
+    data: dict[str, dict[str, list]] = {
+        conf.name: {"shieldings": [], "couplings": []} for conf in ensemble.conformers
+    }
+    nmr_json = tmp_path / "4_NMR.json"
+    nmr_json.write_text(json.dumps({"part_name": "nmr", "data": data, "settings": {}}))
+
+    args = parse(
+        f"-i {example_ensemble_file} --nmr --gas-phase --reload {nmr_json}".split()
+    )
+    with pytest.raises(SystemExit) as exc:
+        startup(args, {"check": ["nmr"]})
+    assert exc.value.code == Returncode.ARGUMENT_ERROR
