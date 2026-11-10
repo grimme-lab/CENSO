@@ -4,26 +4,21 @@ performing geometry optimization of the CRE and provide low level free energies.
 """
 
 from copy import copy
-import json
-from pathlib import Path
-from collections.abc import Callable
 from typing import Any
-from tabulate import tabulate
 from dask.distributed import Client
 
 from ..ensemble import EnsembleData
 from ..molecules import MoleculeData, Contributions
 from ..processing import QmProc, XtbProc
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
+from ..params import AU2KCAL, GridLevel, Prog
 from ..config import PartsConfig
-from ..config.parts import OptimizationConfig
 from ..config.job_config import RRHOJobConfig, OptJobConfig, XTBOptJobConfig
+from ..output import Column, format_table, write_ranking
 from ..utilities import (
     printf,
     h1,
     Factory,
-    DataDump,
     h2,
 )
 from ..logging import setup_logger
@@ -103,11 +98,13 @@ def optimization(
         )
         ensemble.remove_conformers(lambda conf: conf.gtot > threshold)
 
-    # Print/write out results
-    results_dict = jsonify(ensemble, config.optimization)
-    _write_results(ensemble, config, results_dict)
-
-    return results_dict
+    return write_ranking(
+        "2_OPTIMIZATION",
+        ensemble,
+        config,
+        "OPTIMIZATION RESULTS",
+        geometries="DFT optimized",
+    )
 
 
 def _macrocycle_opt(
@@ -356,208 +353,23 @@ def _full_opt(
     return contributions_dict
 
 
-def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
-) -> None:
-    """ """
-    printf(h1("OPTIMIZATION RESULTS"))
-
-    # column headers
-    headers = [
-        "CONF#",
-        # "G (xTB)",
-        # "ΔG (xTB)",
-        "E (DFT)",
-        "ΔGsolv",
-        "GmRRHO",
-        "Gtot",
-        "ΔGtot",
-        "Boltzmann weight",
-    ]
-
-    # column units
-    units = [
-        "",
-        # "[Eh]",
-        # "[kcal/mol]",
-        "[Eh]",
-        "[kcal/mol]",
-        "[Eh]",
-        "[Eh]",
-        "[kcal/mol]",
-        f"% at {config.general.temperature} K",
-    ]
-
-    # variables for printmap
-    gtotmin = min(conf.gtot for conf in ensemble)
-
-    boltzmann_populations = ensemble.get_populations(config.general.temperature)
-
-    printmap = {
-        "CONF#": lambda conf: conf.name,
-        # "G (xTB)": lambda conf: (
-        #     f"{gxtb[conf.name]:.6f}" if gxtb is not None else "---"
-        # ),
-        # "ΔG (xTB)": lambda conf: (
-        #     f"{(gxtb[conf.name] - gxtbmin) * AU2KCAL:.2f}"
-        #     if gxtb is not None and gxtbmin is not None
-        #     else "---"
-        # ),
-        "E (DFT)": lambda conf: f"{conf.energy:.6f}",
-        "ΔGsolv": lambda conf: (f"{conf.gsolv * AU2KCAL:.6f}"),
-        "GmRRHO": lambda conf: (f"{conf.grrho:.6f}"),
-        "Gtot": lambda conf: f"{conf.gtot:.6f}",
-        "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
-        "Boltzmann weight": lambda conf: f"{boltzmann_populations[conf.name] * 100:.2f}",
-    }
-
-    rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
-
-    for i in range(len(headers)):
-        headers[i] += "\n" + units[i]
-
-    table = tabulate(
-        rows,
-        headers=headers,
-        colalign=["left"] + ["center" for _ in headers[1:]],
-        disable_numparse=True,
-        numalign="decimal",
-    )
-    printf(table)
-
-    # list the averaged free enthalpy of the ensemble
-    lines: list[str] = []
-    lines.append(
-        "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (DFT optimized):"
-    )
-    lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
-
-    # calculate averaged free enthalpy
-    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
-
-    # calculate averaged free energy (?)
-    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
-
-    # append the lines for the free energy/enthalpy
-    lines.append(
-        f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part2=="
-    )
-    lines.append("".ljust(int(PLENGTH), "-"))
-
-    # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
-
-    # Print everything
-    for line in lines:
-        printf(line)
-
-    # write everything to a file
-    filepath = Path("2_OPTIMIZATION.out")
-    filepath.write_text(table + "\n".join(lines))
-
-    # Additionally, write results in json format
-    Path("2_OPTIMIZATION.json").write_text(json.dumps(results_dict, indent=4))
-
-    ensemble.dump_xyz(Path("2_OPTIMIZATION.xyz"))
-
-
-# TODO: generalize this
-def jsonify(
-    ensemble: EnsembleData,
-    config: OptimizationConfig,
-    fields: Callable[[MoleculeData], dict[str, Any]] | None = None,
-):
+def _print_update(ensemble: EnsembleData) -> None:
     """
-    Convert ensemble data to JSON format for optimization results.
+    Print converged/removed and unconverged conformers after an optimization macrocycle.
 
-    :param ensemble: EnsembleData object.
-    :param config: OptimizationConfig object.
-    :param fields: Optional callable to customize fields.
-    :return: JSON-serializable dictionary.
+    :param ensemble: Ensemble of unconverged conformers; removed ones are in ensemble.rem.
     """
-    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
-        lambda conf: {
-            conf.name: {
-                "energy": conf.energy,
-                "gsolv": conf.gsolv,
-                "grrho": conf.grrho,
-                "gtot": conf.gtot,
-            }
-        }
-    )
-
-    dump = DataDump(part_name="optimization")
-
-    for conf in ensemble:
-        dump.data.update(per_conf(conf))
-
-    dump.settings = config.model_dump()
-
-    return dump.model_dump(mode="json")
-
-
-def _print_update(ensemble: EnsembleData):
-    # column headers
-    headers = [
-        "CONF#",
-        "E (DFT)",
-        "GmRRHO",
-        "Gtot",
-        "ΔGtot",
-    ]
-
-    # column units
-    units = [
-        "",
-        "[Eh]",
-        "[Eh]",
-        "[Eh]",
-        "[kcal/mol]",
-    ]
-
-    # variables for printmap
     gtotmin = min(conf.gtot for conf in ensemble.conformers + ensemble.rem)
-
-    printmap = {
-        "CONF#": lambda conf: conf.name,
-        "E (DFT)": lambda conf: f"{conf.energy:.6f}",
-        "GmRRHO": lambda conf: (f"{conf.grrho:.6f}"),
-        "Gtot": lambda conf: f"{conf.gtot:.6f}",
-        "ΔGtot": lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}",
-    }
-
+    columns: list[Column[MoleculeData]] = [
+        ("CONF#", "", lambda conf: conf.name),
+        ("E (DFT)", "[Eh]", lambda conf: f"{conf.energy:.6f}"),
+        ("GmRRHO", "[Eh]", lambda conf: f"{conf.grrho:.6f}"),
+        ("Gtot", "[Eh]", lambda conf: f"{conf.gtot:.6f}"),
+        ("ΔGtot", "[kcal/mol]", lambda conf: f"{(conf.gtot - gtotmin) * AU2KCAL:.2f}"),
+    ]
     if len(ensemble.rem) > 0:
         printf(h1("Converged or removed conformers"))
-
-        rows = [[printmap[header](conf) for header in headers] for conf in ensemble.rem]
-
-        for i in range(len(headers)):
-            headers[i] += "\n" + units[i]
-
-        table = tabulate(
-            rows,
-            headers=headers,
-            colalign=["left"] + ["center" for _ in headers[1:]],
-            disable_numparse=True,
-            numalign="decimal",
-        )
-        printf(table)
-
-        for i in range(len(headers)):
-            headers[i] = headers[i].split("\n")[0]
-
+        printf(format_table(columns, ensemble.rem))
     if len(ensemble.conformers) > 0:
         printf(h1("Unconverged conformers"))
-
-        rows = [[printmap[header](conf) for header in headers] for conf in ensemble]
-
-        for i in range(len(headers)):
-            headers[i] += "\n" + units[i]
-
-        table = tabulate(
-            rows,
-            headers=headers,
-            colalign=["left"] + ["center" for _ in headers[1:]],
-            disable_numparse=True,
-            numalign="decimal",
-        )
-        printf(table)
+        printf(format_table(columns, ensemble.conformers))

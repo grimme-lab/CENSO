@@ -4,23 +4,20 @@ Calculates the ensemble NMR spectrum for all active nuclei.
 
 from collections import defaultdict
 from pathlib import Path
-from tabulate import tabulate
 from itertools import product
 from typing import Any
-import json
 from dask.distributed import Client
 
 from ..ensemble import EnsembleData
-from ..molecules import MoleculeData
 from ..config import PartsConfig
-from ..config.parts import NMRConfig
 from ..config.job_config import NMRJobConfig
 from ..parallel import execute
 from ..processing.results import NMRResult
-from ..utilities import printf, Factory, h1, h2, DataDump
+from ..output import Column, format_table, write_output
+from ..utilities import printf, Factory, h1, h2
 from ..logging import setup_logger
 from ..processing import QmProc
-from ..params import GridLevel, PLENGTH
+from ..params import GridLevel
 
 logger = setup_logger(__name__)
 
@@ -76,10 +73,17 @@ def nmr(
     if config.general.ignore_failed:
         ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-    results_dict = jsonify(ensemble, config.nmr, results)
-    _write_results(ensemble, config, results, results_dict)
-
-    return results_dict
+    return write_output(
+        "4_NMR",
+        ensemble,
+        config,
+        _report(ensemble, config, results),
+        lambda conf: {
+            "nat": conf.geom.nat,
+            "shieldings": results[conf.name].shieldings,
+            "couplings": results[conf.name].couplings,
+        },
+    )
 
 
 def read_chemeq() -> dict[int, list[int]]:
@@ -105,12 +109,18 @@ def read_chemeq() -> dict[int, list[int]]:
     return equiv
 
 
-def _write_results(
-    ensemble: EnsembleData,
-    config: PartsConfig,
-    results: dict[str, NMRResult],
-    results_dict: dict[str, Any],
-):
+def _report(
+    ensemble: EnsembleData, config: PartsConfig, results: dict[str, NMRResult]
+) -> str:
+    """
+    Boltzmann-average shieldings and couplings, applying chemical equivalence from
+    anmr_nucinfo, and format them as the NMR result report.
+
+    :param ensemble: Conformers to average over.
+    :param config: Settings; the temperature is taken from config.general.
+    :param results: NMR results per conformer name.
+    :return: The report.
+    """
     boltzmann_populations = ensemble.get_populations(config.general.temperature)
 
     try:
@@ -148,101 +158,28 @@ def _write_results(
         for ieq, jeq in product(equiv_i, equiv_j):
             averaged_couplings[(ieq, jeq)] += v / n_pairs
 
-    filepath = Path("4_NMR.out")
-    text = ""
-    if len(averaged_shieldings) > 0:
-        headers = ["Atom #", "σ"]
-        printmap = {"Atom #": lambda k, v: str(k), "σ": lambda k, v: f"{v:.4f}"}
-
-        rows = [
-            [printmap[header](k, v) for header in headers]
-            for k, v in averaged_shieldings.items()
+    blocks: list[str] = []
+    if averaged_shieldings:
+        shielding_columns: list[Column[tuple[int, float]]] = [
+            ("Atom #", "", lambda item: str(item[0])),
+            ("σ", "", lambda item: f"{item[1]:.4f}"),
         ]
-
-        printf(h1("Averaged NMR Shielding Constants"))
-        table = tabulate(
-            rows,
-            headers=headers,
-            colalign=["left"] + ["center" for _ in headers[1:]],
-            disable_numparse=True,
-            numalign="decimal",
-        )
-        printf(table)
-        text += table
-    else:
-        printf("No shieldings calculated.")
-
-    # Print couplings
-    if len(averaged_couplings) > 0:
-        headers = ["Atom A #", "Atom B #", "J"]
-        units = ["", "", "[Hz]"]
-        printmap = {
-            "Atom A #": lambda k, v: str(k[0]),
-            "Atom B #": lambda k, v: str(k[1]),
-            "J": lambda k, v: f"{v:.2f}",
-        }
-
-        rows = [
-            [printmap[header](k, v) for header in headers]
-            for k, v in averaged_couplings.items()
+        blocks += [
+            h1("Averaged NMR Shielding Constants"),
+            format_table(shielding_columns, averaged_shieldings.items()),
         ]
-        for i in range(len(headers)):
-            headers[i] += "\n" + units[i]
-
-        printf(h1("Averaged NMR Spin-Spin Coupling Constants"))
-        table = tabulate(
-            rows,
-            headers=headers,
-            colalign=["left"] + ["center" for _ in headers[1:]],
-            disable_numparse=True,
-            numalign="decimal",
-        )
-        printf(table)
-        text += table
     else:
-        printf("No couplings calculated.")
-
-    printf("".ljust(int(PLENGTH), "-"))
-    filepath.write_text(text)
-
-    # Additionally, write results in json format
-    Path("4_NMR.json").write_text(json.dumps(results_dict, indent=4))
-
-
-def jsonify(ensemble: EnsembleData, config: NMRConfig, results: dict[str, NMRResult]):
-    """
-    Prepare NMR results for JSON serialization.
-
-    :param ensemble: EnsembleData object containing the conformers.
-    :param config: NMRConfig object with NMR configuration settings.
-    :param results: Dictionary of NMRResult objects for each conformer.
-    :return: Dictionary ready for JSON serialization.
-    """
-
-    def per_conf(
-        conf: MoleculeData,
-    ) -> dict[
-        str,
-        dict[
-            str, float | list[tuple[int, float]] | list[tuple[tuple[int, int], float]]
-        ],
-    ]:
-        return {
-            conf.name: {
-                "energy": conf.energy,
-                "gsolv": conf.gsolv,
-                "grrho": conf.grrho,
-                "nat": conf.geom.nat,
-                "shieldings": results[conf.name].shieldings,
-                "couplings": results[conf.name].couplings,
-            }
-        }
-
-    dump = DataDump(part_name="nmr")
-
-    for conf in ensemble:
-        dump.data.update(per_conf(conf))
-
-    dump.settings = config.model_dump()
-
-    return dump.model_dump(mode="json")
+        blocks.append("No shieldings calculated.")
+    if averaged_couplings:
+        coupling_columns: list[Column[tuple[tuple[int, int], float]]] = [
+            ("Atom A #", "", lambda item: str(item[0][0])),
+            ("Atom B #", "", lambda item: str(item[0][1])),
+            ("J", "[Hz]", lambda item: f"{item[1]:.2f}"),
+        ]
+        blocks += [
+            h1("Averaged NMR Spin-Spin Coupling Constants"),
+            format_table(coupling_columns, averaged_couplings.items()),
+        ]
+    else:
+        blocks.append("No couplings calculated.")
+    return "\n".join(blocks)
