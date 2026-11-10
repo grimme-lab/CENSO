@@ -1,5 +1,6 @@
 from typing import Literal, Self
 from pydantic import model_validator, Field
+import warnings
 
 from .base import BasePartConfig
 from ...params import GfnVersion, QmProg, TmSolvMod, OrcaSolvMod
@@ -18,8 +19,18 @@ class OptimizationConfig(BasePartConfig):
     basis: str = "def2-mTZVPP"
     """Basis set that should be used for calculations."""
 
-    sm: OrcaSolvMod | Literal[TmSolvMod.DCOSMORS, TmSolvMod.COSMO] = TmSolvMod.DCOSMORS
-    """Solvation model that should be used for calculations."""
+    sm: OrcaSolvMod | TmSolvMod = TmSolvMod.DCOSMORS
+    """Solvation model that should be used for calculations.
+
+    When cosmors or cosmors-fine is chosen, geometry optimizations will use dcosmors
+    and a final gsolv calculation with the chosen COSMO-RS model will be performed
+    after all geometries are done optimizing, for final reranking.
+    """
+
+    gsolv_included: bool = False
+    """Whether to explicitly calculate Gsolv contributions
+    (False means gsolv will be calculated, True means it is already included in energy).
+    """
 
     gfnv: GfnVersion = GfnVersion.GFN2
     """GFN version to be used for xtb calculations."""
@@ -85,4 +96,22 @@ class OptimizationConfig(BasePartConfig):
             raise ValueError(
                 "Constraints can currently only be used with ANCOPT. Enable xtb_opt to use constraints."
             )
+        return self
+
+    @model_validator(mode="after")
+    def cosmors_uses_dcosmors_for_opt(self) -> Self:
+        """
+        When cosmors or cosmors-fine is chosen as solvent model, geometry optimizations
+        will use dcosmors. Warn the user and set gsolv_included to False so that a
+        final gsolv calculation with the chosen COSMO-RS model is performed for reranking.
+
+        :return: The validated instance.
+        """
+        if self.sm in [TmSolvMod.COSMORS, TmSolvMod.COSMORS_FINE]:
+            warnings.warn(
+                f"Solvation model {self.sm.value} selected for optimization. "
+                f"Geometry optimizations will use dcosmors, with a final reranking "
+                f"after all geometries are done optimizing using {self.sm.value}."
+            )
+            self.gsolv_included = False
         return self

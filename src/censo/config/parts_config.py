@@ -3,7 +3,7 @@ from pydantic import model_validator, Field, field_validator, ValidationInfo
 import warnings
 
 
-from ..params import OrcaSolvMod, QmProg, TmSolvMod
+from ..params import SOLV_MODS, OrcaSolvMod, QmProg, TmSolvMod
 from .generic import GenericConfig
 from ..assets import SOLVENTS
 from .parts import (
@@ -152,6 +152,15 @@ class PartsConfig(GenericConfig):
         for name, part in parts_to_check:
             solvent_model: OrcaSolvMod | TmSolvMod | None = getattr(part, "sm", None)
             if solvent_model:
+                prog: QmProg | None = getattr(part, "prog", None)
+                if (
+                    prog is not None
+                    and not self.general.gas_phase
+                    and solvent_model not in SOLV_MODS[prog]
+                ):
+                    raise ValueError(
+                        f"Solvation model {solvent_model.value} not available with {prog.value} in {name}."
+                    )
                 available_solvents = [
                     s for s, keywords in SOLVENTS.items() if solvent_model in keywords
                 ]
