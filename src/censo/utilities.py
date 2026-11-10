@@ -7,8 +7,6 @@ import functools
 import os
 import time
 from collections.abc import Callable
-from pydantic import BaseModel
-from typing import Any
 from datetime import timedelta
 
 from .params import BOHR2ANG, PLENGTH
@@ -80,22 +78,6 @@ class Factory[T]:
             raise TypeError(f"No type was found for '{name}' in {list(cls._registry)}.")
         builder = cls._registry[name]
         return builder(*args, **kwargs)
-
-
-class DataDump(BaseModel):
-    """
-    Model for dumping data with part name and settings.
-    """
-
-    part_name: str
-    data: dict[
-        str,
-        dict[
-            str,
-            Any,
-        ],
-    ] = {}
-    settings: dict[str, Any] = {}
 
 
 def printf(*args, **kwargs):

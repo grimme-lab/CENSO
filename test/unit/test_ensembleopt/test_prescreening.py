@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from censo.config.parts_config import PartsConfig
 from censo.ensemble import EnsembleData
-from censo.ensembleopt.prescreening import prescreening, jsonify
+from censo.ensembleopt.prescreening import prescreening
 
 # ============= Tests for Core Prescreening Functionality =============
 
@@ -71,24 +71,3 @@ class TestPrescreening:
 
         # Verify number of remaining conformers
         assert len(mock_ensemble.conformers) == expected_count
-
-
-# ============= Tests for Result Handling =============
-
-
-class TestResultHandling:
-    """Tests for result handling and output functions"""
-
-    def test_jsonify(self, mock_ensemble: EnsembleData):
-        """Test JSON conversion function"""
-
-        config = PartsConfig()
-
-        # Run jsonify
-        result = jsonify(mock_ensemble, config.prescreening)
-
-        # Verify result
-        assert isinstance(result, dict)
-        assert "data" in result
-        assert "settings" in result
-        assert "CONF1" in result["data"]
