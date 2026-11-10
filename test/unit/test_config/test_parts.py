@@ -61,6 +61,11 @@ def test_solvent_model_validation(solvent, sm_model, should_pass):
     config = PartsConfig()
     config.general.solvent = solvent
 
+    # Use ORCA for all parts so that the ORCA solvent models are compatible
+    config.screening.prog = QmProg.ORCA
+    config.optimization.prog = QmProg.ORCA
+    config.refinement.prog = QmProg.ORCA
+
     # Set the same solvent model for all parts that use it
     config.screening.sm = sm_model
     config.optimization.sm = sm_model
@@ -100,6 +105,42 @@ def test_invalid_solvent_combination():
     # Should raise ValueError due to incompatible solvent/model combination
     with pytest.raises(ValueError):
         config.model_validate(config, context={"check_all": True})
+
+
+@pytest.mark.parametrize(
+    "part,prog,sm",
+    [
+        ("screening", QmProg.ORCA, TmSolvMod.COSMORS),
+        ("screening", QmProg.ORCA, TmSolvMod.COSMORS_FINE),
+        ("optimization", QmProg.ORCA, TmSolvMod.COSMORS),
+        ("refinement", QmProg.ORCA, TmSolvMod.COSMORS_FINE),
+        ("nmr", QmProg.ORCA, TmSolvMod.DCOSMORS),
+        ("screening", QmProg.TM, OrcaSolvMod.SMD),
+    ],
+)
+def test_solvent_model_must_match_prog(part, prog, sm):
+    """Test that a solvation model not supported by the part's program is rejected"""
+    config = PartsConfig()
+    config.general.solvent = "water"
+    getattr(config, part).prog = prog
+    getattr(config, part).sm = sm
+
+    with pytest.raises(ValueError, match=f"{sm.value} not available with {prog.value}"):
+        PartsConfig.model_validate(
+            config, context={"check": [part], "check_paths": False}
+        )
+
+
+def test_solvent_model_prog_mismatch_ignored_in_gas_phase():
+    """Test that the solvation model is not checked against the program in gas phase"""
+    config = PartsConfig()
+    config.general.gas_phase = True
+    config.screening.prog = QmProg.ORCA
+    config.screening.sm = TmSolvMod.COSMORS
+
+    PartsConfig.model_validate(
+        config, context={"check": ["screening"], "check_paths": False}
+    )
 
 
 def test_paths_model_validation():
