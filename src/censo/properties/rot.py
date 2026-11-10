@@ -4,7 +4,7 @@ Calculates the ensemble optical rotation spectrum.
 
 from pathlib import Path
 from tabulate import tabulate
-from typing import Any
+from typing import Any, Literal
 import json
 from dask.distributed import Client
 
@@ -27,6 +27,7 @@ def rot(
     ensemble: EnsembleData,
     config: PartsConfig,
     client: Client,
+    retemp: Literal["xtb", "cosmors"] | None = None,
 ) -> dict[str, Any]:
     """
     Calculation of the ensemble optical rotation spectrum of a (previously) optimized ensemble.
@@ -34,6 +35,9 @@ def rot(
 
     :param ensemble: EnsembleData object containing the conformers.
     :param config: PartsConfig object with configuration settings.
+    :param client: dask.distributed.Client for parallel execution.
+    :param retemp: If set, reuse the reloaded optical rotation results (no calculations) and only redo the Boltzmann averaging.
+        Results are written to 5_ROT_RETEMP.dat/.json.
     :return: JSON-serializable dictionary of optical rotation results.
     """
     printf(h2("ROT"))
@@ -47,40 +51,151 @@ def rot(
             "Before calculating an ensemble property one has to run at least one ensemble refinement step (prescreening, screening, optimization or refinement)."
         )
 
-    # Setup processor and target
-    proc = Factory[QmProc].create(config.rot.prog, "5_ROT")
+    if retemp is not None:
+        stored = ensemble.property_results.get("rot")
+        if stored is None:
+            raise RuntimeError(
+                "--retemp for rot requires the previous results: add 5_ROT.json to --reload."
+            )
+        results = {
+            conf.name: RotResult(
+                rotations_velocity=[
+                    (f, r) for f, r in stored[conf.name]["rotations_velocity"]
+                ],
+                rotations_length=[
+                    (f, r) for f, r in stored[conf.name]["rotations_length"]
+                ],
+            )
+            for conf in ensemble
+        }
+    else:
+        # Setup processor and target
+        proc = Factory[QmProc].create(config.rot.prog, "5_ROT")
 
-    # Run optical rotation calculations
-    job_config = RotJobConfig(
-        copy_mo=config.general.copy_mo,
-        grid=GridLevel.VERY_HIGH,
-        gas_phase=True,
-        paths=config.paths,
-        func=config.rot.func,
-        basis=config.rot.basis,
-        template=config.rot.template,
-        temperature=config.general.temperature,
-        freq=config.rot.freq,
-    )
+        # Run optical rotation calculations
+        job_config = RotJobConfig(
+            copy_mo=config.general.copy_mo,
+            grid=GridLevel.VERY_HIGH,
+            gas_phase=True,
+            paths=config.paths,
+            func=config.rot.func,
+            basis=config.rot.basis,
+            template=config.rot.template,
+            freq=config.rot.freq,
+        )
 
-    results = execute(
-        ensemble.conformers,
-        proc.rot,
-        job_config,
-        config.rot.prog,
-        "rot",
-        client,
-        ignore_failed=config.general.ignore_failed,
-        balance=config.general.balance,
-        copy_mo=config.general.copy_mo,
-    )
-    if config.general.ignore_failed:
-        ensemble.remove_conformers(lambda conf: conf.name not in results)
+        results = execute(
+            ensemble.conformers,
+            proc.rot,
+            job_config,
+            config.rot.prog,
+            "rot",
+            client,
+            ignore_failed=config.general.ignore_failed,
+            balance=config.general.balance,
+            copy_mo=config.general.copy_mo,
+        )
+        if config.general.ignore_failed:
+            ensemble.remove_conformers(lambda conf: conf.name not in results)
 
     results_dict = jsonify(ensemble, config.rot, results)
-    _write_results(ensemble, config, results, results_dict)
+    _write_results(ensemble, config, results, results_dict, "_RETEMP" if retemp else "")
 
     return results_dict
+
+
+def _rotation(rotations: list[tuple[float, float]], freq: float) -> float:
+    """
+    Rotation value at the given frequency (0.0 if not calculated).
+
+    :param rotations: (frequency, rotation) pairs.
+    :param freq: Frequency to look up (matched within 0.1).
+    :return: Rotation value.
+    """
+    return next((r for f, r in rotations if abs(f - freq) < 0.1), 0.0)
+
+
+def _average(
+    ensemble: EnsembleData,
+    results: dict[str, RotResult],
+    frequencies: list[float],
+    populations: dict[str, float],
+    representation: Literal["rotations_length", "rotations_velocity"],
+) -> list[tuple[float, float]]:
+    """
+    Boltzmann averaged rotation per frequency.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param results: Optical rotation results per conformer.
+    :param frequencies: Frequencies to average.
+    :param populations: Boltzmann populations per conformer.
+    :param representation: Which representation to average.
+    :return: (frequency, averaged rotation) pairs.
+    """
+    return [
+        (
+            freq,
+            sum(
+                _rotation(getattr(results[conf.name], representation), freq)
+                * populations[conf.name]
+                for conf in ensemble
+            ),
+        )
+        for freq in frequencies
+    ]
+
+
+def _tables(
+    ensemble: EnsembleData,
+    results: dict[str, RotResult],
+    frequencies: list[float],
+    populations: dict[str, float],
+) -> tuple[str | None, str]:
+    """
+    Format per-conformer and Boltzmann averaged rotations as tables.
+
+    :param ensemble: EnsembleData object containing the conformers.
+    :param results: Optical rotation results per conformer.
+    :param frequencies: Frequencies to print.
+    :param populations: Boltzmann populations per conformer.
+    :return: Length representation table (None if not available) and velocity representation table.
+    """
+    headers = ["CONF#\n"] + [f"{freq} nm\ndeg·dm⁻¹·(g·cm³)⁻¹" for freq in frequencies]
+
+    def table(
+        representation: Literal["rotations_length", "rotations_velocity"],
+    ) -> str:
+        rows = [
+            [conf.name]
+            + [
+                f"{_rotation(getattr(results[conf.name], representation), freq):.3f}"
+                for freq in frequencies
+            ]
+            for conf in ensemble
+        ]
+        rows.append(
+            ["Ensemble avg."]
+            + [
+                f"{avg:.3f}"
+                for _, avg in _average(
+                    ensemble, results, frequencies, populations, representation
+                )
+            ]
+        )
+        return tabulate(
+            rows,
+            headers=headers,
+            colalign=["left"] + ["center" for _ in headers[1:]],
+            disable_numparse=True,
+            numalign="decimal",
+        )
+
+    # Length representation is only available for some programs, velocity always
+    has_length = all(result.rotations_length for result in results.values())
+    return (
+        table("rotations_length") if has_length else None,
+        table("rotations_velocity"),
+    )
 
 
 def _write_results(
@@ -88,110 +203,66 @@ def _write_results(
     config: PartsConfig,
     results: dict[str, RotResult],
     results_dict: dict[str, Any],
+    suffix: str,
 ):
-    boltzmann_populations = ensemble.get_populations(config.general.temperature)
+    """
+    Print the optical rotation tables and write them to 5_ROT<suffix>.dat/.json, including per-temperature averages with multitemp.
 
-    # Get all frequencies from job config
+    :param ensemble: EnsembleData object containing the conformers.
+    :param config: PartsConfig object with configuration settings.
+    :param results: Optical rotation results per conformer.
+    :param results_dict: JSON results, per-temperature averages and populations are added with multitemp.
+    :param suffix: File name suffix ("_RETEMP" for --retemp runs).
+    """
     frequencies = config.rot.freq
 
-    # Define headers and units
-    headers = ["CONF#"] + [f"{freq} nm" for freq in frequencies]
-    units = [""] + ["deg·dm⁻¹·(g·cm³)⁻¹" for _ in frequencies]
-    filepath = Path("5_ROT.dat")
-
-    # Collect rotation data for each conformer
-    rows_length: list[list[str]] = []
-    rows_velocity: list[list[str]] = []
-
-    # Only print if lengths representation is available
-    if all(result.rotations_length for result in results.values()):
-        for conf in ensemble:
-            row = [conf.name]
-            for freq in frequencies:
-                rotation = next(
-                    (
-                        rotation
-                        for f, rotation in results[conf.name].rotations_length
-                        if abs(f - freq) < 0.1
-                    ),
-                    0.0,
-                )
-                row.append(f"{rotation:.3f}")
-            rows_length.append(row)
-
-    # Velocity represtntation should always be available
-    for conf in ensemble:
-        row = [conf.name]
-        for freq in frequencies:
-            rotation = next(
-                (
-                    rotation
-                    for f, rotation in results[conf.name].rotations_velocity
-                    if abs(f - freq) < 0.1
-                ),
-                0.0,
-            )
-            row.append(f"{rotation:.3f}")
-        rows_velocity.append(row)
-
-    # Add ensemble averaged values for length representation
-    if all(result.rotations_length for result in results.values()):
-        ensemble_avg_length = ["Ensemble avg."]
-        for i, freq in enumerate(frequencies):
-            avg_rotation = sum(
-                rotation * boltzmann_populations[conf.name]
-                for conf in ensemble
-                for f, rotation in results[conf.name].rotations_length
-                if abs(f - freq) < 0.1  # Match frequency within tolerance
-            )
-            ensemble_avg_length.append(f"{avg_rotation:.3f}")
-        rows_length.append(ensemble_avg_length)
-
-    # Add ensemble averaged values for velocity representation
-    ensemble_avg_velocity = ["Ensemble avg."]
-    for i, freq in enumerate(frequencies):
-        avg_rotation = sum(
-            rotation * boltzmann_populations[conf.name]
-            for conf in ensemble
-            for f, rotation in results[conf.name].rotations_velocity
-            if abs(f - freq) < 0.1  # Match frequency within tolerance
+    def text(populations: dict[str, float]) -> str:
+        table_length, table_velocity = _tables(
+            ensemble, results, frequencies, populations
         )
-        ensemble_avg_velocity.append(f"{avg_rotation:.3f}")
-    rows_velocity.append(ensemble_avg_velocity)
+        parts = []
+        if table_length is not None:
+            parts += [
+                h1("Optical Rotation Values (Length Representation)"),
+                table_length,
+            ]
+        parts += [
+            h1("Optical Rotation Values (Velocity Representation)"),
+            table_velocity,
+        ]
+        return "\n".join(parts)
 
-    # Add units to headers
-    for i in range(len(headers)):
-        headers[i] += "\n" + units[i]
-
-    # Write length representation if available
-    if rows_length:
-        table_length = tabulate(
-            rows_length,
-            headers=headers,
-            colalign=["left"] + ["center" for _ in headers[1:]],
-            disable_numparse=True,
-            numalign="decimal",
-        )
-        printf(h1("Optical Rotation Values (Length Representation)"))
-        printf(table_length)
-        filepath.write_text(table_length)
-
-    # Write velocity representation
-    table_velocity = tabulate(
-        rows_velocity,
-        headers=headers,
-        colalign=["left"] + ["center" for _ in headers[1:]],
-        disable_numparse=True,
-        numalign="decimal",
-    )
-    printf(h1("Optical Rotation Values (Velocity Representation)"))
-    printf(table_velocity)
-    filepath.write_text(table_velocity)
-
+    out = text(ensemble.get_populations(config.general.temperature))
+    printf(out)
     printf("".ljust(int(PLENGTH), "-"))
 
+    temperatures = ensemble.temperature_range(config.general, "rot")
+    if temperatures:
+        results_dict["populations_t"] = {}
+        results_dict["averages_t"] = {}
+    representations: list[Literal["rotations_length", "rotations_velocity"]] = [
+        "rotations_velocity"
+    ]
+    if all(result.rotations_length for result in results.values()):
+        representations.insert(0, "rotations_length")
+    for t in temperatures:
+        populations = ensemble.get_populations(t)
+        out += f"\n\nT = {t} K\n" + text(populations)
+        results_dict["populations_t"][str(t)] = populations
+        results_dict["averages_t"][str(t)] = {
+            representation: [
+                [f, avg]
+                for f, avg in _average(
+                    ensemble, results, frequencies, populations, representation
+                )
+            ]
+            for representation in representations
+        }
+
+    Path(f"5_ROT{suffix}.dat").write_text(out)
+
     # Additionally, write results in json format
-    Path("5_ROT.json").write_text(json.dumps(results_dict, indent=4))
+    Path(f"5_ROT{suffix}.json").write_text(json.dumps(results_dict, indent=4))
 
 
 def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotResult]):
@@ -204,14 +275,13 @@ def jsonify(ensemble: EnsembleData, config: RotConfig, results: dict[str, RotRes
     :return: Dictionary ready for JSON serialization.
     """
 
-    def per_conf(
-        conf: MoleculeData,
-    ) -> dict[str, dict[str, float | list[tuple[float, float]]]]:
+    def per_conf(conf: MoleculeData) -> dict[str, dict[str, Any]]:
         return {
             conf.name: {
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
+                **conf.temperature_data(),
                 "rotations_length": results[conf.name].rotations_length,
                 "rotations_velocity": results[conf.name].rotations_velocity,
             }

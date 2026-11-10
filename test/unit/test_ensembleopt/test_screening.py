@@ -1,9 +1,108 @@
+import json
+from pathlib import Path
+
 import pytest
 from unittest.mock import patch
 
 from censo.config.parts_config import PartsConfig
 from censo.ensemble import EnsembleData
 from censo.ensembleopt.screening import screening, jsonify
+from censo.molecules import Contributions
+from censo.processing.results import RRHOResult
+
+
+def _multitemp_rrho(ensemble: EnsembleData, grid: list[float]) -> dict:
+    """Fake mRRHO results with a conformer-dependent temperature slope."""
+    return {
+        conf.name: RRHOResult(
+            energy=0.08,
+            gibbs={t: 0.08 + 1e-5 * (i % 3) * (t - grid[-1]) for t in grid},
+        )
+        for i, conf in enumerate(ensemble.conformers)
+    }
+
+
+class TestScreeningMultitemp:
+    """Tests for multitemp evaluation and --retemp in screening"""
+
+    @patch("censo.ensembleopt.screening.execute")
+    def test_multitemp_gas_phase(
+        self,
+        mock_execute,
+        mock_ensemble: EnsembleData,
+        mock_execute_results,
+        parallel_setup,
+        skip_paths_validation,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.chdir(tmp_path)
+        config = PartsConfig()
+        config.general.gas_phase = True
+        config.general.multitemp = True
+        grid = config.general.get_temperatures()
+
+        mock_ensemble.remove_conformers(
+            lambda conf: conf.name not in mock_execute_results["screening"]["sp"]
+        )
+        mock_execute.side_effect = [
+            mock_execute_results["screening"]["sp"],
+            _multitemp_rrho(mock_ensemble, grid),
+        ]
+
+        client, cluster = parallel_setup
+        results_dict = screening(mock_ensemble, config, client)
+
+        assert all(len(d["grrho_t"]) == 21 for d in results_dict["data"].values())
+        assert len(results_dict["averages_t"]) == 21
+        assert all(
+            sum(pops.values()) == pytest.approx(1.0)
+            for pops in results_dict["populations_t"].values()
+        )
+        marked = [
+            line
+            for line in Path("1_SCREENING.out").read_text().splitlines()
+            if "<<==part1==" in line
+        ]
+        assert len(marked) == 1 and marked[0].split()[0] == "298.15"
+        saved = json.loads(Path("1_SCREENING.json").read_text())
+        assert "averages_t" in saved and "populations_t" in saved
+
+    @patch("censo.ensembleopt.screening.execute")
+    def test_retemp_xtb_reuses_energies(
+        self,
+        mock_execute,
+        mock_ensemble: EnsembleData,
+        parallel_setup,
+        skip_paths_validation,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.chdir(tmp_path)
+        mock_ensemble.conformers = mock_ensemble.conformers[:5]
+        energies = {
+            conf.name: -300.0 - 0.001 * i for i, conf in enumerate(mock_ensemble)
+        }
+        for conf in mock_ensemble:
+            conf.update(Contributions(energy=energies[conf.name], grrho=0.07))
+
+        config = PartsConfig()
+        config.general.gas_phase = True
+        config.general.multitemp = True
+        config.general.trange = (250.0, 350.0, 25.0)
+        mock_execute.return_value = _multitemp_rrho(
+            mock_ensemble, config.general.get_temperatures()
+        )
+
+        client, cluster = parallel_setup
+        screening(mock_ensemble, config, client, retemp="xtb")
+
+        assert mock_execute.call_count == 1
+        assert Path("1_SCREENING_RETEMP.json").is_file()
+        assert not Path("1_SCREENING.json").exists()
+        assert all(conf.energy == energies[conf.name] for conf in mock_ensemble)
+        assert all(len(conf.grrho_t) == 6 for conf in mock_ensemble)
+
 
 # ============= Tests for Core Screening Functionality =============
 

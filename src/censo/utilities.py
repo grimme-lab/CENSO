@@ -105,23 +105,6 @@ def printf(*args, **kwargs):
     print(*args, flush=True, **kwargs)
 
 
-def frange(start: float, end: float, step: float = 1) -> list[float]:
-    """
-    Create a range of floats, adding 'step' to 'start' while it's less or equal than 'end'.
-
-    :param start: The start of the range.
-    :param end: The end of the range.
-    :param step: The step size. Defaults to 1.
-    :return: The list of floats.
-    """
-    result = []
-    current = start
-    while current <= end:
-        result.append(current)
-        current += step
-    return result
-
-
 def t2x(
     path: str, writexyz: bool = False, outfile: str = "original.xyz"
 ) -> tuple[list[str], int, str]:

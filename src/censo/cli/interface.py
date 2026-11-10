@@ -93,7 +93,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             (partname, task) for partname, enabled, task in tasks[:4] if enabled
         ]:
             start = time.perf_counter()
-            _ = func(ensemble, parts_config, client, cut=cut)  # type: ignore[call-arg]
+            _ = func(ensemble, parts_config, client, cut=cut, retemp=args.retemp)  # type: ignore[call-arg, operator]
             end = time.perf_counter()
             runtime = end - start
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
@@ -120,7 +120,7 @@ def entry_point(argv: list[str] | None = None) -> Returncode:
             (partname, task) for partname, enabled, task in tasks[4:] if enabled
         ]:
             start = time.perf_counter()
-            _ = func(ensemble, parts_config, client)  # type: ignore[operator]
+            _ = func(ensemble, parts_config, client, retemp=args.retemp)  # type: ignore[operator]
             end = time.perf_counter()
             runtime = end - start
             printf(f"Ran {func.__name__} in {runtime:.2f} seconds!")
@@ -197,6 +197,19 @@ def startup(
         printf("No tasks enabled! Stopping CENSO.")
         sys.exit(Returncode.OK)
 
+    if args.retemp is not None:
+        if not args.reload:
+            printf(
+                "--retemp requires --reload with the results of the part(s) to re-evaluate."
+            )
+            sys.exit(Returncode.ARGUMENT_ERROR)
+        ensembleopt_parts = ("prescreening", "screening", "optimization", "refinement")
+        if sum(bool(getattr(args, part, False)) for part in ensembleopt_parts) > 1:
+            printf(
+                "--retemp can only be used with one ensemble optimization part at a time."
+            )
+            sys.exit(Returncode.ARGUMENT_ERROR)
+
     try:
         parts_config = configure(rcpath=args.inprcpath, args=args, context=context)
     except ValidationError as e:
@@ -226,6 +239,12 @@ def startup(
     if args.reload:
         for filename in args.reload:
             ensemble.read_output(Path(filename))
+
+        if ensemble.property_results and args.retemp is None:
+            printf(
+                f"Reloaded property results ({', '.join(ensemble.property_results)}) can only be used together with --retemp."
+            )
+            sys.exit(Returncode.ARGUMENT_ERROR)
 
     # Set working directory to input parent
     # NOTE: this is the most convenient way to solve this for CLI version

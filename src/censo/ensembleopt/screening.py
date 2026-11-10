@@ -7,7 +7,7 @@ from math import exp
 from statistics import stdev
 from tabulate import tabulate
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 import json
 from collections.abc import Callable
 from dask.distributed import Client
@@ -15,13 +15,14 @@ from dask.distributed import Client
 from ..molecules import MoleculeData, Contributions
 from ..logging import setup_logger
 from ..parallel import execute
-from ..params import AU2KCAL, PLENGTH, GridLevel, Prog
+from ..params import AU2KCAL, PLENGTH, COSMORS_MODELS, GridLevel, Prog
 from ..utilities import h1, h2, printf, Factory, DataDump
 from ..config import PartsConfig
 from ..config.parts import ScreeningConfig
 from ..config.job_config import RRHOJobConfig, SPJobConfig
 from ..ensemble import EnsembleData
-from ..processing import QmProc, XtbProc
+from ..processing import QmProc, TmProc, XtbProc
+from .temperature import temperature_block
 
 logger = setup_logger(__name__)
 
@@ -31,6 +32,7 @@ def screening(
     config: PartsConfig,
     client: Client,
     cut: bool = True,
+    retemp: Literal["xtb", "cosmors"] | None = None,
 ) -> dict[str, Any]:
     """
     Advanced screening of the ensemble by doing single-point calculations on the input geometries,
@@ -48,6 +50,10 @@ def screening(
     :type client: Client
     :param cut: Whether to apply cutting conditions.
     :type cut: bool
+    :param retemp: If set, only re-evaluate the temperature-dependent contributions (mRRHO, COSMO-RS) starting from the
+        reloaded energies ('xtb': rerun xtb mRRHO and COSMOtherm, 'cosmors': additionally recompute the COSMO files).
+        No conformers are removed and results are written to 1_SCREENING_RETEMP.out/.json.
+    :type retemp: Literal["xtb", "cosmors"] | None
     :return: JSON-serializable dictionary of screening results.
     :rtype: dict
     """
@@ -60,69 +66,100 @@ def screening(
     # Setup processor and target
     proc = Factory[QmProc].create(config.screening.prog, "1_SCREENING")
 
-    contributions_dict = {conf.name: Contributions() for conf in ensemble}
-    if not config.general.gas_phase and not config.screening.gsolv_included:
-        # Calculate Gsolv using qm
-        job_config = SPJobConfig(
-            copy_mo=config.general.copy_mo,
-            func=config.screening.func,
-            basis=config.screening.basis,
-            grid=GridLevel.MEDIUM,
-            template=config.screening.template,
-            gas_phase=False,
-            solvent=config.general.solvent,
-            sm=config.screening.sm,
-            # multitemp=config.general.multitemp,
-            # trange=config.general.trange,
-            temperature=config.general.temperature,
-            paths=config.paths,
-        )
-        results = execute(
-            ensemble.conformers,
-            proc.gsolv,
-            job_config,
-            config.screening.prog,
-            "screening",
-            client,
-            ignore_failed=config.general.ignore_failed,
-            balance=config.general.balance,
-            copy_mo=config.general.copy_mo,
-        )
-        if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in results)
+    gsolv_job_config = SPJobConfig(
+        copy_mo=config.general.copy_mo,
+        func=config.screening.func,
+        basis=config.screening.basis,
+        grid=GridLevel.MEDIUM,
+        template=config.screening.template,
+        gas_phase=False,
+        solvent=config.general.solvent,
+        sm=config.screening.sm,
+        temperatures=config.general.get_temperatures(),
+        paths=config.paths,
+    )
+    explicit_gsolv = (
+        not config.general.gas_phase and not config.screening.gsolv_included
+    )
 
-        for conf in ensemble:
-            contributions_dict[conf.name].gsolv = results[conf.name].gsolv
-            contributions_dict[conf.name].energy = results[conf.name].energy_gas
+    if retemp is None:
+        contributions_dict = {conf.name: Contributions() for conf in ensemble}
+        if explicit_gsolv:
+            # Calculate Gsolv using qm
+            results = execute(
+                ensemble.conformers,
+                proc.gsolv,
+                gsolv_job_config,
+                config.screening.prog,
+                "screening",
+                client,
+                ignore_failed=config.general.ignore_failed,
+                balance=config.general.balance,
+                copy_mo=config.general.copy_mo,
+            )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(lambda conf: conf.name not in results)
+
+            for conf in ensemble:
+                contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+                contributions_dict[conf.name].energy = results[conf.name].energy_gas
+                if config.general.multitemp:
+                    contributions_dict[conf.name].gsolv_t = results[conf.name].gsolv_t
+        else:
+            # Run sp calculation
+            sp_job_config = SPJobConfig(
+                func=config.screening.func,
+                basis=config.screening.basis,
+                grid=GridLevel.MEDIUM,
+                template=config.screening.template,
+                gas_phase=config.general.gas_phase,
+                solvent=config.general.solvent,
+                sm=config.screening.sm,
+                paths=config.paths,
+                copy_mo=config.general.copy_mo,
+            )
+            sp_results = execute(
+                ensemble.conformers,
+                proc.sp,
+                sp_job_config,
+                config.screening.prog,
+                "screening",
+                client,
+                ignore_failed=config.general.ignore_failed,
+                balance=config.general.balance,
+                copy_mo=config.general.copy_mo,
+            )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
+
+            for conf in ensemble:
+                contributions_dict[conf.name].energy = sp_results[conf.name].energy
     else:
-        # Run sp calculation
-        sp_job_config = SPJobConfig(
-            func=config.screening.func,
-            basis=config.screening.basis,
-            grid=GridLevel.MEDIUM,
-            template=config.screening.template,
-            gas_phase=config.general.gas_phase,
-            solvent=config.general.solvent,
-            sm=config.screening.sm,
-            paths=config.paths,
-            copy_mo=config.general.copy_mo,
-        )
-        sp_results = execute(
-            ensemble.conformers,
-            proc.sp,
-            sp_job_config,
-            config.screening.prog,
-            "screening",
-            client,
-            ignore_failed=config.general.ignore_failed,
-            balance=config.general.balance,
-            copy_mo=config.general.copy_mo,
-        )
-        if config.general.ignore_failed:
-            ensemble.remove_conformers(lambda conf: conf.name not in sp_results)
+        # Energies and temperature-independent Gsolv come from the reloaded results
+        contributions_dict = {
+            conf.name: Contributions(energy=conf.energy, gsolv=conf.gsolv)
+            for conf in ensemble
+        }
+        if explicit_gsolv and config.screening.sm in COSMORS_MODELS:
+            tm_proc = Factory[TmProc].create(Prog.TM, "1_SCREENING")
+            results = execute(
+                ensemble.conformers,
+                tm_proc.cosmotherm if retemp == "xtb" else tm_proc.cosmors,
+                gsolv_job_config,
+                config.screening.prog,
+                "screening",
+                client,
+                ignore_failed=config.general.ignore_failed,
+                balance=config.general.balance,
+                copy_mo=config.general.copy_mo,
+            )
+            if config.general.ignore_failed:
+                ensemble.remove_conformers(lambda conf: conf.name not in results)
 
-        for conf in ensemble:
-            contributions_dict[conf.name].energy = sp_results[conf.name].energy
+            for conf in ensemble:
+                contributions_dict[conf.name].gsolv = results[conf.name].gsolv
+                if config.general.multitemp:
+                    contributions_dict[conf.name].gsolv_t = results[conf.name].gsolv_t
 
     if config.general.evaluate_rrho:
         # Run mRRHO calculation
@@ -130,6 +167,7 @@ def screening(
         rrho_job_config = RRHOJobConfig(
             gfnv=config.screening.gfnv,
             paths=config.paths,
+            temperatures=config.general.get_temperatures(),
             **config.general.model_dump(),  # This will just let the constructor pick the key/value pairs it needs
         )
         rrho_results = execute(
@@ -148,11 +186,13 @@ def screening(
 
         for conf in ensemble:
             contributions_dict[conf.name].grrho = rrho_results[conf.name].energy
+            if config.general.multitemp:
+                contributions_dict[conf.name].grrho_t = rrho_results[conf.name].gibbs
 
     # Update molecules
     ensemble.update_contributions(contributions_dict)
 
-    if cut:
+    if cut and retemp is None:
         # Threshold in kcal/mol
         threshold = config.screening.threshold
         if len(ensemble.conformers) > 1:
@@ -169,15 +209,25 @@ def screening(
 
     # Print/write out results
     results_dict = jsonify(ensemble, config.screening)
-    _write_results(ensemble, config, results_dict)
+    _write_results(ensemble, config, results_dict, "_RETEMP" if retemp else "")
 
     return results_dict
 
 
 def _write_results(
-    ensemble: EnsembleData, config: PartsConfig, results_dict: dict[str, Any]
+    ensemble: EnsembleData,
+    config: PartsConfig,
+    results_dict: dict[str, Any],
+    suffix: str,
 ) -> None:
-    """ """
+    """
+    Print the screening results and write them to 1_SCREENING<suffix>.out/.json (and .xyz without suffix).
+
+    :param ensemble: EnsembleData object.
+    :param config: PartsConfig object.
+    :param results_dict: JSON results, per-temperature averages and populations are added with multitemp.
+    :param suffix: File name suffix ("_RETEMP" for --retemp runs, which skip the xyz output).
+    """
     printf(h1("SCREENING SINGLE-POINT (+ mRRHO) RESULTS"))
 
     # column headers
@@ -258,18 +308,32 @@ def _write_results(
     lines.append(
         "\nBoltzmann averaged free energy/enthalpy of ensemble on input geometries (not DFT optimized):"
     )
-    lines.append(f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}")
+    temperatures = ensemble.temperature_range(config.general, "screening")
+    if temperatures:
+        lines.extend(
+            temperature_block(
+                ensemble,
+                temperatures,
+                config.general.temperature,
+                "part1",
+                results_dict,
+            )
+        )
+    else:
+        lines.append(
+            f"{'temperature /K:':<15} {'avE(T) /a.u.':>14} {'avG(T) /a.u.':>14}"
+        )
 
-    # calculate averaged free enthalpy
-    avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
+        # calculate averaged free enthalpy
+        avG = sum([boltzmann_populations[conf.name] * conf.gtot for conf in ensemble])
 
-    # calculate averaged free energy (?)
-    avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
+        # calculate averaged free energy (?)
+        avE = sum([boltzmann_populations[conf.name] * conf.energy for conf in ensemble])
 
-    # append the lines for the free energy/enthalpy
-    lines.append(
-        f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1=="
-    )
+        # append the lines for the free energy/enthalpy
+        lines.append(
+            f"{config.general.temperature:^15} {avE:>14.7f}  {avG:>14.7f}     <<==part1=="
+        )
     lines.append("".ljust(int(PLENGTH), "-"))
 
     # lines.append(f">>> END of {self.__class__.__name__} <<<".center(PLENGTH, " ") + "\n")
@@ -279,13 +343,14 @@ def _write_results(
         printf(line)
 
     # write everything to a file
-    filepath = Path("1_SCREENING.out")
+    filepath = Path(f"1_SCREENING{suffix}.out")
     filepath.write_text(table + "\n".join(lines))
 
     # Additionally, write results in json format
-    Path("1_SCREENING.json").write_text(json.dumps(results_dict, indent=4))
+    Path(f"1_SCREENING{suffix}.json").write_text(json.dumps(results_dict, indent=4))
 
-    ensemble.dump_xyz(Path("1_SCREENING.xyz"))
+    if not suffix:
+        ensemble.dump_xyz(Path("1_SCREENING.xyz"))
 
 
 # TODO: generalize this
@@ -306,13 +371,14 @@ def jsonify(
     :return: JSON-serializable dictionary.
     :rtype: dict[str, Any]
     """
-    per_conf: Callable[[MoleculeData], dict[str, dict[str, float]]] = fields or (
+    per_conf: Callable[[MoleculeData], dict[str, dict[str, Any]]] = fields or (
         lambda conf: {
             conf.name: {
                 "energy": conf.energy,
                 "gsolv": conf.gsolv,
                 "grrho": conf.grrho,
                 "gtot": conf.gtot,
+                **conf.temperature_data(),
             }
         }
     )

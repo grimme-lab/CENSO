@@ -1,5 +1,51 @@
 import pytest
-from censo.properties.nmr import read_chemeq
+from unittest.mock import patch
+
+from censo.config.parts_config import PartsConfig
+from censo.ensemble import EnsembleData
+from censo.molecules import Contributions
+from censo.properties.nmr import nmr, read_chemeq
+
+
+@patch("censo.properties.nmr.execute", side_effect=AssertionError("no calculations"))
+def test_nmr_retemp_reuses_results(
+    mock_execute, fixtures_path, tmp_path, monkeypatch, skip_paths_validation
+):
+    """--retemp averages the reloaded NMR results over the temperature range."""
+    monkeypatch.chdir(tmp_path)
+    ensemble = EnsembleData()
+    ensemble.read_input((fixtures_path / "crest_conformers.xyz").as_posix(), nconf=2)
+
+    config = PartsConfig()
+    config.general.multitemp = True
+    config.general.trange = (273.15, 323.15, 25.0)
+    grid = sorted(config.general.get_temperatures())
+    for i, conf in enumerate(ensemble.conformers):
+        conf.update(
+            Contributions(
+                energy=-100.0 - 0.001 * i,
+                grrho=0.05,
+                grrho_t={t: 0.05 + 2e-5 * i * (t - 298.15) for t in grid},
+            )
+        )
+    ensemble.property_results["nmr"] = {
+        conf.name: {
+            "shieldings": [[0, 30.0 + i], [1, 25.0]],
+            "couplings": [[[0, 1], 7.0 + i]],
+        }
+        for i, conf in enumerate(ensemble.conformers)
+    }
+
+    results_dict = nmr(ensemble, config, client=None, retemp="xtb")  # type: ignore[arg-type]
+
+    out = (tmp_path / "4_NMR_RETEMP.out").read_text()
+    assert "T = 273.15 K" in out
+    assert (tmp_path / "4_NMR_RETEMP.json").is_file()
+    assert list(results_dict["averages_t"]) == [str(t) for t in grid]
+    sigma_0 = {
+        t: dict(av["shieldings"])[0] for t, av in results_dict["averages_t"].items()
+    }
+    assert sigma_0["273.15"] != pytest.approx(sigma_0["323.15"])
 
 
 def test_read_chemeq_fixture(fixtures_path, monkeypatch, tmp_path):

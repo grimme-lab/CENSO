@@ -1,0 +1,11 @@
+{
+   "temperature":     298.150000000000,
+   "unit": "hartree",
+   "energy":      -5.070544445195,
+   "free energy":      -5.068047618895,
+   "G(T)":       0.002496826300,
+   "ZPVE":       0.020122488046,
+   "number of imags":0,
+   "point group": "c2v",
+   "gradient norm":       0.000063615721
+}

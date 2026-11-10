@@ -2,7 +2,131 @@ import pytest
 from pathlib import Path
 import json
 
+from censo.config.parts.general import GeneralConfig
 from censo.ensemble import EnsembleData
+from censo.molecules import Contributions
+
+
+@pytest.fixture
+def two_confs(fixtures_path: Path) -> EnsembleData:
+    """Ensemble of the first two conformers from the crest fixture."""
+    ensemble = EnsembleData()
+    ensemble.read_input((fixtures_path / "crest_conformers.xyz").as_posix(), nconf=2)
+    return ensemble
+
+
+def _set(ensemble: EnsembleData, **per_conf: Contributions) -> None:
+    ensemble.update_contributions(per_conf)
+
+
+class TestTemperatureContributions:
+    """Tests for per-temperature contributions and populations"""
+
+    def test_gtot_at_uses_map_and_falls_back(self, two_confs):
+        conf = two_confs.conformers[0]
+        conf.update(
+            Contributions(
+                energy=-1.0, gsolv=-0.01, grrho=0.1, grrho_t={250.0: 0.2, 298.15: 0.1}
+            )
+        )
+        assert conf.gtot_at(250.0) == pytest.approx(-1.0 - 0.01 + 0.2)
+        assert conf.gtot_at(298.15) == pytest.approx(conf.gtot)
+        # 300 K not in the map: scalar fallback
+        assert conf.gtot_at(300.0) == pytest.approx(conf.gtot)
+        assert conf.gsolv_at(250.0) == -0.01
+
+    def test_populations_flip_with_temperature(self, two_confs):
+        c1, c2 = two_confs.conformers
+        _set(
+            two_confs,
+            **{
+                c1.name: Contributions(
+                    energy=-1.0, grrho=0.0, grrho_t={250.0: 0.0, 400.0: 0.0}
+                ),
+                c2.name: Contributions(
+                    energy=-1.002, grrho=0.0, grrho_t={250.0: 0.0, 400.0: 0.005}
+                ),
+            },
+        )
+        assert (
+            max(two_confs.get_populations(250.0).items(), key=lambda x: x[1])[0]
+            == c2.name
+        )
+        assert (
+            max(two_confs.get_populations(400.0).items(), key=lambda x: x[1])[0]
+            == c1.name
+        )
+
+    def test_dump_json_read_output_roundtrip(self, two_confs, tmp_path):
+        c1, c2 = two_confs.conformers
+        maps = {
+            c.name: Contributions(
+                energy=-1.0 - i,
+                gsolv=-0.01,
+                grrho=0.1,
+                gsolv_t={273.15: -0.02, 298.15: -0.01},
+                grrho_t={273.15: 0.11, 298.15: 0.1},
+            )
+            for i, c in enumerate(two_confs.conformers)
+        }
+        _set(two_confs, **maps)
+        file = tmp_path / "dump.json"
+        two_confs.dump_json(file)
+
+        reloaded = EnsembleData()
+        reloaded.conformers = [c1, c2]
+        for conf in reloaded.conformers:
+            conf.update(Contributions())
+        reloaded.read_output(file)
+
+        for conf in reloaded.conformers:
+            assert conf.gsolv_t == maps[conf.name].gsolv_t
+            assert conf.grrho_t == maps[conf.name].grrho_t
+            assert conf.energy == maps[conf.name].energy
+
+    def test_property_json_goes_to_property_results(self, two_confs, tmp_path):
+        for conf in two_confs.conformers:
+            conf.update(Contributions(energy=-5.0))
+        data = {
+            conf.name: {"shieldings": [[0, 30.0]], "couplings": []}
+            for conf in two_confs.conformers
+        }
+        file = tmp_path / "4_NMR.json"
+        file.write_text(json.dumps({"part_name": "nmr", "data": data, "settings": {}}))
+
+        two_confs.read_output(file)
+
+        assert two_confs.property_results["nmr"] == data
+        assert all(conf.energy == -5.0 for conf in two_confs.conformers)
+
+    def test_temperature_range(self, two_confs):
+        general = GeneralConfig(multitemp=True, trange=(250, 300, 25))
+        grid = [250.0, 275.0, 298.15, 300.0]
+
+        # multitemp off
+        assert two_confs.temperature_range(GeneralConfig(), "screening") == []
+
+        # no temperature-dependent data at all
+        assert two_confs.temperature_range(general, "screening") == []
+
+        # rrho only at a single temperature
+        for conf in two_confs.conformers:
+            conf.update(Contributions(energy=-1.0, grrho=0.1))
+        with pytest.raises(RuntimeError, match="single temperature"):
+            two_confs.temperature_range(general, "nmr")
+
+        # temperature missing for one conformer
+        c1, c2 = two_confs.conformers
+        full = {t: 0.1 for t in grid}
+        c1.update(Contributions(energy=-1.0, grrho=0.1, grrho_t=full))
+        c2.update(
+            Contributions(energy=-1.0, grrho=0.1, grrho_t={250.0: 0.1, 298.15: 0.1})
+        )
+        with pytest.raises(RuntimeError, match=r"missing for \[275.0, 300.0\]"):
+            two_confs.temperature_range(general, "nmr")
+
+        c2.update(Contributions(energy=-1.0, grrho=0.1, grrho_t=full))
+        assert two_confs.temperature_range(general, "nmr") == grid
 
 
 class TestEnsembleDataReadOutput:
